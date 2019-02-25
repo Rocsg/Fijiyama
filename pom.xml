@@ -46,38 +46,7 @@
 			</roles>
 		</developer>
 	</developers>
-	<contributors>
-		<contributor>
-			<name>Johannes Schindelin</name>
-			<url>https://imagej.net/User:Schindelin</url>
-			<roles><role>founder</role></roles>
-			<properties><id>dscho</id></properties>
-		</contributor>
-		<contributor>
-			<name>Olivier Burri</name>
-			<url>https://imagej.net/User:Oburri</url>
-			<properties><id>lacan</id></properties>
-		</contributor>
-		<contributor>
-			<name>Mark Hiner</name>
-			<url>https://imagej.net/User:Hinerm</url>
-			<properties><id>hinerm</id></properties>
-		</contributor>
-		<contributor>
-			<name>Jules Maselbas</name>
-		</contributor>
-		<contributor>
-			<name>Kota Miura</name>
-			<url>https://imagej.net/User:Miura</url>
-			<properties><id>cmci</id></properties>
-		</contributor>
-		<contributor>
-			<name>Yili Zhao</name>
-			<url>https://imagej.net/User:Panovr</url>
-			<properties><id>panovr</id></properties>
-		</contributor>
-	</contributors>
-
+	
 	<mailingLists>
 		<mailingList>
 			<name>Image.sc Forum</name>
@@ -86,14 +55,14 @@
 	</mailingLists>
 
 	<scm>
-		<connection>scm:git:git://github.com/imagej/example-legacy-plugin</connection>
-		<developerConnection>scm:git:git@github.com:imagej/example-legacy-plugin</developerConnection>
+		<connection>scm:git:git://github.com/imagej/vitimage</connection>
+		<developerConnection>scm:git:git@github.com:imagej/vitimage</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/imagej/example-legacy-plugin</url>
+		<url>https://github.com/imagej/vitimage</url>
 	</scm>
 	<issueManagement>
 		<system>GitHub Issues</system>
-		<url>https://github.com/imagej/example-legacy-plugin/issues</url>
+		<url>https://github.com/imagej/vitimage/issues</url>
 	</issueManagement>
 	<ciManagement>
 		<system>None</system>
