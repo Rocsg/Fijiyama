@@ -12,7 +12,7 @@
 		<relativePath />
 	</parent>
 
-	<groupId>com.mycompany</groupId>
+	<groupId>com.vitimage</groupId>
 	<artifactId>Process_Pixels</artifactId>
 
 	<name>Process Pixels</name>
