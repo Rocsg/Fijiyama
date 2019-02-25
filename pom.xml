@@ -55,14 +55,14 @@
 	</mailingLists>
 
 	<scm>
-		<connection>scm:git:git://github.com/imagej/vitimage</connection>
-		<developerConnection>scm:git:git@github.com:imagej/vitimage</developerConnection>
+		<connection>scm:git:git://github.com/Rocsg/vitimage</connection>
+		<developerConnection>scm:git:git@github.com:Rocsg/vitimage</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/imagej/vitimage</url>
+		<url>https://github.com/Rocsg/vitimage</url>
 	</scm>
 	<issueManagement>
 		<system>GitHub Issues</system>
-		<url>https://github.com/imagej/vitimage/issues</url>
+		<url>https://github.com/Rocsg/vitimage/issues</url>
 	</issueManagement>
 	<ciManagement>
 		<system>None</system>
