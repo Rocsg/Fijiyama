@@ -14,7 +14,6 @@
 
 	<groupId>com.mycompany</groupId>
 	<artifactId>Process_Pixels</artifactId>
-	<version>0.1.0-SNAPSHOT</version>
 
 	<name>Process Pixels</name>
 	<description>A Maven project implementing an ImageJ 1.x plugin.</description>
@@ -88,6 +87,8 @@
 		<dependency>
 			<groupId>net.imagej</groupId>
 			<artifactId>ij</artifactId>
+			<version>1.52k</version>
 		</dependency>
 	</dependencies>
+	<version>1.0.0</version>
 </project>
