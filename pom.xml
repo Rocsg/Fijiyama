@@ -18,10 +18,10 @@
 	<name>Process Pixels</name>
 	<description>A Maven project implementing an ImageJ 1.x plugin.</description>
 	<url>http://mycompany.com/imagej/process-pixels/</url>
-	<inceptionYear>2012</inceptionYear>
+	<inceptionYear>20119</inceptionYear>
 	<organization>
-		<name>My Company</name>
-		<url>http://mycompany.com/</url>
+		<name>Vitimage</name>
+		<url>https://www.plan-deperissement-vigne.fr/travaux-de-recherche/programmes-de-recherche/vitimage</url>
 	</organization>
 	<licenses>
 		<license>
@@ -77,10 +77,10 @@
 	</ciManagement>
 
 	<properties>
-		<package-name>com.mycompany.imagej</package-name>
-		<main-class>com.mycompany.imagej.Process_Pixels</main-class>
+		<package-name>com.vitimage</package-name>
+		<main-class>com.vitimage.Process_Pixels</main-class>
 		<license.licenseName>bsd_2</license.licenseName>
-		<license.copyrightOwners>My Company, Inc.</license.copyrightOwners>
+		<license.copyrightOwners>vitimage</license.copyrightOwners>
 	</properties>
 
 	<dependencies>
