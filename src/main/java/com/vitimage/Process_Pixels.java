@@ -6,7 +6,7 @@
  *     http://creativecommons.org/publicdomain/zero/1.0/
  */
 
-package com.mycompany.imagej;
+package com.vitimage;
 
 import ij.IJ;
 import ij.ImageJ;
