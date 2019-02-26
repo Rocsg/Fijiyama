@@ -7,12 +7,11 @@
 
 
 	<groupId>com.vitimage</groupId>
-	<artifactId>Process_Pixels</artifactId>
+	<artifactId>Vitimage_Toolbox</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
-	<name>Process_Pixels</name>
+	<name>Vitimage_Toolbox</name>
 	<packaging>jar</packaging>
-	<description>A Maven project implementing an ImageJ 1.x plugin.</description>
-	<url>http://mycompany.com/imagej/process-pixels/</url>
+	<description>Useful tools for the common experiments of the VITIMAGE project</description>
 	<inceptionYear>2019</inceptionYear>
 	<organization>
 		<name>Vitimage</name>
@@ -28,7 +27,7 @@
 	<developers>
 		<developer>
 			<id>Rocsg</id>
-			<name>Romain el Fernandez</name>
+			<name>Romain Fernandez</name>
 			<url>https://imagej.net/User:Rocsg</url>
 			<roles>
 				<role>lead</role>
@@ -74,7 +73,7 @@
 	<properties>
 		<package-name>com.vitimage</package-name>
 		<license.licenseName>bsd_2</license.licenseName>
-		<main-class>Process_Pixels</main-class>
+		<main-class>Vitimage_Toolbox</main-class>
 		<license.copyrightOwners>vitimage</license.copyrightOwners>
 	</properties>
 

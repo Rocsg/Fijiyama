@@ -1,14 +1,4 @@
-/*
- * To the extent possible under law, the ImageJ developers have waived
- * all copyright and related or neighboring rights to this tutorial code.
- *
- * See the CC0 1.0 Universal license for details:
- *     http://creativecommons.org/publicdomain/zero/1.0/
- */
-
 package com.vitimage;
-
-
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -22,7 +12,7 @@ import ij.process.ImageProcessor;
  *
  * @author Johannes Schindelin
  */
-public class Process_Pixels implements PlugInFilter {
+public class Vitimage_Toolbox implements PlugInFilter {
 	protected ImagePlus image;
 
 	// image property members
@@ -169,7 +159,7 @@ public class Process_Pixels implements PlugInFilter {
 	 */
 	public static void main(String[] args) {
 		// set the plugins.dir property to make the plugin appear in the Plugins menu
-		Class<?> clazz = Process_Pixels.class;
+		Class<?> clazz = Vitimage_Toolbox.class;
 		String url = clazz.getResource("/" + clazz.getName().replace('.', '/') + ".class").toString();
 		String pluginsDir = url.substring("file:".length(), url.length() - clazz.getName().length() - ".class".length());
 		System.setProperty("plugins.dir", pluginsDir);
