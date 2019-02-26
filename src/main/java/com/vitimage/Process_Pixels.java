@@ -45,7 +45,7 @@ public class Process_Pixels implements PlugInFilter {
 
 	@Override
 	public void run(ImageProcessor ip) {
-		IJ.log("TEST TEST TEST");
+		IJ.log("pouet");
 		// get width and height
 		width = ip.getWidth();
 		height = ip.getHeight();
