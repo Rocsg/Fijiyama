@@ -8,6 +8,7 @@
 
 package com.vitimage;
 
+
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -32,7 +33,6 @@ public class Process_Pixels implements PlugInFilter {
 	public double value;
 	public String name;
 
-	@Override
 	public int setup(String arg, ImagePlus imp) {
 		if (arg.equals("about")) {
 			showAbout();
@@ -43,9 +43,7 @@ public class Process_Pixels implements PlugInFilter {
 		return DOES_8G | DOES_16 | DOES_32 | DOES_RGB;
 	}
 
-	@Override
 	public void run(ImageProcessor ip) {
-		IJ.log("pouet");
 		// get width and height
 		width = ip.getWidth();
 		height = ip.getHeight();

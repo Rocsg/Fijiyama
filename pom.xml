@@ -7,10 +7,10 @@
 
 
 	<groupId>com.vitimage</groupId>
-	<artifactId>Vitimage_Package</artifactId>
+	<artifactId>Process_Pixels</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
-	<name>Vitimage_package</name>
-	<packaging>pom</packaging>
+	<name>Process_Pixels</name>
+	<packaging>jar</packaging>
 	<description>A Maven project implementing an ImageJ 1.x plugin.</description>
 	<url>http://mycompany.com/imagej/process-pixels/</url>
 	<inceptionYear>2019</inceptionYear>
@@ -73,8 +73,8 @@
 
 	<properties>
 		<package-name>com.vitimage</package-name>
-		<main-class>Process_Pixels</main-class>
 		<license.licenseName>bsd_2</license.licenseName>
+		<main-class>Process_Pixels</main-class>
 		<license.copyrightOwners>vitimage</license.copyrightOwners>
 	</properties>
 
@@ -85,7 +85,4 @@
 			<version>1.52k</version>
 		</dependency>
 	</dependencies>
-	<modules>
-		<module>Transform_3D</module>
-	</modules>
 </project>
