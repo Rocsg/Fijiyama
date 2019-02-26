@@ -76,12 +76,22 @@
 		<main-class>Vitimage_Toolbox</main-class>
 		<license.copyrightOwners>vitimage</license.copyrightOwners>
 	</properties>
-
+	<repositories>
+	  <repository>
+	   	  <id>imagej.public</id>
+	      <url>http://maven.imagej.net/content/groups/public</url>
+      </repository>
+	</repositories>
 	<dependencies>
 		<dependency>
 			<groupId>net.imagej</groupId>
 			<artifactId>ij</artifactId>
 			<version>1.52k</version>
+		</dependency>
+		<dependency>
+			<groupId>sc.fiji</groupId>
+			<artifactId>imagescience</artifactId>
+			<version>3.0.0</version>
 		</dependency>
 	</dependencies>
 </project>
