@@ -1,5 +1,4 @@
 package com.vitimage;
-import java.io.File;
 import java.util.ArrayList;
 import ij.IJ;
 import ij.ImageJ;
@@ -7,7 +6,9 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.io.OpenDialog;
+import ij.io.SaveDialog;
 import ij.plugin.PlugIn;
+import ij.plugin.frame.RoiManager;
 import imagescience.transform.Transform;
 
 /**
@@ -19,7 +20,15 @@ import imagescience.transform.Transform;
  * @author Romain Fernandez
  */
 
-
+/**
+ * TODO 
+ * 1-CAPILLARY TOOL
+ * 2-AXIS ALIGNMENT TOOL
+ * 3-MRI COMPUTATION
+ * 
+ * @author fernandr
+ *
+ */
 
 
 
@@ -31,10 +40,10 @@ public class Vitimage_Toolbox implements PlugIn {
 	private final int TOOL_3_MULTIMODAL_ASSISTANT=3;
 	private final boolean SUPERVISED=false;
 	private final boolean AUTOMATIC=true;
-	
+	private final String OS_SEPARATOR=System.getProperties().getProperty("file.separator");
 	private final String[]toolsStr= {"TOOool 0 : testing","Tool 1 : Transform 3D ","Tool 2 : MRI Water tracker",
 									 "Tool 2 : MRI Water tracker", "Tool 3 : Multimodal Timeseries assistant"};
-
+	private final int NO_AUTO_CHOICE=-10;
 	private final int TR3D_0_MANUAL_TR=0;
 	private final int TR3D_1_AUTO_TR=1;
 	private final int TR3D_2_MAT_TR=2;
@@ -55,7 +64,7 @@ public class Vitimage_Toolbox implements PlugIn {
 	 */	
 	public static void main(String[] args) {
 		Vitimage_Toolbox vitiTool=new Vitimage_Toolbox();
-		vitiTool.runTesting();
+		vitiTool.runSpecificTesting();
 	}	
 
 	public void run(String arg) {
@@ -63,14 +72,12 @@ public class Vitimage_Toolbox implements PlugIn {
 		switch(chosenTool) {
 			case TOOL_NOTHING:IJ.log("Nothing to do, then. See you !");break;
 			case TOOL_0_TESTING:IJ.log("Testing mode !");runTesting();break;
-			case TOOL_1_TRANSFORM_3D:IJ.log("Transform 3D !");runTransform3D();break;
+			case TOOL_1_TRANSFORM_3D:IJ.log("Transform 3D !");runTransform3D(NO_AUTO_CHOICE);break;
 			case TOOL_2_MRI_WATER_TRACKER:IJ.log("MRI Water tracker !");runMRIWaterTracker();break;
 			case TOOL_3_MULTIMODAL_ASSISTANT:IJ.log("Multimodal timeseries assistant !");runMultimodalAssistant();break;
 		}
 	}
 
-	/**GUI that helps one to choose the tool to be used
-	 */	
 	private int chooseToolUI(){
 	        GenericDialog gd= new GenericDialog("Select mode");
 	        gd.addChoice("Tool ", toolsStr,toolsStr[0]);
@@ -82,10 +89,33 @@ public class Vitimage_Toolbox implements PlugIn {
 
 
 
+	/** REGRESSION TESTS
+	 * TR3D_0_MANUAL_TR Regression test : level0=no difference, level1=salt and pepper of value1 (obviously conversion artifact)
+	 * TR3D_1_AUTO_TR Regression test : give the same 
+	 * 
+	 * */
+	private void runSpecificTesting() {
+		TransformUtils trUt=new TransformUtils();
+		new ImageJ();
+		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_1-6_level0.tif");
+		img1.show();
+		runTransform3D(TR3D_3_ALIGN_TR);
+		//		trUt.testResolve();
+//		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/imgMoving.tif");
+//		ImagePlus img2=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/imgRef.tif");
+//		img1.show();
+		
+//Test de l'algo connexe
+//		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_1-6_level0.tif");
+//		img1.show();
+//		trUt.testConnexe(img1,1058,500,6);
+		
+	}
+	
 
 	private void runTesting() {
 		Class<?> clazz = Vitimage_Toolbox.class;
-		String url = clazz.getResource("/" + clazz.getName().replace('.', '/') + ".class").toString();
+		String url = clazz.getResource(OS_SEPARATOR + clazz.getName().replace('.', '/') + ".class").toString();
 		String pluginsDir = url.substring("file:".length(), url.length() - clazz.getName().length() - ".class".length());
 		System.setProperty("plugins.dir", pluginsDir);
 
@@ -93,30 +123,37 @@ public class Vitimage_Toolbox implements PlugIn {
 		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/imgMoving.tif");
 		ImagePlus img2=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/imgRef.tif");
 		img1.show();
-		img2.show();
+		//img2.show();
 		// run the plugin
 		IJ.runPlugIn(clazz.getName(), "");
-
+		
 	}
 	
 	
-
-	private void runTransform3D() {
+	/** Tool 1
+	 * */
+	private void runTransform3D(int initChoice) {
 		TransformUtils trUt	=new TransformUtils();
 		int choice;
-		ImagePlus imgOut;
+		ImagePlus []imgsOut;
 		ImagePlus []imgTab;
 		double [][] matTransforms;
+		double [] matTransformFinal;
 		Transform[] matricesToCompose;
 		double [] outVoxSize;
-		int [] outImgSize;
 		double [] inVoxSize;
-		GenericDialog gd= new GenericDialog("Transform 3D tools");
-        gd.addChoice("Transform 3D mode ", tr3DToolsStr,tr3DToolsStr[0]);
-		gd.showDialog();
-		if (gd.wasCanceled()) choice=-1;
-        else choice=gd.getNextChoiceIndex();
-
+		int [] outImgSize;
+		String outUnit="mm";
+		String titleMov,titleRef;
+		
+		if(initChoice==NO_AUTO_CHOICE) {
+			GenericDialog gd= new GenericDialog("Transform 3D tools");
+	        gd.addChoice("Transform 3D mode ", tr3DToolsStr,tr3DToolsStr[0]);
+			gd.showDialog();
+			if (gd.wasCanceled()) choice=-1;
+	        else choice=gd.getNextChoiceIndex();
+		}
+		else choice=initChoice;
 		// 0 choice (full manual) : Initial behaviour, ask for init and final espace, ask #matrices, ask for matrices, ask for output dimensions
 		// 1 choice (full automatic) : Ask for init image, ask for a matrix, ask for output dimensions
 		// 2 choice (matrix computation) : Ask for #matrices, matrices to compose, and output matrix file
@@ -125,48 +162,109 @@ public class Vitimage_Toolbox implements PlugIn {
 		// 5 choice (automatic capillary removal) : ask for a point, output the transformed image
 		switch(choice) {
 			case TR3D_0_MANUAL_TR:
-				  imgTab=chooseMovingAndReferenceImagesUI();
-				  outImgSize=chooseSizeUI(imgTab[1],"Output image size :",SUPERVISED);
-				  outVoxSize=chooseVoxSizeUI(imgTab[1],"Output voxel size :",SUPERVISED);
-				  inVoxSize=chooseVoxSizeUI(imgTab[0],"",AUTOMATIC);
-				  matricesToCompose=chooseMatricesUI("Matrix path from moving to reference",SUPERVISED,trUt);
-				  matTransforms=trUt.composeMatrices(matricesToCompose);
-				  matTransforms[0]=trUt.doubleBasisChange(inVoxSize,matTransforms[0],outVoxSize);
-				  imgOut=trUt.reech3D(imgTab[0],matTransforms[0],outImgSize,imgTab[0].getShortTitle()+"_registered on_"+imgTab[1].getShortTitle());
-			  	  imgOut.show();
-				  break;
-			
+				imgTab=chooseMovingAndReferenceImagesUI();
+				if(imgTab ==null)return;
+				titleMov=imgTab[0].getShortTitle();
+				titleRef=imgTab[1].getShortTitle();
+				outImgSize=chooseSizeUI(imgTab[1],"Output image size :",SUPERVISED);
+				outVoxSize=chooseVoxSizeUI(imgTab[1],"Output voxel size :",SUPERVISED);
+				inVoxSize=chooseVoxSizeUI(imgTab[0],"",AUTOMATIC);
+				matricesToCompose=chooseMatricesUI("Matrix path from moving to reference",SUPERVISED,trUt);
+
+				matTransforms=trUt.composeMatrices(matricesToCompose);
+				matTransformFinal=trUt.doubleBasisChange(inVoxSize,matTransforms[0],outVoxSize);
+
+				imgsOut=trUt.reech3D(imgTab[0],matTransformFinal,outImgSize,titleMov+"_registered on_"+titleRef,getYesNoUI("Compute mask ?"));
+				for(int  i=0;i<imgsOut.length;i++) {trUt.adjustImageCalibration(imgsOut[i],outVoxSize,outUnit);imgsOut[i].show();}
+				if(getYesNoUI("Save the matrix and its inverse ?")) {
+					saveMatrixUI(matTransforms[0],"Save transformation from moving to reference space ?",SUPERVISED,"","mat_"+titleMov+"_to_"+titleRef,trUt);
+					saveMatrixUI(matTransforms[1],"Save inverse transformation from reference to moving space ?",SUPERVISED,"","mat_"+titleRef+"_to_"+titleMov,trUt);
+				}
+				if(getYesNoUI("Save the image (and the mask if so) ?")) {
+					for(int i=0;i<imgsOut.length;i++) {saveImageUI(imgsOut[i],(i==0 ?"Registered image":"Mask image"),SUPERVISED,"",imgsOut[i].getTitle());}
+				}
+				break;
+
 			case TR3D_1_AUTO_TR:
-				  imgTab=chooseMovingAndReferenceImagesUI();
-				  if(imgTab ==null)return;
-				  outImgSize=chooseSizeUI(imgTab[1],"Output image size :",AUTOMATIC);
-				  outVoxSize=chooseVoxSizeUI(imgTab[1],"Output voxel size :",AUTOMATIC);
-				  inVoxSize=chooseVoxSizeUI(imgTab[0],"",AUTOMATIC);
-				  matricesToCompose=chooseMatricesUI("Matrix path from moving to reference",AUTOMATIC,trUt);
-				  matTransforms=trUt.composeMatrices(matricesToCompose);
-				  matTransforms[0]=trUt.doubleBasisChange(inVoxSize,matTransforms[0],outVoxSize);
-			  	  imgOut=trUt.reech3D(imgTab[0],matTransforms[0],outImgSize,imgTab[0].getShortTitle()+"_registered on_"+imgTab[1].getShortTitle());
-			  	  imgOut.show();
-			  	  break;
-			  	  
-			case TR3D_2_MAT_TR:IJ.log("Not implemented yet");break;
-			case TR3D_3_ALIGN_TR:IJ.log("Not implemented yet");break;
+				imgTab=chooseMovingAndReferenceImagesUI();
+				if(imgTab ==null)return;
+				titleMov=imgTab[0].getShortTitle();
+				titleRef=imgTab[1].getShortTitle();
+				outImgSize=chooseSizeUI(imgTab[1],"Output image size :",AUTOMATIC);
+				outVoxSize=chooseVoxSizeUI(imgTab[1],"Output voxel size :",AUTOMATIC);
+				inVoxSize=chooseVoxSizeUI(imgTab[0],"",AUTOMATIC);
+				matricesToCompose=chooseMatricesUI("Matrix path from moving to reference",AUTOMATIC,trUt);
+
+				matTransforms=trUt.composeMatrices(matricesToCompose);
+				matTransformFinal=trUt.doubleBasisChange(inVoxSize,matTransforms[0],outVoxSize);
+
+				imgsOut=trUt.reech3D(imgTab[0],matTransformFinal,outImgSize,titleMov+"_registered on_"+titleRef,getYesNoUI("Compute mask ?"));
+				for(int  i=0;i<imgsOut.length;i++) {trUt.adjustImageCalibration(imgsOut[i],outVoxSize,outUnit);imgsOut[i].show();}
+				if(getYesNoUI("Save the matrix and its inverse ?")) {
+					saveMatrixUI(matTransforms[0],"Save transformation from moving to reference space ?",SUPERVISED,"","mat_"+titleMov+"_to_"+titleRef,trUt);
+					saveMatrixUI(matTransforms[1],"Save inverse transformation from reference to moving space ?",SUPERVISED,"","mat_"+titleRef+"_to_"+titleMov,trUt);
+				}
+				if(getYesNoUI("Save the image (and the mask if so) ?")) {
+					for(int i=0;i<imgsOut.length;i++) {saveImageUI(imgsOut[i],(i==0 ?"Registered image":"Mask image"),SUPERVISED,"",imgsOut[i].getTitle());}
+				}
+				break;
+			case TR3D_2_MAT_TR:
+				matricesToCompose=chooseMatricesUI("Matrix path from moving to reference",AUTOMATIC,trUt);
+				matTransforms=trUt.composeMatrices(matricesToCompose);
+				saveMatrixUI(matTransforms[0],"Save transformation from moving to reference space ?",SUPERVISED,"","mat_forward",trUt);
+				saveMatrixUI(matTransforms[1],"Save inverse transformation from reference to moving space ?",SUPERVISED,"","mat_backward",trUt);
+				
+				break;
+			case TR3D_3_ALIGN_TR:
+				//Get the opened image
+				imgTab=new ImagePlus[] {IJ.getImage()};
+				titleMov=imgTab[0].getShortTitle();
+				inVoxSize=chooseVoxSizeUI(imgTab[0],"",AUTOMATIC);
+				outVoxSize=chooseVoxSizeUI(imgTab[0],"",AUTOMATIC);
+				outImgSize=chooseSizeUI(imgTab[0],"Output image size :",AUTOMATIC);
+				if (imgTab[0]==null) {IJ.log("No image to be aligned here");return;}
+				System.out.println("Selected image : "+imgTab[0].getShortTitle());
+
+				//Wait for 4 points, given in real coordinates
+				double[][]inoculationPointCoordinates=waitForPointsUI(4,imgTab[0],true);
+								
+				//Compute the transformation, according to reference geometry, and the given 4 points
+				matTransforms=trUt.computeTransformationForBoutureAlignment(imgTab[0],inoculationPointCoordinates);
+						
+				//Resample and show input image
+				matTransformFinal=trUt.doubleBasisChange(inVoxSize,matTransforms[0],inVoxSize);
+				imgsOut=trUt.reech3D(imgTab[0],matTransformFinal,outImgSize,titleMov+"_axis_aligned",getYesNoUI("Compute mask ?"));
+				for(int  i=0;i<imgsOut.length;i++) {trUt.adjustImageCalibration(imgsOut[i],outVoxSize,outUnit);imgsOut[i].show();}
+										
+				//Propose to save the transformation
+				if(getYesNoUI("Save the matrix and its inverse ?")) {
+					saveMatrixUI(matTransforms[0],"Save transformation from moving to reference space ?",SUPERVISED,"","mat_"+titleMov+"_to_alignment",trUt);
+					saveMatrixUI(matTransforms[1],"Save inverse transformation from reference to moving space ?",SUPERVISED,"","mat_alignment_to_"+titleMov,trUt);
+				}
+				
+				//Propose to save the image
+				if(getYesNoUI("Save the image (and the mask if so) ?")) {
+					for(int i=0;i<imgsOut.length;i++) {saveImageUI(imgsOut[i],(i==0 ?"Registered image":"Mask image"),SUPERVISED,"",imgsOut[i].getTitle());}
+				}
+				
+				break;
 			case TR3D_4_MANCAP_TR:IJ.log("Not implemented yet");break;
 			case TR3D_5_AUTOCAP_TR:IJ.log("Not implemented yet");break;
 		}
 	}
 
-	
+	/** Tool 2*/
 	private void runMRIWaterTracker() {
 		
 	}
 
+	/** Tool 3*/
 	private void runMultimodalAssistant() {
 		
 	}
 
 	
-	
+	/** Utility functions for tool 1*/
 	public ImagePlus[] chooseMovingAndReferenceImagesUI() {
 			String none="*None*";
 			int index1,index2;
@@ -208,7 +306,15 @@ public class Vitimage_Toolbox implements PlugIn {
 			 return tabRet;
 		 }
 	}
-	
+
+	public boolean getYesNoUI(String strGuess) {
+        GenericDialog gd=new GenericDialog(strGuess);
+        gd.addMessage(strGuess);
+        gd.enableYesNoCancel("Yes", "No");
+        gd.showDialog();
+    	return (gd.wasOKed());
+	}
+
 
 	public int[] chooseSizeUI(ImagePlus img,String strGuess,boolean autonomyLevel) {
 		 int[]tabRet=new int[] {img.getWidth(),img.getHeight(),img.getStack().getSize()};
@@ -228,9 +334,6 @@ public class Vitimage_Toolbox implements PlugIn {
 		 }
 	}
 
-	
-	
-	
 	
 	public Transform[] chooseMatricesUI(String strGuess,boolean autonomyLevel,TransformUtils trUt){
 		boolean oneAgain=true;
@@ -263,7 +366,7 @@ public class Vitimage_Toolbox implements PlugIn {
 		        gdn.showDialog();
 		        if (gdn.wasCanceled()) return null;
 				for(int j=0;j<12;j++)transInd.set(j/4,j%4,gdn.getNextNumber());
-				pathSplit=(od.getPath()).split("/");
+				pathSplit=(od.getPath()).split(OS_SEPARATOR);
 				pathLog="";
 				for(int i=0;i<iTr;i++)pathLog="--";
 				pathLog=pathLog+"-> Tr "+iTr+" "+pathSplit[pathSplit.length-1];
@@ -283,7 +386,74 @@ public class Vitimage_Toolbox implements PlugIn {
 		for(int i=0;i<transTab.length;i++)transTab[i]=tabRet.get(i);
 		return transTab;
 	 }
-		 
+		
+
+	public void saveMatrixUI(double []matrix,String strGuess,boolean autonomyLevel,String path,String title,TransformUtils trUt) {
+		if(autonomyLevel==AUTOMATIC) {
+			String pathSave=path+OS_SEPARATOR+title;
+			trUt.writeMatrixToFile(pathSave,trUt.arrayToTransform(matrix));
+		}
+		else {
+			SaveDialog sd=new SaveDialog(strGuess,title,".mat");
+			if(sd.getDirectory()==null ||  sd.getFileName()==null)return;
+			String pathSave=sd.getDirectory()+""+sd.getFileName();
+			trUt.writeMatrixToFile(pathSave,trUt.arrayToTransform(matrix));
+		}
+	}
+
+	public void saveImageUI(ImagePlus img,String strGuess,boolean autonomyLevel,String path,String title) {
+		if(autonomyLevel==AUTOMATIC) {
+			String pathSave=path+OS_SEPARATOR+title;
+			IJ.saveAsTiff(img,pathSave);
+		}
+		else {
+			SaveDialog sd=new SaveDialog(strGuess,title,".tif");
+			if(sd.getDirectory()==null ||  sd.getFileName()==null)return;
+			String pathSave=sd.getDirectory()+""+sd.getFileName();
+			IJ.saveAsTiff(img,pathSave);
+		}
+	
+	}
+	
+	
+	public double[][] waitForPointsUI(int nbWantedPoints,ImagePlus img,boolean realCoordinates){
+		int nbP=0;
+		double[][]tabRet=new double[nbWantedPoints][3];
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		boolean finished =false;
+		getYesNoUI("Identification of the four corners \nof the inoculation point with ROI points\nAre you ready  ?");
+		do {
+			try {
+				java.util.concurrent.TimeUnit.MILLISECONDS.sleep(1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			if(rm.getCount()==nbWantedPoints && getYesNoUI("Confirm points ?"))finished=true;
+			System.out.println("Waiting "+nbWantedPoints+". Current number="+rm.getCount());
+		}while (!finished);	
+		for(int indP=0;indP<nbWantedPoints;indP++){
+			tabRet[indP][0]=rm.getRoi(indP).getXBase();
+			tabRet[indP][1]=rm.getRoi(indP).getYBase();
+			tabRet[indP][2]=rm.getRoi(indP).getZPosition();
+			if(realCoordinates) {
+				tabRet[indP][0]=(tabRet[indP][0]+0.5)*(img.getCalibration().pixelWidth);
+				tabRet[indP][1]=(tabRet[indP][1]+0.5)*(img.getCalibration().pixelHeight);
+				tabRet[indP][2]=(tabRet[indP][2]+0.5)*(img.getCalibration().pixelDepth);
+			}		
+		}
+		return tabRet;
+	}
+	
+	
+	
+	/** Utility functions for tool 2*/
+
+	
+	
+	/** Utility functions for tool 3*/
+
+	
 }
 
 	
