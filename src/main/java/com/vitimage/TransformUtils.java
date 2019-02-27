@@ -45,7 +45,7 @@ public class TransformUtils {
 		double [] intermediaryRes=new double[12];	
 		matrixProduct(T2,P21,intermediaryRes);
 		matrixProduct(P12,intermediaryRes,T1);
-		IJ.log("Basis change");
+		System.out.println("Basis change");
 		printMatrix("T2",T2);
 		printMatrix("P12",P12);
 		printMatrix("P21",P21);
@@ -70,7 +70,7 @@ public class TransformUtils {
 		double [] intermediaryRes=new double[12];	
 		matrixProduct(Tinter,P2,intermediaryRes);
 		matrixProduct(P1,intermediaryRes,result);
-		IJ.log("Double basis change");
+		System.out.println("Double basis change");
 		printMatrix("P1, Passage from initial space to registration space : ",P1);
 		printMatrix("T, Initial transformation matrix for registration : ",Tinter);
 		printMatrix("P2, Passage from registration space to visualization space : ",P2);
@@ -95,7 +95,7 @@ public class TransformUtils {
 			s+=" ] \n";
 		}
 		s+= "[ 0 , 0 , 0 , 1 ]\n\n";
-		IJ.log(s);	
+		System.out.println(s);	
 	}	
 	
 	public void matrixProduct(double[]tab1,double[]tab2,double[]tab3){
@@ -121,21 +121,21 @@ public class TransformUtils {
 		 double [][]matRet=new double[2][12];
 		 Transform transGlobal=new Transform();
 		 Transform transInd;
-		 IJ.log("Et matrices to Compose fait tant de long : "+matricesToCompose.length);
+		 System.out.println("Et matrices to Compose fait tant de long : "+matricesToCompose.length);
 		 for(int tr=0;tr<matricesToCompose.length;tr++) {
 			 transInd=matricesToCompose[tr];
-			 IJ.log("TransIND 1/2= :");
+			 System.out.println("TransIND 1/2= :");
     		for(int ii=0;ii<3;ii++){
-    			IJ.log("[ "+transInd.get(ii,0)+"  "+transInd.get(ii,1)+"  "+transInd.get(ii,2)+"  "+transInd.get(ii,3)+" ]");
+    			System.out.println("[ "+transInd.get(ii,0)+"  "+transInd.get(ii,1)+"  "+transInd.get(ii,2)+"  "+transInd.get(ii,3)+" ]");
         	}
-			IJ.log("");
+			System.out.println("");
 	    		
 		 	transInd.transform(transGlobal);
-		 	IJ.log("TransIND 2/2= :");
+		 	System.out.println("TransIND 2/2= :");
     		for(int ii=0;ii<3;ii++){
-				IJ.log("[ "+transInd.get(ii,0)+"  "+transInd.get(ii,1)+"  "+transInd.get(ii,2)+"  "+transInd.get(ii,3)+" ]");
+				System.out.println("[ "+transInd.get(ii,0)+"  "+transInd.get(ii,1)+"  "+transInd.get(ii,2)+"  "+transInd.get(ii,3)+" ]");
         	}
-			IJ.log("");
+			System.out.println("");
 			 transGlobal=new Transform(transInd);			 
 		 }
 
@@ -175,23 +175,23 @@ public class TransformUtils {
         }
 
 		if(debug){
-			IJ.log("STRING LUE DANS FICHIER MATRICE=");
-			IJ.log(strFile);
+			System.out.println("STRING LUE DANS FICHIER MATRICE=");
+			System.out.println(strFile);
 		}
         String[]strLines=strFile.split("\n");
         if(strLines[0].charAt(0)=='#'){
         	if(strLines[0].charAt(1)=='I'){ //Transform file in ITK format
-        	   if(debug)IJ.log("ITK file");
+        	   if(debug)System.out.println("ITK file");
 			   String[]strValues=strLines[3].split(" ");
     		   if(strValues.length==13){
     		   		tr.set(Double.valueOf(strValues[1]), Double.valueOf(strValues[2]), Double.valueOf(strValues[3]), Double.valueOf(strValues[10]), 
     		   			   Double.valueOf(strValues[4]), Double.valueOf(strValues[5]), Double.valueOf(strValues[6]), Double.valueOf(strValues[11]),
     		   			   Double.valueOf(strValues[7]), Double.valueOf(strValues[8]), Double.valueOf(strValues[9]), Double.valueOf(strValues[12]) );
     		   }
-    		   else IJ.log("ITK Transform file is corrupted ");
+    		   else System.out.println("ITK Transform file is corrupted ");
         	}
         	else if(strLines[0].charAt(2)=='S' || strLines[0].charAt(2)=='A'){//Transform file in ImageJ's Transform_IO format
-			   if(debug)IJ.log("Transform_IO file");
+			   if(debug)System.out.println("Transform_IO file");
 			   String[]strValuesl1=strLines[2].split(" ");
 			   String[]strValuesl2=strLines[3].split(" ");
 				   String[]strValuesl3=strLines[4].split(" ");
@@ -201,18 +201,18 @@ public class TransformUtils {
     		   			   Double.valueOf(strValuesl3[0]), Double.valueOf(strValuesl3[1]), Double.valueOf(strValuesl3[2]), Double.valueOf(strValuesl3[3]) );
     		   			   if(strLines[0].charAt(2)=='S') tr.invert();// patch for the transformation computed with an manual alignment with 3dviewer
     		   }
-    		   else IJ.log("ImageJ Transform file is corrupted ");
+    		   else System.out.println("ImageJ Transform file is corrupted ");
         	}
         }
         else {
     		if(debug){System.out.println("Unknown format");}
         }
     	if(debug){
-    		IJ.log("Matrix read is :");
+    		System.out.println("Matrix read is :");
     		for(int i=0;i<3;i++){
-				IJ.log("[ "+tr.get(i,0)+"  "+tr.get(i,1)+"  "+tr.get(i,2)+"  "+tr.get(i,3)+" ]");
+				System.out.println("[ "+tr.get(i,0)+"  "+tr.get(i,1)+"  "+tr.get(i,2)+"  "+tr.get(i,3)+" ]");
         	}
-			IJ.log("");
+			System.out.println("");
     	}			        
   		return tr;
 	}
@@ -261,38 +261,34 @@ public class TransformUtils {
 		double vZ=img.getCalibration().pixelDepth;
 
 		//Step 1 : apply gaussian filtering and convert to 8 bits
-		GaussianBlur3D.blur(img, 10,10,3);
+		GaussianBlur3D.blur(img, 2,2,2);
 		StackConverter sc=new StackConverter(img);
 		sc.convertToGray8();
 
 		//Step 2 : apply automatic threshold
 		ByteProcessor[] maskTab=new ByteProcessor[zMax];
 		for(int z=0;z<zMax;z++){
-			System.out.println("Tout va bien, z="+z+" / "+zMax);
-			img.getStack().getProcessor(z+1).setAutoThreshold("Otsu dark");
-			System.out.println("..");
-			maskTab[z]=img.getStack().getProcessor(z+1).createMask();
-			System.out.println("....");
+			maskTab[z]=(ByteProcessor) img.getStack().getProcessor(z+1);
+			maskTab[z].setAutoThreshold("Otsu dark");
+			maskTab[z].createMask();
 		}
-		if(debug)System.out.println("Sortie !");
 		//Extract two substacks for the upper part and the lower part of the object
-		ImageStack stackUp = new ImageStack(xMax, yMax, 6);
-		ImageStack stackDown = new ImageStack(xMax, yMax, 6);
+		ImageStack stackUp = new ImageStack(xMax, yMax);
+		ImageStack stackDown = new ImageStack(xMax, yMax);
 		for(int i=0;i<6;i++) {
-			stackDown.addSlice("",maskTab[zMax/2+i],i+1);//de zmax/2 à zMax/2 + 5 --> ajouter zMax/2 à la fin			
-			stackUp.addSlice("",maskTab[zMax/2-5+i],i+1);//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
+			stackDown.addSlice("",maskTab[zMax/2+i]);//de zmax/2 à zMax/2 + 5 --> ajouter zMax/2 à la fin			
+			stackUp.addSlice("",maskTab[zMax/2-5+i]);//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
 		}
-		if(debug)System.out.println("Stacks assemblees !");
-		
 		ImagePlus imgUp=new ImagePlus("up",stackUp);
-		imgUp.show();
-		ImagePlus imgUpCon=connexe(imgUp,0,10,0,1000000,6);
-		imgUpCon.show();
 
-		ImagePlus imgDown=new ImagePlus("down",stackUp);
-		imgDown.show();
-		ImagePlus imgDownCon=connexe(imgDown,0,10,0,1000000,6);
-		imgDownCon.show();
+		if(debug)System.out.println("Entree dans connexe");
+		ImagePlus imgUpCon=connexe(imgUp,0,10,6000,10E10,6);
+		if(debug)System.out.println("Sortie de connexe");
+		//imgUpCon.show();
+		
+		ImagePlus imgDown=new ImagePlus("down",stackDown);
+		ImagePlus imgDownCon=connexe(imgDown,0,10,6000,10E10,6);
+		//imgDownCon.show();
 
 		if(debug)System.out.println("Connexes calcules !");
 		//Step 3 : compute the two centers of mass
@@ -309,11 +305,11 @@ public class TransformUtils {
 		for(int x=0;x<xMax;x++){
 			for(int y=0;y<yMax;y++){
 				for(int z=0;z<6;z++){								
-					if(valsPlusDown[z][xMax*y+x]==((byte)255)){//We are in the first part of the object
+					if(valsPlusDown[z][xMax*y+x]==((byte)2)){//We are in the first part of the object
 						hitsDown++;
 						xMoyDown+=x;yMoyDown+=y;zMoyDown+=z;
 					}
-					if(valsPlusUp[z][xMax*y+x]==((byte)255)){//We are in the first part of the object
+					if(valsPlusUp[z][xMax*y+x]==((byte)2)){//We are in the first part of the object
 						hitsUp++;
 						xMoyUp+=x;yMoyUp+=y;zMoyUp+=z;
 					}
@@ -328,8 +324,8 @@ public class TransformUtils {
 		yMoyDown=yMoyDown/hitsDown;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
 		zMoyDown=zMoyDown/hitsDown+zMax/2;//due to the extraction of a substack zmax/2 - zmax/2+5
 
-		IJ.log("HitsUp="+hitsUp+" ..Center of mass up = "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
-		IJ.log("HitsDown="+hitsDown+" ..Center of mass down = "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+		System.out.println("HitsUp="+hitsUp+" ..Center of mass up = "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
+		System.out.println("HitsDown="+hitsDown+" ..Center of mass down = "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
 		
 		xMoyUp=xMoyUp*vX+vX/2;		
 		yMoyUp=yMoyUp*vY+vY/2;		
@@ -337,8 +333,8 @@ public class TransformUtils {
 		xMoyDown=xMoyDown*vX+vX/2;		
 		yMoyDown=yMoyDown*vY+vY/2;		
 		zMoyDown=zMoyDown*vZ+vZ/2;		
-		IJ.log("Center of mass up (real)= "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
-		IJ.log("Center of mass down (real)= "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+		System.out.println("Center of mass up (real)= "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
+		System.out.println("Center of mass down (real)= "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
 		//Step 4 : compute the new basis
 		//double []vectXinit=new double[3];
 		double []vectXfin=new double[3];
@@ -356,9 +352,11 @@ public class TransformUtils {
 		double zP=cornersCoordinates[0][2]+cornersCoordinates[1][2]+cornersCoordinates[2][2]+cornersCoordinates[3][2];
 		double xP=cornersCoordinates[0][0]+cornersCoordinates[1][0]+cornersCoordinates[2][0]+cornersCoordinates[3][0];
 		double yP=cornersCoordinates[0][1]+cornersCoordinates[1][1]+cornersCoordinates[2][1]+cornersCoordinates[3][1];
+		xP/=4.0;
+		yP/=4.0;
+		zP/=4.0;
 
-
-		IJ.log("Point d inoculation (reel) : "+xP+"  ,  "+yP+"  ,  "+zP);
+		System.out.println("Point d inoculation (reel) : "+xP+"  ,  "+yP+"  ,  "+zP);
 
 		vectYinit[0]=xP-xMoyDown;
 		vectYinit[1]=yP-yMoyDown;
@@ -407,28 +405,38 @@ public class TransformUtils {
 		trans[0]=xP-vectXfin[0]*xFinal-vectYfin[0]*yFinal-vectZfin[0]*zFinal;
 		trans[1]=yP-vectXfin[1]*xFinal-vectYfin[1]*yFinal-vectZfin[1]*zFinal;
 		trans[2]=zP-vectXfin[2]*xFinal-vectYfin[2]*yFinal-vectZfin[2]*zFinal;
-		IJ.log("Translation : ["+trans[0]+" , "+trans[1]+" , "+trans[2]+"]");
+		System.out.println("Translation : ["+trans[0]+" , "+trans[1]+" , "+trans[2]+"]");
 		
 		//Assemble and write the transformation matrix
 		Transform tr=new Transform(vectXfin[0],vectYfin[0],vectZfin[0],trans[0],
 								   vectXfin[1],vectYfin[1],vectZfin[1],trans[1],
 								   vectXfin[2],vectYfin[2],vectZfin[2],trans[2]);
 
-		IJ.log("Et en effet, lorsqu'on transforme le point final :"+xFinal+" , "+yFinal+" , "+zFinal+"...");
-		IJ.log("On obtient bien le point initial attendu, qui était : "+xP+" , "+yP+" , "+zP+"...");
+		System.out.println("Et en effet, lorsqu'on transforme le point final :"+xFinal+" , "+yFinal+" , "+zFinal+"...");
+		System.out.println("On obtient bien le point initial attendu, qui était : "+xP+" , "+yP+" , "+zP+"...");
 		double valXtest=vectXfin[0]*xFinal+vectYfin[0]*yFinal+vectZfin[0]*zFinal+trans[0];
 		double valYtest=vectXfin[1]*xFinal+vectYfin[1]*yFinal+vectZfin[1]*zFinal+trans[1];
 		double valZtest=vectXfin[2]*xFinal+vectYfin[2]*yFinal+vectZfin[2]*zFinal+trans[2];
 		
-		IJ.log("La preuve, résultat : "+valXtest+" , "+valYtest+" , "+valZtest+"...");
+		System.out.println("La preuve, résultat : "+valXtest+" , "+valYtest+" , "+valZtest+"...");
 	
 		Transform trInv=new Transform(tr);
 		trInv.invert();
 		return(new double[][] {transformToArray(tr),transformToArray(trInv) });	
 	}
 	
-	
-	
+	public double[][]coordinatesForAlignmentTesting(){
+		double vx=0.035;
+		double vy=0.035;
+		double vz=0.5;
+
+		return new double[][]{
+			{vx*168.5,vy*298.5,vz*11.5},
+			{vx*216.5,vy*334.5,vz*11.5},
+			{vx*173.5,vy*305.5,vz*35.5},
+			{vx*219.5,vy*341.5,vz*35.5}
+		};
+	}
 	
 	
 	 public ImagePlus[] reech3D(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title,boolean computeMask) {
@@ -443,7 +451,7 @@ public class TransformUtils {
 		 else if (imPlusFlo.getType()==ImagePlus.GRAY16)ret[0]=reech3DShort(imPlusFlo,matInput,sizes,title);
 		 else if (imPlusFlo.getType()==ImagePlus.GRAY32)ret[0]=reech3DFloat(imPlusFlo,matInput,sizes,title);	
 		 else {
-			 IJ.log("Type not handled yet");return null;
+			 System.out.println("Type not handled yet");return null;
 		 }
 		 return ret;
 	 }
@@ -499,7 +507,7 @@ public class TransformUtils {
 		//Let's go!
 		//For all voxels in the resulting image
 		for ( k = 0; k < rdimz; k ++ ) {
-			if((k>10) && (k%(rdimz/10)==0))IJ.log("Computing resulting image : slice, " + k +" / " + rdimz);
+			if((k>10) && (k%(rdimz/10)==0))System.out.println("Computing resulting image : slice, " + k +" / " + rdimz);
 			for ( j = 0; j < rdimy; j ++ ) {
 				for ( i = 0; i < rdimx; i ++) {
 					
@@ -694,7 +702,7 @@ public class TransformUtils {
 		//Let's go!
 		//For all voxels in the resulting image
 		for ( k = 0; k < rdimz; k ++ ) {
-			if((k>10) && (k%(rdimz/10)==0))IJ.log("Computing resulting image : slice, " + k +" / " + rdimz);
+			if((k>10) && (k%(rdimz/10)==0))System.out.println("Computing resulting image : slice, " + k +" / " + rdimz);
 			for ( j = 0; j < rdimy; j ++ ) {
 				for ( i = 0; i < rdimx; i ++) {
 					
@@ -892,7 +900,7 @@ public class TransformUtils {
 		//Let's go!
 		//For all voxels in the resulting image
 		for ( k = 0; k < rdimz; k ++ ) {
-			if((k>10) && (k%(rdimz/10)==0))IJ.log("Computing resulting image : slice, " + k +" / " + rdimz);
+			if((k>10) && (k%(rdimz/10)==0))System.out.println("Computing resulting image : slice, " + k +" / " + rdimz);
 			for ( j = 0; j < rdimy; j ++ ) {
 				for ( i = 0; i < rdimx; i ++) {
 					
@@ -1096,7 +1104,7 @@ public class TransformUtils {
 	}
 
 	void printVector(double []vect,String vectNom){
-		IJ.log(vectNom+" = [ "+vect[0]+" , "+vect[1]+" , "+vect[2]+" ]");
+		System.out.println(vectNom+" = [ "+vect[0]+" , "+vect[1]+" , "+vect[2]+" ]");
 	}
 
 	
@@ -1104,7 +1112,7 @@ public class TransformUtils {
 	
 	ImagePlus connexe(ImagePlus img,double threshLow,double threshHigh,double volumeLow,double volumeHigh,int connexity) {
 		boolean debug=true;
-		if(debug)IJ.log("Depart connexe");
+		if(debug)System.out.println("Depart connexe");
 		int yMax=img.getHeight();
 		int xMax=img.getWidth();
 		int zMax=img.getStack().getSize();
@@ -1113,12 +1121,12 @@ public class TransformUtils {
 		double vZ=img.getCalibration().pixelDepth;
 		double voxVolume=vX*vY*vZ;
 		int[][][]tabIn=new int[xMax][yMax][zMax];
-		int[][]connexions=new int[xMax*yMax*zMax][2];
+		int[][]connexions=new int[xMax*yMax*zMax*3][2];
 		int[]volume=new int[xMax*yMax*zMax];
 		int[][]neighbours=new int[][]{{1,0,0,0},{1,1,0,0},{0,1,0,0},{0,0,1,0},{1,0,1,0},{1,1,1,0},{1,1,0,0} };
 		int curComp=0;
 		int indexConnexions=0;
-		if(debug)IJ.log("Choix d'un type");
+		if(debug)System.out.println("Choix d'un type");
 		switch(img.getType()) {
 		case ImagePlus.GRAY8:
 			byte[] imgInB;
@@ -1143,7 +1151,7 @@ public class TransformUtils {
 			break;
 		}
 		
-		if(debug)IJ.log("Boucle principale");
+		if(debug)System.out.println("Boucle principale");
 		//Boucle principale
 		for(int x=0;x<xMax;x++) {
 			for(int y=0;y<yMax;y++) {
@@ -1183,12 +1191,12 @@ public class TransformUtils {
 			}			
 		}
 		
-		if(debug)IJ.log("Resolution des conflits");
+		if(debug)System.out.println("Resolution des conflits");
 		//Resolution des groupes d'objets connectes entre eux (formes en U, et cas plus compliqués)
 		int[]lut = resolveConnexitiesGroupsAndExclude(connexions,indexConnexions,curComp+1,volume,volumeLow/voxVolume,volumeHigh/voxVolume);
 		
 		
-		if(debug)IJ.log("Construction de l'image finale");
+		if(debug)System.out.println("Construction de l'image finale");
 		//Build computed image of objects
 		ImagePlus imgOut=ij.gui.NewImage.createImage(img.getShortTitle()+"_"+connexity+"CON",xMax,yMax,zMax,16,ij.gui.NewImage.FILL_BLACK);
 		short[] imgOutTab;
@@ -1230,84 +1238,84 @@ public class TransformUtils {
 		int[]lut=new int[n];
 		int[]next=new int[n];
 		int[]label=new int[n];
-		if(debug)IJ.log("");
-		if(debug)IJ.log("C'est parti, avec n="+n);
+		if(debug)System.out.println("");
+		if(debug)System.out.println("C'est parti, avec n="+n);
 		for(int i=0;i<n;i++) {label[i]=i;prec[i]=0;next[i]=0;}
 		
 		int indA,indB,valMin,valMax,indMin,indMax;
 		for(int couple=0;couple<nbCouples;couple++) {
-			if(debug)IJ.log("Lecture couple "+couple);
+			if(debug)System.out.println("Lecture couple "+couple);
 			indA=connexions[couple][0];
 			indB=connexions[couple][1];
-			if(debug)IJ.log("--indA="+indA+" et indB="+indB);
-			if(debug)IJ.log("--valA="+label[indA]+" et valB="+label[indB]);
+			if(debug)System.out.println("--indA="+indA+" et indB="+indB);
+			if(debug)System.out.println("--valA="+label[indA]+" et valB="+label[indB]);
 			if(label[indA]==label[indB])continue;
-			if(debug)IJ.log("--toujours dans la boucle. Recherche du maximum parmi les deux");
+			if(debug)System.out.println("--toujours dans la boucle. Recherche du maximum parmi les deux");
 			if(label[indA]<label[indB]) {
-				if(debug)IJ.log("-----cas 1");
+				if(debug)System.out.println("-----cas 1");
 				valMin=label[indA];
 				indMin=indA;
 				valMax=label[indB];
 				indMax=indB;
 			}
 			else {
-				if(debug)IJ.log("-----cas 2");
+				if(debug)System.out.println("-----cas 2");
 				valMin=label[indB];
 				indMin=indB;
 				valMax=label[indA];
 				indMax=indA;
 			}
-			if(debug)IJ.log("--au sortir de la recherche de min max");
-			if(debug)IJ.log("----indMin="+indMin+" et indMax="+indMax);
-			if(debug)IJ.log("----valMin="+label[indMin]+" et valMax="+label[indMax]);
-			if(debug)IJ.log("-Entree dans while 1");			
+			if(debug)System.out.println("--au sortir de la recherche de min max");
+			if(debug)System.out.println("----indMin="+indMin+" et indMax="+indMax);
+			if(debug)System.out.println("----valMin="+label[indMin]+" et valMax="+label[indMax]);
+			if(debug)System.out.println("-Entree dans while 1");			
 			while(next[indMin]>0)indMin=next[indMin];
-			if(debug)IJ.log("---sortie du while 1, next[next[next[indMin]]]="+indMin);
-			if(debug)IJ.log("-Entree dans while 2");			
+			if(debug)System.out.println("---sortie du while 1, next[next[next[indMin]]]="+indMin);
+			if(debug)System.out.println("-Entree dans while 2");			
 			while(prec[indMax]>0)indMax=prec[indMax];
-			if(debug)IJ.log("---sortie du while 2, prec[prec[prec[indMax]]]="+indMax);
+			if(debug)System.out.println("---sortie du while 2, prec[prec[prec[indMax]]]="+indMax);
 			prec[indMax]=indMin;
 			next[indMin]=indMax;
-			if(debug)IJ.log("--Association effectuee. Application en boucle");
+			if(debug)System.out.println("--Association effectuee. Application en boucle");
 			while(next[indMin]>0) {
 				indMin=next[indMin];
 				label[indMin]=valMin;
 			}
-			if(debug)IJ.log("--Sortie while 3, dernier indice ayant recu : "+indMin+", qui a recu comme les autres "+valMin);
+			if(debug)System.out.println("--Sortie while 3, dernier indice ayant recu : "+indMin+", qui a recu comme les autres "+valMin);
 		}
 
 		
-		IJ.log("");
-		if(debug)IJ.log("Partie 2 : collecte les volumes");
+		System.out.println("");
+		if(debug)System.out.println("Partie 2 : collecte les volumes");
 		//Compute number of objects and volume
 		for (int i=1;i<n ;i++){
-			if(debug)IJ.log("--Element "+i+" de volume "+volume[i]);
+			if(debug)System.out.println("--Element "+i+" de volume "+volume[i]);
 			if(label[i]!=i) {
-				if(debug)IJ.log("----Element fusionne a l element "+label[i]+" qui avait un volume de "+volume[label[i]]);
+				if(debug)System.out.println("----Element fusionne a l element "+label[i]+" qui avait un volume de "+volume[label[i]]);
 				volume[label[i]]+=volume[i];
 				volume[i]=0;
 			}
 		}
 		
 		//Exclude too big or too small objects,
-		IJ.log("");
-		if(debug)IJ.log("Partie 3 : Exclure par volume et attribuer les luts");
+		System.out.println("");
+		if(debug)System.out.println("Partie 3 : Exclure par volume et attribuer les luts");
 		int displayedValue=1;
 		for (int i=1;i<n ;i++){
-			if(debug)IJ.log("--Element "+i+" de label "+label[i]+" et de volume "+volume[i]);
+			if(debug)System.out.println("--Element "+i+" de label "+label[i]+" et de volume "+volume[i]);
 			if( (volume[i]>0) && (volume[i]>=volumeLowP) && (volume[i]<=volumeHighP) ) {
-				if(debug)IJ.log("On lui dedie une teinte de la LUT. Ce sera la teinte "+displayedValue);
+				if(debug)System.out.println("On lui dedie une teinte de la LUT. Ce sera la teinte "+displayedValue);
 				lut[i]=displayedValue++;
 			}
 		}
-		if(displayedValue>65000) {IJ.log("Warning : "+(displayedValue-1)+" connected components");}
-		else IJ.log("Number of connected components detected : "+(displayedValue-1));
+		if(displayedValue>65000) {System.out.println("Warning : "+(displayedValue-1)+" connected components");}
+		else System.out.println("Number of connected components detected : "+(displayedValue-1));
 
 		//Group labels
-		if(debug)IJ.log("Partie 4 : Chacun prend sa lut");
+		if(debug)System.out.println("Partie 4 : Chacun prend sa lut");
 		for (int i=0;i<n ;i++){
 			lut[i]=lut[label[i]];
-			if(debug)IJ.log("----Element traite :"+i+" recoit la teinte "+lut[i]);
+			if(debug)System.out.println("----Element traite :"+i+" recoit la teinte "+lut[i]);
 		}
 		return lut;
 	}

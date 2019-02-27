@@ -50,8 +50,8 @@ public class Vitimage_Toolbox implements PlugIn {
 	private final int TR3D_3_ALIGN_TR=3;
 	private final int TR3D_4_MANCAP_TR=4;
 	private final int TR3D_5_AUTOCAP_TR=5;
-	private final String[]tr3DToolsStr= {"Tool 1-1 : Image transformation by #N registration matrices","Tool 1-2 : Image transformation by one matrix (for scripts) ",
-									 "Tool 1-3 : Matrix compositions tool","Tool 1-4 : User-assisted capillary removal","Tool 1-5 : Automated capillary removal"};
+	private final String[]tr3DToolsStr= {"Tool 1-1 : Image transformation by #N registration matrices","Tool 1-2 : Image transformation by one matrix (for scripts) ", 
+									 "Tool 1-3 : Matrix compositions tool","Tool 1-4 : Bouture Alignment along z axis","Tool 1-5 : User-assisted capillary removal","Tool 1-6 : Automated capillary removal"};
 	
 	
 	public Vitimage_Toolbox(){
@@ -70,11 +70,11 @@ public class Vitimage_Toolbox implements PlugIn {
 	public void run(String arg) {
 		int chosenTool=chooseToolUI();
 		switch(chosenTool) {
-			case TOOL_NOTHING:IJ.log("Nothing to do, then. See you !");break;
-			case TOOL_0_TESTING:IJ.log("Testing mode !");runTesting();break;
-			case TOOL_1_TRANSFORM_3D:IJ.log("Transform 3D !");runTransform3D(NO_AUTO_CHOICE);break;
-			case TOOL_2_MRI_WATER_TRACKER:IJ.log("MRI Water tracker !");runMRIWaterTracker();break;
-			case TOOL_3_MULTIMODAL_ASSISTANT:IJ.log("Multimodal timeseries assistant !");runMultimodalAssistant();break;
+			case TOOL_NOTHING:System.out.println("Nothing to do, then. See you !");break;
+			case TOOL_0_TESTING:System.out.println("Testing mode !");runTesting();break;
+			case TOOL_1_TRANSFORM_3D:System.out.println("Transform 3D !");runTransform3D(NO_AUTO_CHOICE);break;
+			case TOOL_2_MRI_WATER_TRACKER:System.out.println("MRI Water tracker !");runMRIWaterTracker();break;
+			case TOOL_3_MULTIMODAL_ASSISTANT:System.out.println("Multimodal timeseries assistant !");runMultimodalAssistant();break;
 		}
 	}
 
@@ -97,7 +97,7 @@ public class Vitimage_Toolbox implements PlugIn {
 	private void runSpecificTesting() {
 		TransformUtils trUt=new TransformUtils();
 		new ImageJ();
-		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_1-6_level0.tif");
+		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_1-3_level1_ImgToAlign.tif");
 		img1.show();
 		runTransform3D(TR3D_3_ALIGN_TR);
 		//		trUt.testResolve();
@@ -222,34 +222,34 @@ public class Vitimage_Toolbox implements PlugIn {
 				inVoxSize=chooseVoxSizeUI(imgTab[0],"",AUTOMATIC);
 				outVoxSize=chooseVoxSizeUI(imgTab[0],"",AUTOMATIC);
 				outImgSize=chooseSizeUI(imgTab[0],"Output image size :",AUTOMATIC);
-				if (imgTab[0]==null) {IJ.log("No image to be aligned here");return;}
+				if (imgTab[0]==null) {System.out.println("No image to be aligned here");return;}
 				System.out.println("Selected image : "+imgTab[0].getShortTitle());
 
 				//Wait for 4 points, given in real coordinates
-				double[][]inoculationPointCoordinates=waitForPointsUI(4,imgTab[0],true);
+				double[][]inoculationPointCoordinates=trUt.coordinatesForAlignmentTesting();//waitForPointsUI(4,imgTab[0],true);//
 								
 				//Compute the transformation, according to reference geometry, and the given 4 points
 				matTransforms=trUt.computeTransformationForBoutureAlignment(imgTab[0],inoculationPointCoordinates);
 						
 				//Resample and show input image
 				matTransformFinal=trUt.doubleBasisChange(inVoxSize,matTransforms[0],inVoxSize);
-				imgsOut=trUt.reech3D(imgTab[0],matTransformFinal,outImgSize,titleMov+"_axis_aligned",getYesNoUI("Compute mask ?"));
+				imgsOut=trUt.reech3D(imgTab[0],matTransformFinal,outImgSize,titleMov+"_axis_aligned",false && getYesNoUI("Compute mask ?"));
 				for(int  i=0;i<imgsOut.length;i++) {trUt.adjustImageCalibration(imgsOut[i],outVoxSize,outUnit);imgsOut[i].show();}
 										
 				//Propose to save the transformation
-				if(getYesNoUI("Save the matrix and its inverse ?")) {
+				if(false && getYesNoUI("Save the matrix and its inverse ?")) {
 					saveMatrixUI(matTransforms[0],"Save transformation from moving to reference space ?",SUPERVISED,"","mat_"+titleMov+"_to_alignment",trUt);
 					saveMatrixUI(matTransforms[1],"Save inverse transformation from reference to moving space ?",SUPERVISED,"","mat_alignment_to_"+titleMov,trUt);
 				}
 				
 				//Propose to save the image
-				if(getYesNoUI("Save the image (and the mask if so) ?")) {
+				if(false && getYesNoUI("Save the image (and the mask if so) ?")) {
 					for(int i=0;i<imgsOut.length;i++) {saveImageUI(imgsOut[i],(i==0 ?"Registered image":"Mask image"),SUPERVISED,"",imgsOut[i].getTitle());}
 				}
 				
 				break;
-			case TR3D_4_MANCAP_TR:IJ.log("Not implemented yet");break;
-			case TR3D_5_AUTOCAP_TR:IJ.log("Not implemented yet");break;
+			case TR3D_4_MANCAP_TR:System.out.println("Not implemented yet");break;
+			case TR3D_5_AUTOCAP_TR:System.out.println("Not implemented yet");break;
 		}
 	}
 
@@ -283,8 +283,8 @@ public class Vitimage_Toolbox implements PlugIn {
 	        if (gd.wasCanceled()) return null;
 	       	index1 = gd.getNextChoiceIndex();
 	       	index2 = gd.getNextChoiceIndex();
-	        IJ.log("Chosen moving image : "+WindowManager.getImage(wList[index1]).getShortTitle());
-	        IJ.log("Chosen reference image : "+WindowManager.getImage(wList[index2]).getShortTitle());
+	        System.out.println("Chosen moving image : "+WindowManager.getImage(wList[index1]).getShortTitle());
+	        System.out.println("Chosen reference image : "+WindowManager.getImage(wList[index2]).getShortTitle());
         	return new ImagePlus[] {WindowManager.getImage(wList[index1]),WindowManager.getImage(wList[index2])};
 	}
 	
@@ -298,7 +298,7 @@ public class Vitimage_Toolbox implements PlugIn {
 		        gd.addNumericField("Vy suggestion :",tabRet[1], 5);
 		        gd.addNumericField("Vz suggestion :",tabRet[2], 5);
 		        gd.showDialog();
-		        if (gd.wasCanceled()) {IJ.log("Warning : vox sizes set by default 1.0 1.0 1.0"); return new double[] {1.0,1.0,1.0};}
+		        if (gd.wasCanceled()) {System.out.println("Warning : vox sizes set by default 1.0 1.0 1.0"); return new double[] {1.0,1.0,1.0};}
 		 
 		        tabRet[0] = gd.getNextNumber();
 		        tabRet[1] = gd.getNextNumber();
@@ -325,7 +325,7 @@ public class Vitimage_Toolbox implements PlugIn {
 		        gd.addNumericField("Dim_Y suggestion :",tabRet[1], 5);
 		        gd.addNumericField("Dim_Z suggestion :",tabRet[2], 5);
 		        gd.showDialog();
-		        if (gd.wasCanceled()) {IJ.log("Warning : Dims set by default 100.0 100.0 100.0"); return new int[] {100,100,100};}
+		        if (gd.wasCanceled()) {System.out.println("Warning : Dims set by default 100.0 100.0 100.0"); return new int[] {100,100,100};}
 		 
 		        tabRet[0] = (int) gd.getNextNumber();
 		        tabRet[1] = (int) gd.getNextNumber();
@@ -370,7 +370,7 @@ public class Vitimage_Toolbox implements PlugIn {
 				pathLog="";
 				for(int i=0;i<iTr;i++)pathLog="--";
 				pathLog=pathLog+"-> Tr "+iTr+" "+pathSplit[pathSplit.length-1];
-				IJ.log(pathLog);				
+				System.out.println(pathLog);				
             }	
 
 			tabRet.add(transInd);
@@ -440,7 +440,8 @@ public class Vitimage_Toolbox implements PlugIn {
 				tabRet[indP][0]=(tabRet[indP][0]+0.5)*(img.getCalibration().pixelWidth);
 				tabRet[indP][1]=(tabRet[indP][1]+0.5)*(img.getCalibration().pixelHeight);
 				tabRet[indP][2]=(tabRet[indP][2]+0.5)*(img.getCalibration().pixelDepth);
-			}		
+			}	
+			System.out.println("Point retenu numéro "+indP+" : {"+tabRet[indP][0]+","+tabRet[indP][1]+","+tabRet[indP][2]+"}");
 		}
 		return tabRet;
 	}
