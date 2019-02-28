@@ -273,43 +273,42 @@ public class TransformUtils {
 			maskTab[z].createMask();
 		}
 		//Extract two substacks for the upper part and the lower part of the object
-		ImageStack stackUp = new ImageStack(xMax, yMax);
+		ImageStack stackUp = new ImageStack(xMax, yMax);	
 		ImageStack stackDown = new ImageStack(xMax, yMax);
 		for(int i=0;i<6;i++) {
-			stackDown.addSlice("",maskTab[zMax/2+i]);//de zmax/2 à zMax/2 + 5 --> ajouter zMax/2 à la fin			
-			stackUp.addSlice("",maskTab[zMax/2-5+i]);//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
+			stackUp.addSlice("",maskTab[zMax/2+i]);//de zmax/2 à zMax/2 + 5 --> ajouter zMax/2 à la fin			
+			stackDown.addSlice("",maskTab[zMax/2-5+i]);//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
 		}
-		ImagePlus imgUp=new ImagePlus("up",stackUp);
+		ImagePlus imgUp=new ImagePlus("upMASK",stackUp);
+		imgUp.show();		
+		ImagePlus imgDown=new ImagePlus("downMASK",stackDown);
+		imgDown.show();		
 
-		if(debug)System.out.println("Entree dans connexe");
-		ImagePlus imgUpCon=connexe(imgUp,0,10,6000,10E10,6);
-		if(debug)System.out.println("Sortie de connexe");
-		//imgUpCon.show();
-		
-		ImagePlus imgDown=new ImagePlus("down",stackDown);
-		ImagePlus imgDownCon=connexe(imgDown,0,10,6000,10E10,6);
-		//imgDownCon.show();
+		ImagePlus imgDownCon=connexe(imgDown,0,8,6000,10E10,6);
+		imgDownCon.show();
+		ImagePlus imgUpCon=connexe(imgUp,0,8,6000,10E10,6);
+		imgUpCon.show();
 
 		if(debug)System.out.println("Connexes calcules !");
 		//Step 3 : compute the two centers of mass
 		double xMoyUp=0,yMoyUp=0,zMoyUp=0;
 		double xMoyDown=0,yMoyDown=0,zMoyDown=0;
 		int hitsUp=0,hitsDown=0;
-		byte[][] valsPlusDown=new byte[6][];
-		byte[][] valsPlusUp=new byte[6][];
+		short[][] valsDownCon=new short[6][];
+		short[][] valsUpCon=new short[6][];
 		for(int z=0;z<6;z++){
-			valsPlusDown[z]=(byte[])(imgDown).getStack().getProcessor(z+1).getPixels();
-			valsPlusUp[z]=(byte[])(imgUp).getStack().getProcessor(z+1).getPixels();
+			valsDownCon[z]=(short[])(imgDownCon).getStack().getProcessor(z+1).getPixels();
+			valsUpCon[z]=(short[])(imgUpCon).getStack().getProcessor(z+1).getPixels();
 		}
 
 		for(int x=0;x<xMax;x++){
 			for(int y=0;y<yMax;y++){
 				for(int z=0;z<6;z++){								
-					if(valsPlusDown[z][xMax*y+x]==((byte)2)){//We are in the first part of the object
+					if(valsDownCon[z][xMax*y+x]==((short)2)){//We are in the first part of the object
 						hitsDown++;
 						xMoyDown+=x;yMoyDown+=y;zMoyDown+=z;
 					}
-					if(valsPlusUp[z][xMax*y+x]==((byte)2)){//We are in the first part of the object
+					if(valsUpCon[z][xMax*y+x]==((short	)2)){//We are in the first part of the object
 						hitsUp++;
 						xMoyUp+=x;yMoyUp+=y;zMoyUp+=z;
 					}
@@ -318,11 +317,11 @@ public class TransformUtils {
 		}
 		xMoyUp=xMoyUp/hitsUp;//Center of mass computation. 
 		yMoyUp=yMoyUp/hitsUp;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
-		zMoyUp=zMoyUp/hitsUp+zMax/2-5;//due to the extraction of a substack zmax/2-5 - zmax/2
+		zMoyUp=zMoyUp/hitsUp+zMax/2;//due to the extraction of a substack zmax/2-5 - zmax/2
 
 		xMoyDown=xMoyDown/hitsDown;//Center of mass computation. 
 		yMoyDown=yMoyDown/hitsDown;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
-		zMoyDown=zMoyDown/hitsDown+zMax/2;//due to the extraction of a substack zmax/2 - zmax/2+5
+		zMoyDown=zMoyDown/hitsDown+zMax/2-5;//due to the extraction of a substack zmax/2 - zmax/2+5
 
 		System.out.println("HitsUp="+hitsUp+" ..Center of mass up = "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
 		System.out.println("HitsDown="+hitsDown+" ..Center of mass down = "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);

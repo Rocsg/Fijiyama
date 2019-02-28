@@ -3,12 +3,16 @@ import java.util.ArrayList;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
+import ij.ImageStack;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
+import ij.plugin.GaussianBlur3D;
 import ij.plugin.PlugIn;
 import ij.plugin.frame.RoiManager;
+import ij.process.ByteProcessor;
+import ij.process.StackConverter;
 import imagescience.transform.Transform;
 
 /**
@@ -99,7 +103,44 @@ public class Vitimage_Toolbox implements PlugIn {
 		new ImageJ();
 		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_1-3_level1_ImgToAlign.tif");
 		img1.show();
-		runTransform3D(TR3D_3_ALIGN_TR);
+		
+		
+		/*
+		
+		GaussianBlur3D.blur(img, 2,2,2);
+		StackConverter sc=new StackConverter(img);
+		sc.convertToGray8();
+
+		//Step 2 : apply automatic threshold
+		ByteProcessor[] maskTab=new ByteProcessor[zMax];
+		for(int z=0;z<zMax;z++){
+			maskTab[z]=(ByteProcessor) img.getStack().getProcessor(z+1);
+			maskTab[z].setAutoThreshold("Otsu dark");
+			maskTab[z].createMask();
+		}
+		//Extract two substacks for the upper part and the lower part of the object
+		ImageStack stackUp = new ImageStack(xMax, yMax);	
+		ImageStack stackDown = new ImageStack(xMax, yMax);
+		for(int i=0;i<6;i++) {
+			stackUp.addSlice("",maskTab[zMax/2+i]);//de zmax/2 à zMax/2 + 5 --> ajouter zMax/2 à la fin			
+			stackDown.addSlice("",maskTab[zMax/2-5+i]);//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
+		}
+		ImagePlus imgUp=new ImagePlus("upMASK",stackUp);
+		imgUp.show();		
+		ImagePlus imgDown=new ImagePlus("downMASK",stackDown);
+		imgDown.show();		
+
+		ImagePlus imgDownCon=connexe(imgDown,0,8,6000,10E10,6);
+		imgDownCon.show();
+		ImagePlus imgUpCon=connexe(imgUp,0,8,6000,10E10,6);
+		imgUpCon.show();
+
+		*/
+		
+		
+		
+		
+		//runTransform3D(NO_AUTO_CHOICE);
 		//		trUt.testResolve();
 //		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/imgMoving.tif");
 //		ImagePlus img2=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/imgRef.tif");
