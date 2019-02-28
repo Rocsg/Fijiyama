@@ -1,20 +1,18 @@
 package com.vitimage;
-import java.util.ArrayList;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
-import ij.ImageStack;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
-import ij.plugin.GaussianBlur3D;
 import ij.plugin.PlugIn;
 import ij.plugin.frame.RoiManager;
-import ij.process.ByteProcessor;
-import ij.process.StackConverter;
-import imagescience.transform.Transform;
 
+import java.util.ArrayList;
+
+import com.vitimage.MRUtils;
+import imagescience.transform.Transform;
 /**
  * The entry point for the whole toolbox. This toolbox provides three main tools :
  * 1) Transform 3D, the tools for image transformation, matrix composition, axis alignment, capillary substraction
@@ -26,8 +24,8 @@ import imagescience.transform.Transform;
 
 /**
  * TODO 
- * 1-CAPILLARY TOOL
- * 2-AXIS ALIGNMENT TOOL
+ * 1-CAPILLARY TOOL --> todo
+ * 2-AXIS ALIGNMENT TOOL  --> make a sort upon volumes before release the connected components image
  * 3-MRI COMPUTATION
  * 
  * @author fernandr
@@ -47,6 +45,7 @@ public class Vitimage_Toolbox implements PlugIn {
 	private final String OS_SEPARATOR=System.getProperties().getProperty("file.separator");
 	private final String[]toolsStr= {"TOOool 0 : testing","Tool 1 : Transform 3D ","Tool 2 : MRI Water tracker",
 									 "Tool 2 : MRI Water tracker", "Tool 3 : Multimodal Timeseries assistant"};
+	
 	private final int NO_AUTO_CHOICE=-10;
 	private final int TR3D_0_MANUAL_TR=0;
 	private final int TR3D_1_AUTO_TR=1;
@@ -54,8 +53,15 @@ public class Vitimage_Toolbox implements PlugIn {
 	private final int TR3D_3_ALIGN_TR=3;
 	private final int TR3D_4_MANCAP_TR=4;
 	private final int TR3D_5_AUTOCAP_TR=5;
+	
+	private final int MRI_0_EXPLORER=0;
+	private final int MRI_1_T1_CALCULATION=1;
+	private final int MRI_2_T2_CALCULATION=2;
+	
 	private final String[]tr3DToolsStr= {"Tool 1-1 : Image transformation by #N registration matrices","Tool 1-2 : Image transformation by one matrix (for scripts) ", 
-									 "Tool 1-3 : Matrix compositions tool","Tool 1-4 : Bouture Alignment along z axis","Tool 1-5 : User-assisted capillary removal","Tool 1-6 : Automated capillary removal"};
+									 "Tool 1-3 : Matrix compositions tool","Tool 1-4 : Bouture Alignment along z axis","Tool 1-5 : User-assisted capillary removal",
+									 "Tool 1-6 : Automated capillary removal"};
+	private final String[]mriToolsStr= {"Tool 2-1 : MRI Explorer","Tool 2-2 : T1 sequence calculation", "Tool 2-3 : T2 sequence calculation"};
 	
 	
 	public Vitimage_Toolbox(){
@@ -77,7 +83,7 @@ public class Vitimage_Toolbox implements PlugIn {
 			case TOOL_NOTHING:System.out.println("Nothing to do, then. See you !");break;
 			case TOOL_0_TESTING:System.out.println("Testing mode !");runTesting();break;
 			case TOOL_1_TRANSFORM_3D:System.out.println("Transform 3D !");runTransform3D(NO_AUTO_CHOICE);break;
-			case TOOL_2_MRI_WATER_TRACKER:System.out.println("MRI Water tracker !");runMRIWaterTracker();break;
+			case TOOL_2_MRI_WATER_TRACKER:System.out.println("MRI Water tracker !");runMRIWaterTracker(MRI_0_EXPLORER);break;
 			case TOOL_3_MULTIMODAL_ASSISTANT:System.out.println("Multimodal timeseries assistant !");runMultimodalAssistant();break;
 		}
 	}
@@ -91,65 +97,64 @@ public class Vitimage_Toolbox implements PlugIn {
 
 	}
 
-
-
+	
+	public static void waitFor(int n) {
+		try {
+			java.util.concurrent.TimeUnit.MILLISECONDS.sleep(n);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}		
+	}
+	
+	public static void closeEverything() {
+		WindowManager.closeAllWindows();
+		IJ.getInstance().quit();
+	}
+	
 	/** REGRESSION TESTS
 	 * TR3D_0_MANUAL_TR Regression test : level0=no difference, level1=salt and pepper of value1 (obviously conversion artifact)
 	 * TR3D_1_AUTO_TR Regression test : give the same 
 	 * 
 	 * */
 	private void runSpecificTesting() {
-		TransformUtils trUt=new TransformUtils();
-		new ImageJ();
+		/*TransformUtils trUt=new TransformUtils();
+		ImageJ thisImageJ=new ImageJ();
 		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_1-3_level1_ImgToAlign.tif");
 		img1.show();
-		
-		
-		/*
-		
-		GaussianBlur3D.blur(img, 2,2,2);
-		StackConverter sc=new StackConverter(img);
-		sc.convertToGray8();
-
-		//Step 2 : apply automatic threshold
-		ByteProcessor[] maskTab=new ByteProcessor[zMax];
-		for(int z=0;z<zMax;z++){
-			maskTab[z]=(ByteProcessor) img.getStack().getProcessor(z+1);
-			maskTab[z].setAutoThreshold("Otsu dark");
-			maskTab[z].createMask();
-		}
-		//Extract two substacks for the upper part and the lower part of the object
-		ImageStack stackUp = new ImageStack(xMax, yMax);	
-		ImageStack stackDown = new ImageStack(xMax, yMax);
-		for(int i=0;i<6;i++) {
-			stackUp.addSlice("",maskTab[zMax/2+i]);//de zmax/2 à zMax/2 + 5 --> ajouter zMax/2 à la fin			
-			stackDown.addSlice("",maskTab[zMax/2-5+i]);//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
-		}
-		ImagePlus imgUp=new ImagePlus("upMASK",stackUp);
-		imgUp.show();		
-		ImagePlus imgDown=new ImagePlus("downMASK",stackDown);
-		imgDown.show();		
-
-		ImagePlus imgDownCon=connexe(imgDown,0,8,6000,10E10,6);
-		imgDownCon.show();
-		ImagePlus imgUpCon=connexe(imgUp,0,8,6000,10E10,6);
-		imgUpCon.show();
-
+		System.out.println("pouet1");
+		runTransform3D(TR3D_3_ALIGN_TR);
+		waitFor(20000);
 		*/
+		new ImageJ();
+		ImagePlus imgT1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_2-1_T1.tif");
+		imgT1.show();
+		ImagePlus imgT2=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_2-1_T2.tif");
+		imgT2.show();
+		MRUtils mrUt=new MRUtils();
+		mrUt.runCurveExplorer();
+		
+		
+		
+
 		
 		
 		
 		
-		//runTransform3D(NO_AUTO_CHOICE);
-		//		trUt.testResolve();
-//		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/imgMoving.tif");
-//		ImagePlus img2=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/imgRef.tif");
-//		img1.show();
 		
-//Test de l'algo connexe
-//		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_1-6_level0.tif");
-//		img1.show();
-//		trUt.testConnexe(img1,1058,500,6);
+//FAIRE DU SEUILLAGE		
+//		IJ.setAutoThreshold(img1, "Otsu dark stack");
+//		ImagePlus imgSeuillee1=new ImagePlus("seuillee1",img1.createThresholdMask());
+//		imgSeuillee1.show();
+
+		
+		
+		
+		
+		waitFor(2000);
+		closeEverything();
+		
+		
+	
 		
 	}
 	
@@ -203,7 +208,7 @@ public class Vitimage_Toolbox implements PlugIn {
 		// 5 choice (automatic capillary removal) : ask for a point, output the transformed image
 		switch(choice) {
 			case TR3D_0_MANUAL_TR:
-				imgTab=chooseMovingAndReferenceImagesUI();
+				imgTab=chooseTwoImagesUI("Choose moving image and reference image\n\n","Moving image","Reference image");
 				if(imgTab ==null)return;
 				titleMov=imgTab[0].getShortTitle();
 				titleRef=imgTab[1].getShortTitle();
@@ -227,7 +232,7 @@ public class Vitimage_Toolbox implements PlugIn {
 				break;
 
 			case TR3D_1_AUTO_TR:
-				imgTab=chooseMovingAndReferenceImagesUI();
+				imgTab=chooseTwoImagesUI("Choose moving image and reference image\n\n","Moving image","Reference image");
 				if(imgTab ==null)return;
 				titleMov=imgTab[0].getShortTitle();
 				titleRef=imgTab[1].getShortTitle();
@@ -274,17 +279,17 @@ public class Vitimage_Toolbox implements PlugIn {
 						
 				//Resample and show input image
 				matTransformFinal=trUt.doubleBasisChange(inVoxSize,matTransforms[0],inVoxSize);
-				imgsOut=trUt.reech3D(imgTab[0],matTransformFinal,outImgSize,titleMov+"_axis_aligned",false && getYesNoUI("Compute mask ?"));
+				imgsOut=trUt.reech3D(imgTab[0],matTransformFinal,outImgSize,titleMov+"_axis_aligned",getYesNoUI("Compute mask ?"));
 				for(int  i=0;i<imgsOut.length;i++) {trUt.adjustImageCalibration(imgsOut[i],outVoxSize,outUnit);imgsOut[i].show();}
 										
 				//Propose to save the transformation
-				if(false && getYesNoUI("Save the matrix and its inverse ?")) {
+				if(getYesNoUI("Save the matrix and its inverse ?")) {
 					saveMatrixUI(matTransforms[0],"Save transformation from moving to reference space ?",SUPERVISED,"","mat_"+titleMov+"_to_alignment",trUt);
 					saveMatrixUI(matTransforms[1],"Save inverse transformation from reference to moving space ?",SUPERVISED,"","mat_alignment_to_"+titleMov,trUt);
 				}
 				
 				//Propose to save the image
-				if(false && getYesNoUI("Save the image (and the mask if so) ?")) {
+				if(getYesNoUI("Save the image (and the mask if so) ?")) {
 					for(int i=0;i<imgsOut.length;i++) {saveImageUI(imgsOut[i],(i==0 ?"Registered image":"Mask image"),SUPERVISED,"",imgsOut[i].getTitle());}
 				}
 				
@@ -295,10 +300,63 @@ public class Vitimage_Toolbox implements PlugIn {
 	}
 
 	/** Tool 2*/
-	private void runMRIWaterTracker() {
+	private void runMRIWaterTracker(int initChoice) {
+		MRUtils mrUt=new MRUtils();
+		int choice;
+		ImagePlus []imgTab;
+		ImagePlus []imgsT1;
+		ImagePlus []imgsT2;
+		double []tabTe;
+		double []tabTr;
+		double sigma=mrUt.stdSigmaIRM;
+		double te=11;
+		int nTe=16;
+		int nTr=3;
+		double [] voxSizeT1=mrUt.getT1Times(nTr);
+		double [] voxSizeT2=mrUt.getProportionalTimes(te, nTe*te,te);
+		int [] sizeT1;
+		int [] sizeT2;
+		String outUnit="mm";
+		String []titles;
 		
+		if(initChoice==NO_AUTO_CHOICE) {
+			GenericDialog gd= new GenericDialog("MRI 3D tools");
+	        gd.addChoice("MRI 3D mode ", mriToolsStr,mriToolsStr[0]);
+			gd.showDialog();
+			if (gd.wasCanceled()) choice=-1;
+	        else choice=gd.getNextChoiceIndex();
+		}
+		else choice=initChoice;
+		// 0 choice (explorer) : Ask for T1 and T2 images, then plot a point that can be moved by the user
+		// 1 choice (T1 calculation) : Ask for T1, then compute the T1 Map, according to rice bias estimation, using a monocomponent exponential
+		// 2 choice (T2 calculation) : Ask for T2, then compute the T2 and M0 Maps, according to rice bias estimation, using a monocomponent exponential
+		switch(choice) {
+			case MRI_0_EXPLORER:
+				//Open data
+				imgTab=chooseTwoImagesUI("Choose MRI T1 sequence (varying Tr) and MRI T2 sequence (varying Te)","T1 sequence : ","T2 sequence : ");
+				if(imgTab ==null)return;
+				titles=new String[] {imgTab[0].getShortTitle(),imgTab[1].getShortTitle()};
+				sizeT1=chooseSizeUI(imgTab[0],"",AUTOMATIC);
+				sizeT2=chooseSizeUI(imgTab[1],"",AUTOMATIC);
+				voxSizeT1=chooseVoxSizeUI(imgTab[0],"",AUTOMATIC);
+				voxSizeT2=chooseVoxSizeUI(imgTab[1],"",AUTOMATIC);
+				mrUt.runCurveExplorer();
+				break;
+
+			case 10:
+				int a=1;
+				break;
+		}
 	}
 
+
+	
+	
+	
+	
+	
+	
+	
 	/** Tool 3*/
 	private void runMultimodalAssistant() {
 		
@@ -306,7 +364,7 @@ public class Vitimage_Toolbox implements PlugIn {
 
 	
 	/** Utility functions for tool 1*/
-	public ImagePlus[] chooseMovingAndReferenceImagesUI() {
+	public ImagePlus[] chooseTwoImagesUI(String strGuess,String strImg1, String strImg2) {
 			String none="*None*";
 			int index1,index2;
 			int[] wList = WindowManager.getIDList();
@@ -317,15 +375,15 @@ public class Vitimage_Toolbox implements PlugIn {
 	            titles[i] = imp!=null?imp.getTitle():"";
 	        }
 	 
-	        GenericDialog gd= new GenericDialog("Choose moving image and reference image\n\n");
-	        gd.addChoice("Moving image", titles,none);
-	        gd.addChoice("Reference image", titles,none);
+	        GenericDialog gd= new GenericDialog(strGuess);
+	        gd.addChoice(strImg1, titles,none);
+	        gd.addChoice(strImg2, titles,none);
 			gd.showDialog();
 	        if (gd.wasCanceled()) return null;
 	       	index1 = gd.getNextChoiceIndex();
 	       	index2 = gd.getNextChoiceIndex();
-	        System.out.println("Chosen moving image : "+WindowManager.getImage(wList[index1]).getShortTitle());
-	        System.out.println("Chosen reference image : "+WindowManager.getImage(wList[index2]).getShortTitle());
+	        System.out.println("Chosen "+strImg1+" "+WindowManager.getImage(wList[index1]).getShortTitle());
+	        System.out.println("Chosen "+strImg2+" "+WindowManager.getImage(wList[index2]).getShortTitle());
         	return new ImagePlus[] {WindowManager.getImage(wList[index1]),WindowManager.getImage(wList[index2])};
 	}
 	

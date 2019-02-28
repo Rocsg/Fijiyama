@@ -1,0 +1,1066 @@
+package com.vitimage;
+
+
+import ij.*;
+import ij.plugin.*;
+import ij.plugin.filter.*;
+import ij.gui.*;
+import ij.process.*;
+import java.lang.System;
+import java.util.*;
+import net.imglib2.algorithm.localization.LevenbergMarquardtSolver;
+import java.awt.*;
+import java.io.*;
+import ij.measure.*;
+import ij.text.TextPanel;
+import ijaux.proc.*;
+import ij.io.OpenDialog;
+import ij.plugin.frame.RoiManager;
+import ij.gui.PointRoi;
+import java.util.concurrent.atomic.AtomicInteger;  
+//////////////////////////////////////////////////////////////////////////
+/////////////////////////                        /////////////////////////
+/////////////////////////     LAUNCHING PART     /////////////////////////
+/////////////////////////                        /////////////////////////
+//////////////////////////////////////////////////////////////////////////
+/** 
+ *   This plugin has been developed in order to adress common issues about T1-T2 estimation in plants tissues imaged in MRI spin-echo sequences
+ *   Given an opened image sequence, showing the successive echoes, and a given point assessed as a ROI point, one can use this plugin
+ *   to plot the value of the successive echoes, and estimate T2 and M0 in different ways, to assess accurateness and significativeness of the estimation method
+ *   Based on the plugin MRI Processor by dimiter...
+ *   
+*/ 
+public class MRI_Fit_And_Plot implements PlugIn {
+	public static final int RICE=100;
+	public static final int BIAS=1000;
+	public static final int SIGMA=10000;
+	public static final int MULTI=100000;
+    public static final int ALL_AVAILABLE_FIT=1000000;
+
+	public static final int STRAIGHT_LINE=0,EXPONENTIAL=STRAIGHT_LINE+4,EXP_RECOVERY=STRAIGHT_LINE+13;
+	public static final int T2_RELAX = EXP_RECOVERY +3; //offset 3
+    public static final int T2_RELAX_BIAS = T2_RELAX+BIAS; //offset 3
+    public static final int T2_RELAX_SIGMA = T2_RELAX+SIGMA; //offset 3
+    public static final int T2_RELAX_RICE = T2_RELAX+RICE; //offset 3
+	public static final int MULTICOMP=T2_RELAX+MULTI;
+    public static final int MULTICOMP_BIAS=T2_RELAX+MULTI+BIAS;
+    public static final int MULTICOMP_SIGMA=T2_RELAX+MULTI+SIGMA;
+    public static final int MULTICOMP_RICE=T2_RELAX+MULTI+RICE;
+ 	public static final int T1_RECOVERY = 500; //offset 3
+	public static final int T1_RECOVERY_RICE = 501; //offset 3
+	public static final int T1_RECOVERY_RICE_NORMALIZED = 504; //offset 3
+		
+	public static final int ERROR_VALUE= 0;
+	public static final int SIMPLEX = 1;
+    public static final int LM=2;
+    public static final int TWOPOINTS=3; 	   
+    public static final int MSEC=3;
+    public static final int SEC=0;
+
+    public final static String[] timeunits={"ms", "s"};
+    public final static int[] timeitems={MSEC, SEC};
+    public final static String[] fititems2={"Simplex","Levenberg-Marquardt"};
+    public final static int[] constitems2={SIMPLEX,LM};
+
+	
+	static boolean debug=IJ.debugMode;
+	static float stdValMaxIRM=50000;
+	static float stdSigmaIRM=159;
+	private final int T1_IMAGE_PROCESSING_MODE=1;	
+	private final int T2_IMAGE_PROCESSING_MODE=2;	
+	private final int CURVE_EXPLORER_MODE=3;	
+	private final int SIMULATION_MODE=4;
+	private final int SIMULATION_THREAD_MODE=5;
+	private final int TEST_ALL_FIT_AVAILABLE_MODE=6;	
+	private final int TESTING_MODE=7;	
+	private final String[]strModes={"T1 map computation mode","T2 map computation mode","Curve explorer mode","Simulation mode","Simulation thread mode","Test-all-availables-T1-fits mode","Helper functions testing mode"};
+   	private Calibration cal=null;	 
+	private float[][]LUTBesFunkInverse;
+	private Plot plotT1=null;
+	private Plot plotT2=null;
+	private RoiManager rm=null;
+	private boolean fixedPlotScale=true;
+	private static final float maxPlotY=10000;
+	private static final float maxT1=6000;
+	private static final float maxT2=200;
+	
+	
+	public void run(String arg) {
+		IJ.register(MRI_Fit_And_Plot.class);
+		LUTBesFunkInverse=createLUTBesFunkInverse(30000,153);
+		ImagePlus img;
+		switch(chooseModeUI()){
+			case T1_IMAGE_PROCESSING_MODE: img=getImageUI();computeT1Maps(img,chooseComputationParametersUI(T1_IMAGE_PROCESSING_MODE));break;
+			case T2_IMAGE_PROCESSING_MODE: img=getImageUI();computeMaps(img,chooseComputationParametersUI(T2_IMAGE_PROCESSING_MODE));break;
+			case CURVE_EXPLORER_MODE: runCurveExplorer();break;
+			case SIMULATION_MODE: IJ.log("Simulation mode");img=getImageUI();simulate(img);break;
+			case SIMULATION_THREAD_MODE: IJ.log("Simulation thread mode");img=getImageUI();simulateThread(img);break;
+			case TEST_ALL_FIT_AVAILABLE_MODE: OpenDialog od = new OpenDialog("","");String outputPath = od.getDirectory();makeAllT2Fit(getImageUI(),outputPath);break;
+			case TESTING_MODE: makeTesting();break;
+		}
+	}
+
+
+	public int chooseModeUI(){
+        GenericDialog gd= new GenericDialog("Select mode");
+        gd.addChoice("Mode ", strModes,strModes[0]);
+		gd.showDialog();
+        if (gd.wasCanceled()) return 0;
+		return (gd.getNextChoiceIndex()+1);
+
+	}
+
+
+
+
+//////////////////////////////////////////////////////////////////////////
+/////////////////////////                        /////////////////////////
+///////////////////////// IMAGE COMPUTATION PART /////////////////////////
+/////////////////////////                        /////////////////////////
+//////////////////////////////////////////////////////////////////////////
+	public ImagePlus getImageUI(){
+		int[] wList = WindowManager.getIDList();
+        String[] titles = new String[wList.length];
+        if (wList==null) {IJ.error("No images are open.");return null;}
+        for (int i=0; i<wList.length; i++)titles[i] = WindowManager.getImage(wList[i])!=null?WindowManager.getImage(wList[i]).getTitle():""; 
+        GenericDialog gd= new GenericDialog("Select echoes image");
+        gd.addChoice("Input image ", titles,titles[0]);
+		gd.showDialog();
+        if (gd.wasCanceled()) return null;
+		return WindowManager.getImage(wList[gd.getNextChoiceIndex()]);
+	}
+	public int[]chooseComputationParametersUI(int mode){
+		//Select algorithm
+		String[]strTab=new String[]{"Simplex","Levenberg-Marquardt","TWOPOINTS"};
+		String strRep;
+		int algType=0;
+		int fitType=0;
+		GenericDialog gd;
+		if(mode==T1_IMAGE_PROCESSING_MODE)gd  = new GenericDialog("Choose algorithm \n for T1 calculation");
+		else gd = new GenericDialog("Choose algorithm \n for T2 calculation");
+		gd.addChoice("Algorithm ",strTab,"Simplex");
+		gd.showDialog();
+		if (gd.wasCanceled()) return null;
+		algType=gd.getNextChoiceIndex()+1;
+		IJ.log("Algorithm choosen : "+strTab[algType-1]);
+
+		gd = new GenericDialog("Fit type");
+		if(mode==T2_IMAGE_PROCESSING_MODE){
+			if(algType==TWOPOINTS)strTab=new String[]{"T2_RELAX (Fit a simple exponential)","T2_RELAX_RICE (Fit an exponential with rice noise)"};
+			else strTab=new String[]{"T2_RELAX (Fit a simple exponential)","T2_RELAX_RICE (Fit an exponential with rice noise)",
+									"T2_RELAX_BIAS (Fit an exponential + a constant)","MULTICOMP (Fit a sum of two exponentials)","MULTICOMP_RICE (Fit two exponentials with rice noise)",
+									"MULTICOMP_BIAS (Fit two exponentials + a constant)"};	
+			gd.addChoice("Fit function : ",strTab,"T2_RELAX (Fit a simple exponential)");
+			gd.showDialog();
+	        if (gd.wasCanceled()) return null;	
+			strRep=strTab[gd.getNextChoiceIndex()];
+			if(strRep.equals(strTab[0]))fitType=T2_RELAX ;
+			else if(strRep.equals(strTab[1]))fitType=T2_RELAX_RICE;
+			else if(strRep.equals(strTab[2]))fitType=T2_RELAX_BIAS ;
+			else if(strRep.equals(strTab[3]))fitType=MULTICOMP;
+			else if(strRep.equals(strTab[4]))fitType=MULTICOMP_RICE;
+			else if(strRep.equals(strTab[5]))fitType=MULTICOMP_BIAS;
+			return (new int[]{algType,fitType});
+		}
+		else {
+			if(algType==TWOPOINTS)strTab=new String[]{"T1_RECOVERY (Fit an exponential recovery to a value)"};
+			else strTab=new String[]{"T1_RECOVERY (Fit an exponential recovery to a value)","T1_RECOVERY_RICE (Fit an exponential recovery to a value with rice noise)",
+									"T1_RECOVERY_RICE_NORMALIZED (Fit an exponential recovery to 1 with rice noise)"};
+			gd.addChoice("Fit function : ",strTab,"T1_RECOVERY (Fit a bias minus a decreasing exponential )");
+			gd.showDialog();
+	        if (gd.wasCanceled()) return null;	
+			strRep=strTab[gd.getNextChoiceIndex()];
+			if(strRep.equals(strTab[0]))fitType=T1_RECOVERY ;
+			else if(strRep.equals(strTab[1]))fitType=T1_RECOVERY_RICE ;
+			else if(strRep.equals(strTab[2]))fitType=T1_RECOVERY_RICE_NORMALIZED;
+			return (new int[]{algType,fitType});			
+		}
+	}
+
+	
+	public int[] getNbImagesOut(int fitType){
+		if(isMulticompFit(fitType))return new int[]{5,4,1};
+		else return new int[]{1,1,1};
+	}
+
+ 	
+ 	public void makeAllT2Fit(ImagePlus imgIn,String outputPath){
+		ImagePlus []results;int algType;int fitType;
+ 		algType=TWOPOINTS;IJ.log("Fits with TWOPOINTS method. Three fits to come"); 
+ 		IJ.log("Et output path=");
+ 		IJ.log(outputPath);
+ 		fitType=T2_RELAX;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++)IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());
+ 		fitType=T2_RELAX_RICE;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++)IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());
+
+ 		algType=LM;IJ.log("Fits with LM method. Seven fits to come"); 
+ 		fitType=T2_RELAX;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++){IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());results[i].close();}
+ 		fitType=T2_RELAX_RICE;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++){IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());results[i].close();}
+ 		fitType=T2_RELAX_BIAS;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++){IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());results[i].close();}
+ 		fitType=MULTICOMP;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++){IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());results[i].close();}
+ 		fitType=MULTICOMP_RICE;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++){IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());results[i].close();}
+ 		fitType=MULTICOMP_BIAS;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++){IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());results[i].close();	}	
+
+ 		algType=SIMPLEX;IJ.log("Fits with SIMPLEX method. Seven fits to come"); 
+ 		fitType=T2_RELAX;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++){IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());results[i].close();}
+ 		fitType=T2_RELAX_RICE;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++){IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());results[i].close(); }		
+ 		fitType=T2_RELAX_BIAS;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++){IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());results[i].close();	}	
+ 		fitType=MULTICOMP;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++){IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());results[i].close();}
+ 		fitType=MULTICOMP_RICE;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++){IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());results[i].close();}
+ 		fitType=MULTICOMP_BIAS;results=computeMaps(imgIn,new int[]{algType,fitType});for(int i=0;i<3;i++){IJ.saveAsTiff(results[i],outputPath+""+results[i].getTitle());results[i].close();	}	
+
+	}
+
+	public float[]getDataForVoxel(ImagePlus imgIn,int xCor,int yCor){
+		int xMax=imgIn.getWidth();
+		int yMax=imgIn.getHeight();
+		int zMax=imgIn.getStack().getSize();
+		float[]data= new float[zMax];
+		if( (xCor>xMax-1) || (yCor>yMax-1))IJ.log("Bad coordinates. Data set to 0"); 		
+		for(int z=0;z<zMax;z++)data[z]=((float[])(imgIn.getStack().getProcessor(z+1).getPixels()))[xCor + xMax * yCor];
+		return data;
+	}
+
+	public ImagePlus []computeT1Maps(ImagePlus imgIn,int []computationParameters){
+		return null;	
+		//Detecter les coordonnées de l'image
+	}
+	public ImagePlus []computeMaps(ImagePlus imgIn,int []computationParameters){	
+		//Detecter les coordonnées de l'image
+		int xMax=imgIn.getWidth();
+		int yMax=imgIn.getHeight();
+		int zMax=imgIn.getStack().getSize();
+		float[][] dataIn= new float[zMax][];
+        for(int z=1;z<=zMax;z++){dataIn[z-1]=(float[])(imgIn.getStack().getProcessor(z).getPixels());}
+
+		//Preparer les images de sortie
+		int algType=computationParameters[0];
+		int fitType=computationParameters[1];		
+		int [] outType=getNbImagesOut(fitType);
+		ImagePlus imgOutM0=ij.gui.NewImage.createImage("Result1",xMax,yMax,outType[0],32,ij.gui.NewImage.FILL_BLACK);
+		ImagePlus imgOutT2=ij.gui.NewImage.createImage("Result2",xMax,yMax,outType[0],32,ij.gui.NewImage.FILL_BLACK);
+		ImagePlus imgOutAccuracy=ij.gui.NewImage.createImage("Result2",xMax,yMax,outType[2],32,ij.gui.NewImage.FILL_BLACK);
+		float[][] dataOutM= new float[outType[0]][xMax*yMax];
+ 		float[][] dataOutT= new float[outType[1]][xMax*yMax];
+		float[][] dataOutA= new float[outType[2]][xMax*yMax];
+        for(int z=1;z<=outType[0];z++){dataOutM[z-1]=(float[])(imgOutM0.getStack().getProcessor(z).getPixels());}
+        for(int z=1;z<=outType[1];z++){dataOutT[z-1]=(float[])(imgOutT2.getStack().getProcessor(z).getPixels());}
+        for(int z=1;z<=outType[2];z++){dataOutA[z-1]=(float[])(imgOutAccuracy.getStack().getProcessor(z).getPixels());}
+        
+ 		//Construire le type de fit et ses parametres
+ 		float te=11;
+		int nbEchos=zMax;
+ 		int sigma=159;
+ 		float []tabData;
+ 		float []tabTimes;
+ 		float []estimatedParams;
+		tabData=new float[nbEchos];
+		tabTimes=getProportionalTimes(te,nbEchos);
+		int nbIter=100;
+		float accuracy;
+		int indMin,indMax;
+				
+		//Pour tous les points de l'image
+		for(int x=0;x<xMax;x++){
+			if((x%5)==0)IJ.log("Ligne "+x+"/"+xMax);
+			for(int y=0;y<yMax;y++){
+				for(int z=0;z<zMax;z++)tabData[z]=dataIn[z][x + xMax * y];
+				estimatedParams=makeFit(tabTimes, tabData,fitType,algType,nbIter,sigma);
+				if(! isMulticompFit(fitType)){//monocomp
+					dataOutM[0][x + xMax * y]=(float)(estimatedParams[0]);//M0
+					dataOutT[0][x + xMax * y]=(float)(estimatedParams[1]);//T2
+					dataOutA[0][x + xMax * y]=(float)fittingAccuracy(tabData,tabTimes,sigma,estimatedParams,fitType);//Accuracy		
+				}
+				else{//bicomp
+					indMin=1;indMax=0;
+					if(estimatedParams[0]<estimatedParams[2]){indMin=0;indMax=1;}
+					dataOutM[0][x + xMax * y]=(float)estimatedParams[indMax*2];//Max M0
+					dataOutT[0][x + xMax * y]=(float)estimatedParams[indMax*2+1];//T2 de Max M0
+					dataOutM[1][x + xMax * y]=(float)estimatedParams[indMin*2];//Min M0
+					dataOutT[1][x + xMax * y]=(float)estimatedParams[indMin*2+1];//T2 de Min M0
+
+					indMin=1;indMax=0;
+					if(estimatedParams[1]<estimatedParams[3]){indMin=0;indMax=1;}
+					dataOutM[2][x + xMax * y]=(float)estimatedParams[indMax*2];//M0 de Max T2
+					dataOutT[2][x + xMax * y]=(float)estimatedParams[indMax*2+1];//T2 de Max T2
+					dataOutM[3][x + xMax * y]=(float)estimatedParams[indMin*2];//M0 de Min T2
+					dataOutT[3][x + xMax * y]=(float)estimatedParams[indMin*2+1];//T2 de Max T2
+
+					dataOutM[4][x + xMax * y]=(float)estimatedParams[0]+(float)estimatedParams[2];//Total M0
+					dataOutA[0][x + xMax * y]=(float)fittingAccuracy(tabData,tabTimes,sigma,estimatedParams,fitType);//Accuracy		
+				}
+			}
+		}
+		String type=strFit(algType,fitType);
+		imgOutM0.setTitle("M0_"+type+".tif");imgOutM0.setDisplayRange(0,8000);imgOutM0.show();IJ.run("Fire","");
+		imgOutT2.setTitle("T2_"+type+".tif");imgOutT2.setDisplayRange(0,100);imgOutT2.show();IJ.run("Fire","");
+		imgOutAccuracy.setTitle("Acc_"+type+".tif");imgOutAccuracy.setDisplayRange(0,50);imgOutAccuracy.show();IJ.run("Fire","");
+		return new ImagePlus[]{imgOutM0,imgOutT2,imgOutAccuracy};
+	}
+	
+	
+
+
+
+
+
+	
+
+	//////////////////////////////////////////////////////////////////////////
+	/////////////////////////                        /////////////////////////
+	///////////////////////// SIMULATION PART        /////////////////////////
+	/////////////////////////                        /////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+	//The test 1 allows to benchmark simplex and levenberg methods, in terms of calculus duration and precision on the case number 2
+	public void simulate(ImagePlus img){
+		IJ.log("Here !");
+		long timeCounter1,timeCounter2;
+		long elapsedTime;
+		int lineToProcess=256;
+		int nbPointsLine=512;
+		int nbRepeats=50;
+		int nbPointsTotal=nbPointsLine*nbRepeats;
+ 		float te=11;
+ 		int sigma=159;int fitType,algType;boolean multiComp=false;
+ 		float []estimatedParams;
+		float[]tabData;
+		float []tabTimes=getProportionalTimes(te,te*img.getStack().getSize(),te);
+		IJ.log("Tab times est de longueur "+tabTimes.length+" en effet : size="+img.getStack().getSize()+" et te="+te);
+		int thresholdM0=500;	
+		if(img.getWidth()<512)IJ.log("Donnees non conformes pour le stress test. Abort");
+		int []fits=new int []{T2_RELAX,T2_RELAX_RICE,T2_RELAX,T2_RELAX_RICE};
+		int []algos=new int []{SIMPLEX,SIMPLEX,LM,LM};
+		String []str=new String []{"T2 SIMP","RICE SIMP","T2 LM","RICE LM"};
+
+
+		for(int indTest=0;indTest<fits.length;indTest++){			
+			int nbVox=0;
+			int nbVoxOut=0;
+			int nbVoxPouet=0;
+			fitType=fits[indTest];
+			algType=algos[indTest];
+			timeCounter1=System.nanoTime();
+			for (int x=0;x<512 ;x++){
+				for(int rep=0 ; rep<nbRepeats ; rep++){	
+					nbVox++;
+					tabData=getDataForVoxel(img,x,lineToProcess);
+					if(tabData[0]<thresholdM0)nbVoxOut++;
+					else {
+						estimatedParams=makeFit(tabTimes,tabData,fitType,algType,100,sigma);
+						if( (estimatedParams[0]<500) || (estimatedParams[0]>10000) || (estimatedParams[1]<1) || (estimatedParams[1]>150) )nbVoxPouet++;
+					}		
+				}
+			}
+			timeCounter2=System.nanoTime();
+			elapsedTime=((int)((double)((timeCounter2-timeCounter1)/1000000.0)));
+
+			IJ.log("");
+			IJ.log("----  Methode : "+str[indTest]+" -----------");
+			IJ.log(" Nb voxels traités / eliminés par seuil premier echo / elimines par mauvais fit :"+nbVox+" | "+nbVoxOut+" | "+nbVoxPouet);
+			IJ.log(" Temps ecoulé................... :"+elapsedTime+" ms");
+			IJ.log(" Temps equivalent pour une stack :"+ ((double)elapsedTime/(double)(1000*nbVox)*((double)(512*512*40)) )+" s");
+		}
+		simulateThread(img);
+	}
+
+
+//////////////////////////////////////////////////////////////////////////
+	/////////////////////////                        /////////////////////////
+	///////////////////////// SIMULATION PART        /////////////////////////
+	/////////////////////////                        /////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+	//The test 1 allows to benchmark simplex and levenberg methods, in terms of calculus duration and precision on the case number 2
+	public void simulateThread(ImagePlus img){
+		IJ.log("Here !");
+		long timeCounter1,timeCounter2;
+		long elapsedTime;
+		final int lineToProcess=256;
+		int nbPointsLine=512;
+		int nbRepeats=5;
+		int nbPointsTotal=nbPointsLine*nbRepeats;
+ 		float te=11;
+ 		int sigma=159;boolean multiComp=false;
+		
+		float []tabTimes=getProportionalTimes(te,te*img.getStack().getSize(),te);
+		IJ.log("Tab times est de longueur "+tabTimes.length+" en effet : size="+img.getStack().getSize()+" et te="+te);
+		int thresholdM0=500;	
+		if(img.getWidth()<512)IJ.log("Donnees non conformes pour le stress test. Abort");
+		int []fits=new int []{T2_RELAX,T2_RELAX_RICE,T2_RELAX,T2_RELAX_RICE};
+		int []algos=new int []{SIMPLEX,SIMPLEX,LM,LM};
+		String []str=new String []{"MULTITHREAD T2 SIMP","MULTITHREAD RICE SIMP","MULTITHREAD T2 LM","MULTITHREAD RICE LM"};
+		for(int indTest=0;indTest<fits.length;indTest++){			
+			int []nbVox=new int[10];
+			int []nbVoxOut=new int[10];
+			int []nbVoxPouet=new int[10];
+			final int fitType=fits[indTest];
+			final int algType=algos[indTest];
+			timeCounter1=System.nanoTime();
+			final Thread[] threads = new Thread[10];  
+			final int nThreads=threads.length;
+	        final AtomicInteger ai = new AtomicInteger(0);  
+
+	        for (int ithread = 0; ithread < threads.length; ithread++) {  
+	            // Concurrently run in as many threads as CPUs    
+				final int it=ithread;
+				final int nt=nThreads;
+	            threads[ithread] = new Thread() {                            
+		            { setPriority(Thread.NORM_PRIORITY); }  
+		            public void run() {  
+		            	final int nbT=ai.getAndIncrement();
+         		 		ImageProcessor ip = img.getProcessor().duplicate();  
+                    	ImagePlus imp = new ImagePlus("test" + nbT, ip);  
+    					for (int x=0;x<512 ;x++){
+							for(int rep=0 ; rep<nbRepeats ; rep++){	
+								nbVox[nbT]++;
+								final float[]tabData=getDataForVoxel(img,x,lineToProcess);
+								if(tabData[0]<thresholdM0)nbVoxOut[nbT]++;
+								else {
+									final float []estimatedParams=makeFit(tabTimes,tabData,fitType,algType,100,sigma);
+									if( (estimatedParams[0]<500) || (estimatedParams[0]>10000) || (estimatedParams[1]<1) || (estimatedParams[1]>150) )nbVoxPouet[nbT]++;
+								}		
+							}
+						}
+		            }
+	            };
+	        }
+
+
+			 for (int ithread = 0; ithread < threads.length; ++ithread)  {  
+	            threads[ithread].setPriority(Thread.NORM_PRIORITY);  
+	            threads[ithread].start();  
+	        }  
+	  
+	        try  	        {     
+	            for (int ithread = 0; ithread < threads.length; ++ithread)  threads[ithread].join();  
+	        } catch (InterruptedException ie)  {  	            throw new RuntimeException(ie);  }  
+
+	        
+			timeCounter2=System.nanoTime();
+			elapsedTime=((int)((double)((timeCounter2-timeCounter1)/1000000.0)));
+
+			for(int i=1;i<10 ;i++){nbVox[0]+=nbVox[i];nbVoxOut[0]+=nbVoxOut[i];nbVoxPouet[0]+=nbVoxPouet[i];}
+			IJ.log("");
+			IJ.log("----  Methode : "+str[indTest]+" -----------");
+			IJ.log(" Nb voxels traités / eliminés par seuil premier echo / elimines par mauvais fit :"+nbVox[0]+" | "+nbVoxOut[0]+" | "+nbVoxPouet[0]);
+			IJ.log(" Temps ecoulé................... :"+elapsedTime+" ms");
+			IJ.log(" Temps equivalent pour une stack :"+ ((double)elapsedTime/(double)(1000*nbVox[0])*((double)(512*512*40)) )+" s");
+		}
+	}
+
+
+
+
+
+
+
+	//////////////////////////////////////////////////////////////////////////
+	/////////////////////////                        /////////////////////////
+	///////////////////////// IMAGE EXPLORATION PART /////////////////////////
+	/////////////////////////                        /////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+	//The test 1 allows to benchmark simplex and levenberg methods, in terms of calculus duration and precision on the case number 2
+	public void runCurveExplorer(){
+		startPlotsAndRoi();
+		float xCor=1,yCor=1;
+		int count=1;
+		while((rm.getCount()>=1)){//Boucle principale
+			try {java.util.concurrent.TimeUnit.MILLISECONDS.sleep(100);} catch(java.lang.InterruptedException  ie){}
+			count=rm.getCount();
+			ImagePlus img;
+			img=IJ.getImage();
+			if((img != null) && (! img.getTitle().equals("T1 curve explorer") ) &&  (! img.getTitle().equals("T2 curve explorer") ) && (count > 1)){
+			 	rm.selectAndMakeVisible(img, 1);
+				xCor=(float)rm.getRoi(count-1).getXBase();
+				yCor=(float)rm.getRoi(count-1).getYBase();
+				rm.reset();
+				PointRoi pr=new PointRoi(xCor,yCor,"large yellow hybrid");
+				img.setRoi(pr);
+				rm.add(img,pr,0);
+				IJ.log("---------------------------------");
+				if(img.getStack().getSize()<6){
+					IJ.log("T1  : Nouveau point d etude : "+xCor+","+yCor);
+					actualizePlotsT1(img,xCor,yCor);
+					plotT1.updateImage();
+				}
+				else {
+					IJ.log("T2  : Nouveau point d etude : "+xCor+","+yCor);
+					actualizePlotsT2(img,xCor,yCor);
+					plotT2.updateImage();
+					plotT2.show();
+				}
+			}
+		}
+		closePlotsAndRoi();
+	}
+
+
+	
+	public void actualizePlotsT2(ImagePlus imgIn,float xCor, float yCor){
+		Color []tabColor=new Color[]{new Color(150,0,255),new Color(0 ,150 ,255 ) ,new Color(255,0 ,0 ), new Color(255,160 ,160), new Color(0,200,0) , new Color(160,200,160) };
+		int  []tabFit=new int[]{T2_RELAX,T2_RELAX_RICE,T2_RELAX,MULTICOMP,MULTICOMP_RICE};
+		int []tabAlg=new int[]{SIMPLEX,SIMPLEX,TWOPOINTS,SIMPLEX,SIMPLEX};
+		int []yPos=new int[]{10,9,8,6,5,3,2};
+		float[]tabData=getDataForVoxel(imgIn,(int)xCor,(int)yCor);
+		float[]tabFittenCurve=new float[tabData.length];
+ 		float te=11;
+ 		int sigma=159;int fitType,algType;boolean multiComp=false;
+		float longT2=tabData[0]/50;float max=0;
+		int indEstMax=2;
+ 		int indEstMin=0;
+ 		int nEstim=indEstMax-indEstMin+1;
+ 		float []estimatedParams;
+		int nbEchos=tabData.length;
+		String[] tabNames=new String[]{"Fit exp","Fit Rice", "2 Points", "Fit Biex", "BiexRice"};
+		float xMinPlot=0,xMaxPlot=300,xStep=5; 
+ 		float []tabTimes=getProportionalTimes(te,te*tabData.length,te);
+		float []tabPlotX=getProportionalTimes(xMinPlot,xMaxPlot,xStep);
+		int nxPlot=(int)(Math.ceil((xMaxPlot-xMinPlot)/xStep));
+		float[][]tabPlotY=new float[nEstim][nxPlot];
+		float valMax=0;
+		int incr=0;
+
+        plotT2.setLineWidth(4);
+		plotT2.replace(incr++,"x",toDouble(tabTimes),toDouble(tabData));
+		plotT2.replace(incr++, "line",toDouble(new float[]{0,0}),toDouble(new float[]{0,0}));
+        plotT2.setLineWidth(2);
+
+ 		for(int indEst=indEstMin;indEst<=indEstMax;indEst++){
+			fitType=tabFit[indEst];algType=tabAlg[indEst];
+			estimatedParams=makeFit(tabTimes, tabData,fitType,algType,100,sigma);
+			tabPlotY[indEst-indEstMin]=fittenRelaxationCurve(tabPlotX,estimatedParams,sigma,fitType);
+			if(indEst==indEstMin)valMax=estimatedParams[0];
+	        plotT2.setColor(tabColor[indEst]);
+			plotT2.replace(incr++, "line",toDouble(tabPlotX),toDouble(tabPlotY[indEst-indEstMin]));
+			plotT2.replace(incr++, "line",toDouble(new float[]{0,(float)(estimatedParams[1])}),toDouble(new float[]{yPos[indEst]*longT2,yPos[indEst]*longT2}));
+			if(indEst>=5)plotT2.replace(incr++, "line",toDouble(new float[]{0,(float)(estimatedParams[3]>100 ? 100 : estimatedParams[3])}),toDouble(new float[]{ (float)((yPos[indEst]+0.3)*longT2),(float)( (yPos[indEst]+0.3)*longT2) })) ;
+
+			if(indEst<5)IJ.log(""+tabNames[indEst]+". Valeurs estimées : M0="+dou(estimatedParams[0])+" | T2="+dou(estimatedParams[1])+" ms | Erreur="+dou(fittingAccuracy(tabData,tabTimes,sigma,estimatedParams,fitType)) );
+			else IJ.log(""+tabNames[indEst]+". Valeurs estimées : M0="+dou(estimatedParams[0])+" | T2="+dou(estimatedParams[1])+" ms | M02="+dou(estimatedParams[2])+" | T22="+dou(estimatedParams[3])+" ms | Erreur="+dou(fittingAccuracy(tabData,tabTimes,sigma,estimatedParams,fitType)) );
+ 		}
+ 					
+		
+		String strLegend="MRI spin-echo observations Vs fits methods";
+		for(int i=indEstMin;i<=indEstMax;i++)strLegend+=""+(i<6 ?"\n\n" : "\n\n\n")+""+(i-indEstMin)+"-"+tabNames[i];
+		if(!fixedPlotScale) plotT2.setLimits(0, 200, 0,valMax*(float)1.3);
+		plotT2.setColor(new Color(150,150 ,150) );
+		plotT2.addLegend(strLegend);
+	}
+
+
+	public void actualizePlotsT1(ImagePlus imgIn,float xCor, float yCor){
+		Color []tabColor=new Color[]{new Color(150 ,0 ,255 ),new Color(0,150,255) ,new Color(255,0 ,0 ),new Color(150 ,0 ,255 ),new Color(0,200,0)  };
+		int  []tabFit=new int[]{T1_RECOVERY,T1_RECOVERY_RICE,T1_RECOVERY,T1_RECOVERY_RICE_NORMALIZED};
+		int []tabAlg=new int[]{SIMPLEX,SIMPLEX,TWOPOINTS,SIMPLEX};
+		int []yPos=new int[]{8,6,4,2};
+ 		float te=(float)11.5;int sigma=159;int fitType,algType;
+		float[]tabData=getDataForVoxel(imgIn,(int)xCor,(int)yCor);
+		float longT2=tabData[tabData.length-1]/50;float max=0;
+		boolean normalized=(tabData[1]+tabData[0])<2;
+		int nEstim=normalized?4:3;
+		if(normalized)IJ.log("Donnees normalisees");
+		float[]tabFittenCurve=new float[tabData.length];
+ 		float []estimatedParams;
+		int nbEchos=tabData.length;
+		String[] tabNames=new String[]{"-Fit only","-Fit Rice", "-2 Points", "-Rice norm"};
+		float xMinPlot=0,xMaxPlot=6000,xStep=50;
+ 		float []tabTimes=getT1Times(tabData.length);
+ 		float []tabPlotX=getProportionalTimes(xMinPlot,xMaxPlot,xStep);
+		int nxPlot=(int)(Math.ceil((xMaxPlot-xMinPlot)/xStep));
+		float[][]tabPlotY=new float[nEstim][nxPlot];
+		float valTemp,valMax=0;
+		float[]tabMax=new float[nEstim];
+		int incr=0;
+	
+		plotT1.setLineWidth(4);
+		plotT1.replace(incr++,"x",toDouble(tabTimes),toDouble(tabData));
+		plotT1.replace(incr++, "line",toDouble(new float[]{0,0}),toDouble(new float[]{0,0}));
+        plotT1.setLineWidth(2);
+
+ 		for(int indEst=0;indEst<nEstim;indEst++){
+			fitType=tabFit[indEst];algType=tabAlg[indEst];
+			estimatedParams=makeFit(tabTimes, tabData,fitType,algType,100,sigma);
+			tabPlotY[indEst]=fittenRelaxationCurve(tabPlotX,estimatedParams,sigma,fitType);
+			tabMax[indEst]=estimatedParams[0];
+			if(indEst==0)valMax=estimatedParams[0];
+	        plotT1.setColor(tabColor[indEst]);
+			plotT1.replace(incr++, "line",toDouble(tabPlotX),toDouble(tabPlotY[indEst]));
+			plotT1.replace(incr++, "line",toDouble(new float[]{0,(float)(estimatedParams[1])}),toDouble(new float[]{estimatedParams[0]+(float)(20*indEst),estimatedParams[0]+(float)(20*indEst)}));
+
+			IJ.log(""+tabNames[indEst]+". Valeurs estimées : M0="+dou(estimatedParams[0])+" | T1="+dou(estimatedParams[1])+" ms | Erreur="+dou(fittingAccuracy(tabData,tabTimes,sigma,estimatedParams,fitType)) );
+ 		}
+
+		String strLegend="Observations Vs fits methods";
+        if(!fixedPlotScale)plotT1.setLimits(xMinPlot, xMaxPlot, 0,valMax*(float)1.3);
+        plotT1.setColor(new Color(150,150 ,150) );
+		for(int i=0;i<nEstim;i++)strLegend+="\n\n"+i+tabNames[i];
+		plotT1.addLegend(strLegend);
+	}
+
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////
+/////////////////////////                        /////////////////////////
+/////////////////////////    HELPER FUNCTIONS    /////////////////////////
+/////////////////////////                        /////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+
+	public void startPlotsAndRoi(){
+		plotT1 = new Plot("T1 curve explorer","Tr","Value");
+		plotT2 = new Plot("T2 curve explorer","Te","Value");
+		int maxCurves=10;
+		for(int i =0;i<maxCurves;i++){
+			plotT1.addPoints(new float[]{0,1},new float[]{0,0},Plot.LINE);
+			plotT2.addPoints(new float[]{0,1},new float[]{0,0},Plot.LINE);
+		}
+
+		
+		plotT1.setLimits(0, maxT1, 0, maxPlotY);plotT1.setSize(650,650);plotT1.show();
+		plotT2.setLimits(0, maxT2, 0, maxPlotY);plotT2.setSize(650,650);plotT2.show();			
+		ImagePlus img;
+		rm = RoiManager.getInstance();
+		if(rm == null) rm = new RoiManager();
+		PointRoi pr=new PointRoi(1,1,"large yellow hybrid");
+		rm.addRoi(pr);
+	 	img=IJ.getImage();
+		if(img != null)rm.selectAndMakeVisible(img, 0); 
+	}
+
+
+	public void closePlotsAndRoi(){
+		java.awt.Window win;
+		win=WindowManager.getWindow("T1 curve explorer");
+		if(win != null){
+			IJ.selectWindow("T1 curve explorer");
+			WindowManager.getCurrentWindow().close();
+		}
+		win=WindowManager.getWindow("T2 curve explorer");
+		if(win != null){
+			IJ.selectWindow("T2 curve explorer");
+			WindowManager.getCurrentWindow().close();
+		}
+		RoiManager rm = RoiManager.getInstance();
+		if(rm != null) rm.close();		
+		IJ.log("Fin de l'exploration");
+	}
+
+	public float []getProportionalTimes(float valMin, float valMax,float step){
+		float[]tab=new float[(int)(Math.ceil((float)0.00001+((valMax-valMin)/step)))];
+		for (int i=0;i<tab.length;i++){
+			tab[i]=valMin+(float)((i*step));
+		}
+		return tab;
+	}
+	
+	public float []getT1Times(int nb){
+		return (  (nb==3) ? (new float[]{600,1200,2400}) : (new float[]{600,1200,2400,10000}));
+	}
+
+
+
+	
+	
+	public void makeTesting(){
+		for(int i =0;i<10 ; i++)IJ.log("TEST RICE MIXTURE MODEL --------TEST RICE MIXTURE MODEL ---------");
+		testRiceMixtureModel();
+		for(int i =0;i<10 ; i++)IJ.log("TEST LUT BES FUNK INV --------TEST LUT BES FUNK INV ---------");
+//		testCreateLUTBesFunkInverse();
+	}
+
+
+	public double[]toDouble(float[]tab){
+		double[]tabRet=new double[tab.length];
+		for(int i=0;i<tab.length;i++)tabRet[i]=(double)(tab[i]);
+		return tabRet;
+	}
+	
+	public float[]toFloat(double[]tab){
+		float[]tabRet=new float[tab.length];
+		for(int i=0;i<tab.length;i++)tabRet[i]=(float)(tab[i]);
+		return tabRet;
+	}
+	
+	
+	public float[]makeFit(float[]tabTimes, float[]tabData,int fitType,int algType,int nbIter,float sigma){
+		float[]estimatedParams;
+		if(algType==TWOPOINTS){
+			TwoPointsCurveFitterNoBias twopointsfitter=new TwoPointsCurveFitterNoBias(toDouble(tabTimes), toDouble(tabData),fitType,(double)sigma,toDouble(transformBesFunkInverse(tabData)));
+			twopointsfitter.doFit();
+			estimatedParams=toFloat(twopointsfitter.getParams());
+		}
+		else if(algType==LM){
+			LMCurveFitterNoBias lmfitter=new LMCurveFitterNoBias(toDouble(tabTimes), toDouble(tabData),fitType,(double)sigma);
+		 	lmfitter.configLMA(LMCurveFitterNoBias.lambda,LMCurveFitterNoBias.minDeltaChi2,nbIter);
+		 	lmfitter.doFit();
+			estimatedParams=toFloat(lmfitter.getParams());
+		}
+		else {
+			SimplexCurveFitterNoBias simpfitter=new SimplexCurveFitterNoBias(toDouble(tabTimes), toDouble(tabData),fitType,(double)sigma);
+		 	simpfitter.config(nbIter);
+		 	simpfitter.doFit();
+			estimatedParams=toFloat(simpfitter.getParams());
+		}
+		return estimatedParams;
+	}
+
+
+	public float[]transformBesFunkInverse(float[]data){
+		float[]tab=new float[data.length];
+		for(int i=0;i<data.length;i++)tab[i]=LUTBesFunkInverse[0][(int)(Math.round(data[i]))];
+		return tab;
+	}
+
+
+
+	public static float fittingAccuracy(float[]observation,float []tEchos,float sigma,float []estimatedParams,int fitType){		
+		float []realP=fittenRelaxationCurve(tEchos,estimatedParams,sigma,fitType);
+		float cumulator=0;
+		for(int indT=0;indT<tEchos.length;indT++)cumulator+=(float)((realP[indT]-observation[indT]) * (realP[indT]-observation[indT]));
+
+		//Case T2 relaxation
+		if(observation[0]>observation[observation.length-1])cumulator=(float)(Math.sqrt(cumulator/tEchos.length)*100.0/(observation[0]));
+		else cumulator=(float)(Math.sqrt(cumulator/tEchos.length)*100.0/(observation[observation.length-1]));//Case T1 recovery
+		return cumulator;
+	}	
+
+
+	//Compute the fitten curve, given the parameters previously estimated
+	public static float[] fittenRelaxationCurve(float[]tEchos,float []param,float sigma,int fitType){
+		float[]tab=new float[tEchos.length];
+		float techo;
+		for(int indT=0;indT<tEchos.length;indT++){
+			techo=tEchos[indT];
+			switch(fitType){
+				case T2_RELAX: tab[indT]=(float)(param[0]* (float)Math.exp(-(techo / param[1])));break;
+				case T2_RELAX_SIGMA: tab[indT]=(float)(param[0]* (float)Math.exp(-(techo / param[1])));break;
+			 	case T2_RELAX_BIAS: tab[indT]=(float)(param[0]* (float)Math.exp(-(techo / param[1]))+param[2]);break;
+				case T2_RELAX_RICE: tab[indT]=(float)(besFunkCost(param[0]* (float)Math.exp(-(techo / param[1])),sigma));break;
+
+				case T1_RECOVERY: tab[indT]=(float)(param[0]* (float)(1-Math.exp(-(techo / param[1]))));break;
+				case T1_RECOVERY_RICE: tab[indT]=(float)(besFunkCost(param[0]* (float)(1-Math.exp(-(techo / param[1]))) , sigma));break;
+			 	case T1_RECOVERY_RICE_NORMALIZED: tab[indT]=(float)(besFunkCost( (float)(1-Math.exp(-(techo / param[0]))) , sigma));break;
+
+				case MULTICOMP: tab[indT]=(float)(param[0]* (float)Math.exp(-(techo / param[1]))+param[2]* (float)Math.exp(-(techo / param[3])));break;
+				case MULTICOMP_BIAS: tab[indT]=(float)(param[0]* (float)Math.exp(-(techo / param[1]))+param[2]* (float)Math.exp(-(techo / param[3]))+param[4]);break;
+				case MULTICOMP_RICE: tab[indT]=(float)(besFunkCost(param[0]* (float)Math.exp(-(techo / param[1]))+param[2]* (float)Math.exp(-(techo / param[3])),sigma));break;
+			}
+		}
+		return tab;
+	}
+
+
+	//Compute a realization of a noisy T2 relaxation curve, depending on the expected relaxation model
+	public static float[] simulateT2relaxationCurve(float[]tEchos,float []param,float sigma,boolean multiComp){
+		float[]tab=new float[tEchos.length];
+		float techo;
+		for(int indT=0;indT<tEchos.length;indT++){
+			techo=tEchos[indT];
+			if(! multiComp)tab[indT]=ricedObservation(param[0]* (float)Math.exp(-(techo / param[1])),sigma);
+			else tab[indT]=ricedObservation(param[0]* (float)Math.exp(-(techo / param[1]))+param[1]* (float)Math.exp(-(techo / param[3])),sigma);
+		}
+		return tab;
+	}
+
+
+	public static float paramEstimationAccuracy(float []estP,float[]realP,boolean multiComp){
+		float cumulator=0;
+		if(! multiComp)cumulator=(1-Math.abs(realP[0]-estP[0])/realP[0])*(1-Math.abs(realP[1]-estP[1])/realP[1]);
+		else cumulator=(1-Math.abs(realP[0]-estP[0])/realP[0])*(1-Math.abs(realP[1]-estP[1])/realP[1])*(1-Math.abs(realP[2]-estP[2])/realP[2])*(1-Math.abs(realP[3]-estP[3])/realP[3]);
+		return (1-cumulator)*100;
+	}	
+
+	
+
+
+
+	public static void testCreateLUTBesFunkInverse(){
+ 		IJ.log("---------------------------------------");
+ 		IJ.log("---------------------------------------");
+ 		IJ.log("-----TEST LUT BESFUNK ^-1  ------------");
+ 		IJ.log("---------------------------------------");
+		int valMax=30000;
+		float sigma=5;
+		float[][]tabTest=createLUTBesFunkInverse(valMax,sigma);
+		IJ.log("Tab | index | f^-1   | f(f^-1) | (f^-1)' |");
+		for(int i=0;i<tabTest[0].length;i++){
+			IJ.log("Tab | "+dou(i)+" | "+dou(tabTest[0][i])+" | "+dou(besFunkCost(tabTest[0][i],sigma))+" | "+(i-besFunkCost(tabTest[0][i],sigma))+" | ");
+		}
+ 		IJ.log("---------------------------------------");
+ 	}
+
+	public static float ricedObservation(float value,float sigma){
+		Random rand=new Random();
+		float realPart=(float)(value+rand.nextGaussian()*sigma);
+		float imgPart=(float)(rand.nextGaussian()*sigma);
+		return((float)(Math.sqrt(realPart*realPart+imgPart*imgPart)));
+	}
+
+
+
+	public static void testRiceMixtureModel(){
+		int nTest=200000;
+		float sigma=100;
+		float te=11;
+		int nEchos=6;
+		float []tEchos=getProportionalTimes(te, nEchos);
+		float jitter=0;
+		float accur=0;
+		int nbFit=0;
+		int echantillons=0;
+//		for(int j =0;j<nTest ; j++)IJ.log("Test rice observation ("+(j*100)+",100) :"+dou(ricedObservation(j*100,100)));
+		IJ.log("");
+		IJ.log("Relaxation à une composante, tEchos(ms)=11 22 33 44 55 66 , M0=10,000 , T2(ms)=50, sigma=100");
+		for(int j =0;j<nTest ; j++){
+			float []params=new float[]{10000,50};
+			float[]tabSimul=simulateT2relaxationCurve(tEchos,params,sigma,false);
+			float[]tabFitten=fittenRelaxationCurve(tEchos,params,sigma,T2_RELAX_RICE);
+			for(int i =0;i<nEchos ; i++){			
+//				String s="obs"+i+" | Simulation = "+dou(tabSimul[i])+"  | Fitten rice ="+dou(tabFitten[i])+" |";
+			//	IJ.log(s);
+				jitter+=tabSimul[i]-tabFitten[i];
+				echantillons++;
+			}
+			//IJ.log("Accuracy = "+fittingAccuracy(tabSimul,tEchos,sigma,params,T2_RELAX_RICE));
+			accur+=fittingAccuracy(tabSimul,tEchos,sigma,params,T2_RELAX_RICE);
+			nbFit++;
+		}
+		IJ.log("Bias total="+jitter+" pour Nech="+echantillons);
+		IJ.log("BiasMoy="+(jitter/echantillons));
+		IJ.log("AccuracyMoy="+(accur/nbFit));
+		jitter=0;echantillons=0;
+		IJ.log("");
+		IJ.log("Relaxation à deux composantes, tEchos(ms)=11 22 33 44 55 66 , M0-1=6,000 , T2(ms)=20,  M0-2=4,000 , T2(ms)=80,sigma=100");
+		for(int j =0;j<nTest ; j++){
+			float []params=new float[]{6000,20,4000,80};
+			float[]tabSimul=simulateT2relaxationCurve(tEchos,params,sigma,true);
+			float[]tabFitten=fittenRelaxationCurve(tEchos,params,sigma,MULTICOMP_RICE);
+			for(int i =0;i<nEchos ; i++){			
+		//		String s="obs"+i+" | Simulation = "+dou(tabSimul[i])+"  | Fitten rice ="+dou(tabFitten[i])+" |";
+	//			IJ.log(s);
+				jitter+=tabSimul[i]-tabFitten[i];
+				echantillons++;
+				nbFit++;
+			}
+//			IJ.log("Accuracy = "+fittingAccuracy(tabSimul,tEchos,sigma,params,MULTICOMP_RICE));
+			accur+=fittingAccuracy(tabSimul,tEchos,sigma,params,T2_RELAX_RICE);
+			nbFit++;
+		}
+		IJ.log("BiasMoy="+(jitter/echantillons));
+		IJ.log("AccuracyMoy="+(accur/nbFit));
+	}
+
+	public static String strFit(int algType, int fitType){
+		String ret=""+(algType==TWOPOINTS ? "TWOPOINTSFIT" : (algType==LM ? "LMFIT" : "SIMPFIT"));
+		switch(fitType){
+			case T2_RELAX: ret+="_BASIC";break;
+			case T2_RELAX_BIAS: ret+="_BIAS";break;
+			case T2_RELAX_RICE: ret+="_RICE";break;
+			case T2_RELAX_SIGMA: ret+="_SIGMA";break;
+			case MULTICOMP: ret+="_MULTICOMP_BASIC";break;
+			case MULTICOMP_BIAS: ret+="_MULTICOMP_BIAS";break;
+			case MULTICOMP_RICE: ret+="_MULTICOMP_RICE";break;
+		}
+		return ret;
+	}
+
+	public static boolean isMulticompFit(int fitType){
+		return ( (fitType==MULTICOMP) || (fitType==MULTICOMP_RICE) || (fitType==MULTICOMP_BIAS) );
+	}
+
+	public static float[] getProportionalTimes(float te, int nbEchos){
+		float []tab= new float[nbEchos];
+		for(int i=0;i<nbEchos ;i++)tab[i]=te*(i+1);
+		return tab;
+	}
+
+
+	public static float[] getProportionalTimesF(float te, int nbEchos){
+		float []tab= new float[nbEchos];
+		for(int i=0;i<nbEchos ;i++)tab[i]=((float)(te*(i+1)));
+		return tab;
+	}
+
+	
+	public static void testFunk(){
+		float value=39;
+		float sigma=100;//500,150, et 400,150 c'est du delire
+		for(float i =0;i<5000 ; i+=100)IJ.log("besFunkCost ("+i+","+sigma+")/"+i+"="+besFunkCost(i,sigma));
+		for(float i =0;i<5000 ; i+=100)IJ.log("besFunkCost ("+i+","+sigma+")/"+i+"="+besFunkDeriv(i,sigma));
+	}
+
+ 	public static void testBessel(){
+ 		IJ.log("Test fonction BesselJ de numerical recipes");
+		for(int i=0;i<1000;i+=50){
+			IJ.log("Bessel_0("+i+")="+bessi0NoExp(i));
+		}
+		for(int i=0;i<1000;i+=50){
+			IJ.log("Bessel_1("+i+")="+bessi1NoExp(i));
+		}
+ 	}
+
+
+
+	public static float besFunkCost(float value,float sigma) {
+		float alpha=value*value/(4*sigma*sigma);
+		return (float)(Math.sqrt(Math.PI*sigma*sigma/2.0)*( (1+2*alpha)*bessi0NoExp(alpha) + 2*alpha*bessi1NoExp(alpha) ));
+	}
+
+	
+	public static float besFunkDeriv(float value,float sigma) {
+		float alpha=value*value/(4*sigma*sigma);
+		return (float)(Math.sqrt(Math.PI*alpha/2.0)*(bessi0NoExp(alpha) + bessi1NoExp(alpha) ));
+	}
+
+ 
+	public static float bessi0NoExp( float xF ){
+		double x=(double) xF;
+		double ax,ans;
+		double y;
+	   ax=Math.abs(x);
+	   if (ax < 3.75) {
+	      y=x/3.75;
+	      y=y*y;
+	      ans=1/Math.exp(ax)*(1.0+y*(3.5156229+y*(3.0899424+y*(1.2067492+y*(0.2659732+y*(0.0360768+y*0.0045813))))));
+	   } else {
+	      y=3.75/ax;
+	      ans=(1/Math.sqrt(ax))*(0.39894228+y*(0.01328592+y*(0.00225319+y*(-0.00157565+y*(0.00916281+y*(-0.02057706+y*(0.02635537+y*(-0.01647633+y*0.00392377))))))));
+	   }
+	   return (float)ans;
+	}
+
+	//Fonction de bessel modifiee de premiere espece d'ordre 1
+	public static float bessi1NoExp( float xF){
+		double ax,ans;
+		double y;
+		double x=(double)xF;
+		ax=Math.abs(x);
+		if (ax < 3.75) {
+	      y=x/3.75;
+	      y=y*y;
+	      ans=ax/Math.exp(ax)*(0.5+y*(0.87890594+y*(0.51498869+y*(0.15084934+y*(0.02658733+y*(0.00301532+y*0.00032411))))));
+	   } else {
+	      y=3.75/ax;
+	      ans=0.02282967+y*(-0.02895312+y*(0.01787654-y*0.00420059));
+	      ans=0.39894228+y*(-0.03988024+y*(-0.00362018+y*(0.00163801+y*(-0.01031555+y*ans))));
+	      ans *= (1/Math.sqrt(ax));
+	   }
+	   return ((float)(x < 0.0 ? -ans : ans));
+	}
+
+
+	//Function to compute a look-up table of besFunkValues
+	public static float [][]createLUTBesFunkInverse(float valMax,float sigma){
+		int indMax=(int)(valMax);
+		float valPlus=2*valMax,valInt=0,diff=0,valEnd=0;
+		while(valPlus>valMax){indMax--;valPlus=besFunkCost(indMax,sigma);}
+		indMax++;//indMax is the smallest integer whose besFunction is greater than valMax
+		
+
+		//Remplissage des valeurs de f
+		float [][] tabFunk=new float[2][indMax+1];
+		for(int i=1;i<=indMax;i++){tabFunk[0][i]=besFunkCost(i,sigma);}
+		tabFunk[0][0]=tabFunk[0][1]-(tabFunk[0][2]-tabFunk[0][1]);
+		
+		//Remplissage des valeurs de la dérivée de f
+		for(int i=0;i<indMax;i++){tabFunk[1][i]=tabFunk[0][i+1]-tabFunk[0][i];}
+		tabFunk[1][indMax]=tabFunk[1][indMax-1];
+
+		//Construction du tableau LUT de f^-1
+		int indMaxRec=(int)(Math.ceil(tabFunk[0][indMax]));
+		float [][] tabFunkInverse=new float[2][indMaxRec+1];
+		for(int i=0;i<=indMaxRec;i++)tabFunkInverse[0][i]=-1;
+
+		//Premier remplissage sur les valeurs connues de la fonction reciproque
+		for(int i=0;i<indMax;i++){
+			valPlus=tabFunk[0][i];
+			valInt=Math.round(valPlus);
+			diff=valPlus-valInt;
+			valEnd=i-diff*tabFunk[1][i];
+			if(valEnd<0)valEnd=0;
+			tabFunkInverse[0][(int)valInt]=valEnd;
+			tabFunkInverse[1][(int)valInt]=1/tabFunk[1][i];
+		}
+
+		//Remplissage des valeurs intermediaires de la fonction, sur la base de la dérivée
+		tabFunkInverse[0][0]=0;
+		tabFunkInverse[1][0]=0;
+		int lastInd=0;
+		float lastValue=0;
+		float lastDeriv=0;
+		for(int i=0;i<=indMaxRec;i++){
+			if(tabFunkInverse[0][i]==-1){
+				tabFunkInverse[1][i]=lastDeriv;
+				tabFunkInverse[0][i]=lastValue+(i-lastInd)*lastDeriv;
+			}
+			else{
+				lastValue=tabFunkInverse[0][i];
+				lastDeriv=tabFunkInverse[1][i];
+				lastInd=i;
+			}
+			if(tabFunkInverse[0][i]<=1)tabFunkInverse[0][i]=1;
+		}
+		return tabFunkInverse;			
+	}
+
+	public static float dou(float d){
+		if (d<0.0001)return 0;
+		return (float)(Math.round(d * 10000)/10000.0);
+	}
+	
+
+	static double sigmaWay(double valFunk,double sigma){
+		double ret=valFunk*valFunk-2*sigma*sigma;
+		return (ret<0 ? 0 : Math.sqrt(ret));
+	}
+	    
+	static double besFunkCost(double d,double sigma2) {
+		double alpha=d*d/(4*sigma2*sigma2);
+		return (double)(Math.sqrt(Math.PI*sigma2*sigma2/2.0)*( (1+2*alpha)*bessi0NoExp(alpha) + 2*alpha*bessi1NoExp(alpha) ));
+	}
+
+	static double besFunkDeriv(double d,double sigma) {
+		double alpha=d*d/(4*sigma*sigma);
+		return (double)(Math.sqrt(Math.PI*alpha/2.0)*(bessi0NoExp(alpha) + bessi1NoExp(alpha) ));
+	}
+ 
+	static double bessi0NoExp( double alpha ){
+		double x=(double) alpha;
+		double ax,ans;
+		double y;
+	   ax=Math.abs(x);
+	   if (ax < 3.75) {
+	      y=x/3.75;
+	      y=y*y;
+	      ans=1/Math.exp(ax)*(1.0+y*(3.5156229+y*(3.0899424+y*(1.2067492+y*(0.2659732+y*(0.0360768+y*0.0045813))))));
+	   } else {
+	      y=3.75/ax;
+	      ans=(1/Math.sqrt(ax))*(0.39894228+y*(0.01328592+y*(0.00225319+y*(-0.00157565+y*(0.00916281+y*(-0.02057706+y*(0.02635537+y*(-0.01647633+y*0.00392377))))))));
+	   }
+	   return (double)ans;
+	}
+
+	static double bessi1NoExp( double alpha){
+			double ax,ans;
+			double y;
+			double x=(double)alpha;
+			ax=Math.abs(x);
+			if (ax < 3.75) {
+		      y=x/3.75;
+		      y=y*y;
+		      ans=ax/Math.exp(ax)*(0.5+y*(0.87890594+y*(0.51498869+y*(0.15084934+y*(0.02658733+y*(0.00301532+y*0.00032411))))));
+		   } else {
+		      y=3.75/ax;
+		      ans=0.02282967+y*(-0.02895312+y*(0.01787654-y*0.00420059));
+		      ans=0.39894228+y*(-0.03988024+y*(-0.00362018+y*(0.00163801+y*(-0.01031555+y*ans))));
+		      ans *= (1/Math.sqrt(ax));
+		   }
+		   return ((double)(x < 0.0 ? -ans : ans));
+		}
+		
+		
+	
+
+}
+

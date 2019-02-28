@@ -17,7 +17,6 @@ import ij.gui.GenericDialog;
 import ij.measure.Calibration;
 import ij.plugin.GaussianBlur3D;
 import ij.process.ByteProcessor;
-import ij.process.ImageProcessor;
 import ij.process.StackConverter;
 import imagescience.transform.Transform;
 
@@ -78,8 +77,6 @@ public class TransformUtils {
 		return result;
 	}
 
-
-
 	public void printMatrix(String sTitre,double[]tab){
 		String s=new String();
 		s+="\n Affichage de la matrice ";
@@ -114,10 +111,7 @@ public class TransformUtils {
 		}
 	}
 
-	
-	
-	
-	 public double[][]composeMatrices(Transform[]matricesToCompose){
+	public double[][]composeMatrices(Transform[]matricesToCompose){
 		 double [][]matRet=new double[2][12];
 		 Transform transGlobal=new Transform();
 		 Transform transInd;
@@ -145,9 +139,8 @@ public class TransformUtils {
 		 matRet[1]=transformToArray(transInd);
 		 return matRet;
 	 }
-
 	 
-	 public double[]transformToArray(Transform transGlobal){
+	public double[]transformToArray(Transform transGlobal){
 	 	double[]ret=new double[]{transGlobal.get(0,0) ,transGlobal.get(0,1) ,transGlobal.get(0,2) ,transGlobal.get(0,3) ,
 	 							 transGlobal.get(1,0) ,transGlobal.get(1,1) ,transGlobal.get(1,2) ,transGlobal.get(1,3) ,
  							 	 transGlobal.get(2,0) ,transGlobal.get(2,1) ,transGlobal.get(2,2) ,transGlobal.get(2,3)
@@ -155,7 +148,7 @@ public class TransformUtils {
 		 return (ret);
 	 }
 	
-	 public Transform arrayToTransform(double[]mat){
+	public Transform arrayToTransform(double[]mat){
 	 	Transform tr=new Transform();
 	 	for(int j=0;j<12;j++) {
 	 		tr.set(j/4,j%4,mat[j]);	 	
@@ -217,10 +210,6 @@ public class TransformUtils {
   		return tr;
 	}
 
-
-
-
-
 	public void writeMatrixToFile(String filePath,Transform tr) {
 		File f = new File(filePath);
 		try {
@@ -234,7 +223,6 @@ public class TransformUtils {
 			IJ.error("Unable to write transformation to file: "+f.getAbsolutePath()+"error: "+e);
 		}
 	}
-	
 	
 	public void adjustImageCalibration(ImagePlus img,double []voxSize,String unit) {
 		if(img==null)return;
@@ -259,9 +247,12 @@ public class TransformUtils {
 		double vX=img.getCalibration().pixelWidth;
 		double vY=img.getCalibration().pixelHeight;
 		double vZ=img.getCalibration().pixelDepth;
+		double xMoyUp=0,yMoyUp=0,zMoyUp=0;
+		double xMoyDown=0,yMoyDown=0,zMoyDown=0;
+		int hitsUp=0,hitsDown=0;
 
 		//Step 1 : apply gaussian filtering and convert to 8 bits
-		GaussianBlur3D.blur(img, 2,2,2);
+		GaussianBlur3D.blur(img, 8,8,2);
 		StackConverter sc=new StackConverter(img);
 		sc.convertToGray8();
 
@@ -276,26 +267,24 @@ public class TransformUtils {
 		ImageStack stackUp = new ImageStack(xMax, yMax);	
 		ImageStack stackDown = new ImageStack(xMax, yMax);
 		for(int i=0;i<6;i++) {
-			stackUp.addSlice("",maskTab[zMax/2+i]);//de zmax/2 à zMax/2 + 5 --> ajouter zMax/2 à la fin			
-			stackDown.addSlice("",maskTab[zMax/2-5+i]);//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
+			stackUp.addSlice("",img.getStack().getProcessor(zMax/2+1+i));//de zmax/2 à zMax/2 + 5 --> ajouter zMax/2 à la fin			
+			stackDown.addSlice("",img.getStack().getProcessor(zMax/2-5+i+1));//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
 		}
 		ImagePlus imgUp=new ImagePlus("upMASK",stackUp);
-		imgUp.show();		
 		ImagePlus imgDown=new ImagePlus("downMASK",stackDown);
-		imgDown.show();		
 
-		ImagePlus imgDownCon=connexe(imgDown,0,8,6000,10E10,6);
-		imgDownCon.show();
-		ImagePlus imgUpCon=connexe(imgUp,0,8,6000,10E10,6);
-		imgUpCon.show();
-
-		if(debug)System.out.println("Connexes calcules !");
+		ImagePlus imgDownCon=connexe(imgDown,0,8,5000,10E10,6);
+		ImagePlus imgUpCon=connexe(imgUp,0,8,5000,10E10,6);
+		if(debug) {
+			imgDownCon.show();		
+			imgUp.show();		
+			imgDown.show();		
+			imgUpCon.show();
+		}
+		
 		//Step 3 : compute the two centers of mass
-		double xMoyUp=0,yMoyUp=0,zMoyUp=0;
-		double xMoyDown=0,yMoyDown=0,zMoyDown=0;
-		int hitsUp=0,hitsDown=0;
-		short[][] valsDownCon=new short[6][];
-		short[][] valsUpCon=new short[6][];
+		short[][]valsDownCon=new short[6][];
+		short[][]valsUpCon=new short[6][];
 		for(int z=0;z<6;z++){
 			valsDownCon[z]=(short[])(imgDownCon).getStack().getProcessor(z+1).getPixels();
 			valsUpCon[z]=(short[])(imgUpCon).getStack().getProcessor(z+1).getPixels();
@@ -323,8 +312,10 @@ public class TransformUtils {
 		yMoyDown=yMoyDown/hitsDown;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
 		zMoyDown=zMoyDown/hitsDown+zMax/2-5;//due to the extraction of a substack zmax/2 - zmax/2+5
 
-		System.out.println("HitsUp="+hitsUp+" ..Center of mass up = "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
-		System.out.println("HitsDown="+hitsDown+" ..Center of mass down = "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+		if(debug) {
+			System.out.println("HitsUp="+hitsUp+" ..Center of mass up = "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
+			System.out.println("HitsDown="+hitsDown+" ..Center of mass down = "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+		}
 		
 		xMoyUp=xMoyUp*vX+vX/2;		
 		yMoyUp=yMoyUp*vY+vY/2;		
@@ -332,50 +323,48 @@ public class TransformUtils {
 		xMoyDown=xMoyDown*vX+vX/2;		
 		yMoyDown=yMoyDown*vY+vY/2;		
 		zMoyDown=zMoyDown*vZ+vZ/2;		
-		System.out.println("Center of mass up (real)= "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
-		System.out.println("Center of mass down (real)= "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+		System.out.println("Center of mass up (real coordinates)= "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
+		System.out.println("Center of mass down (real coordinates)= "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+
 		//Step 4 : compute the new basis
-		//double []vectXinit=new double[3];
 		double []vectXfin=new double[3];
 		double []vectYinit=new double[3];
 		double []vectYfin=new double[3];
 		double []vectZinit=new double[3];
 		double []vectZfin=new double[3];
 
-		//compute the first non-orthonormal basis : tissue axis, tissue to PI axis, third axis (vectorial product of the precedents)
+		//Last vector of the base : tissue axis from low Z values to High Z values
 		vectZinit[0]=xMoyUp-xMoyDown;
 		vectZinit[1]=yMoyUp-yMoyDown;
 		vectZinit[2]=zMoyUp-zMoyDown;
 
 		//Compute the center of inoculation point
-		double zP=cornersCoordinates[0][2]+cornersCoordinates[1][2]+cornersCoordinates[2][2]+cornersCoordinates[3][2];
-		double xP=cornersCoordinates[0][0]+cornersCoordinates[1][0]+cornersCoordinates[2][0]+cornersCoordinates[3][0];
-		double yP=cornersCoordinates[0][1]+cornersCoordinates[1][1]+cornersCoordinates[2][1]+cornersCoordinates[3][1];
-		xP/=4.0;
-		yP/=4.0;
-		zP/=4.0;
+		double zP=(cornersCoordinates[0][2]+cornersCoordinates[1][2]+cornersCoordinates[2][2]+cornersCoordinates[3][2])/4.0;
+		double xP=(cornersCoordinates[0][0]+cornersCoordinates[1][0]+cornersCoordinates[2][0]+cornersCoordinates[3][0])/4.0;
+		double yP=(cornersCoordinates[0][1]+cornersCoordinates[1][1]+cornersCoordinates[2][1]+cornersCoordinates[3][1])/4.0;
+		if(debug) System.out.println("Inoculation point (in real coordinates) : "+xP+"  ,  "+yP+"  ,  "+zP);
 
-		System.out.println("Point d inoculation (reel) : "+xP+"  ,  "+yP+"  ,  "+zP);
-
+		//Center of tissue to PI, make the second vector
 		vectYinit[0]=xP-xMoyDown;
 		vectYinit[1]=yP-yMoyDown;
 		vectYinit[2]=zP-zMoyDown;
 
-		//compute the graham-schmidt orthogonalisation
+		//"Graham-schmidt orthogonalisation" (Not exactly, as we use Y and Z to produce X)
+
 		//E3=v3/norm(v3)
 		vectZfin=normalize(vectZinit);
 
-		printVector(vectZinit,"v3=");
-		printVector(vectZfin,"E3=");
+		if(debug) printVector(vectZinit,"v3=");
+		if(debug) printVector(vectZfin,"E3=");
 		//u2=v2-proj_u3_of_v2  ; E2=v2/norm(v2)
-		printVector(vectYinit,"v2=");
+		if(debug) printVector(vectYinit,"v2=");
 		vectYfin=vectorialSubstraction(vectYinit,proj_u_of_v(vectZinit,vectYinit));
 		vectYfin=normalize(vectYfin);
-		printVector(vectYfin,"E2=");
+		if(debug) printVector(vectYfin,"E2=");
 
 		//For E1
 		vectXfin=vectorialProduct(vectYfin,vectZfin);
-		printVector(vectXfin,"E1=");
+		if(debug) printVector(vectXfin,"E1=");
 
 
 
@@ -404,20 +393,20 @@ public class TransformUtils {
 		trans[0]=xP-vectXfin[0]*xFinal-vectYfin[0]*yFinal-vectZfin[0]*zFinal;
 		trans[1]=yP-vectXfin[1]*xFinal-vectYfin[1]*yFinal-vectZfin[1]*zFinal;
 		trans[2]=zP-vectXfin[2]*xFinal-vectYfin[2]*yFinal-vectZfin[2]*zFinal;
-		System.out.println("Translation : ["+trans[0]+" , "+trans[1]+" , "+trans[2]+"]");
+		if(debug) System.out.println("Translation : ["+trans[0]+" , "+trans[1]+" , "+trans[2]+"]");
 		
 		//Assemble and write the transformation matrix
 		Transform tr=new Transform(vectXfin[0],vectYfin[0],vectZfin[0],trans[0],
 								   vectXfin[1],vectYfin[1],vectZfin[1],trans[1],
 								   vectXfin[2],vectYfin[2],vectZfin[2],trans[2]);
 
-		System.out.println("Et en effet, lorsqu'on transforme le point final :"+xFinal+" , "+yFinal+" , "+zFinal+"...");
-		System.out.println("On obtient bien le point initial attendu, qui était : "+xP+" , "+yP+" , "+zP+"...");
+		if(debug) System.out.println("Et en effet, lorsqu'on transforme le point final :"+xFinal+" , "+yFinal+" , "+zFinal+"...");
+		if(debug) System.out.println("On obtient bien le point initial attendu, qui était : "+xP+" , "+yP+" , "+zP+"...");
 		double valXtest=vectXfin[0]*xFinal+vectYfin[0]*yFinal+vectZfin[0]*zFinal+trans[0];
 		double valYtest=vectXfin[1]*xFinal+vectYfin[1]*yFinal+vectZfin[1]*zFinal+trans[1];
 		double valZtest=vectXfin[2]*xFinal+vectYfin[2]*yFinal+vectZfin[2]*zFinal+trans[2];
 		
-		System.out.println("La preuve, résultat : "+valXtest+" , "+valYtest+" , "+valZtest+"...");
+		if(debug) System.out.println("La preuve, résultat : "+valXtest+" , "+valYtest+" , "+valZtest+"...");
 	
 		Transform trInv=new Transform(tr);
 		trInv.invert();
@@ -438,7 +427,11 @@ public class TransformUtils {
 	}
 	
 	
-	 public ImagePlus[] reech3D(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title,boolean computeMask) {
+	
+	
+	
+	
+	public ImagePlus[] reech3D(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title,boolean computeMask) {
 		 ImagePlus[]ret;
 		 if(computeMask) {
 			 ret=new ImagePlus[2];
@@ -454,9 +447,6 @@ public class TransformUtils {
 		 }
 		 return ret;
 	 }
-	
-	
-
 	/**
 	* Execute the plugin functionality: resampling of an image, according to eventual transformations and scalings changes
 	*
@@ -658,10 +648,6 @@ public class TransformUtils {
 		return imPlusRec;
     }
     
-
-	
-	
-	
 	public ImagePlus reech3DShort(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title) {
 		//Input and Output images opening
 		//~ ImagePlus imPlusRec=new ImagePlus(sizes[0],sizes[1],sizes[2]);
@@ -852,13 +838,6 @@ public class TransformUtils {
 		}			
 		return imPlusRec;
     }
-
-	
-	
-	
-	
-	
-	
 	
 	public ImagePlus reech3DFloat(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title) {
 		//Input and Output images opening
