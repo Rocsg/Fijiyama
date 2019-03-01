@@ -9,8 +9,8 @@ import ij.io.SaveDialog;
 import ij.plugin.PlugIn;
 import ij.plugin.frame.RoiManager;
 
+import java.awt.Frame;
 import java.util.ArrayList;
-
 import com.vitimage.MRUtils;
 import imagescience.transform.Transform;
 /**
@@ -78,7 +78,14 @@ public class Vitimage_Toolbox implements PlugIn {
 	}	
 
 	public void run(String arg) {
-		int chosenTool=chooseToolUI();
+		ImagePlus imgT1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_2-1_T1.tif");
+		imgT1.show();
+		ImagePlus imgT2=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_2-1_T2.tif");
+		imgT2.show();
+		MRUtils mrUt=new MRUtils();
+		new MRICurveExplorerWindow(imgT1,imgT2);
+		//mrUt.runCurveExplorer();
+/*		int chosenTool=chooseToolUI();
 		switch(chosenTool) {
 			case TOOL_NOTHING:System.out.println("Nothing to do, then. See you !");break;
 			case TOOL_0_TESTING:System.out.println("Testing mode !");runTesting();break;
@@ -86,6 +93,7 @@ public class Vitimage_Toolbox implements PlugIn {
 			case TOOL_2_MRI_WATER_TRACKER:System.out.println("MRI Water tracker !");runMRIWaterTracker(MRI_0_EXPLORER);break;
 			case TOOL_3_MULTIMODAL_ASSISTANT:System.out.println("Multimodal timeseries assistant !");runMultimodalAssistant();break;
 		}
+		*/
 	}
 
 	private int chooseToolUI(){
@@ -125,13 +133,23 @@ public class Vitimage_Toolbox implements PlugIn {
 		runTransform3D(TR3D_3_ALIGN_TR);
 		waitFor(20000);
 		*/
-		new ImageJ();
+//		new ImageJ();
 		ImagePlus imgT1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_2-1_T1.tif");
-		imgT1.show();
+//		imgT1.show();
 		ImagePlus imgT2=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_2-1_T2.tif");
-		imgT2.show();
-		MRUtils mrUt=new MRUtils();
-		mrUt.runCurveExplorer();
+//		imgT2.show();
+		
+		
+		MRICurveExplorerWindow mriwin=new MRICurveExplorerWindow(imgT1,imgT2);
+		/*
+		fr=new java.awt.Frame();
+		fr.setTitle("pouet");
+		fr.setSize(1200,1000);
+		fr.add((Frame)(imgT2.getWindow()),0);
+//		fr.add(imgT1.getWindow(),10);
+		fr.setVisible(true);
+		*/
+		//		mrUt.runCurveExplorer();
 		
 		
 		
@@ -150,8 +168,8 @@ public class Vitimage_Toolbox implements PlugIn {
 		
 		
 		
-		waitFor(2000);
-		closeEverything();
+	//	waitFor(20000);
+	//	closeEverything();
 		
 		
 	
@@ -340,7 +358,7 @@ public class Vitimage_Toolbox implements PlugIn {
 				sizeT2=chooseSizeUI(imgTab[1],"",AUTOMATIC);
 				voxSizeT1=chooseVoxSizeUI(imgTab[0],"",AUTOMATIC);
 				voxSizeT2=chooseVoxSizeUI(imgTab[1],"",AUTOMATIC);
-				mrUt.runCurveExplorer();
+				//mrUt.runCurveExplorer();
 				break;
 
 			case 10:
