@@ -1,5 +1,6 @@
 package com.vitimage;
 import ij.IJ;
+import ij.plugin.filter.Binary;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.WindowManager;
@@ -125,8 +126,16 @@ public class Vitimage_Toolbox implements PlugIn {
 	 * 
 	 * */
 	private void runSpecificTesting() {
-		/*TransformUtils trUt=new TransformUtils();
 		ImageJ thisImageJ=new ImageJ();
+		MRUtils mrUt=new MRUtils();
+		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_1-4_capToRemove.tif");
+		img1.show();
+//		waitFor(2000);
+		//		img1.getProcessor().multiply(255);
+		//img1.show();
+				ImagePlus img2=mrUt.removeCapillary(img1,true);
+		img2.show();
+		/*TransformUtils trUt=new TransformUtils();
 		ImagePlus img1=IJ.openImage("/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/src/test/imgs/Test_1-3_level1_ImgToAlign.tif");
 		img1.show();
 		System.out.println("pouet1");
@@ -140,7 +149,7 @@ public class Vitimage_Toolbox implements PlugIn {
 //		imgT2.show();
 		
 		
-		MRICurveExplorerWindow mriwin=new MRICurveExplorerWindow(imgT1,imgT2);
+//		MRICurveExplorerWindow mriwin=new MRICurveExplorerWindow(imgT1,imgT2);
 		/*
 		fr=new java.awt.Frame();
 		fr.setTitle("pouet");

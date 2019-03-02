@@ -1,13 +1,22 @@
 package com.vitimage;
 
 import java.awt.Color;
+import java.awt.Rectangle;
 
 import ij.IJ;
+import ij.ImageJ;
 import ij.ImagePlus;
+import ij.ImageStack;
 import ij.WindowManager;
 import ij.gui.Plot;
 import ij.gui.PointRoi;
+import ij.gui.Roi;
+import ij.plugin.filter.Binary;
+import ij.plugin.filter.ThresholdToSelection;
 import ij.plugin.frame.RoiManager;
+import ij.process.Blitter;
+import ij.process.FloatPolygon;
+import ij.process.ImageProcessor;
 
 public class MRUtils implements Fit{
 	
@@ -40,6 +49,98 @@ public class MRUtils implements Fit{
 	
 	
 
+	public ImagePlus removeCapillary(ImagePlus img,boolean computeCapMaskOnlyOnFirstSlice) {
+		//The capillary surface is between 0.5 and 1.8 mm2
+		int zMax=img.getStackSize();
+		int xMax=img.getWidth();
+		double surfaceMinCap=0.5;
+		double surfaceMaxCap=1.8;
+		double diamCap=0.6;
+		double valMinCap=400;//standard measured values on echo spin images of bionanoNMRI
+		double valMaxCap=65000;
+		double x0RoiCap;
+		double y0RoiCap;
+		TransformUtils trUt=new TransformUtils();
+		Binary bin=new Binary();
+		RoiManager rm=RoiManager.getRoiManager();
+		ImageStack isRet=new ImageStack(img.getWidth(),img.getHeight(),img.getStackSize());
+		//IF echo image : compute the selection on the first echo, then use this selection on other slices
+		//else : on each slice, compute the selection on each slice, then apply it on this slice
+		if(computeCapMaskOnlyOnFirstSlice) {
+			ImagePlus imgSlice=new ImagePlus("", img.getStack().getProcessor(1));
+			ImagePlus imgCon=trUt.connexe(imgSlice, valMinCap, valMaxCap, surfaceMinCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight), surfaceMaxCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight),4);
+			imgCon.getProcessor().multiply(255);
+			imgCon.getProcessor().setMinAndMax(0,255);
+			IJ.run(imgCon,"8-bit","");			
+			IJ.setThreshold(imgCon, 255,255);
+			for(int dil=0;dil<(diamCap/img.getCalibration().pixelWidth);dil++) IJ.run(imgCon, "Dilate", "stack");
+			rm.reset();
+			Roi capArea=new ThresholdToSelection().convert(imgCon.getProcessor());	
+			rm.add(imgSlice, capArea, 0);							
+			FloatPolygon tabPoly=capArea.getFloatPolygon();
+			Rectangle rect=tabPoly.getBounds();
+			int xMinRoi=(int) (rect.getX());
+			int yMinRoi=(int) (rect.getY());
+			int xSizeRoi=(int) (rect.getWidth());
+			int ySizeRoi=(int) (rect.getHeight());
+			int xMaxRoi=xMinRoi+xSizeRoi;
+			int yMaxRoi=yMinRoi+ySizeRoi;				
+
+			for(int z=1;z<=zMax;z++) {
+				imgSlice=new ImagePlus("", img.getStack().getProcessor(z));
+				short[] valsImg=(short[])(imgSlice).getProcessor().getPixels();
+				//Remplacer les pixels de la zone du capillaire par des pixels copiés depuis le coin en haut à gauche de l'image 
+				for(int xx=xMinRoi;xx<=xMaxRoi;xx++) for(int yy=yMinRoi;yy<yMaxRoi;yy++) if(tabPoly.contains(xx,yy)) valsImg[xMax*yy+xx]=valsImg[xMax*(yy-yMinRoi+7)+(xx-xMinRoi+7)];
+				isRet.setProcessor(imgSlice.getProcessor(),z);
+			}
+			return new ImagePlus("Result_"+img.getShortTitle()+"_no_cap.tif",isRet);
+		}
+
+		//IF stack : on each slice, compute the selection then apply it
+		else {
+			for(int z=1;z<=zMax;z++) {
+				ImagePlus imgSlice=new ImagePlus("", img.getStack().getProcessor(z));
+				ImagePlus imgCon=trUt.connexe(imgSlice, valMinCap, valMaxCap, surfaceMinCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight), surfaceMaxCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight),4);
+				imgCon.getProcessor().multiply(255);
+				imgCon.getProcessor().setMinAndMax(0,255);
+				IJ.run(imgCon,"8-bit","");			
+				IJ.setThreshold(imgCon, 255,255);
+				for(int dil=0;dil<(diamCap/img.getCalibration().pixelWidth);dil++) IJ.run(imgCon, "Dilate", "stack");
+				rm.reset();
+				Roi capArea=new ThresholdToSelection().convert(imgCon.getProcessor());	
+				rm.add(imgSlice, capArea, 0);							
+				FloatPolygon tabPoly=capArea.getFloatPolygon();
+				Rectangle rect=tabPoly.getBounds();
+				int xMinRoi=(int) (rect.getX());
+				int yMinRoi=(int) (rect.getY());
+				int xSizeRoi=(int) (rect.getWidth());
+				int ySizeRoi=(int) (rect.getHeight());
+				int xMaxRoi=xMinRoi+xSizeRoi;
+				int yMaxRoi=yMinRoi+ySizeRoi;				
+				short[] valsImg=(short[])(imgSlice).getProcessor().getPixels();
+
+				//Remplacer les pixels de la zone du capillaire par des pixels copiés depuis le coin en haut à gauche de l'image 
+				for(int xx=xMinRoi;xx<=xMaxRoi;xx++) for(int yy=yMinRoi;yy<yMaxRoi;yy++) if(tabPoly.contains(xx,yy)) valsImg[xMax*yy+xx]=valsImg[xMax*(yy-yMinRoi+7)+(xx-xMinRoi+7)];
+				isRet.setProcessor(imgSlice.getProcessor(),z);
+			}
+			return new ImagePlus("Result_"+img.getShortTitle()+"_no_cap.tif",isRet);
+		}
+	}
+	
+	
+	
+	
+	
+	
+	public double noiseMeasure(ImagePlus img) {
+		return 153;
+	}
+	
+	
+	
+	
+	
+	
 	//Compute the fitten curve, given the parameters previously estimated
 	public static double[] fittenRelaxationCurve(double[]tEchos,double []param,double sigma,int fitType){
 		double[]tab=new double[tEchos.length];

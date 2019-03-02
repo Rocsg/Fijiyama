@@ -286,6 +286,7 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 	}
 
 	
+	
 /*	public void runCurveExplorer(){
 		startPlotsAndRoi();
 		double xCor=1,yCor=1;
@@ -320,7 +321,7 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 		closePlotsAndRoi();
 	}
 */
-	public void locateTheCursor() {
+/*	public void locateTheCursor() {
 		System.out.println("Demande de localisation");
 		if(yMouse < imgHeight) {
 			if(xMouse < imgWidth) {
@@ -345,7 +346,7 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 		System.out.println("  --> effectuee :currentWindow="+currentCanvas+" avec CoordMouse=("+xMouse+","+yMouse+")"+" et coord canvas=("+coordX+","+coordY+")");
 		
 	}
-	
+	*/
 	
 	public void startPlotsAndRoi(){
 		plotT1 = new Plot("T1 curve explorer","Tr","Value");
