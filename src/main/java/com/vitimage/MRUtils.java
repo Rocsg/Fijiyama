@@ -1,22 +1,15 @@
 package com.vitimage;
 
-import java.awt.Color;
 import java.awt.Rectangle;
 
 import ij.IJ;
-import ij.ImageJ;
 import ij.ImagePlus;
 import ij.ImageStack;
-import ij.WindowManager;
-import ij.gui.Plot;
-import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.plugin.filter.Binary;
 import ij.plugin.filter.ThresholdToSelection;
 import ij.plugin.frame.RoiManager;
-import ij.process.Blitter;
 import ij.process.FloatPolygon;
-import ij.process.ImageProcessor;
 
 public class MRUtils implements Fit{
 	
@@ -68,8 +61,7 @@ public class MRUtils implements Fit{
 		//else : on each slice, compute the selection on each slice, then apply it on this slice
 		if(computeCapMaskOnlyOnFirstSlice) {
 			ImagePlus imgSlice=new ImagePlus("", img.getStack().getProcessor(1));
-			ImagePlus imgCon=trUt.connexe(imgSlice, valMinCap, valMaxCap, surfaceMinCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight), surfaceMaxCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight),4);
-			imgCon.getProcessor().multiply(255);
+			ImagePlus imgCon=trUt.connexe(imgSlice, valMinCap, valMaxCap, surfaceMinCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight), surfaceMaxCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight),4,1);
 			imgCon.getProcessor().setMinAndMax(0,255);
 			IJ.run(imgCon,"8-bit","");			
 			IJ.setThreshold(imgCon, 255,255);
@@ -100,8 +92,7 @@ public class MRUtils implements Fit{
 		else {
 			for(int z=1;z<=zMax;z++) {
 				ImagePlus imgSlice=new ImagePlus("", img.getStack().getProcessor(z));
-				ImagePlus imgCon=trUt.connexe(imgSlice, valMinCap, valMaxCap, surfaceMinCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight), surfaceMaxCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight),4);
-				imgCon.getProcessor().multiply(255);
+				ImagePlus imgCon=trUt.connexe(imgSlice, valMinCap, valMaxCap, surfaceMinCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight), surfaceMaxCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight),4,1);
 				imgCon.getProcessor().setMinAndMax(0,255);
 				IJ.run(imgCon,"8-bit","");			
 				IJ.setThreshold(imgCon, 255,255);

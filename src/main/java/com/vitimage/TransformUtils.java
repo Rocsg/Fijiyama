@@ -7,22 +7,31 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.stream.Collectors;
+
+import com.vitimage.Vitimage_Toolbox.VolumeComparator;
 
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
+import ij.Prefs;
 import ij.gui.GenericDialog;
+import ij.gui.Roi;
 import ij.measure.Calibration;
+import ij.plugin.Duplicator;
 import ij.plugin.GaussianBlur3D;
+import ij.plugin.frame.RoiManager;
 import ij.process.ByteProcessor;
+import ij.process.FloatPolygon;
+import ij.process.ImageProcessor;
 import ij.process.StackConverter;
 import imagescience.transform.Transform;
 
 public class TransformUtils {
 	
-
+	int COORD_OF_MAX_IN_TWO_LAST_SLICES=1;
 	public TransformUtils() {
 		
 	}
@@ -95,6 +104,24 @@ public class TransformUtils {
 		System.out.println(s);	
 	}	
 	
+	public String stringMatrix(String sTitre,double[]tab){
+		String s=new String();
+		s+="\n Affichage de la matrice ";
+		s+=sTitre;
+		s+="\n";		
+		for(int i=0;i<3;i++){
+			s+="[ ";
+			for(int j=0;j<3;j++){
+				s+=tab[i*4+j];
+				s+=" , ";
+			}
+			s+=tab[i*4+3];
+			s+=" ] \n";
+		}
+		s+= "[ 0 , 0 , 0 , 1 ]\n\n";
+		return(s);	
+	}	
+
 	public void matrixProduct(double[]tab1,double[]tab2,double[]tab3){
 		//Matrix product in homogeneous coordinates 
 		// [      Rotation       |Translation_x]
@@ -233,10 +260,16 @@ public class TransformUtils {
 		cal.pixelDepth =voxSize[2];
 	}
 	
+	public double getVoxelVolume(ImagePlus img) {
+		return img.getCalibration().pixelDepth*img.getCalibration().pixelWidth*img.getCalibration().pixelHeight;
+	}
 	
 	
-	
-	public double[][] computeTransformationForBoutureAlignment(ImagePlus img,double[][]cornersCoordinates){
+	public double[][] computeTransformationForBoutureAlignment(ImagePlus img,boolean computeZaxisOnly,double[][]cornersCoordinates){
+		Analyze anna=Vitimage_Toolbox.anna;
+		//new Duplicator().run(img,1,img.getStackSize()).show();
+		anna.remember("Entree dans calcul de transformation", "computeZaxisOnly ? "+computeZaxisOnly+"");
+		anna.storeEntryImage(img,"Image sur laquelle l'axe va etre calculé");
 		boolean debug=true;
 		double xFinal=255;
 		double yFinal=380;
@@ -250,13 +283,19 @@ public class TransformUtils {
 		double xMoyUp=0,yMoyUp=0,zMoyUp=0;
 		double xMoyDown=0,yMoyDown=0,zMoyDown=0;
 		int hitsUp=0,hitsDown=0;
-
+		
 		//Step 1 : apply gaussian filtering and convert to 8 bits
-		GaussianBlur3D.blur(img, 8,8,2);
+				anna.notifyStep("Lissage 3D puis reduction à 8 bits","facteurs de lisage (en pixels)=("+8*0.035/vX+" , "+8*0.035/vY+" , "+2*0.5/vZ+")");
+		GaussianBlur3D.blur(img,8*0.035/vX,8*0.035/vY,2*0.5/vZ);
+				anna.storeImage(img, "resultat lissage gaussien");
+				anna.rememberImageDynamic(img,"resulat lissage gaussien");
 		StackConverter sc=new StackConverter(img);
 		sc.convertToGray8();
+				anna.storeImage(img, "resultat conversion 8 bits");
+				anna.rememberImageDynamic(img,"resulat conversion 8 bits");
 
 		//Step 2 : apply automatic threshold
+				anna.notifyStep("Seuillage automatique","seuil impossible à determiner car methode de Otsu automatique appliquee");
 		ByteProcessor[] maskTab=new ByteProcessor[zMax];
 		for(int z=0;z<zMax;z++){
 			maskTab[z]=(ByteProcessor) img.getStack().getProcessor(z+1);
@@ -266,38 +305,48 @@ public class TransformUtils {
 		//Extract two substacks for the upper part and the lower part of the object
 		ImageStack stackUp = new ImageStack(xMax, yMax);	
 		ImageStack stackDown = new ImageStack(xMax, yMax);
-		for(int i=0;i<6;i++) {
-			stackUp.addSlice("",img.getStack().getProcessor(zMax/2+1+i));//de zmax/2 à zMax/2 + 5 --> ajouter zMax/2 à la fin			
-			stackDown.addSlice("",img.getStack().getProcessor(zMax/2-5+i+1));//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
+		int zQuarter=zMax/4;
+		int zVentile=zMax/40;
+		zVentile=(zVentile < 10 ? 10 : zVentile);
+		if(zMax<zVentile*2+2)zVentile=zMax/2-1;
+				anna.remember("Valeurs calculees","zQuarter="+zQuarter+" , zVentile="+zVentile);
+		for(int i=0;i<zVentile;i++) {
+			stackUp.addSlice("",img.getStack().getProcessor(zMax/2+zQuarter-zVentile+1+i));//de zmax/2 à zMax/2 + 5 --> ajouter zMax/2 à la fin			
+			stackDown.addSlice("",img.getStack().getProcessor(zMax/2-zQuarter+1+i+1));//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
 		}
 		ImagePlus imgUp=new ImagePlus("upMASK",stackUp);
+		ImagePlus imgUpCon=connexe(imgUp,0,29,0,10E10,6,2);
+				anna.storeImage(imgUp, "Masque de la partie superieure");
+				anna.rememberImageDynamic(imgUp," partie superieure");
+				anna.storeImage(imgUp, "Connexe de la partie superieure");
+				anna.rememberImageDynamic(imgUpCon," connexe partie superieure");
+				
 		ImagePlus imgDown=new ImagePlus("downMASK",stackDown);
+		ImagePlus imgDownCon=connexe(imgDown,0,29,0,10E10,6,2);
+				anna.storeImage(imgDown, "Masque de la partie inferieure");
+				anna.rememberImageDynamic(imgUp," partie inferieure");
+				anna.storeImage(imgUp, "Connexe de la partie inferieure");
+				anna.rememberImageDynamic(imgUpCon," connexe partie inferieure");
 
-		ImagePlus imgDownCon=connexe(imgDown,0,8,5000,10E10,6);
-		ImagePlus imgUpCon=connexe(imgUp,0,8,5000,10E10,6);
-		if(debug) {
-			imgDownCon.show();		
-			imgUp.show();		
-			imgDown.show();		
-			imgUpCon.show();
-		}
+		
 		
 		//Step 3 : compute the two centers of mass
-		short[][]valsDownCon=new short[6][];
-		short[][]valsUpCon=new short[6][];
-		for(int z=0;z<6;z++){
+					anna.notifyStep("Calcul des centres de masse","");
+		short[][]valsDownCon=new short[zQuarter][];
+		short[][]valsUpCon=new short[zQuarter][];
+		for(int z=0;z<zVentile;z++){
 			valsDownCon[z]=(short[])(imgDownCon).getStack().getProcessor(z+1).getPixels();
 			valsUpCon[z]=(short[])(imgUpCon).getStack().getProcessor(z+1).getPixels();
 		}
 
 		for(int x=0;x<xMax;x++){
 			for(int y=0;y<yMax;y++){
-				for(int z=0;z<6;z++){								
-					if(valsDownCon[z][xMax*y+x]==((short)2)){//We are in the first part of the object
+				for(int z=0;z<zVentile;z++){								
+					if(valsDownCon[z][xMax*y+x]==((short)255)){//We are in the first part of the object
 						hitsDown++;
 						xMoyDown+=x;yMoyDown+=y;zMoyDown+=z;
 					}
-					if(valsUpCon[z][xMax*y+x]==((short	)2)){//We are in the first part of the object
+					if(valsUpCon[z][xMax*y+x]==((short	)255)){//We are in the first part of the object
 						hitsUp++;
 						xMoyUp+=x;yMoyUp+=y;zMoyUp+=z;
 					}
@@ -306,12 +355,14 @@ public class TransformUtils {
 		}
 		xMoyUp=xMoyUp/hitsUp;//Center of mass computation. 
 		yMoyUp=yMoyUp/hitsUp;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
-		zMoyUp=zMoyUp/hitsUp+zMax/2;//due to the extraction of a substack zmax/2-5 - zmax/2
+		zMoyUp=zMoyUp/hitsUp+zMax/2+zQuarter-zVentile;//due to the extraction of a substack zmax/2-zQuarter+1 - zmax/2     zMax/2+zQuarter-zVentile
 
 		xMoyDown=xMoyDown/hitsDown;//Center of mass computation. 
 		yMoyDown=yMoyDown/hitsDown;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
-		zMoyDown=zMoyDown/hitsDown+zMax/2-5;//due to the extraction of a substack zmax/2 - zmax/2+5
+		zMoyDown=zMoyDown/hitsDown+zMax/2-zQuarter+1;//due to the extraction of a substack zmax/2 - zmax/2+zQuarter       zMax/2-zQuarter+1
 
+		anna.remember("Points et centre de masse up (en pixels)","Points="+hitsUp+" Center=("+xMoyUp+" , "+yMoyUp+" , "+zMoyUp+")");
+		anna.remember("Points et centre de masse down (en pixels)","Points="+hitsDown+" Center=("+xMoyDown+" , "+yMoyDown+" , "+zMoyDown+")");
 		if(debug) {
 			System.out.println("HitsUp="+hitsUp+" ..Center of mass up = "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
 			System.out.println("HitsDown="+hitsDown+" ..Center of mass down = "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
@@ -323,10 +374,15 @@ public class TransformUtils {
 		xMoyDown=xMoyDown*vX+vX/2;		
 		yMoyDown=yMoyDown*vY+vY/2;		
 		zMoyDown=zMoyDown*vZ+vZ/2;		
-		System.out.println("Center of mass up (real coordinates)= "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
-		System.out.println("Center of mass down (real coordinates)= "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
-
+		anna.remember("Points et centre de masse up (en real coordinates)","Points="+hitsUp+" Center=("+xMoyUp+" , "+yMoyUp+" , "+zMoyUp+")");
+		anna.remember("Points et centre de masse down (en real coordinates)","Points="+hitsDown+" Center=("+xMoyDown+" , "+yMoyDown+" , "+zMoyDown+")");
+		if(debug) {
+			System.out.println("Center of mass up (real coordinates)= "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
+			System.out.println("Center of mass down (real coordinates)= "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+		}
+		
 		//Step 4 : compute the new basis
+		anna.notifyStep("Calcul de la nouvelle base", "pour la transformation");
 		double []vectXfin=new double[3];
 		double []vectYinit=new double[3];
 		double []vectYfin=new double[3];
@@ -334,16 +390,30 @@ public class TransformUtils {
 		double []vectZfin=new double[3];
 
 		//Last vector of the base : tissue axis from low Z values to High Z values
-		vectZinit[0]=xMoyUp-xMoyDown;
 		vectZinit[1]=yMoyUp-yMoyDown;
 		vectZinit[2]=zMoyUp-zMoyDown;
 
 		//Compute the center of inoculation point
-		double zP=(cornersCoordinates[0][2]+cornersCoordinates[1][2]+cornersCoordinates[2][2]+cornersCoordinates[3][2])/4.0;
-		double xP=(cornersCoordinates[0][0]+cornersCoordinates[1][0]+cornersCoordinates[2][0]+cornersCoordinates[3][0])/4.0;
-		double yP=(cornersCoordinates[0][1]+cornersCoordinates[1][1]+cornersCoordinates[2][1]+cornersCoordinates[3][1])/4.0;
+		double xP=0,yP=0,zP=0;
+		if(computeZaxisOnly) {//Guess a point in the lower part of the image
+			xP=(xMoyUp+xMoyDown)/2.0;
+			yP=(yMoyUp+yMoyDown)/2.0+100*vY;
+			zP=(xMoyUp+xMoyDown)/2.0;
+		}
+		else {//We know the actual point
+			for(int i=0;i<cornersCoordinates.length;i++) {
+				xP+=cornersCoordinates[i][0];
+				yP+=cornersCoordinates[i][1];
+				zP+=cornersCoordinates[i][2];
+			}
+			xP/=cornersCoordinates.length;
+			yP/=cornersCoordinates.length;
+			zP/=cornersCoordinates.length;
+		}
 		if(debug) System.out.println("Inoculation point (in real coordinates) : "+xP+"  ,  "+yP+"  ,  "+zP);
-
+		anna.remember("Points d'inoculation choisi (en real coordinates)","=("+xP+" , "+yP+" , "+zP+")");
+		
+		
 		//Center of tissue to PI, make the second vector
 		vectYinit[0]=xP-xMoyDown;
 		vectYinit[1]=yP-yMoyDown;
@@ -352,19 +422,24 @@ public class TransformUtils {
 		//"Graham-schmidt orthogonalisation" (Not exactly, as we use Y and Z to produce X)
 
 		//E3=v3/norm(v3)
+		anna.remember(stringVector(vectZinit,"V3"),"");
 		vectZfin=normalize(vectZinit);
+		anna.remember(stringVector(vectZinit,"E3"),"");
 
 		if(debug) printVector(vectZinit,"v3=");
 		if(debug) printVector(vectZfin,"E3=");
 		//u2=v2-proj_u3_of_v2  ; E2=v2/norm(v2)
 		if(debug) printVector(vectYinit,"v2=");
+		anna.remember(stringVector(vectYinit,"V2"),"");
 		vectYfin=vectorialSubstraction(vectYinit,proj_u_of_v(vectZinit,vectYinit));
 		vectYfin=normalize(vectYfin);
 		if(debug) printVector(vectYfin,"E2=");
+		anna.remember(stringVector(vectYfin,"E2"),"");
 
 		//For E1
 		vectXfin=vectorialProduct(vectYfin,vectZfin);
 		if(debug) printVector(vectXfin,"E1=");
+		anna.remember(stringVector(vectXfin,"E1"),"");
 
 
 
@@ -373,6 +448,7 @@ public class TransformUtils {
 		//We want that through the transformation, the inoculation point get the coordinates : xFinal,yFinal,zFinal.
 		//That stands for that experiment in which all the data lies in 512 x 512 x 40 stacks.
 		//If one of the dimensions differs a lot, it should propose another strategy. 
+		anna.notifyStep("Calcul de la translation restante", "");
 		if((xMax != 512) || (yMax != 512) || (zMax < 38) || (zMax > 42)){//Alert
 			GenericDialog gd = new GenericDialog("Alert !\nUnattempted image dimensions : "+xMax+" x "+yMax+" x "+zMax+"\n512 x 512 x 40 expected\nPlease choose the location of the inoculation point after transformation...");
 	        gd.addNumericField("Confirm X  : ", xMax/2, 5);
@@ -394,6 +470,7 @@ public class TransformUtils {
 		trans[1]=yP-vectXfin[1]*xFinal-vectYfin[1]*yFinal-vectZfin[1]*zFinal;
 		trans[2]=zP-vectXfin[2]*xFinal-vectYfin[2]*yFinal-vectZfin[2]*zFinal;
 		if(debug) System.out.println("Translation : ["+trans[0]+" , "+trans[1]+" , "+trans[2]+"]");
+		anna.remember(stringVector(new double[] {trans[0],trans[1],trans[2]},"Translation"),"");
 		
 		//Assemble and write the transformation matrix
 		Transform tr=new Transform(vectXfin[0],vectYfin[0],vectZfin[0],trans[0],
@@ -410,22 +487,9 @@ public class TransformUtils {
 	
 		Transform trInv=new Transform(tr);
 		trInv.invert();
+		anna.remember(stringMatrix(" Matrice complete obtenue en fin de fonction",transformToArray(tr)),"");
 		return(new double[][] {transformToArray(tr),transformToArray(trInv) });	
 	}
-	
-	public double[][]coordinatesForAlignmentTesting(){
-		double vx=0.035;
-		double vy=0.035;
-		double vz=0.5;
-
-		return new double[][]{
-			{vx*168.5,vy*298.5,vz*11.5},
-			{vx*216.5,vy*334.5,vz*11.5},
-			{vx*173.5,vy*305.5,vz*35.5},
-			{vx*219.5,vy*341.5,vz*35.5}
-		};
-	}
-	
 	
 	
 	
@@ -1033,62 +1097,8 @@ public class TransformUtils {
 	
 	
 	
-	
-	public double norm(double[]v){
-		return Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
-	}
 
-	public double[] normalize(double[]v){
-		double[] ret=new double[3];
-		double nrm=norm(v);
-		ret[0]=v[0]/nrm;
-		ret[1]=v[1]/nrm;
-		ret[2]=v[2]/nrm;
-		return ret;
-	}
-
-	public double scalarProduct(double[]v1,double []v2){
-		return(v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]);
-	}
-
-	public double [] multiplyVector(double[]v,double factor){
-		double[] ret=new double[3];
-		ret[0]=v[0]*factor;
-		ret[1]=v[1]*factor;
-		ret[2]=v[2]*factor;
-		return ret;
-	}
-
-	public double[] vectorialProduct(double[]v1,double[]v2){
-		double[] ret=new double[3];
-		ret[0]=v1[1]*v2[2]-v1[2]*v2[1];		
-		ret[1]=v1[2]*v2[0]-v1[0]*v2[2];		
-		ret[2]=v1[0]*v2[1]-v1[1]*v2[0];		
-		return ret;
-	}
-
-	public double[] vectorialSubstraction(double[]v1,double[]v2){
-		double[] ret=new double[3];
-		ret[0]=v1[0]-v2[0];		
-		ret[1]=v1[1]-v2[1];		
-		ret[2]=v1[2]-v2[2];		
-		return ret;
-	}
-	
-	public double[] proj_u_of_v(double[]u,double[]v){
-		double scal1=scalarProduct(u,v);
-		double scal2=scalarProduct(u,u);
-		return multiplyVector(u,scal1/scal2);
-	}
-
-	void printVector(double []vect,String vectNom){
-		System.out.println(vectNom+" = [ "+vect[0]+" , "+vect[1]+" , "+vect[2]+" ]");
-	}
-
-	
-	
-	
-	ImagePlus connexe(ImagePlus img,double threshLow,double threshHigh,double volumeLow,double volumeHigh,int connexity) {
+	ImagePlus connexe(ImagePlus img,double threshLow,double threshHigh,double volumeLow,double volumeHigh,int connexity,int selectByVolume) {
 		boolean debug=true;
 		if(debug)System.out.println("Depart connexe");
 		int yMax=img.getHeight();
@@ -1169,12 +1179,11 @@ public class TransformUtils {
 			}			
 		}
 		
-		if(debug)System.out.println("Resolution des conflits");
+		if(debug)System.out.println("Resolution des conflits entre groupes connexes");
 		//Resolution des groupes d'objets connectes entre eux (formes en U, et cas plus compliqués)
-		int[]lut = resolveConnexitiesGroupsAndExclude(connexions,indexConnexions,curComp+1,volume,volumeLow/voxVolume,volumeHigh/voxVolume);
+		int[]lut = resolveConnexitiesGroupsAndExclude(connexions,indexConnexions,curComp+1,volume,volumeLow/voxVolume,volumeHigh/voxVolume,selectByVolume);
 		
 		
-		if(debug)System.out.println("Construction de l'image finale");
 		//Build computed image of objects
 		ImagePlus imgOut=ij.gui.NewImage.createImage(img.getShortTitle()+"_"+connexity+"CON",xMax,yMax,zMax,16,ij.gui.NewImage.FILL_BLACK);
 		short[] imgOutTab;
@@ -1182,19 +1191,15 @@ public class TransformUtils {
 			imgOutTab=(short[])(imgOut.getStack().getProcessor(z+1).getPixels());
 			for(int x=0;x<xMax;x++)for(int y=0;y<yMax;y++) imgOutTab[x+xMax*y] = (short) ( lut[tabIn[x][y][z]]  );
 		}
+		imgOut.getProcessor().setMinAndMax(0,lut[curComp+1]);
 		return imgOut;	
 	}
 	
-	
-	
-	
 	public void testConnexe(ImagePlus img,int thresh,int volMin,int con) {
-		ImagePlus out=connexe(img,thresh,10E32,volMin,1000000000,con);
+		ImagePlus out=connexe(img,thresh,10E32,volMin,1000000000,con,0);
 		out.show();
 //		IJ.setMinAndMax(min, max);
 	}
-	
-	
 	
 	public void testResolve() {
 		int[][]connexions=new int[][]{{1,2},{3,4},{4,5},{2,6},{1,1}};
@@ -1203,17 +1208,13 @@ public class TransformUtils {
 		int []volumes= {0,20,40,80,160,320,640};
 		int volMin = 100;
 		int volMax = 10000;
-		int[]result=resolveConnexitiesGroupsAndExclude(connexions,nbCouples,n,volumes,volMin,volMax);
+		int[]result=resolveConnexitiesGroupsAndExclude(connexions,nbCouples,n,volumes,volMin,volMax,0);
 	}
 	
-	
-	
-	
-	
-	public int[] resolveConnexitiesGroupsAndExclude(int  [][] connexions,int nbCouples,int n,int []volume,double volumeLowP,double volumeHighP) {
+	public int[] resolveConnexitiesGroupsAndExclude(int  [][] connexions,int nbCouples,int n,int []volume,double volumeLowP,double volumeHighP,int selectByVolume) {
 		boolean debug=false;
 		int[]prec=new int[n];
-		int[]lut=new int[n];
+		int[]lut=new int[n+1];
 		int[]next=new int[n];
 		int[]label=new int[n];
 		if(debug)System.out.println("");
@@ -1274,6 +1275,19 @@ public class TransformUtils {
 				volume[i]=0;
 			}
 		}
+		//copy and sort volumes
+		Object [][]tabSort=new Object[n][2];
+		int selectedIndex=0;
+		for (int i=0;i<n ;i++) {
+			tabSort[i][0]=new Double(volume[i]);
+			tabSort[i][1]=new Integer(i);
+		}
+
+		
+		Arrays.sort(tabSort,new VolumeComparator());
+		if(selectByVolume>n)selectByVolume=n;
+		if(selectByVolume<1)selectByVolume=0;
+		if(selectByVolume!=0)selectedIndex=((Integer)(tabSort[n-selectByVolume][1])).intValue();
 		
 		//Exclude too big or too small objects,
 		System.out.println("");
@@ -1281,13 +1295,17 @@ public class TransformUtils {
 		int displayedValue=1;
 		for (int i=1;i<n ;i++){
 			if(debug)System.out.println("--Element "+i+" de label "+label[i]+" et de volume "+volume[i]);
-			if( (volume[i]>0) && (volume[i]>=volumeLowP) && (volume[i]<=volumeHighP) ) {
+			if(selectByVolume!=0) {
+				if(i==selectedIndex)lut[i]=255;
+				else lut[i]=0;
+			}
+			else if( (volume[i]>0) && (volume[i]>=volumeLowP) && (volume[i]<=volumeHighP) ) {
 				if(debug)System.out.println("On lui dedie une teinte de la LUT. Ce sera la teinte "+displayedValue);
 				lut[i]=displayedValue++;
 			}
 		}
 		if(displayedValue>65000) {System.out.println("Warning : "+(displayedValue-1)+" connected components");}
-		else System.out.println("Number of connected components detected : "+(displayedValue-1));
+		else System.out.println("Number of connected components detected : "+(selectByVolume>0 ? 1 : (displayedValue-1)));
 
 		//Group labels
 		if(debug)System.out.println("Partie 4 : Chacun prend sa lut");
@@ -1295,10 +1313,297 @@ public class TransformUtils {
 			lut[i]=lut[label[i]];
 			if(debug)System.out.println("----Element traite :"+i+" recoit la teinte "+lut[i]);
 		}
+		//Tricky little parameters to provide a good display after operation;
+		if(selectByVolume !=0)lut[n]=255;
+		else lut[n]=displayedValue;
 		return lut;
 	}
 	
 	
+	
+	
+	
+	public double[] detectInoculationPoint(ImagePlus img) {
+		int xMax=img.getWidth();
+		int yMax=img.getHeight();
+		int zMax=img.getStackSize();
+		double vX=img.getCalibration().pixelWidth;
+		double vY=img.getCalibration().pixelHeight;
+		double vZ=img.getCalibration().pixelDepth;
+		int facteurAniso=(int)Math.round(vZ/vX);
+		double IPStdZSize=4; //mm
+		double IPStdXSize=2; //mm
+		double sigmaXY=IPStdXSize/2.0;
+		double sigmaZ=IPStdXSize/4.0;
+		int sigmaPlotZ=5;
+		double sigmaXYInPixels=10;//sigmaXY/vX;
+		double sigmaZInPixels=0.2;//sigmaZ/vZ;
+		int minPossibleZ=zMax/4;
+		int maxPossibleZ=(zMax*3)/4;
+		System.out.println("\nBlur");
+		IJ.run(img, "Gaussian Blur 3D...", "x="+sigmaXYInPixels+" y="+sigmaXYInPixels+" z="+sigmaZInPixels+"");
+		System.out.println(" Ok.");
+
+		
+		ImagePlus imgSlice= new Duplicator().run(img, minPossibleZ,minPossibleZ);
+		System.out.println("\nOutline detection ...");
+		IJ.setAutoThreshold(imgSlice, "Default dark");
+		Prefs.blackBackground = true;
+		IJ.run(imgSlice, "Convert to Mask", "method=Default background=Dark calculate black");
+		for(int er=0;er<6;er++)IJ.run(imgSlice, "Erode", "stack");
+		IJ.run(imgSlice, "Outline", "stack");
+		ImagePlus imgOutline= new Duplicator().run(imgSlice, 1,1);
+		Vitimage_Toolbox.imageChecking(imgOutline);
+		imgSlice=connexe(imgSlice,255,255,0,10E10,8,1);
+		Vitimage_Toolbox.imageChecking(imgSlice);
+		System.out.println(" Ok.");
+
+		
+		System.out.println("\nSelection equipartited points for analysis and sort by angle around the center...");
+		IJ.run(imgSlice, "8-bit", "");
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		IJ.run(imgSlice, "Create Selection", "");
+		rm.addRoi(imgSlice.getRoi());
+		Roi roi=rm.getRoi(0);
+		FloatPolygon fp=roi.getContainedFloatPoints();
+		int nAngles=fp.npoints;
+		double [][]tabCoord=new double[nAngles][3];
+		Double [][]tabSort=new Double[nAngles][3];
+		double xCenter = 256;
+		double yCenter = 256;
+		for (int i=0; i<nAngles; i++) {
+			tabSort[i][0]=new Double(fp.xpoints[i]);
+			tabSort[i][1]=new Double(fp.ypoints[i]);
+			tabSort[i][2]=new Double(calculateAngle(tabSort[i][0]-xCenter,yCenter-tabSort[i][1]));
+		}
+		imgSlice.changes=false;
+		imgSlice.close();
+		rm.close();
+		//sort by angles
+		Arrays.sort(tabSort,new AngleComparator());
+		for (int i=0; i<nAngles; i++) {
+			tabCoord[i][0]=tabSort[i][0].doubleValue();
+			tabCoord[i][1]=tabSort[i][1].doubleValue();
+			tabCoord[i][2]=tabSort[i][2].doubleValue();
+		}
+		System.out.println(" Ok.");
+		double [][]meanValues=new double[nAngles][zMax];
+		
+		System.out.println("\nMeasurements");
+		ImagePlus measures=ij.gui.NewImage.createImage("measures",nAngles,zMax*facteurAniso,3,32,ij.gui.NewImage.FILL_BLACK);
+		float[]measuresImg0=(float[]) measures.getStack().getProcessor(1).getPixels();
+		float[]measuresImg1=(float[]) measures.getStack().getProcessor(2).getPixels();
+		float[]measuresImg2=(float[]) measures.getStack().getProcessor(3).getPixels();
+
+		for (int ang=0; ang<nAngles; ang++){
+			for (int z=0; z<zMax; z++){			
+				meanValues[ang][z]=meanValueofImageAround(img,(int)Math.round(tabCoord[ang][0]),(int)Math.round(tabCoord[ang][1]),z,sigmaXYInPixels);
+				for(int i=0;i<facteurAniso;i++)measuresImg0[nAngles*(z*facteurAniso+i)+ang]=(float) meanValues[ang][z];
+			}
+		}
+		
+		System.out.println(" Ok.");
+		
+		
+		
+		
+		System.out.println("\nScore computation");
+//
+		double[][][]scores=new double[nAngles][zMax][3];
+		for (int ang=0; ang<nAngles; ang++){
+			for (int z=minPossibleZ; z<=maxPossibleZ; z++){			
+				double acc=0;
+				for(int i=-sigmaPlotZ;i<=sigmaPlotZ;i++)acc+=meanValues[ang][z+i];
+				scores[ang][z][0]=acc/(2*sigmaPlotZ+1);
+				scores[ang][z][1]=(scores[ang][z][0]-meanValues[ang][z])/scores[ang][z][0];
+				scores[ang][z][2]=(scores[ang][z][0]-meanValues[ang][z]);
+				for(int i=0;i<facteurAniso;i++)measuresImg1[nAngles*(z*facteurAniso+i)+ang]=(float) scores[ang][z][1];
+				for(int i=0;i<facteurAniso;i++)measuresImg2[nAngles*(z*facteurAniso+i)+ang]=(float) scores[ang][z][2];
+			}
+		}
+		
+		measures.getProcessor().setMinAndMax(0,3000);
+		IJ.run(measures,"Fire","");
+		measures.show();
+		ImagePlus imgDetect=new Duplicator().run(measures,1,measures.getStackSize());
+		IJ.run(imgDetect, "Gaussian Blur...", "sigma="+(1/(2*vX))+" stack");
+		imgDetect.show();
+		double[][]coordMax=getCoordinatesOf(imgDetect,COORD_OF_MAX_IN_TWO_LAST_SLICES,minPossibleZ*facteurAniso,maxPossibleZ*facteurAniso);
+		System.out.println("Maximum relatif obtenu à ("+coordMax[0][0]+" , "+coordMax[0][1]+" ) soit, en coordonnees images : ( "+
+							tabCoord[(int)Math.round(coordMax[0][0])][0]+" , "+tabCoord[(int)Math.round(coordMax[0][0])][1]+" , "+
+							((coordMax[0][1]-facteurAniso/2.0)/facteurAniso)+" )");
+		System.out.println("Maximum absolu obtenu à ("+coordMax[1][0]+" , "+coordMax[1][1]+" ) soit, en coordonnees images : ( "+
+							tabCoord[(int)Math.round(coordMax[1][0])][0]+" , "+tabCoord[(int)Math.round(coordMax[1][0])][1]+" , "+
+							((coordMax[1][1]-facteurAniso/2.0)/facteurAniso)+" )");
+
+		return new double[]{tabCoord[(int)Math.round(coordMax[1][0])][0]*vX+vX/2.0,tabCoord[(int)Math.round(coordMax[1][0])][1]*vY+vY/2.0,((coordMax[1][1]-facteurAniso/2.0)/facteurAniso)*vZ+vZ/2.0};
+	}
+		
+	public static double calculateAngle(double x, double y)
+	{
+	    double angle = Math.toDegrees(Math.atan2(y, x));
+	    // Keep angle between 0 and 360
+	    angle = angle + Math.ceil( -angle / 360 ) * 360;
+
+	    return angle;
+	}
+
+	class VolumeComparator implements java.util.Comparator {
+		   public int compare(Object o1, Object o2) {
+		      return ((Double) ((Object[]) o1)[0]).compareTo((Double)((Object[]) o2)[0]);
+		   }
+		}
+	
+	class AngleComparator implements java.util.Comparator {
+		   public int compare(Object o1, Object o2) {
+		      return ((Double) ((Double[]) o1)[2]).compareTo((Double)((Double[]) o2)[2]);
+		   }
+		}
+		
+	public double meanValueofImageAround(ImagePlus img,int x0,int y0,int z0,double ray) {
+			int xMax=img.getWidth();
+			int xm=(int)Math.round(x0-ray);
+			int xM=(int)Math.round(x0+ray);
+			int ym=(int)Math.round(y0-ray);
+			int yM=(int)Math.round(y0+ray);
+			if(z0<0)z0=0;
+			if(z0>img.getStackSize()-1)z0=img.getStackSize()-1;
+
+			if(xm<0)xm=0;
+			if(ym<0)ym=0;
+			if(xm>img.getWidth()-1)xm=img.getWidth()-1;
+			if(ym>img.getHeight()-1)ym=img.getHeight()-1;
+
+			if(xM<0)xM=0;
+			if(yM<0)yM=0;
+			if(xM>img.getWidth()-1)xM=img.getWidth()-1;
+			if(yM>img.getHeight()-1)yM=img.getHeight()-1;
+			double accumulator=0;
+			double nbHits=0;
+			if(img.getType() == ImagePlus.GRAY8) {
+				byte[] valsImg=(byte [])img.getStack().getProcessor(z0+1).getPixels();
+				for(int x=xm;x<=xM;x++) {
+					for(int y=ym;y<=yM;y++) {
+						if( ((x-xM)*(x-xM)+(y-yM)*(y-yM)) < (ray*ray) ) {
+							accumulator+= (int)(  (  (byte)valsImg[xMax*y+x])  & 0xff);
+							nbHits++;
+						}			
+					}
+				}			
+			}
+			else if(img.getType() == ImagePlus.GRAY16) {
+				short[] valsImg=(short[])img.getStack().getProcessor(z0+1).getPixels();
+				for(int x=xm;x<=xM;x++) {
+					for(int y=ym;y<=yM;y++) {
+						if( ((x-xM)*(x-xM)+(y-yM)*(y-yM)) < (ray*ray) ) {
+							accumulator+= (int)(  (  (short)valsImg[xMax*y+x])  & 0xffff);
+							nbHits++;
+						}			
+					}
+				}			
+			}
+			else if(img.getType() == ImagePlus.GRAY32) {
+				float[] valsImg=(float[])img.getStack().getProcessor(z0+1).getPixels();
+				for(int x=xm;x<=xM;x++) {
+					for(int y=ym;y<=yM;y++) {
+						if( ((x-xM)*(x-xM)+(y-yM)*(y-yM)) < (ray*ray) ) {
+							accumulator+=(float)valsImg[xMax*y+x];
+							nbHits++;
+						}			
+					}
+				}			
+			}
+			if(nbHits==0)return 0;
+			else return (accumulator/nbHits);
+	}
+	
+	public double[][] getCoordinatesOf(ImagePlus img,int computationStyle,int minZ,int maxZ){
+		if(computationStyle==COORD_OF_MAX_IN_TWO_LAST_SLICES) {
+			double[][]tabRet=new double[2][3];
+			tabRet[1][2]=tabRet[0][2]=-10E10;
+			if(img.getType() == ImagePlus.GRAY32) {
+				float[]valsImg2=(float[])img.getStack().getProcessor(2).getPixels();
+				float[]valsImg3=(float[])img.getStack().getProcessor(3).getPixels();
+				int xMax=img.getWidth();
+				
+				for(int x=0;x<xMax;x++) {
+					for(int y=minZ;y<=maxZ;y++) {
+						if(tabRet[0][2]<(float)valsImg2[xMax*y+x]) {
+							tabRet[0][2]=(float)valsImg2[xMax*y+x];
+							tabRet[0][0]=x;
+							tabRet[0][1]=y;							
+						}
+						if(tabRet[1][2]<(float)valsImg3[xMax*y+x]) {
+							tabRet[1][2]=(float)valsImg3[xMax*y+x];
+							tabRet[1][0]=x;
+							tabRet[1][1]=y;							
+						}
+					}
+				}
+			}
+			return tabRet;
+		}
+		return null;
+	}
+	
+	
+	
+	public double norm(double[]v){
+		return Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+	}
+
+	public double[] normalize(double[]v){
+		double[] ret=new double[3];
+		double nrm=norm(v);
+		ret[0]=v[0]/nrm;
+		ret[1]=v[1]/nrm;
+		ret[2]=v[2]/nrm;
+		return ret;
+	}
+
+	public double scalarProduct(double[]v1,double []v2){
+		return(v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]);
+	}
+
+	public double [] multiplyVector(double[]v,double factor){
+		double[] ret=new double[3];
+		ret[0]=v[0]*factor;
+		ret[1]=v[1]*factor;
+		ret[2]=v[2]*factor;
+		return ret;
+	}
+
+	public double[] vectorialProduct(double[]v1,double[]v2){
+		double[] ret=new double[3];
+		ret[0]=v1[1]*v2[2]-v1[2]*v2[1];		
+		ret[1]=v1[2]*v2[0]-v1[0]*v2[2];		
+		ret[2]=v1[0]*v2[1]-v1[1]*v2[0];		
+		return ret;
+	}
+
+	public double[] vectorialSubstraction(double[]v1,double[]v2){
+		double[] ret=new double[3];
+		ret[0]=v1[0]-v2[0];		
+		ret[1]=v1[1]-v2[1];		
+		ret[2]=v1[2]-v2[2];		
+		return ret;
+	}
+	
+	public double[] proj_u_of_v(double[]u,double[]v){
+		double scal1=scalarProduct(u,v);
+		double scal2=scalarProduct(u,u);
+		return multiplyVector(u,scal1/scal2);
+	}
+
+	void printVector(double []vect,String vectNom){
+		System.out.println(vectNom+" = [ "+vect[0]+" , "+vect[1]+" , "+vect[2]+" ]");
+	}
+
+	public String stringVector(double []vect,String vectNom){
+		return(vectNom+" = [ "+vect[0]+" , "+vect[1]+" , "+vect[2]+" ]");
+	}
+
 	
 	
 }
