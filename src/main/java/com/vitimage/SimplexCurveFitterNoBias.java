@@ -5,10 +5,6 @@ import ij.macro.Program;
 import ij.macro.Tokenizer;
 
 public class SimplexCurveFitterNoBias implements Fit{
-
-	
-	
-	
 	private static final int CUSTOM = 21;
 	
 	public static  int IterFactor = 500;
@@ -40,7 +36,7 @@ public class SimplexCurveFitterNoBias implements Fit{
 	private static int customParamCount;
 	private double[] initialValues;
 	private Interpreter macro;
-private int providedM0;
+	private int providedM0;
 
 	public static double sigmaWay(double valFunk,double sigma){
 		return valFunk*valFunk-2*sigma*sigma;

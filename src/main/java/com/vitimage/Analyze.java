@@ -24,7 +24,8 @@ public class Analyze {
 	private boolean annaIsListening=true;
 	private String interlocuteur="Romain";
 	private ImagePlus[] currentShowing=null;
-
+	private boolean matrixDisplayed=false;
+	private boolean detailsDisplayed=false;
 	
 	/**
 	 * High level methods and behaviours
@@ -43,7 +44,8 @@ public class Analyze {
 		notifyAlgo("Demarrage","Analyze en cours","");
 	}
 
-	public String talkWithAnna(String ask,boolean audioMode){
+	public String talk(String ask,boolean audioMode){
+		boolean dontGotIt;
 		String ret="";
 		boolean stopFonctionAuditive=( (ask.toLowerCase().contains("arret") || ask.toLowerCase().contains("stop") ) && ask.toLowerCase().contains("fonction") && ask.toLowerCase().contains("audit"));
 		boolean repriseFonctionAuditive=( (ask.toLowerCase().contains("reprise") || ask.toLowerCase().contains("demarrage") )  && ask.toLowerCase().contains("fonction") && ask.toLowerCase().contains("audit"));
@@ -52,50 +54,73 @@ public class Analyze {
 		boolean back=(ask.toLowerCase().contains("retour") || ask.toLowerCase().contains("arriere")  || ask.toLowerCase().contains("prec") || ask.toLowerCase().contains("arrière") || ask.toLowerCase().contains("previous"));
 		boolean front=( ask.toLowerCase().contains("avan") || ask.toLowerCase().contains("apres")|| ask.toLowerCase().contains("suivant") || ask.toLowerCase().contains("suiv"));
 		boolean reprise=( ask.toLowerCase().contains("reprise") || ask.toLowerCase().contains("redemarrage") || ask.toLowerCase().contains("fin"));
-		boolean salutation=( ask.toLowerCase().contains("bonjour") || ask.toLowerCase().contains("salut") || ask.toLowerCase().contains("ola"));
+		boolean salutation=( ask.toLowerCase().contains("coucou") || ask.toLowerCase().contains("bonjour") || ask.toLowerCase().contains("salut") || ask.toLowerCase().contains("ola"));
 		boolean explorer=( ask.toLowerCase().contains("stop") || ask.toLowerCase().contains("break") || ask.toLowerCase().contains("explo") || ask.toLowerCase().contains("analyse"));
 		boolean getImages=( ask.toLowerCase().contains("disponible") || ask.toLowerCase().contains("voir") || ask.toLowerCase().contains("image") );
 		boolean hideImages=( ask.toLowerCase().contains("fermer") || ask.toLowerCase().contains("ferm") || ask.toLowerCase().contains("image") );
 		boolean history=( ask.toLowerCase().contains("hist") || ask.toLowerCase().contains("recap") || ask.toLowerCase().contains("tout") || explorer);
 		boolean inspection=( ask.toLowerCase().contains("inspection") || ask.toLowerCase().contains("insp") || ask.toLowerCase().contains("slic") );
 		boolean minHistory=(( ask.toLowerCase().contains("min") || back || front  || current) && (!history) );
-	
+		boolean matrix=ask.toLowerCase().contains("matrix");
+		boolean details=ask.toLowerCase().contains("details");
+		int ind=0;
+		int val=0;
+		if((ask.length()>0) && java.lang.Character.isDigit(ask.charAt(ind))) {
+			val=Integer.parseInt(String.valueOf(ask.charAt(ind)));
+			while((ind<ask.length()-1) &&java.lang.Character.isDigit(ask.charAt(++ind))){
+				val*=10;
+				val+=Integer.parseInt(String.valueOf(ask.charAt(ind)));
+			}
+		}
+		if(val>0) {
+			gotoIndex(val);
+			minHistory=true;
+		}
+
+		dontGotIt=(val==0) && !details && !matrix && !minHistory && !hideImages &&
+				! getImages && !explorer && !salutation && !reprise && !front && !back &&
+				!current && !algo && !repriseFonctionAuditive;
+		
 		if(stopFonctionAuditive)annaIsListening=false;
 		if(repriseFonctionAuditive)annaIsListening=true;
 		if(annaIsListening) {
-			if(explorationModeActivated){
-				if(algo && front)ret= ("Algorithme suivant. "+frontInTimeOneAlgo()); 	
-				else if(algo&& back)ret=  ("Algorithme precedent. "+backInTimeOneAlgo()); 
-				else if(algo && current)ret=  ("Algorithme actuel. "+tellMeThatThing(indexExplore2)); 
-				else if(front)ret=  ("Etape suivante. "+frontInTimeOneStep()); 
-				else if(back)ret= ("Etape precedente. "+backInTimeOneStep()); 
-				else if(current)ret= ("Etape actuelle. "+tellMeThatThing(indexExplore2)); 
-				else if(reprise) ret=  stopExploration();
-				else if(salutation) ret=  "Bonjour "+interlocuteur+".";
-				else if(explorer) ret= startExploration();
-				else if(currentShowing==null && getImages)ret=showImagesForThisStep(indexExplore2);
-				else if(currentShowing != null && hideImages)ret=hideImages();
-				else if(currentShowing != null && inspection) {ImagePlus img=IJ.getImage();Vitimage_Toolbox.imageChecking(img);ret="Inspection realisee";}
-				else ret= ("Je n'ai pas compris. Mes capacités de comprehension sont encore limitées. Pourriez-vous enoncer plus distinctement votre requête ?");
-			}
-			else{
-				if(algo && front)ret= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse"; 	
-				else if(algo && back)ret= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse"; 	
-				else if(algo && current)ret= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse"; 	
-				else if(front)ret= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse"; 	
-				else if(back)ret= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse"; 	
-				else if(current)ret= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse"; 	
-				else if(reprise)ret= "L'analyse est deja desactivee";
-				else if(salutation) ret=  "Bonjour "+interlocuteur+".";
-				else if(explorer) ret= startExploration();
-				else if(getImages || hideImages)ret= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse";
-				else ret= ("Je n'ai pas compris. Mes capacités auditives sont limitées. Pourriez-vous enoncer plus distinctement votre requête ?");
-			}
+			if(matrix)matrixDisplayed=!matrixDisplayed;
+			if(details)detailsDisplayed=!detailsDisplayed;
+			if(!detailsDisplayed)matrixDisplayed=false;
 
+			if(algo && front)ret+= ("Algorithme suivant. "+frontInTimeOneAlgo()); 	
+			else if(algo&& back)ret+=  ("Algorithme precedent. "+backInTimeOneAlgo()); 
+			else if(algo && current)ret+=  ("Algorithme actuel. "+tellMeThatThing(indexExplore2)); 
+			else if(front)ret+=  ("Etape suivante. "+frontInTimeOneStep()); 
+			else if(back)ret+= ("Etape precedente. "+backInTimeOneStep()); 
+			else if(current)ret+= ("Etape actuelle. "+tellMeThatThing(indexExplore2)); 
+			else if(reprise) ret+=  stopExploration();
+			else if(salutation) ret+=  "Bonjour "+interlocuteur+".";
+			else if(explorer) ret+= startExploration();
+			else if(currentShowing==null && getImages)ret+=showImagesForThisStep(indexExplore2);
+			else if(currentShowing != null && hideImages)ret+=hideImages();
+			else if(currentShowing != null && inspection) {ImagePlus img=IJ.getImage();Vitimage_Toolbox.imageChecking(img);ret+="Inspection realisee";}
+			else if(minHistory || history)ret=ret+"";
+			else if(dontGotIt)ret+= ("Je n'ai pas compris. Mes capacités de comprehension sont encore limitées. Pourriez-vous enoncer plus distinctement votre requête ?");
+/*			else{
+				if(algo && front)ret+= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse"; 	
+				else if(algo && back)ret+= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse"; 	
+				else if(algo && current)ret+= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse"; 	
+				else if(front)ret+= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse"; 	
+				else if(back)ret+= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse"; 	
+				else if(current)ret+= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse"; 	
+				else if(reprise)ret+= "L'analyse est deja desactivee";
+				else if(salutation) ret+=  "Bonjour "+interlocuteur+".";
+				else if(explorer) ret+= startExploration();
+				else if(getImages || hideImages)ret+= "Pour effectuer cette action, il est nécessaire d'activer le mode analyse";
+				else if(minHistory || history)ret=ret+"";
+				else ret+= ("Je n'ai pas compris. Mes capacités auditives sont limitées. Pourriez-vous enoncer plus distinctement votre requête ?");
+			}
+*/
 		}
-		boolean cuteMode=false;
 		if(minHistory)ret=ret+"\n"+miniHistory();
 		else if(history)ret=ret+"\n"+history();
+		boolean cuteMode=false;
 		
 		if(audioMode) {}
 		else {
@@ -111,9 +136,17 @@ public class Analyze {
 					((memoryData.get(index).equals("")) ? "" : "Données : "+memoryData.get(index)));
 		}
 		else if(isInfo(index)) {
-			return("Algo "+memoryIndex1.get(index)+" , etape "+memoryIndex2.get(index)+" , information utile . "+memoryExplanation.get(index)+". "+
+			return("Algo "+memoryIndex1.get(index)+" , etape "+memoryIndex2.get(index)+" , information utile. "+memoryExplanation.get(index)+". "+
 					((memoryData.get(index).equals("")) ? "" : "Données : "+memoryData.get(index)));
 
+		}
+		else if(isMatrix(index)) {
+			if(matrixDisplayed)return("Algo "+memoryIndex1.get(index)+" , etape "+memoryIndex2.get(index)+" , information utile . "+memoryExplanation.get(index)+". "+
+					((memoryData.get(index).equals("")) ? "" : "Données : "+memoryData.get(index)));
+			else {
+				return("Algo "+memoryIndex1.get(index)+" , etape "+memoryIndex2.get(index)+" , information utile . Matrice non affichee (demander\"matrix\" pour activer l affichage)");
+			}
+		
 		}
 		else if(isImage(index)) {
 			return("Image conservee pour algo "+memoryIndex1.get(index)+", etape "+memoryIndex2.get(index)+" . Intitulé : "+memoryExplanation.get(index));
@@ -152,13 +185,14 @@ public class Analyze {
 		memoryExplanation.add(algo+" . "+explain);
 		memoryData.add(data);
 		memoryIndex1.add(new Integer(++indexIdent1));
+		indexIdent2=-1;
 		memoryIndex2.add(new Integer(indexIdent2));
 
-		indexIdent2=0;
 		index1=memoryCategory.size()-1;
 		index2=memoryCategory.size();
 		indexExplore1=index1;
 		indexExplore2=index2-1;
+		notifyStep("Départ algo","");
 	}
 
 	public void notifyStep(String explain, String data) {
@@ -179,19 +213,29 @@ public class Analyze {
 		memoryExplanation.add(explain);
 		memoryData.add("");
 		memoryIndex1.add(new Integer(indexIdent1));
-		memoryIndex2.add(new Integer(++indexIdent2));
+		memoryIndex2.add(new Integer(indexIdent2));
 		index2=memoryCategory.size();
 	}
 
 	public void storeEntryImage(ImagePlus img,String explain) {
 		storeImage(img,explain);
-		remember("Parametres de cette image ","(dimX, dimY, dimZ) , (VX, VY, VZ) =  ("+img.getWidth()+" , "+img.getHeight()+" , "+img.getStackSize()+") , ("
+		remember("Parametres de l'image "+img.getTitle()," (dimX, dimY, dimZ) , (VX, VY, VZ) =  ("+img.getWidth()+" , "+img.getHeight()+" , "+img.getStackSize()+") , ("
 				+img.getCalibration().pixelWidth+" , "+img.getCalibration().pixelHeight+" , "+img.getCalibration().pixelDepth+")"+
 				" Dynamique = ["+img.getProcessor().getMin()+" --> "+img.getProcessor().getMax()+"]");
 	}
 
 	public void remember(String explain, String data) {
 		memoryCategory.add("Info");
+		memoryImage.add(new ImagePlus());
+		memoryExplanation.add(explain);
+		memoryData.add(data);
+		memoryIndex1.add(new Integer(indexIdent1));
+		memoryIndex2.add(new Integer(indexIdent2));
+		index2=memoryCategory.size();
+	}
+
+	public void rememberMatrix(String explain, String data) {
+		memoryCategory.add("Matrix");
 		memoryImage.add(new ImagePlus());
 		memoryExplanation.add(explain);
 		memoryData.add(data);
@@ -295,12 +339,14 @@ public class Analyze {
 	public String history() {
 		String ret="\n";
 		for(int i=0;i<nbInMem();i++) {
-			String tir;
-			if(i!=indexExplore2)tir=(i<10 ? "     " : i<100 ? "    " : i<1000 ? "   " : " "); 
-			else tir=(i<10 ? "))   " : i<100 ? "))" : i<1000 ? ")) " : "))"); 
-			if(isAlgo(i))ret+=("\n             |\n             V\n"+((i==indexExplore2) ?"((":"") +"Index "+i+" "+tir+"|---> "+tellMeThatThing(i));
-			else if(isStep(i))ret+=("\n             |       |\n"+((i==indexExplore2) ? "((" : "") +"Index "+i+" "+tir+"|       |--"+tellMeThatThing(i));
-			else ret+=("\nIndex "+i+" "+tir+"|       |    o--"+tellMeThatThing(i));
+			if(isStep(i)||isAlgo(i)||detailsDisplayed) {
+				String tir;
+				if(i!=indexExplore2)tir=(i<10 ? "     " : i<100 ? "    " : i<1000 ? "   " : " "); 
+				else tir=(i<10 ? "))   " : i<100 ? "))" : i<1000 ? ")) " : "))"); 
+				if(isAlgo(i))ret+=("\n             |\n             V\n"+((i==indexExplore2) ?"((":"") +"Index "+i+" "+tir+"|---> "+tellMeThatThing(i));
+				else if(isStep(i))ret+=("\n             |       |\n"+((i==indexExplore2) ? "((" : "") +"Index "+i+" "+tir+"|       |--"+tellMeThatThing(i));
+				else ret+=("\nIndex "+i+" "+tir+"|       |    o--"+tellMeThatThing(i));
+			}
 		}
 		return ret;
 	}
@@ -308,12 +354,14 @@ public class Analyze {
 	public String miniHistory() {
 		String ret="\n";
 		for(int i=indexExplore1;i<nbInMem() && (  (i!=indexExplore1) && !(isAlgo(i)) ||  (i==indexExplore1));i++) {
-			String tir;
-			if(i!=indexExplore2)tir=(i<10 ? "     " : i<100 ? "    " : i<1000 ? "   " : " "); 
-			else tir=(i<10 ? "))   " : i<100 ? "))" : i<1000 ? ")) " : "))"); 
-			if(isAlgo(i))ret+=("\n             |\n             V\n"+((i==indexExplore2) ?"((":"") +"Index "+i+" "+tir+"|---> "+tellMeThatThing(i));
-			else if(isStep(i))ret+=("\n             |       |\n"+((i==indexExplore2) ? "((" : "") +"Index "+i+" "+tir+"|       |--"+tellMeThatThing(i));
-			else ret+=("\nIndex "+i+" "+tir+"|       |    o--"+tellMeThatThing(i));
+			if(isStep(i)||isAlgo(i)||detailsDisplayed) {
+				String tir;
+				if(i!=indexExplore2)tir=(i<10 ? "     " : i<100 ? "    " : i<1000 ? "   " : " "); 
+				else tir=(i<10 ? "))   " : i<100 ? "))" : i<1000 ? ")) " : "))"); 
+				if(isAlgo(i))ret+=("\n             |\n             V\n"+((i==indexExplore2) ?"((":"") +"Index "+i+" "+tir+"|---> "+tellMeThatThing(i));
+				else if(isStep(i))ret+=("\n             |       |\n"+((i==indexExplore2) ? "((" : "") +"Index "+i+" "+tir+"|       |--"+tellMeThatThing(i));
+				else ret+=("\nIndex "+i+" "+tir+"|       |    o--"+tellMeThatThing(i));
+			}
 		}
 		return ret;
 	}
@@ -356,5 +404,28 @@ public class Analyze {
 		return memoryCategory.get(index).equals("Info");
 	}
 
+	public boolean isMatrix(int index) {
+		return memoryCategory.get(index).equals("Matrix");
+	}
+
+	public void gotoIndex(int index) {
+		int ind=(index<1) ? 1 : index> nbInMem() ? nbInMem()-1 : index;
+		if(isAlgo(ind)) {
+			indexExplore1=indexExplore2=ind;
+		}
+		else {
+			indexExplore2=ind;
+			if( ! isStep(indexExplore2)) {
+				while((!isStep(indexExplore2)) && (!isAlgo(indexExplore2)) )indexExplore2--;
+			}
+			indexExplore1=indexExplore2;
+			if( ! isAlgo(indexExplore1)) { 
+				while((!isAlgo(indexExplore1)))indexExplore1--;
+				
+			}
+		}
+	}
+	
+	
 }
 

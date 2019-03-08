@@ -3,9 +3,11 @@ package com.vitimage;
 import java.awt.Rectangle;
 
 import ij.IJ;
+import ij.ImageJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.gui.Roi;
+import ij.plugin.Duplicator;
 import ij.plugin.filter.Binary;
 import ij.plugin.filter.ThresholdToSelection;
 import ij.plugin.frame.RoiManager;
@@ -42,14 +44,16 @@ public class MRUtils implements Fit{
 	
 	
 
-	public ImagePlus removeCapillary(ImagePlus img,boolean computeCapMaskOnlyOnFirstSlice) {
-		//The capillary surface is between 0.5 and 1.8 mm2
+	public static ImagePlus removeCapillary(ImagePlus imgInput,boolean computeCapMaskOnlyOnFirstSlice) {
+		ImageJ ij=new ImageJ();
+		ImagePlus img=new Duplicator().run(imgInput,1,imgInput.getStackSize());
+		ImagePlus imgSliceInput;
 		int zMax=img.getStackSize();
 		int xMax=img.getWidth();
 		double surfaceMinCap=0.5;
 		double surfaceMaxCap=1.8;
 		double diamCap=0.6;
-		double valMinCap=400;//standard measured values on echo spin images of bionanoNMRI
+		double valMinCap=450;//standard measured values on echo spin images of bionanoNMRI
 		double valMaxCap=65000;
 		double x0RoiCap;
 		double y0RoiCap;
@@ -61,7 +65,7 @@ public class MRUtils implements Fit{
 		//else : on each slice, compute the selection on each slice, then apply it on this slice
 		if(computeCapMaskOnlyOnFirstSlice) {
 			ImagePlus imgSlice=new ImagePlus("", img.getStack().getProcessor(1));
-			ImagePlus imgCon=trUt.connexe(imgSlice, valMinCap, valMaxCap, surfaceMinCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight), surfaceMaxCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight),4,1);
+			ImagePlus imgCon=trUt.connexe(imgSlice, valMinCap, valMaxCap, 0, 10E10,4,2,true);
 			imgCon.getProcessor().setMinAndMax(0,255);
 			IJ.run(imgCon,"8-bit","");			
 			IJ.setThreshold(imgCon, 255,255);
@@ -79,11 +83,26 @@ public class MRUtils implements Fit{
 			int yMaxRoi=yMinRoi+ySizeRoi;				
 
 			for(int z=1;z<=zMax;z++) {
-				imgSlice=new ImagePlus("", img.getStack().getProcessor(z));
-				short[] valsImg=(short[])(imgSlice).getProcessor().getPixels();
-				//Remplacer les pixels de la zone du capillaire par des pixels copiés depuis le coin en haut à gauche de l'image 
-				for(int xx=xMinRoi;xx<=xMaxRoi;xx++) for(int yy=yMinRoi;yy<yMaxRoi;yy++) if(tabPoly.contains(xx,yy)) valsImg[xMax*yy+xx]=valsImg[xMax*(yy-yMinRoi+7)+(xx-xMinRoi+7)];
-				isRet.setProcessor(imgSlice.getProcessor(),z);
+				imgSliceInput=new ImagePlus("", img.getStack().getProcessor(z));
+				if(imgSliceInput.getType()==ImagePlus.GRAY32) {
+					float[] valsImg=(float[])(imgSliceInput).getProcessor().getPixels();
+					//Remplacer les pixels de la zone du capillaire par des pixels copiés depuis le coin en haut à gauche de l'image 
+					for(int xx=xMinRoi;xx<=xMaxRoi;xx++) for(int yy=yMinRoi;yy<yMaxRoi;yy++) if(tabPoly.contains(xx,yy)) valsImg[xMax*yy+xx]=valsImg[xMax*(yy-yMinRoi+7)+(xx-xMinRoi+7)];
+					isRet.setProcessor(imgSliceInput.getProcessor(),z);
+				}
+				else if(imgSliceInput.getType()==ImagePlus.GRAY16) {
+					short[] valsImg=(short[])(imgSliceInput).getProcessor().getPixels();
+					//Remplacer les pixels de la zone du capillaire par des pixels copiés depuis le coin en haut à gauche de l'image 
+					for(int xx=xMinRoi;xx<=xMaxRoi;xx++) for(int yy=yMinRoi;yy<yMaxRoi;yy++) if(tabPoly.contains(xx,yy)) valsImg[xMax*yy+xx]=valsImg[xMax*(yy-yMinRoi+7)+(xx-xMinRoi+7)];
+					isRet.setProcessor(imgSlice.getProcessor(),z);
+				}
+				else if(imgSliceInput.getType()==ImagePlus.GRAY8) {
+					byte[] valsImg=(byte[])(imgSliceInput).getProcessor().getPixels();
+					//Remplacer les pixels de la zone du capillaire par des pixels copiés depuis le coin en haut à gauche de l'image 
+					for(int xx=xMinRoi;xx<=xMaxRoi;xx++) for(int yy=yMinRoi;yy<yMaxRoi;yy++) if(tabPoly.contains(xx,yy)) valsImg[xMax*yy+xx]=valsImg[xMax*(yy-yMinRoi+7)+(xx-xMinRoi+7)];
+					isRet.setProcessor(imgSlice.getProcessor(),z);
+				}
+				else IJ.log("Remove capillary : image type not handled ("+imgSliceInput.getType()+")");
 			}
 			return new ImagePlus("Result_"+img.getShortTitle()+"_no_cap.tif",isRet);
 		}
@@ -92,7 +111,10 @@ public class MRUtils implements Fit{
 		else {
 			for(int z=1;z<=zMax;z++) {
 				ImagePlus imgSlice=new ImagePlus("", img.getStack().getProcessor(z));
-				ImagePlus imgCon=trUt.connexe(imgSlice, valMinCap, valMaxCap, surfaceMinCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight), surfaceMaxCap/(img.getCalibration().pixelWidth*img.getCalibration().pixelHeight),4,1);
+				//imgSlice.show();
+				ImagePlus imgCon=trUt.connexe(imgSlice, valMinCap, valMaxCap, 0, 10E10,4,2,true);
+				//imgCon.show();
+				//if(true)return null;
 				imgCon.getProcessor().setMinAndMax(0,255);
 				IJ.run(imgCon,"8-bit","");			
 				IJ.setThreshold(imgCon, 255,255);
@@ -108,11 +130,26 @@ public class MRUtils implements Fit{
 				int ySizeRoi=(int) (rect.getHeight());
 				int xMaxRoi=xMinRoi+xSizeRoi;
 				int yMaxRoi=yMinRoi+ySizeRoi;				
-				short[] valsImg=(short[])(imgSlice).getProcessor().getPixels();
-
-				//Remplacer les pixels de la zone du capillaire par des pixels copiés depuis le coin en haut à gauche de l'image 
-				for(int xx=xMinRoi;xx<=xMaxRoi;xx++) for(int yy=yMinRoi;yy<yMaxRoi;yy++) if(tabPoly.contains(xx,yy)) valsImg[xMax*yy+xx]=valsImg[xMax*(yy-yMinRoi+7)+(xx-xMinRoi+7)];
-				isRet.setProcessor(imgSlice.getProcessor(),z);
+				imgSliceInput=new ImagePlus("", img.getStack().getProcessor(z));
+				if(imgSliceInput.getType()==ImagePlus.GRAY32) {
+					float[] valsImg=(float[])(imgSliceInput).getProcessor().getPixels();
+					//Remplacer les pixels de la zone du capillaire par des pixels copiés depuis le coin en haut à gauche de l'image 
+					for(int xx=xMinRoi;xx<=xMaxRoi;xx++) for(int yy=yMinRoi;yy<yMaxRoi;yy++) if(tabPoly.contains(xx,yy)) valsImg[xMax*yy+xx]=valsImg[xMax*(yy-yMinRoi+7)+(xx-xMinRoi+7)];
+					isRet.setProcessor(imgSliceInput.getProcessor(),z);
+				}
+				else if(imgSliceInput.getType()==ImagePlus.GRAY16) {
+					short[] valsImg=(short[])(imgSliceInput).getProcessor().getPixels();
+					//Remplacer les pixels de la zone du capillaire par des pixels copiés depuis le coin en haut à gauche de l'image 
+					for(int xx=xMinRoi;xx<=xMaxRoi;xx++) for(int yy=yMinRoi;yy<yMaxRoi;yy++) if(tabPoly.contains(xx,yy)) valsImg[xMax*yy+xx]=valsImg[xMax*(yy-yMinRoi+7)+(xx-xMinRoi+7)];
+					isRet.setProcessor(imgSlice.getProcessor(),z);
+				}
+				else if(imgSliceInput.getType()==ImagePlus.GRAY8) {
+					byte[] valsImg=(byte[])(imgSliceInput).getProcessor().getPixels();
+					//Remplacer les pixels de la zone du capillaire par des pixels copiés depuis le coin en haut à gauche de l'image 
+					for(int xx=xMinRoi;xx<=xMaxRoi;xx++) for(int yy=yMinRoi;yy<yMaxRoi;yy++) if(tabPoly.contains(xx,yy)) valsImg[xMax*yy+xx]=valsImg[xMax*(yy-yMinRoi+7)+(xx-xMinRoi+7)];
+					isRet.setProcessor(imgSlice.getProcessor(),z);
+				}
+				else IJ.log("Remove capillary : image type not handled ("+imgSliceInput.getType()+")");
 			}
 			return new ImagePlus("Result_"+img.getShortTitle()+"_no_cap.tif",isRet);
 		}

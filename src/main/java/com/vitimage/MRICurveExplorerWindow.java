@@ -1,16 +1,23 @@
 package com.vitimage;
 
 
+import java.awt.Button;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.Panel;
 import java.awt.Scrollbar;
+import java.awt.TextField;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.WindowEvent;
 
 import ij.IJ;
 import ij.ImageJ;
@@ -23,6 +30,7 @@ import ij.gui.PlotCanvas;
 import ij.gui.PointRoi;
 import ij.gui.ScrollbarWithLabel;
 import ij.gui.StackWindow;
+import ij.plugin.frame.PlugInFrame;
 import ij.plugin.frame.RoiManager;
 
 /**
@@ -37,11 +45,14 @@ import ij.plugin.frame.RoiManager;
  */
 
 
-public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseListener {// 
+public class MRICurveExplorerWindow extends PlugInFrame implements ActionListener,KeyListener, MouseListener {// 
 	Scrollbar scrollbarZ;
 	int xMouse=0;
 	int yMouse=0;
 	int imgWidth,imgHeight;
+	double M0Last=0;
+	double T2Last=0;
+	double T1Last=0;
 	double xCoord=0;
 	double yCoord=0;
 	private Plot plotT1;
@@ -60,9 +71,17 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 	private static final int WIN_PLOT1=3;
 	private static final int WIN_PLOT2=4;
 	private static final int WIN_BORDER=5;
+	Button btnToggle;
+	Button btnNothing;
+	Button btnCompute;
+	TextField info1;
+	TextField info2;
+	private int buttonWidth = 50;
+	private int buttonHeight = 34;
 	private int currentCanvas=1;
 	private double zoomLevel=0;
 	int coordX;
+	static PlugInFrame instance;
 	int coordY;
 	boolean computeMultiComp=false;
 	/**
@@ -73,48 +92,26 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 	private static final int PLOT_HEIGHT = 450;
 	private MRUtils mrUt;
 	public MRICurveExplorerWindow(ImagePlus imgT1,ImagePlus imgT2) {
-		super();
-		imgWidth=imgT1.getWidth();
+		super("Vitimage MRI Water tracker ");
+		WindowManager.addWindow(this); 
+		if (instance != null)
+	    {
+		      instance.toFront();
+		      return;
+		    }
+	    WindowManager.addWindow(this);
+	    instance = this;
+	    imgWidth=imgT1.getWidth();
 		imgHeight=imgT1.getHeight();
 		this.imgCan1=new ImageCanvas(imgT1);
 		this.imgCan2=new ImageCanvas(imgT2);
 		mrUt=new MRUtils();
-		startPlotsAndRoi();
-		initializeGUI();
-		//imgT1.hide();
-		//imgT2.hide();
 		ImageJ ij = IJ.getInstance();
-
-        // Remove ImageJ as keylistener from this and all subcomponents.
         removeKeyListener(ij);
-        imgCan1.removeKeyListener(ij);
-        imgCan2.removeKeyListener(ij);
-        plotCan1.removeKeyListener(ij);
-        plotCan2.removeKeyListener(ij);
-
         removeMouseListener(ij);
-        //imgCan1.removeMouseListener(ij);
-        //imgCan2.removeMouseListener(ij);
-        plotCan1.removeMouseListener(ij);
-        plotCan2.removeMouseListener(ij);
-        
-        addKeyListener(this);
-        imgCan1.addKeyListener(this);
-        imgCan2.addKeyListener(this);
-        plotCan1.addKeyListener(this);
-        plotCan2.addKeyListener(this);
-
-        addMouseListener(this);
-        imgCan1.addMouseListener(this);
-        imgCan2.addMouseListener(this);
-        plotCan1.addMouseListener(this);
-        plotCan2.addMouseListener(this);
-        
-        imgCan1.setMagnification(1);
-        imgCan2.setMagnification(1);
-        this.setResizable(false);
-       //	runCurveExplorer();
-	}
+        startPlotsAndRoi();
+		initializeGUI();
+   	}
 		
 	public void setCanvasSizes() {
 		imgCan1.setSize(imgWidth, imgHeight);
@@ -139,50 +136,86 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 }
 	
 	public void initializeGUI() {
+		ImageJ ij = IJ.getInstance();
 		setTitle("MRI Curve explorer");
 		GridBagConstraints c;
-		scrollbarZ=new Scrollbar(Scrollbar.HORIZONTAL, 10, 1, 0, 40);
 
+		Panel p1=new Panel();
+		//Button Bar
+		c = new GridBagConstraints();
+		c.fill = GridBagConstraints.HORIZONTAL;
+		c.gridx = 0;
+		c.gridy = 0;
+		info1=new TextField("Click on the image to get the associated parameters",62);info1.setEditable(false);info1.setFont(new Font("Helvetica", 0, 12));
+		info2=new TextField("'s' : switch on/off biexp, '+'/'-' : zoom, 'f' fix plot scale",62);info2.setEditable(false);info2.setFont(new Font("Helvetica", 0, 12));
+		add(info1);
+		add(info2);
+		
+
+		
+		
 		//Image T1
 		setLayout(new GridBagLayout());
 		c = new GridBagConstraints();
 		c.fill = GridBagConstraints.HORIZONTAL;
 		c.gridx = 0;
-		c.gridy = 0;
+		c.gridy = 1;
 		add(imgCan1,c);
+        imgCan1.removeKeyListener(ij);
+        imgCan1.addKeyListener(this);
+        imgCan1.removeMouseListener(ij);
+        imgCan1.addMouseListener(this);
 
 		//Image T2
 		c = new GridBagConstraints();
 		c.fill = GridBagConstraints.HORIZONTAL;
 		c.gridx = 1;
-		c.gridy = 0;
+		c.gridy = 1;
 		add(imgCan2,c);
+        imgCan2.removeKeyListener(ij);
+        imgCan2.addKeyListener(this);
+        imgCan2.removeMouseListener(ij);
+        imgCan2.addMouseListener(this);
 		
 		//ScrollBar
 		c = new GridBagConstraints();
 		c.fill = GridBagConstraints.HORIZONTAL;
 		c.gridwidth = 2;
 		c.gridx = 0;
-		c.gridy = 1;
+		c.gridy = 2;
+		scrollbarZ=new Scrollbar(Scrollbar.HORIZONTAL, 10, 1, 0, 40);
 		add(scrollbarZ,c);
 		
 		//PlotT1
 		c = new GridBagConstraints();
 		c.fill = GridBagConstraints.HORIZONTAL;
 		c.gridx = 0;
-		c.gridy = 2;
+		c.gridy = 3;
 		add(plotCan1,c);
+        plotCan1.removeKeyListener(ij);
+        plotCan1.addKeyListener(this);
+        plotCan1.removeMouseListener(ij);
+        plotCan1.addMouseListener(this);
 
 		//PlotT2
 		c = new GridBagConstraints();
 		c.fill = GridBagConstraints.HORIZONTAL;
 		c.gridx = 1;
-		c.gridy = 2;
+		c.gridy = 3;
 		add(plotCan2,c);
+        plotCan2.removeKeyListener(ij);
+        plotCan2.addKeyListener(this);
+        plotCan2.removeMouseListener(ij);
+        plotCan2.addMouseListener(this);
+        
+
 		setCanvasSizes();
 		setSize(1400,1040);
 		this.pack();
+        imgCan1.setMagnification(1);
+        imgCan2.setMagnification(1);
 		setCanvasSizes();
+        this.setResizable(false);
 		setVisible(true);
 		repaint();
 	//	imgT1.hide();
@@ -224,6 +257,30 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 				plotCan2.setMagnification(zoomLevel);
 			}
 		}
+		if (e.getKeyChar()=='f') fixedPlotScale=!fixedPlotScale;
+		if (e.getKeyChar()=='s') {
+			if(computeMultiComp) {
+				int maxCurves=20;
+				for(int i =0;i<maxCurves;i++){
+					plotT1.replace(i,"line",new double[]{0,1},new double[]{0,0});
+					plotT2.replace(i,"line",new double[]{0,1},new double[]{0,0});
+				}
+				plotT1.setLimits(0, maxT1, 0, maxPlotY);
+				plotT2.setLimits(0, maxT2, 0, maxPlotY);
+			}
+			computeMultiComp=!computeMultiComp;
+			System.out.println("Et on sort de la, multicomp="+computeMultiComp);
+			PointRoi prT1=new PointRoi(xMouse,yMouse,"large yellow hybrid");
+			Overlay over=new Overlay(prT1);
+			imgCan1.setOverlay(over);
+			imgCan2.setOverlay(over);
+			actualizePlotsT2(imgCan2.getImage(),imgCan2.offScreenX(xMouse),imgCan2.offScreenY(yMouse));
+			actualizePlotsT1(imgCan1.getImage(),imgCan1.offScreenX(xMouse),imgCan1.offScreenY(yMouse));
+			String info = String.format("M0 = %7.1f   |   T1 = %6.1f ms   |   T2 = %5.1f ms", M0Last,T1Last,T2Last);
+			info1.setText(info);	
+			plotCan2.repaint();
+		}
+		if (e.getKeyChar()=='m') {Vitimage_Toolbox.notYet();}
 		setCanvasSizes();
 		pack();
 		repaint();
@@ -244,10 +301,11 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 			imgCan2.setOverlay(over);
 			actualizePlotsT2(imgCan2.getImage(),imgCan2.offScreenX(xMouse),imgCan2.offScreenY(yMouse));
 			actualizePlotsT1(imgCan1.getImage(),imgCan1.offScreenX(xMouse),imgCan1.offScreenY(yMouse));
+			String info = String.format("M0 = %7.1f   |   T1 = %6.1f ms   |   T2 = %5.1f ms", M0Last,T1Last,T2Last);
+			info1.setText(info);
 		}
 		
-		if(currentCanvas==WIN_PLOT1 || currentCanvas==WIN_PLOT2 && xMouse>78 && xMouse<178 && yMouse>29 && yMouse<87 )computeMultiComp=!computeMultiComp;
-		if(currentCanvas==WIN_PLOT1 || currentCanvas==WIN_PLOT2 && xMouse>38 && xMouse<578 && yMouse>29 && yMouse<87 )fixedPlotScale=!fixedPlotScale;
+		
 		repaint();
 		plotCan1.repaint();
 		imgCan1.repaint();
@@ -285,68 +343,11 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 	public void keyReleased(KeyEvent e) {
 	}
 
-	
-	
-/*	public void runCurveExplorer(){
-		startPlotsAndRoi();
-		double xCor=1,yCor=1;
-		int count=1;
-		while((rm.getCount()>=1)){//Boucle principale
-			try {java.util.concurrent.TimeUnit.MILLISECONDS.sleep(100);} catch(java.lang.InterruptedException  ie){}
-			count=rm.getCount();
-			ImagePlus img;
-			img=IJ.getImage();
-			if((img != null) && (! img.getTitle().equals("T1 curve explorer") ) &&  (! img.getTitle().equals("T2 curve explorer") ) && (count > 1)){
-			 	rm.selectAndMakeVisible(img, 1);
-				xCor=(double)rm.getRoi(count-1).getXBase();
-				yCor=(double)rm.getRoi(count-1).getYBase();
-				rm.reset();
-				PointRoi pr=new PointRoi(xCor,yCor,"large yellow hybrid");
-				img.setRoi(pr);
-				rm.add(img,pr,0);
-				IJ.log("---------------------------------");
-				if(img.getStack().getSize()<6){
-					IJ.log("T1  : Nouveau point d etude : "+xCor+","+yCor);
-					actualizePlotsT1(img,xCor,yCor);
-					plotT1.updateImage();
-				}
-				else {
-					IJ.log("T2  : Nouveau point d etude : "+xCor+","+yCor);
-					actualizePlotsT2(img,xCor,yCor);
-					plotT2.updateImage();
-					plotT2.show();
-				}
-			}
-		}
-		closePlotsAndRoi();
-	}
-*/
-/*	public void locateTheCursor() {
-		System.out.println("Demande de localisation");
-		if(yMouse < imgHeight) {
-			if(xMouse < imgWidth) {
-				currentCanvas=WIN_T1;
-				coordX=xMouse;coordY=yMouse;
-			}
-			if(xMouse >= imgWidth) {
-				currentCanvas=WIN_T2;
-				coordX=xMouse-imgWidth;coordY=yMouse;
-			}
-		}
-		if(yMouse > imgHeight+SCROLLBAR_VERTICAL_SIZE) {
-			if(xMouse < imgWidth) {
-				currentCanvas=WIN_PLOT1;
-				coordX=xMouse;coordY=yMouse-imgHeight-SCROLLBAR_VERTICAL_SIZE;
-			}
-			if(xMouse >= imgWidth) {
-				currentCanvas=WIN_PLOT2;
-				coordX=xMouse-imgWidth;coordY=yMouse-imgHeight-SCROLLBAR_VERTICAL_SIZE;
-			}
-		}
-		System.out.println("  --> effectuee :currentWindow="+currentCanvas+" avec CoordMouse=("+xMouse+","+yMouse+")"+" et coord canvas=("+coordX+","+coordY+")");
-		
-	}
-	*/
+	public void windowClosing(WindowEvent paramWindowEvent)
+	  {
+	    super.windowClosing(paramWindowEvent);
+	    instance = null;
+	  }
 	
 	public void startPlotsAndRoi(){
 		plotT1 = new Plot("T1 curve explorer","Tr","Value");
@@ -362,15 +363,9 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 			plotT1.addPoints(new double[]{0,1},new double[]{0,0},Plot.LINE);
 			plotT2.addPoints(new double[]{0,1},new double[]{0,0},Plot.LINE);
 		}
-
-		
 		plotT1.setLimits(0, maxT1, 0, maxPlotY);
 		plotT2.setLimits(0, maxT2, 0, maxPlotY);
-//		ImagePlus img;
-//	 	img=IJ.getImage();
-//		if(img != null)rm.selectAndMakeVisible(img, 0); 
 	}
-
 
 	public void closePlotsAndRoi(){
 		java.awt.Window win;
@@ -389,10 +384,7 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 		IJ.log("Fin de l'exploration");
 	}
 
-	
-
 	public void actualizePlotsT2(ImagePlus imgIn,double xCor, double yCor){
-		
 		Color []tabColor=new Color[]{new Color(150,0,255),new Color(0 ,150 ,255 ) ,new Color(255,0 ,0 ), new Color(0,50 ,0 ),new Color(255,160 ,160), new Color(0,200,0) , new Color(160,200,160) };
 		int  []tabFit=new int[]{mrUt.T2_RELAX,mrUt.T2_RELAX_RICE,mrUt.T2_RELAX,mrUt.T2_RELAX_BIAS,mrUt.MULTICOMP,mrUt.MULTICOMP_RICE};
 		int []tabAlg=new int[]{mrUt.SIMPLEX,mrUt.SIMPLEX,mrUt.TWOPOINTS,mrUt.SIMPLEX,mrUt.SIMPLEX,mrUt.SIMPLEX};
@@ -434,7 +426,8 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 
 			if(indEst<4)IJ.log(""+tabNames[indEst]+". Valeurs estimées : M0="+mrUt.dou(estimatedParams[0])+" | T2="+mrUt.dou(estimatedParams[1])+" ms | Erreur="+mrUt.dou(mrUt.fittingAccuracy(tabData,tabTimes,sigma,estimatedParams,fitType)) );
 			else IJ.log(""+tabNames[indEst]+". Valeurs estimées : M0="+mrUt.dou(estimatedParams[0])+" | T2="+mrUt.dou(estimatedParams[1])+" ms | M02="+mrUt.dou(estimatedParams[2])+" | T22="+mrUt.dou(estimatedParams[3])+" ms | Erreur="+mrUt.dou(mrUt.fittingAccuracy(tabData,tabTimes,sigma,estimatedParams,fitType)) );
- 		}
+			if(indEst==1) {M0Last=mrUt.dou(estimatedParams[0]);T2Last=mrUt.dou(estimatedParams[1]);}
+		}
  					
 		
 		String strLegend="MRI spin-echo observations Vs fits methods";
@@ -448,7 +441,6 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 		plotT2.addLegend(strLegend);
 		plotCan2.setPlot(plotT2);
 	}
-
 
 	public void actualizePlotsT1(ImagePlus imgIn,double xCor, double yCor){
 		Color []tabColor=new Color[]{new Color(150 ,0 ,255 ),new Color(0,150,255) ,new Color(255,0 ,0 ),new Color(150 ,0 ,255 ),new Color(0,200,0)  };
@@ -478,7 +470,7 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 		plotT1.replace(incr++,"x",tabTimes,tabData);
 		plotT1.replace(incr++, "line",new double[]{0,0},new double[]{0,0});
         plotT1.setLineWidth(2);
-
+        IJ.log("\n New point : ("+xCor+" , "+yCor+")");
  		for(int indEst=0;indEst<nEstim;indEst++){
 			fitType=tabFit[indEst];algType=tabAlg[indEst];
 			estimatedParams=mrUt.makeFit(tabTimes, tabData,fitType,algType,100,sigma);
@@ -492,6 +484,7 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 			
 
 			IJ.log(""+tabNames[indEst]+". Valeurs estimées : M0="+mrUt.dou(estimatedParams[0])+" | T1="+mrUt.dou(estimatedParams[1])+" ms | Erreur="+mrUt.dou(mrUt.fittingAccuracy(tabData,tabTimes,sigma,estimatedParams,fitType)) );
+			if(indEst==1) {T1Last=mrUt.dou(estimatedParams[1]);}
  		}
 
 		String strLegend="Observations Vs fits methods";
@@ -500,6 +493,13 @@ public class MRICurveExplorerWindow extends Frame implements KeyListener, MouseL
 		for(int i=0;i<nEstim;i++)strLegend+="\n\n"+i+tabNames[i];
 		plotT1.addLegend(strLegend);
 		plotCan1.setPlot(plotT1);
+		
+	}
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		// TODO Auto-generated method stub
+		
 	}
 
 
