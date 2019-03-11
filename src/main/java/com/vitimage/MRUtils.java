@@ -111,9 +111,9 @@ public class MRUtils implements Fit{
 		else {
 			for(int z=1;z<=zMax;z++) {
 				ImagePlus imgSlice=new ImagePlus("", img.getStack().getProcessor(z));
-				//imgSlice.show();
+				imgSlice.show();
 				ImagePlus imgCon=trUt.connexe(imgSlice, valMinCap, valMaxCap, 0, 10E10,4,2,true);
-				//imgCon.show();
+				imgCon.show();
 				//if(true)return null;
 				imgCon.getProcessor().setMinAndMax(0,255);
 				IJ.run(imgCon,"8-bit","");			

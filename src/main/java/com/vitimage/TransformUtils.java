@@ -274,7 +274,7 @@ public class TransformUtils {
 	
 		Transform trInv=new Transform(tr);
 		trInv.invert();
-		anna.rememberMatrix(" Matrice complete obtenue en fin de fonction",stringMatrix("",transformToArray(tr)));
+		anna.rememberMatrix(" Matrice complete obtenue en fin de fonction",ItkTransform.stringMatrix("",transformToArray(tr)));
 		return(new double[][] {transformToArray(tr),transformToArray(trInv) });	
 	}
 		
@@ -1407,114 +1407,7 @@ public class TransformUtils {
 	
 
 	
-	
-	/* T2 is the transformation, written in the second basis
-	*   T1 is the transformation that we are looking for, written in the initial basis
-	*   P12 is the passage matrix, that allows one to resample the image (I1)
-	*   in order to get (I2), thus : vect1 = P12 x vect2
-	*   P21 is the inverse matrix
-	*   vxRatio is the ratio between the voxel sizes : vx2/vx1     
-	*/
-    public void basisChange(double [] T2,double vxRatio,double vyRatio,double vzRatio,double [] T1){
-		double vxRatInv=1.0/vxRatio;
-		double vyRatInv=1.0/vyRatio;
-		double vzRatInv=1.0/vzRatio;
-		double [] P12={vxRatio,0,0,-0.5+vxRatio/2, 0,vyRatio,0,-0.5+vyRatio/2,  0,0,vzRatio,-0.5+vzRatio/2};
-		double [] P21={vxRatInv,0,0,-0.5+vxRatInv/2, 0,vyRatInv,0,-0.5+vyRatInv/2,  0,0,vzRatInv,-0.5+vzRatInv/2};
-		double [] intermediaryRes=new double[12];	
-		matrixProduct(T2,P21,intermediaryRes);
-		matrixProduct(P12,intermediaryRes,T1);
-		System.out.println("Basis change");
-		printMatrix("T2",T2);
-		printMatrix("P12",P12);
-		printMatrix("P21",P21);
-		printMatrix("T1=P12 x (T2 x P21)",T1);
-	}
 
-	/* Tinter is the transformation matrix, written in the registration space
-	*   P1 is the passage matrix from the initial space to the registration space, built from the voxelSizes of the initial space scales1
-	*   P2 is the passage matrix from the registration space to the visualization space, built from the voxelSizes of the initial space scales2
-	* @return The global transformation matrix T' = P1 x T x P2
-	*/
-	public double[] doubleBasisChange(double [] scales1,double [] Tinter,double [] scales2){
-		double [] result=new double[12];
-		double vxRatio=scales1[0];
-		double vyRatio=scales1[1];
-		double vzRatio=scales1[2];
-		double vxRatInv=scales2[0];
-		double vyRatInv=scales2[1];
-		double vzRatInv=scales2[2];
-		double [] P1={1/vxRatio,0,0,-0.5, 0,1/vyRatio,0,-0.5,  0,0,1/vzRatio,-0.5};
-		double [] P2={vxRatInv,0,0,vxRatInv/2, 0,vyRatInv,0,vyRatInv/2,  0,0,vzRatInv,vzRatInv/2};
-		double [] intermediaryRes=new double[12];	
-		matrixProduct(Tinter,P2,intermediaryRes);
-		matrixProduct(P1,intermediaryRes,result);
-		System.out.println("Double basis change");
-		Vitimage_Toolbox.anna.rememberMatrix("T2",stringMatrix("",P2));
-		Vitimage_Toolbox.anna.rememberMatrix("P1, Passage from initial space to registration space : ",stringMatrix("",P1));
-		Vitimage_Toolbox.anna.rememberMatrix("T, Initial transformation matrix for registration : ",stringMatrix("",Tinter));
-		Vitimage_Toolbox.anna.rememberMatrix("P2, Passage from registration space to visualization space : ",stringMatrix("",P2));
-		Vitimage_Toolbox.anna.rememberMatrix("Global transformation = P1 x T x P2",stringMatrix("",result));
-
-		printMatrix("P1, Passage from initial space to registration space : ",P1);
-		printMatrix("T, Initial transformation matrix for registration : ",Tinter);
-		printMatrix("P2, Passage from registration space to visualization space : ",P2);
-		printMatrix("Global transformation = P1 x T x P2",result);
-		return result;
-	}
-
-	public void matrixProduct(double[]tab1,double[]tab2,double[]tab3){
-		//Matrix product in homogeneous coordinates 
-		// [      Rotation       |Translation_x]
-		// [      Rotation       |Translation_y]
-		// [      Rotation       |Translation_z]
-		// [   0     0      0    |      1      ]
-		for(int i=0;i<3;i++){
-			//Rotation component
-			for(int j=0;j<4;j++){
-				tab3[i*4+j]=tab1[i*4]*tab2[j] + tab1[i*4+1]*tab2[4+j] + tab1[i*4+2]*tab2[8+j];
-			}
-			//Additional computation for the translation component
-			tab3[i*4+3]+=tab1[i*4+3];
-		}
-	}
-
-	public static double[][]composeMatrices(Transform[]matricesToCompose){
-		 double [][]matRet=new double[2][12];
-		 Transform transGlobal=new Transform();
-		 Transform transInd;
-		 System.out.println("Et matrices to Compose fait tant de long : "+matricesToCompose.length);
-		 for(int tr=0;tr<matricesToCompose.length;tr++) {
-			 transInd=matricesToCompose[tr];
-			 System.out.println("TransIND 1/2= :");
-    		for(int ii=0;ii<3;ii++){
-    			System.out.println("[ "+transInd.get(ii,0)+"  "+transInd.get(ii,1)+"  "+transInd.get(ii,2)+"  "+transInd.get(ii,3)+" ]");
-        	}
-			System.out.println("");
-	    		
-		 	transInd.transform(transGlobal);
-		 	System.out.println("TransIND 2/2= :");
-    		for(int ii=0;ii<3;ii++){
-				System.out.println("[ "+transInd.get(ii,0)+"  "+transInd.get(ii,1)+"  "+transInd.get(ii,2)+"  "+transInd.get(ii,3)+" ]");
-        	}
-			System.out.println("");
-			 transGlobal=new Transform(transInd);			 
-		 }
-
-		 transInd=new Transform(transGlobal);
-		 transInd.invert();
-		 matRet[0]=transformToArray(transGlobal);
-		 matRet[1]=transformToArray(transInd);
-		 return matRet;
-	 }
-	 
-	public static double[][]composeMatrices(double[][]matricesToCompose){
-		Transform[] trans=new Transform[matricesToCompose.length];
-		for(int i=0;i<matricesToCompose.length;i++)trans[i]=arrayToTransform(matricesToCompose[i]);
-		return (composeMatrices(trans));
-	 }
-	 
-	
 
 	/**
 	 * IO Utilities for Vectors and Matrices
@@ -1650,23 +1543,111 @@ public class TransformUtils {
 		System.out.println(s);	
 	}	
 	
-	public static String stringMatrix(String sTitre,double[]tab){
-		String s=new String();
-		s+=sTitre;
-		s+="\n";		
+	/* T2 is the transformation, written in the second basis
+	*   T1 is the transformation that we are looking for, written in the initial basis
+	*   P12 is the passage matrix, that allows one to resample the image (I1)
+	*   in order to get (I2), thus : vect1 = P12 x vect2
+	*   P21 is the inverse matrix
+	*   vxRatio is the ratio between the voxel sizes : vx2/vx1     
+	*/
+    public void basisChange(double [] T2,double vxRatio,double vyRatio,double vzRatio,double [] T1){
+		double vxRatInv=1.0/vxRatio;
+		double vyRatInv=1.0/vyRatio;
+		double vzRatInv=1.0/vzRatio;
+		double [] P12={vxRatio,0,0,-0.5+vxRatio/2, 0,vyRatio,0,-0.5+vyRatio/2,  0,0,vzRatio,-0.5+vzRatio/2};
+		double [] P21={vxRatInv,0,0,-0.5+vxRatInv/2, 0,vyRatInv,0,-0.5+vyRatInv/2,  0,0,vzRatInv,-0.5+vzRatInv/2};
+		double [] intermediaryRes=new double[12];	
+		matrixProduct(T2,P21,intermediaryRes);
+		matrixProduct(P12,intermediaryRes,T1);
+		System.out.println("Basis change");
+		printMatrix("T2",T2);
+		printMatrix("P12",P12);
+		printMatrix("P21",P21);
+		printMatrix("T1=P12 x (T2 x P21)",T1);
+	}
+
+	/* Tinter is the transformation matrix, written in the registration space
+	*   P1 is the passage matrix from the initial space to the registration space, built from the voxelSizes of the initial space scales1
+	*   P2 is the passage matrix from the registration space to the visualization space, built from the voxelSizes of the initial space scales2
+	* @return The global transformation matrix T' = P1 x T x P2
+	*/
+	public double[] doubleBasisChange(double [] scales1,double [] Tinter,double [] scales2){
+		double [] result=new double[12];
+		double vxRatio=scales1[0];
+		double vyRatio=scales1[1];
+		double vzRatio=scales1[2];
+		double vxRatInv=scales2[0];
+		double vyRatInv=scales2[1];
+		double vzRatInv=scales2[2];
+		double [] P1={1/vxRatio,0,0,-0.5, 0,1/vyRatio,0,-0.5,  0,0,1/vzRatio,-0.5};
+		double [] P2={vxRatInv,0,0,vxRatInv/2, 0,vyRatInv,0,vyRatInv/2,  0,0,vzRatInv,vzRatInv/2};
+		double [] intermediaryRes=new double[12];	
+		matrixProduct(Tinter,P2,intermediaryRes);
+		matrixProduct(P1,intermediaryRes,result);
+		System.out.println("Double basis change");
+		Vitimage_Toolbox.anna.rememberMatrix("P1, Passage from initial space to registration space : ",ItkTransform.stringMatrix("",P1));
+		Vitimage_Toolbox.anna.rememberMatrix("T, Initial transformation matrix for registration : ",ItkTransform.stringMatrix("",Tinter));
+		Vitimage_Toolbox.anna.rememberMatrix("P2, Passage from registration space to visualization space : ",ItkTransform.stringMatrix("",P2));
+		Vitimage_Toolbox.anna.rememberMatrix("Global transformation = P1 x T x P2",ItkTransform.stringMatrix("",result));
+
+		printMatrix("P1, Passage from initial space to registration space : ",P1);
+		printMatrix("T, Initial transformation matrix for registration : ",Tinter);
+		printMatrix("P2, Passage from registration space to visualization space : ",P2);
+		printMatrix("Global transformation = P1 x T x P2",result);
+		return result;
+	}
+
+	public void matrixProduct(double[]tab1,double[]tab2,double[]tab3){
+		//Matrix product in homogeneous coordinates 
+		// [      Rotation       |Translation_x]
+		// [      Rotation       |Translation_y]
+		// [      Rotation       |Translation_z]
+		// [   0     0      0    |      1      ]
 		for(int i=0;i<3;i++){
-			s+="[ ";
-			for(int j=0;j<3;j++){
-				s+=tab[i*4+j];
-				s+=" , ";
+			//Rotation component
+			for(int j=0;j<4;j++){
+				tab3[i*4+j]=tab1[i*4]*tab2[j] + tab1[i*4+1]*tab2[4+j] + tab1[i*4+2]*tab2[8+j];
 			}
-			s+=tab[i*4+3];
-			s+=" ] \n";
+			//Additional computation for the translation component
+			tab3[i*4+3]+=tab1[i*4+3];
 		}
-		s+= "[ 0 , 0 , 0 , 1 ]\n";
-		return(s);	
-	}	
-	
+	}
+
+	public static double[][]composeMatrices(Transform[]matricesToCompose){
+		 double [][]matRet=new double[2][12];
+		 Transform transGlobal=new Transform();
+		 Transform transInd;
+		 System.out.println("Et matrices to Compose fait tant de long : "+matricesToCompose.length);
+		 for(int tr=0;tr<matricesToCompose.length;tr++) {
+			 transInd=matricesToCompose[tr];
+			 System.out.println("TransIND 1/2= :");
+    		for(int ii=0;ii<3;ii++){
+    			System.out.println("[ "+transInd.get(ii,0)+"  "+transInd.get(ii,1)+"  "+transInd.get(ii,2)+"  "+transInd.get(ii,3)+" ]");
+        	}
+			System.out.println("");
+	    		
+		 	transInd.transform(transGlobal);
+		 	System.out.println("TransIND 2/2= :");
+    		for(int ii=0;ii<3;ii++){
+				System.out.println("[ "+transInd.get(ii,0)+"  "+transInd.get(ii,1)+"  "+transInd.get(ii,2)+"  "+transInd.get(ii,3)+" ]");
+        	}
+			System.out.println("");
+			 transGlobal=new Transform(transInd);			 
+		 }
+
+		 transInd=new Transform(transGlobal);
+		 transInd.invert();
+		 matRet[0]=transformToArray(transGlobal);
+		 matRet[1]=transformToArray(transInd);
+		 return matRet;
+	 }
+	 
+	public static double[][]composeMatrices(double[][]matricesToCompose){
+		Transform[] trans=new Transform[matricesToCompose.length];
+		for(int i=0;i<matricesToCompose.length;i++)trans[i]=arrayToTransform(matricesToCompose[i]);
+		return (composeMatrices(trans));
+	 }
+	 
 	
 	
 }

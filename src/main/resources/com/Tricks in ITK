@@ -1,0 +1,473 @@
+image_3D=sitk.Image(256,128,64,sitk.sitkInt1
+logo=sitk.ReadImage(fdata('SimpleITK.jpg'))
+print('Before modification:')print('origin: '+str(selected_image.GetOrigin()))print('size: '+str(selected_image.GetSize()))print('spacing: '+str(selected_image.GetSpacing()))print('direction: '+str(selected_image.GetDirection()))print('pixel type: '+str(selected_image.GetPixelIDTypeAsString()))print('number of pixel components: '+str(selected_image.GetNumberOfComponentsPerPixel()))selected_image.SetOrigin((78.0,76.0,77.0))selected_image.SetSpacing([0.5,0.5,3.0])
+
+print(image_3D.GetPixel(0,0,0))image_3D.SetPixel(0,0,0,1)print(image_3D.GetPixel(0,0,0))# This can also be done using Pythonic notation.print(image_3D[0,0,1])
+#img2.SetDirection([0,1,0.5,0.5]
+
+Self & 	SetOutputSpacing (const std::vector< double > &OutputSpacing)
+ 
+void 	SetReferenceImage (const Image &refImage)
+ 
+Self & 	SetSize (const std::vector< uint32_t > &Size)
+
+/*
+ * Rab de code ITK
+ */
+
+
+///FAIRE DU SHRINKAGE PAS FOUFOU
+// Similarity3DTransform
+
+
+//DE LA BONNE INTERPOLATION
+//itk::WindowedSincInterpolateImageFunction 
+
+
+
+////ADAPTER LE SHRINKAGE EN FONCTION DES DIMENSIONS
+//Faire ça a la mano : pas le choix
+
+
+
+
+/////ADAPTER LA METRIQUE DE MATTES
+//registration_method$SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
+
+//////////PLOT AU FUR ET A MESURE
+//dev_null <- registration_method$AddCommand("sitkIterationEvent", function() plot_values_jn(registration_method))
+
+
+///APLIQUER LES MOMENTS
+//initializer->InitializeTransform();
+//a confirmer avec les exemples
+
+/*On peut appliquer les moments aussi sur du affine
+TransformInitializerType::Pointer initializer
+= TransformInitializerType::New();
+initializer->SetTransform(   transform );
+initializer->SetFixedImage(  fixedImageReader->GetOutput() );
+initializer->SetMovingImage( movingImageReader->GetOutput() );
+initializer->MomentsOn();
+initializer->InitializeTransform();
+
+
+
+///////////GATHER PARAMS
+ *  const TransformType::ParametersType finalParameters =
+      registration->GetOutput()->Get()->GetParameters();
+  
+    const double finalRotationCenterX = transform->GetCenter()[0];
+    const double finalRotationCenterY = transform->GetCenter()[1];
+    const double finalTranslationX    = finalParameters[4];
+    const double finalTranslationY    = finalParameters[5];
+  
+    const unsigned int numberOfIterations = optimizer->GetCurrentIteration();
+    const double bestValue = optimizer->GetValue();
+ */
+	
+	org.itk.simple.MultiResolutionPyramidImageFilter m;
+
+
+//
+ optimizer->SetScales( optimizerScales );
+
+ 
+ 
+ 
+ ////////FAIRE DY DEFIORMABLE
+// org.itk.simple.BSplineTransform br;
+ /*transformDomainMeshSize=[8]*moving.GetDimension()
+		 tx = sitk.BSplineTransformInitializer(fixed,
+		                                       transformDomainMeshSize )
+				 print("Initial Parameters:");
+		 print(tx.GetParameters())
+
+		 R = sitk.ImageRegistrationMethod()
+		 R.SetMetricAsCorrelation()
+
+		 R.SetOptimizerAsLBFGSB(gradientConvergenceTolerance=1e-5,
+		                        numberOfIterations=100,
+		                        maximumNumberOfCorrections=5,
+		                        maximumNumberOfFunctionEvaluations=1000,
+		                        costFunctionConvergenceFactor=1e+7)
+		 R.SetInitialTransform(tx, True)
+		 R.SetInterpolator(sitk.sitkLinear)
+
+		 R.AddCommand( sitk.sitkIterationEvent, lambda: command_iteration(R) )
+
+		 outTx = R.Execute(fixed, moving)
+				 print("-------")
+				 print(outTx)
+				 print("Optimizer stop condition: {0}".format(R.GetOptimizerStopConditionDescription()))
+				 print(" Iteration: {0}".format(R.GetOptimizerIteration()))
+				 print(" Metric value: {0}".format(R.GetMetricValue()))
+
+				 sitk.WriteTransform(outTx,  sys.argv[3])
+				 resampler = sitk.ResampleImageFilter()
+				    resampler.SetReferenceImage(fixed);
+				    resampler.SetInterpolator(sitk.sitkLinear)
+				    resampler.SetDefaultPixelValue(100)
+				    resampler.SetTransform(outTx)
+
+				    out = resampler.Execute(moving)
+ */
+ 
+ 
+ 
+ /////RIGID FROM LANDMARK IN IMAGEJ
+//  = FastMatrix.bestRigid( fromPoints, toPoints, allowScaling );
+// FastMatrix fm = FastMatrix.bestLinear( fromPoints, toPoints, allowScaling );
+ 
+ 
+ ///////////////PERFECT ESOTERIC SETTING FOR  SCALING TRANSLATION PARAM IF SCALING OTHER PARAMS TO 1 :
+// 1.0 / ( 10.0 * pixelspacing[0] * imagesize[0] ) 1.0 / ( 10.0 * pixelspacing[1] * imagesize[1] ) 
+
+ 
+ 
+ ///AUSSI MOEBA qui utilise Simplexe, et Powell
+
+ 
+ 
+ 
+//////////////SORT OF BLOCK MATCHING
+//using MetricType = itk::ANTSNeighborhoodCorrelationImageToImageMetricv4 <ImageType, ImageType>; using MetricTypePointer = MetricType::Pointer; MetricTypePointer metric = MetricType::New();
+// set all parameters Size<Dimension> neighborhoodRadius; neighborhoodRadius.Fill(2); metric->SetRadius(neighborhood_radius); metric->SetFixedImage(fixedImage); metric->SetMovingImage(movingImage); metric->SetFixedTransform(transformFix); metric->SetMovingTransform(transformMov);
+// initialization after parameters are set. metric->Initialize();
+
+ 
+ 
+ 
+////DEMARRER UNE TRANSFO NON NULLE? MAIS SANS GELER L OPT
+//identityTransform->SetIdentity();
+//registration->SetFixedInitialTransform( identityTransform );
+
+
+ 
+ 
+/////FIXER le point set pour la metrique
+//SetFixedSampledPointSet()
+//SetUseFixedSampledPointSet( false )
+//spatialObjectMask->SetImage( maskReader->GetOutput() );
+//Finally, the spatial object mask is passed to the image metric.
+//    metric->SetFixedImageMask( spatialObjectMask );
+
+ 
+ 
+ 
+//////ADAPTER LA STRATEGIE UTILISEE
+//registration_method$SetMetricSamplingStrategy("RANDOM")
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+//
+//Each time the direction of the derivative abruptly changes, the optimizer assumes that a local extrema has been passed and reacts by reducing the step length by a relaxation factor. The reducing factor should have a value between 0 and 1. This factor is set to 0.5 by default, 
+////////////FIXER LE CENTRE ARTIFICIELLEMENT /////////////
+/*	int x=259;
+int y=281;
+int z=20;  centerFixed[0] = fixedOrigin[0] + fixedSpacing[0] ⋆ fixedSize[0] / 2.0;
+centerFixed[1] = fixedOrigin[1] + fixedSpacing[1] ⋆ fixedSize[1] / 2.0;
+centerMoving[0] = movingOrigin[0] + movingSpacing[0] ⋆ movingSize[0] / 2.0;
+centerMoving[1] = movingOrigin[1] + movingSpacing[1] ⋆ movingSize[1] / 2.0;
+initialTransform->SetCenter( centerFixed );
+initialTransform->SetTranslation( centerMoving - centerFixed );
+initialTransform->SetAngle( 0.0 );
+registration->SetInitialTransform( initialTransform );
+VectorDouble vectDou=new VectorDouble(3);
+vectDou.set(0,259*0.0353);
+vectDou.set(1,281*0.0353);
+vectDou.set(2,10);
+rotationComponent.setCenter(vectDou);
+
+
+
+/////////////FIXER LE CENTRE NATIVEMENT.//////////////
+ * 	CenteredTransformInitializerFilter filtre=new CenteredTransformInitializerFilter();
+filtre.momentsOn();
+//globalTransform=filtre.execute(imgRef,imgMov,rotationComponent);
+
+ */
+/////ADAPTER LA METRIQUE PAR LES MOMENTS? ET PREVENIER LE MOUVEMENT DU CENTRE
+/*initializer->SetMovingImage( movingImageReader->GetOutput() );
+initializer->GeometryOn();
+const double translationScale = 1.0 / 128.0;
+constexpr double centerScale = 1000.0; // prevents it from moving
+                                          // during the optimization
+optimizerScales[0] = 1.0;
+optimizerScales[1] = centerScale;
+optimizerScales[2] = centerScale;
+optimizerScales[3] = translationScale;
+optimizerScales[4] = translationScale;
+
+optimizer->SetScales( optimizerScales );
+
+optimizer->SetLearningRate( 0.5 );
+optimizer->SetMinimumStepLength( 0.0001 );
+optimizer->SetNumberOfIterations( 400 );
+*/
+
+
+
+///ADAPTER LE LEARNING RATE
+//Le baisser (taille des steps) pour le affine.
+
+
+
+
+///FAIRE DU DEFORMABLE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	@SuppressWarnings("deprecation")
+	public void testITK_V0(){ 
+		//			imgRegMethod.setMetricSamplingPercentage(percentageUsefulPixels);
+		//		imgRegMethod.setOptimizerAsPowell();
+		//		R.SetOptimizerAsGradientDescentLineSearch(learningRate=1,numberOfIterations=100)
+		//		imgRegMethod.setOptimizerAsConjugateGradientLineSearch(0.05,numberOfIterations);
+
+		//		imgRegMethod.setInitialTransform( new TranslationTransform( imgRef.getDimension() ) );
+		//		imgRegMethod.setInitialTransform( new VersorRigid3DTransform() );
+		//imgRegMethod.setInterpolator( InterpolatorEnum.sitkLinear );
+
+		//		initialTransform = 
+		//			imgRegMethod.setInterpolator(InterpolatorEnum.sitkLinear);
+		/**
+		 * Successive used resolutions for pyramidal behaviour
+		 */
+		
+		int []dimsImg=new int[] {128,128,40};
+
+		int []tabShrink1= new int[] {8,8,4,4,2,1};
+		double []tabSigma1= new double[] {4,4,2,2,1,0.5};// on the python tutorials, they say to use 2*shrink factor, but that seems heavy for our data
+		int [][]tabSizes1=new int [tabShrink1.length][3];
+		for(int i = 0 ;i<tabShrink1.length;i++)for(int j = 0 ;j<3;j++)tabSizes1[i][j]=(int)Math.ceil(1.0*dimsImg[j]/tabShrink1[i]);
+
+		double []tabSigma2= new double[] {2,1};
+		int []tabShrink2= new int[] {2,1};// on the python tutorials, they say to use 2*shrink factor, but that seems heavy for our data
+		int [][]tabSizes2=new int [tabShrink2.length][3];
+		for(int i = 0 ;i<tabShrink2.length;i++)for(int j = 0 ;j<3;j++)tabSizes2[i][j]=(int)Math.ceil(1.0*dimsImg[j]/tabShrink2[i]);
+
+
+		VectorUInt32  vectResolutionsStep1=new VectorUInt32(tabShrink1.length) ;
+		VectorDouble vectSigmaStep1=new VectorDouble(tabShrink1.length);
+		for(int i = 0 ;i<tabShrink1.length;i++) {
+			vectResolutionsStep1.set(i,tabShrink1[i]);
+			vectSigmaStep1.set(i,tabSigma1[i]);
+		}
+
+		VectorUInt32  vectResolutionsStep2=new VectorUInt32(tabShrink2.length) ;
+		VectorDouble vectSigmaStep2=new VectorDouble(tabShrink2.length);
+		for(int i = 0 ;i<tabShrink2.length;i++) {
+			vectResolutionsStep1.set(i,tabShrink2[i]);
+			vectSigmaStep2.set(i,tabSigma2[i]);
+		}
+
+
+		/**
+		 * entry parameters
+		 */	  
+		double maxStep = 0.05;
+		double minStep = 0.0000000001;
+		int numberOfIterations = 40;
+		double relaxationFactor = 0.5;
+		long imageDimension=3;
+		final int JOINT=1;
+		final int CORRELATION=2;
+		final int MATTES=3;
+		final int MEANSQUARE=4;
+		final int similarity=MATTES;
+
+		//Banc d'essai : objet identique mais rotation grande (0.2,0.2,0.2): 3 et 4 marchent parfaitement, 1 est hyper pourri, et 2 fait un peu le taf
+		//                mean square finit par decrocher avant MATTES, lorsqu'on ajoute en plus une translation
+		//                enfin, MATTES finit par decrocher lorsqu'on augmente la rotation au dessus de 0.3 radiant suivant chaque axe.
+		//
+		//               Cependant les resultats de MATTES et MEAN SQUARE sont toujours impeccables lorsqu'on ne fait qu'un angle. JOINT reste
+		//                 hyper pourri, et CORRELATION est bien
+		String strImgRef="/home/fernandr/Bureau/Test/ITK/TestITKRef.tif";
+
+
+		/**
+		 * setup main actors
+		 */	  
+		ImageFileWriter imgW=new ImageFileWriter();
+		ImageRegistrationMethod imgRegMethod = new ImageRegistrationMethod();	
+		RescaleIntensityImageFilter imgRescale=new RescaleIntensityImageFilter();
+		ResampleImageFilter resampler = new ResampleImageFilter();
+		IterationUpdate cmd;
+		ImageFileReader reader = new ImageFileReader();
+		reader.setFileName(strImgRef);
+		Image imgRef = reader.execute();
+		resampler.setReferenceImage(imgRef);
+		resampler.setDefaultPixelValue(0);
+
+		/*reader = new ImageFileReader();
+		reader.setFileName(strImgMov);
+		Image imgMov = reader.execute();
+		 */
+
+		/**
+		 * Transformation building for robustness testing
+		 */	  
+		double txTest=0;
+		double tyTest=0;
+		double tzTest=0;
+		double rotXTest=0.0;
+		double rotYTest=0.5;
+		double rotZTest=0.0;
+
+		VectorDouble vectTrans=new VectorDouble(3);
+		vectTrans.set(0,txTest);
+		vectTrans.set(1,tyTest);
+		vectTrans.set(2,tzTest);
+		TranslationTransform trans=new TranslationTransform(imageDimension, vectTrans);
+
+		VectorDouble vectCenterEuler=new VectorDouble(3);
+		vectCenterEuler.set(0,64);
+		vectCenterEuler.set(1,64);
+		vectCenterEuler.set(2,20);
+		Euler3DTransform trans2=new Euler3DTransform();
+		trans2.setCenter(vectCenterEuler);
+		trans2.setRotation(rotXTest,rotYTest,rotZTest);
+		trans2.setTranslation(vectTrans);
+		System.out.println(trans2);
+		resampler.setTransform(trans2);
+		Image imgMov=resampler.execute(imgRef);
+		imgW.execute(imgMov,"/home/fernandr/Bureau/Test/ITK/TestITKMov.tif", false);
+
+
+
+
+
+		/**
+		 * Setup and execution of the rigid registration
+		 */	  
+		switch(similarity) {
+		case JOINT:imgRegMethod.setMetricAsJointHistogramMutualInformation();break;
+		case MEANSQUARE:imgRegMethod.setMetricAsMeanSquares();break;
+		case CORRELATION:imgRegMethod.setMetricAsCorrelation();break;
+		case MATTES:imgRegMethod.setMetricAsMattesMutualInformation();break;
+		}
+
+		imgRegMethod.setOptimizerAsRegularStepGradientDescent( maxStep,minStep,numberOfIterations,relaxationFactor);
+		//		imgRegMethod.setOptimizerAsGradientDescentLineSearch(0.1, numberOfIterations, 0.01, 10);
+		Euler3DTransform initialTransform = new Euler3DTransform();
+		imgRegMethod.setInitialTransform( initialTransform );
+		System.out.println(initialTransform.toString());
+		CenteredTransformInitializerFilter filtre=new CenteredTransformInitializerFilter();
+		filtre.momentsOn();
+		org.itk.simple.Transform preparedTransform=filtre.execute(imgRef,imgMov,initialTransform);
+		System.out.println(preparedTransform.toString());
+		imgRegMethod.setOptimizerScalesFromIndexShift();
+		imgRegMethod.setShrinkFactorsPerLevel(vectResolutionsStep1);
+		imgRegMethod.setSmoothingSigmasPerLevel(vectSigmaStep1);
+		imgRegMethod.smoothingSigmasAreSpecifiedInPhysicalUnitsOn();
+		imgRegMethod.setMetricSamplingStrategy(MetricSamplingStrategyType.REGULAR);
+		imgRegMethod.setInitialTransform(preparedTransform);
+		cmd = new IterationUpdate(imgRegMethod,tabShrink1,tabSizes1,tabSigma1);
+		imgRegMethod.removeAllCommands();
+		imgRegMethod.addCommand( EventEnum.sitkIterationEvent, cmd);
+		org.itk.simple.Transform transfoStep1 = imgRegMethod.execute( imgRef, imgMov );
+		System.out.println(transfoStep1.toString());
+
+
+		/**
+		 * Setup and execution of an eventual second step
+		 */
+		preparedTransform.addTransform(new Euler3DTransform());
+		imgRegMethod.setOptimizerAsRegularStepGradientDescent( maxStep,minStep,numberOfIterations,relaxationFactor);
+		//		imgRegMethod.setOptimizerAsGradientDescentLineSearch(1,100);
+		imgRegMethod.setOptimizerScalesFromIndexShift();
+		imgRegMethod.setShrinkFactorsPerLevel(vectResolutionsStep1);
+		imgRegMethod.setSmoothingSigmasPerLevel(vectSigmaStep1);
+		imgRegMethod.smoothingSigmasAreSpecifiedInPhysicalUnitsOn();
+		imgRegMethod.setMetricSamplingStrategy(MetricSamplingStrategyType.REGULAR);
+		imgRegMethod.setInitialTransform(preparedTransform);
+		cmd = new IterationUpdate(imgRegMethod,tabShrink1,tabSizes1,tabSigma1);
+		imgRegMethod.removeAllCommands();
+		imgRegMethod.addCommand( EventEnum.sitkIterationEvent, cmd);
+		org.itk.simple.Transform transfoStep2 = imgRegMethod.execute( imgRef, imgMov );
+		System.out.println(transfoStep2.toString());
+
+
+		/**
+		 * Display result informations
+		 */	  
+		System.out.println("-----------------------------------------");
+		System.out.println("-----------------------------------------");
+		System.out.println("------        FIN DU RECALAGE     -------");
+		System.out.println("-----------------------------------------");
+		System.out.format("Optimizer stop condition: %s\n", imgRegMethod.getOptimizerStopConditionDescription());
+		System.out.format(" Iteration: %d\n", imgRegMethod.getOptimizerIteration());
+		System.out.format(" Metric value: %f\n", imgRegMethod.getMetricValue());
+		//transfoStep2.writeTransform("/home/fernandr/Bureau/Test/MATITK.txt");
+
+
+		/**
+		 * Apply the transformation to the moving image, and export result in a file
+		 */	  
+		resampler.setTransform(transfoStep1);
+		Image imgResITKStep1=resampler.execute(imgMov);
+		imgW.execute(imgResITKStep1,"/home/fernandr/Bureau/Test/ITK/TestITK_mov_to_ref_step_1.tif", false);
+
+
+		resampler.setTransform(preparedTransform);
+		Image imgResITKStep2=resampler.execute(imgMov);
+		imgW.execute(imgResITKStep2,"/home/fernandr/Bureau/Test/ITK/TestITK_mov_to_ref_step_2.tif", false);
+
+		new ImageJ();
+		ImagePlus imRes1=IJ.openImage("/home/fernandr/Bureau/Test/ITK/TestITK_mov_to_ref_step_1.tif");
+		ImagePlus imRes2=IJ.openImage("/home/fernandr/Bureau/Test/ITK/TestITK_mov_to_ref_step_2.tif");
+		ImagePlus imRef=IJ.openImage("/home/fernandr/Bureau/Test/ITK/TestITKRef.tif");
+		ImagePlus imMov=IJ.openImage("/home/fernandr/Bureau/Test/ITK/TestITKMov.tif");
+		imRes1.getProcessor().setMinAndMax(0,255);
+		imRes2.getProcessor().setMinAndMax(0,255);
+		imRef.getProcessor().setMinAndMax(0,255);
+		imMov.getProcessor().setMinAndMax(0,255);
+		ImagePlus testAvant=Vitimage_Toolbox.compositeOf(imRef,imMov,"Position initiale");
+		ImagePlus testApresStep1=Vitimage_Toolbox.compositeOf(imRef,imRes1,"Apres etape 1");
+		ImagePlus testApresStep2=Vitimage_Toolbox.compositeOf(imRef,imRes2,"Apres etape 2");
+
+		testAvant.show();
+		testAvant.getWindow().setSize(500,500);
+		testAvant.getCanvas().fitToWindow();
+		testAvant.setSlice(20);
+
+		testApresStep1.show();
+		testApresStep1.getWindow().setSize(500,500);
+		testApresStep1.getCanvas().fitToWindow();
+		testApresStep1.setSlice(20);
+
+		testApresStep2.show();
+		testApresStep2.getWindow().setSize(500,500);
+		testApresStep2.getCanvas().fitToWindow();
+		testApresStep2.setSlice(20);
+		//			SimpleITK.show( imgMov, "Mov init", true );
+	}	
+
+
+	
+
+
+
+
