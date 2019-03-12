@@ -1,47 +1,60 @@
 package com.vitimage;
 
+import java.util.ArrayList;
+
+import ij.ImagePlus;
+
 public class Vitimage4D {
-
-	private ImagePlus[] acquisitionsImage;//Observations goes there
-	private ImagePlus parametersImage ;//Data lies here
-	private String []observationsLabels;
-	private String[] parametersLabels;
+	public int dayAfterInoculation;
+	private ArrayList<Acquisition> acquisition;//Observations goes there
 	
-
+	
+	
+	/**
+	 *  Test sequence for the class
+	 */
 	public static void main(String[] args) {
-		// Test sequence for the class
-		Vitimage4D viti = new Vitimage4D();
-		
-		
-		viti.newAcquisition(Acquisition.MRI_T1_SEQ,choosePathUI(),)
-
+		Vitimage4D viti = new Vitimage4D(0,5);		
+		viti.addAcquisition(Acquisition.MRI_T1_SEQ,choosePathUI(),Geometry.REFERENCE,Misalignment.NONE);
+		viti.addAcquisition(Acquisition.MRI_T2_SEQ,choosePathUI(),Geometry.REFERENCE,Misalignment.LIGHT_RIGID);
+		viti.addAcquisition(Acquisition.MRI_GE3D_SEQ,choosePathUI(),Geometry.REFERENCE,Misalignment.SCALE_FACTOR);
+		viti.addAcquisition(Acquisition.RX,choosePathUI(),Geometry.SWITCH_XY,Misalignment.SCALE_FACTOR);
+		viti.computeAll();
+		ImagePlus result=viti.createNormalizedHyperImage();
+		result.show();
 	}
 
 	
 	
-	public Vitimage4D() {
+	public Vitimage4D(int dayAfterInoculation,int nbAcquisitions) {
+		this.dayAfterInoculation=dayAfterInoculation;
 		
 	}
 	
-	public void setGeneralReference() {
-		
-		
-	}
-	
-	public void newAcquisition(Acquisition acq, ImagePlus[]acquisition,int geometry, int ) {
+	public ImagePlus createNormalizedHyperImage() {
 		
 		
 	}
 	
-	public	void registerMriAcquisitions(boolean sameGeometry) {
+	public void addAcquisition(int type, String path,int geometry) {
+		switch(type) {
+		case MRI_T1_SEQ: acquisition.add(new MRI_T1_Seq());
+		
+	}
+	
+	public	void registerMriAcquisitions(Misalignment.LIGHT_RIGID mis) {
 		
 		
 	}
 	
-	public void registerAll()
 	
+	public void computeAll() {
+		handleMajorMisalignments();
+		alignAndCenterAxes();
+		registerM
+		
 	
-	
+	}
 	
 	
 }
