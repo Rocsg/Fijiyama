@@ -28,10 +28,37 @@ import ij.process.FloatPolygon;
 import ij.process.ImageProcessor;
 import ij.process.StackConverter;
 import imagescience.transform.Transform;
+import math3d.Point3d;
 
-public class TransformUtils {
-	int COORD_OF_MAX_IN_TWO_LAST_SLICES=1;
-	int COORD_OF_MAX_ALONG_Z=2;
+public interface TransformUtils {
+	public enum Geometry{
+		REFERENCE,
+		QUASI_REFERENCE,
+		SWITCH_XY,
+		SWITCH_XZ,
+		SWITCH_YZ,
+		MIRROR_X,
+		MIRROR_Y,
+		MIRROR_Z,
+		UNKNOWN
+	}
+		
+	
+	
+	public enum Misalignment{
+		NONE,
+		LIGHT_RIGID,
+		GREAT_RIGID,
+		LIGHT_SIMILARITY,
+		STRONG_SIMILARITY,
+		LIGHT_DEFORMATION,
+		STRONG_DEFORMATION,		
+		VOXEL_SCALE_FACTOR,
+		UNKNOWN
+	}
+	
+	
+	
 	
 	/**
 	 * Top level functions
@@ -41,10 +68,8 @@ public class TransformUtils {
 	 * @param ignoreUnattemptedDimensions
 	 * @return
 	 */
-	public TransformUtils() {	
-	}
 	
-	public double[][] computeTransformationForBoutureAlignment(ImagePlus img,boolean computeZaxisOnly,double[][]cornersCoordinates,boolean ignoreUnattemptedDimensions){
+	public static double[][] computeTransformationForBoutureAlignment(ImagePlus img,boolean computeZaxisOnly,double[][]cornersCoordinates,boolean ignoreUnattemptedDimensions){
 		Analyze anna=Vitimage_Toolbox.anna;
 		//new Duplicator().run(img,1,img.getStackSize()).show();
 		anna.remember("Entree dans calcul de transformation", "computeZaxisOnly ? "+computeZaxisOnly+"");
@@ -94,14 +119,14 @@ public class TransformUtils {
 			stackDown.addSlice("",img.getStack().getProcessor(zMax/2-zQuarter+1+i+1));//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
 		}
 		ImagePlus imgUp=new ImagePlus("upMASK",stackUp);
-		ImagePlus imgUpCon=connexe(imgUp,0,29,0,10E10,6,2,true);
+		ImagePlus imgUpCon=VitimageUtils.connexe(imgUp,0,29,0,10E10,6,2,true);
 				anna.storeImage(imgUp, "Masque de la partie superieure");
 				anna.rememberImageDynamic(imgUp," partie superieure");
 				anna.storeImage(imgUp, "Connexe de la partie superieure");
 				anna.rememberImageDynamic(imgUpCon," connexe partie superieure");
 				
 		ImagePlus imgDown=new ImagePlus("downMASK",stackDown);
-		ImagePlus imgDownCon=connexe(imgDown,0,29,0,10E10,6,2,true);
+		ImagePlus imgDownCon=VitimageUtils.connexe(imgDown,0,29,0,10E10,6,2,true);
 				anna.storeImage(imgDown, "Masque de la partie inferieure");
 				anna.rememberImageDynamic(imgUp," partie inferieure");
 				anna.storeImage(imgUp, "Connexe de la partie inferieure");
@@ -277,145 +302,8 @@ public class TransformUtils {
 		anna.rememberMatrix(" Matrice complete obtenue en fin de fonction",ItkTransform.stringMatrix("",transformToArray(tr)));
 		return(new double[][] {transformToArray(tr),transformToArray(trInv) });	
 	}
-		
-	public double[] detectInoculationPoint(ImagePlus img) {
-		Analyze anna=Vitimage_Toolbox.anna;
-		anna.notifyAlgo("Detection point d inoculation","", "");
-		anna.storeEntryImage(img, "Image d entree de l algo de detection du point d inoc");
-		int xMax=img.getWidth();
-		int yMax=img.getHeight();
-		int zMax=img.getStackSize();
-		double vX=img.getCalibration().pixelWidth;
-		double vY=img.getCalibration().pixelHeight;
-		double vZ=img.getCalibration().pixelDepth;
-		int facteurAniso=(int)Math.round(vZ/vX);
-		double IPStdZSize=4; //mm
-		double IPStdXSize=2; //mm
-		double sigmaXY=IPStdXSize/2.0;
-		double sigmaZ=IPStdXSize/4.0;
-		int sigmaPlotZ=5;
-		double sigmaXYInPixels=10;//sigmaXY/vX;
-		double sigmaZInPixels=0.2;//sigmaZ/vZ;
-		int minPossibleZ=zMax/4;
-		int maxPossibleZ=(zMax*3)/4;
-		System.out.println("\nBlur");
-		anna.notifyStep("Lissage de l'image","");
-		IJ.run(img, "Gaussian Blur 3D...", "x="+sigmaXYInPixels+" y="+sigmaXYInPixels+" z="+sigmaZInPixels+"");
-		anna.remember("Parametres du lissage gaussien initial", "sigmaXYInPixels="+sigmaXYInPixels+" , sigmaZInPixels="+sigmaZInPixels);
-		anna.storeImage(img,"image lissee");
-		System.out.println(" Ok.");
 
-		
-		anna.notifyStep("Identification outline","");
-		ImagePlus imgSlice= new Duplicator().run(img, minPossibleZ,minPossibleZ);
-		System.out.println("\nOutline detection ...");
-		IJ.setAutoThreshold(imgSlice, "Default dark");
-		Prefs.blackBackground = true;
-		IJ.run(imgSlice, "Convert to Mask", "method=Default background=Dark calculate black");
-		for(int er=0;er<6;er++)IJ.run(imgSlice, "Erode", "stack");
-		IJ.run(imgSlice, "Outline", "stack");
-		ImagePlus imgOutline= new Duplicator().run(imgSlice, 1,1);
-		anna.storeImage(imgOutline,"Toutes les outlines");
-		imgSlice=connexe(imgSlice,255,255,0,10E10,8,1,true);
-		anna.storeImage(imgSlice,"Outline selectionnee");
-		System.out.println(" Ok.");
-
-		
-		anna.notifyStep("Calcul des différents angles sur l outline","");
-		System.out.println("\nSelection equipartited points for analysis and sort by angle around the center...");
-		IJ.run(imgSlice, "8-bit", "");
-		anna.storeImage(imgSlice,"Image passee sur 8 bits");
-		anna.rememberImageDynamic(imgSlice,"img 8 bits");
-		RoiManager rm=RoiManager.getRoiManager();
-		rm.reset();
-		IJ.run(imgSlice, "Create Selection", "");
-		rm.addRoi(imgSlice.getRoi());
-		Roi roi=rm.getRoi(0);
-		FloatPolygon fp=roi.getContainedFloatPoints();
-		int nAngles=fp.npoints;
-		anna.remember("Nombre de points de contour identifiés", ""+nAngles);
-		double [][]tabCoord=new double[nAngles][3];
-		Double [][]tabSort=new Double[nAngles][3];
-		double xCenter = img.getWidth()/2;
-		double yCenter = img.getHeight()/2;
-		for (int i=0; i<nAngles; i++) {
-			tabSort[i][0]=new Double(fp.xpoints[i]);
-			tabSort[i][1]=new Double(fp.ypoints[i]);
-			tabSort[i][2]=new Double(calculateAngle(tabSort[i][0]-xCenter,yCenter-tabSort[i][1]));
-		}
-		imgSlice.changes=false;
-		imgSlice.close();
-		rm.close();
-		//sort by angles
-		Arrays.sort(tabSort,new AngleComparator());
-		for (int i=0; i<nAngles; i++) {
-			tabCoord[i][0]=tabSort[i][0].doubleValue();
-			tabCoord[i][1]=tabSort[i][1].doubleValue();
-			tabCoord[i][2]=tabSort[i][2].doubleValue();
-		}
-		System.out.println(" Ok.");
-		double [][]meanValues=new double[nAngles][zMax];
-		
-		anna.notifyStep("Mesure des valeurs moyenne et calcul des scores, sur chaque slice, pour chaque point du contour defini","");
-		System.out.println("\nMeasurements");
-		ImagePlus measures=ij.gui.NewImage.createImage("measures",nAngles,zMax*facteurAniso,3,32,ij.gui.NewImage.FILL_BLACK);
-		float[]measuresImg0=(float[]) measures.getStack().getProcessor(1).getPixels();
-		float[]measuresImg1=(float[]) measures.getStack().getProcessor(2).getPixels();
-		float[]measuresImg2=(float[]) measures.getStack().getProcessor(3).getPixels();
-
-		for (int ang=0; ang<nAngles; ang++){
-			for (int z=0; z<zMax; z++){			
-				meanValues[ang][z]=meanValueofImageAround(img,(int)Math.round(tabCoord[ang][0]),(int)Math.round(tabCoord[ang][1]),z,sigmaXYInPixels);
-				for(int i=0;i<facteurAniso;i++)measuresImg0[nAngles*(z*facteurAniso+i)+ang]=(float) meanValues[ang][z];
-			}
-		}
-		
-		System.out.println(" Ok.");
-		
-		
-		
-		
-		System.out.println("\nScore computation");
-//
-		double[][][]scores=new double[nAngles][zMax][3];
-		for (int ang=0; ang<nAngles; ang++){
-			for (int z=minPossibleZ; z<=maxPossibleZ; z++){			
-				double acc=0;
-				for(int i=-sigmaPlotZ;i<=sigmaPlotZ;i++)acc+=meanValues[ang][z+i];
-				scores[ang][z][0]=acc/(2*sigmaPlotZ+1);
-				scores[ang][z][1]=(scores[ang][z][0]-meanValues[ang][z])/scores[ang][z][0];
-				scores[ang][z][2]=(scores[ang][z][0]-meanValues[ang][z]);
-				for(int i=0;i<facteurAniso;i++)measuresImg1[nAngles*(z*facteurAniso+i)+ang]=(float) scores[ang][z][1];
-				for(int i=0;i<facteurAniso;i++)measuresImg2[nAngles*(z*facteurAniso+i)+ang]=(float) scores[ang][z][2];
-			}
-		}
-		
-		measures.getProcessor().setMinAndMax(0,3000);
-		IJ.run(measures,"Fire","");
-		anna.storeImage(measures, "Image de score");
-		ImagePlus imgDetect=new Duplicator().run(measures,1,measures.getStackSize());
-		IJ.run(imgDetect, "Gaussian Blur...", "sigma="+(1/(2*vX))+" stack");
-		anna.remember("Parametre de lissage utilise, en pixel","sigma="+(1/(2*vX)));
-		anna.storeImage(imgDetect, "Image de score lissee");
-		double[][]coordMax=getCoordinatesOf(imgDetect,COORD_OF_MAX_IN_TWO_LAST_SLICES,minPossibleZ*facteurAniso,maxPossibleZ*facteurAniso);
-		System.out.println("Maximum relatif obtenu à ("+coordMax[0][0]+" , "+coordMax[0][1]+" ) soit, en coordonnees images : ( "+
-							tabCoord[(int)Math.round(coordMax[0][0])][0]+" , "+tabCoord[(int)Math.round(coordMax[0][0])][1]+" , "+
-							((coordMax[0][1]-facteurAniso/2.0)/facteurAniso)+" )");
-		System.out.println("Maximum absolu obtenu à ("+coordMax[1][0]+" , "+coordMax[1][1]+" ) soit, en coordonnees images : ( "+
-							tabCoord[(int)Math.round(coordMax[1][0])][0]+" , "+tabCoord[(int)Math.round(coordMax[1][0])][1]+" , "+
-							((coordMax[1][1]-facteurAniso/2.0)/facteurAniso)+" )");
-		anna.remember("Maximum relatif","obtenu à ("+coordMax[0][0]+" , "+coordMax[0][1]+" ) soit, en coordonnees images : ( "+
-				tabCoord[(int)Math.round(coordMax[0][0])][0]+" , "+tabCoord[(int)Math.round(coordMax[0][0])][1]+" , "+
-				((coordMax[0][1]-facteurAniso/2.0)/facteurAniso)+" )");
-		anna.remember("Maximum absolu"," obtenu à ("+coordMax[1][0]+" , "+coordMax[1][1]+" ) soit, en coordonnees images : ( "+
-				tabCoord[(int)Math.round(coordMax[1][0])][0]+" , "+tabCoord[(int)Math.round(coordMax[1][0])][1]+" , "+
-				((coordMax[1][1]-facteurAniso/2.0)/facteurAniso)+" )");
-		return new double[]{tabCoord[(int)Math.round(coordMax[1][0])][0]*vX+vX/2.0,tabCoord[(int)Math.round(coordMax[1][0])][1]*vY+vY/2.0,((coordMax[1][1]-facteurAniso/2.0)/facteurAniso)*vZ+vZ/2.0};
-	}
-		
 	
-	
-
 	/**
 	 * Resampling 3D utilities
 	 * @param img
@@ -424,7 +312,7 @@ public class TransformUtils {
 	 * @param ignoreUnattemptedDimensions
 	 * @return
 	 */
-	public ImagePlus[] reech3D(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title,boolean computeMask) {
+	public static ImagePlus[] reech3D(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title,boolean computeMask) {
 		 ImagePlus[]ret;
 		 if(computeMask) {
 			 ret=new ImagePlus[2];
@@ -441,7 +329,7 @@ public class TransformUtils {
 		 return ret;
 	 }
   
-    public ImagePlus reech3DByte(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title) {
+    public static ImagePlus reech3DByte(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title) {
 		//Input and Output images opening
 		//~ ImagePlus imPlusRec=new ImagePlus(sizes[0],sizes[1],sizes[2]);
 		ImagePlus imPlusRec=ij.gui.NewImage.createImage(title,sizes[0],sizes[1],sizes[2],8,ij.gui.NewImage.FILL_BLACK);
@@ -632,7 +520,7 @@ public class TransformUtils {
 		return imPlusRec;
     }
     
-	public ImagePlus reech3DShort(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title) {
+	public static ImagePlus reech3DShort(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title) {
 		//Input and Output images opening
 		//~ ImagePlus imPlusRec=new ImagePlus(sizes[0],sizes[1],sizes[2]);
 		ImagePlus imPlusRec=ij.gui.NewImage.createImage(title,sizes[0],sizes[1],sizes[2],16,ij.gui.NewImage.FILL_BLACK);
@@ -823,7 +711,7 @@ public class TransformUtils {
 		return imPlusRec;
     }
 	
-	public ImagePlus reech3DFloat(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title) {
+	public static ImagePlus reech3DFloat(ImagePlus imPlusFlo,  double [] matInput,int [] sizes,String title) {
 		//Input and Output images opening
 		//~ ImagePlus imPlusRec=new ImagePlus(sizes[0],sizes[1],sizes[2]);
 		ImagePlus imPlusRec=ij.gui.NewImage.createImage(title,sizes[0],sizes[1],sizes[2],32,ij.gui.NewImage.FILL_BLACK);
@@ -1016,287 +904,10 @@ public class TransformUtils {
 
 
 	
-	/**
-	 * Connected components utilities
-	 * @param img
-	 * @param computeZaxisOnly
-	 * @param cornersCoordinates
-	 * @param ignoreUnattemptedDimensions
-	 * @return
-	 */
-	ImagePlus connexe(ImagePlus img,double threshLow,double threshHigh,double volumeLow,double volumeHigh,int connexity,int selectByVolume,boolean noVerbose) {
-		boolean debug=!noVerbose;
-		if(debug)System.out.println("Depart connexe");
-		int yMax=img.getHeight();
-		int xMax=img.getWidth();
-		int zMax=img.getStack().getSize();
-		double vX=img.getCalibration().pixelWidth;
-		double vY=img.getCalibration().pixelHeight;
-		double vZ=img.getCalibration().pixelDepth;
-		double voxVolume=vX*vY*vZ;
-		int[][][]tabIn=new int[xMax][yMax][zMax];
-		int[][]connexions=new int[xMax*yMax*zMax*3][2];
-		int[]volume=new int[xMax*yMax*zMax];
-		int[][]neighbours=new int[][]{{1,0,0,0},{1,1,0,0},{0,1,0,0},{0,0,1,0},{1,0,1,0},{1,1,1,0},{1,1,0,0} };
-		int curComp=0;
-		int indexConnexions=0;
-		if(debug)System.out.println("Choix d'un type");
-		switch(img.getType()) {
-		case ImagePlus.GRAY8:
-			byte[] imgInB;
-			for(int z=0;z<zMax;z++) {
-				imgInB=(byte[])(img.getStack().getProcessor(z+1).getPixels());
-				for(int x=0;x<xMax;x++)for(int y=0;y<yMax;y++)if(  ((float)(imgInB[x+xMax*y] & 0xff) < threshHigh+1 )  && ((float)((imgInB[x+xMax*y]) & 0xff) > threshLow-1) )tabIn[x][y][z]=-1;
-			}
-			break;
-		case ImagePlus.GRAY16:
-			short[] imgInS;
-			for(int z=0;z<zMax;z++) {
-				imgInS=(short[])(img.getStack().getProcessor(z+1).getPixels());
-				for(int x=0;x<xMax;x++)for(int y=0;y<yMax;y++)if(  ((float)(imgInS[x+xMax*y] & 0xffff) < threshHigh+1 )  && ((float)((imgInS[x+xMax*y]) & 0xffff) > threshLow-1) )tabIn[x][y][z]=-1;					
-			}
-			break;
-		case ImagePlus.GRAY32:
-			float[] imgInF;
-			for(int z=0;z<zMax;z++) {
-				imgInF=(float[])(img.getStack().getProcessor(z+1).getPixels());
-				for(int x=0;x<xMax;x++)for(int y=0;y<yMax;y++)if(  ((imgInF[x+xMax*y]) < threshHigh+1 )  && (((imgInF[x+xMax*y])) > threshLow-1) )tabIn[x][y][z]=-1;					
-			}
-			break;
-		}
-		
-		if(debug)System.out.println("Boucle principale");
-		//Boucle principale
-		for(int x=0;x<xMax;x++) {
-			for(int y=0;y<yMax;y++) {
-				for(int z=0;z<zMax;z++) {
-					if(tabIn[x][y][z]==0)continue;//Point du fond
-					if(tabIn[x][y][z]==-1) {
-						tabIn[x][y][z]=(++curComp);//New object
-						volume[curComp]++;
-					}
-					if(tabIn[x][y][z]>0) {//Here we need to explore the neighbours
-						for(int nei=0;nei<7;nei++)neighbours[nei][3]=1;//At the beginning, every neighbour is possible. 
-						//Then we need to reduce access according to images dims and chosen connexity
-						if(x==xMax-1)neighbours[0][3]=neighbours[1][3]=neighbours[4][3]=neighbours[5][3]=0;
-						if(y==yMax-1)neighbours[1][3]=neighbours[2][3]=neighbours[5][3]=neighbours[6][3]=0;
-						if(z==zMax-1)neighbours[3][3]=neighbours[4][3]=neighbours[5][3]=neighbours[6][3]=0;
-						if(connexity==4)neighbours[1][3]=neighbours[3][3]=neighbours[4][3]=neighbours[5][3]=neighbours[6][3]=0;
-						if(connexity==6)neighbours[1][3]=neighbours[4][3]=neighbours[5][3]=neighbours[6][3]=0;
-						if(connexity==8)neighbours[3][3]=neighbours[4][3]=neighbours[5][3]=neighbours[6][3]=0;
-						if(connexity==18)neighbours[5][3]=0;
-
-						//Given these neighbours, we can visit them
-						for(int nei=0;nei<7;nei++) {
-							if(neighbours[nei][3]==1) {
-								if(tabIn[x+neighbours[nei][0]][y+neighbours[nei][1]][z+neighbours[nei][2]]==0)continue;
-								if(tabIn[x+neighbours[nei][0]][y+neighbours[nei][1]][z+neighbours[nei][2]]==-1) {
-									tabIn[x+neighbours[nei][0]][y+neighbours[nei][1]][z+neighbours[nei][2]]=tabIn[x][y][z];
-									volume[tabIn[x][y][z]]++;
-								}
-								else {
-									connexions[indexConnexions][0]=tabIn[x+neighbours[nei][0]][y+neighbours[nei][1]][z+neighbours[nei][2]];
-									connexions[indexConnexions++][1]=tabIn[x][y][z];
-								}
-							}
-						}
-					}
-				}	
-			}			
-		}
-		
-		if(debug)System.out.println("Resolution des conflits entre groupes connexes");
-		//Resolution des groupes d'objets connectes entre eux (formes en U, et cas plus compliqués)
-		int[]lut = resolveConnexitiesGroupsAndExclude(connexions,indexConnexions,curComp+1,volume,volumeLow/voxVolume,volumeHigh/voxVolume,selectByVolume,noVerbose);
-		
-		
-		//Build computed image of objects
-		ImagePlus imgOut=ij.gui.NewImage.createImage(img.getShortTitle()+"_"+connexity+"CON",xMax,yMax,zMax,16,ij.gui.NewImage.FILL_BLACK);
-		short[] imgOutTab;
-		for(int z=0;z<zMax;z++) {
-			imgOutTab=(short[])(imgOut.getStack().getProcessor(z+1).getPixels());
-			for(int x=0;x<xMax;x++)for(int y=0;y<yMax;y++) imgOutTab[x+xMax*y] = (short) ( lut[tabIn[x][y][z]]  );
-		}
-		imgOut.getProcessor().setMinAndMax(0,lut[curComp+1]);
-		return imgOut;	
-	}
-	
-	public int[] resolveConnexitiesGroupsAndExclude(int  [][] connexions,int nbCouples,int n,int []volume,double volumeLowP,double volumeHighP,int selectByVolume,boolean noVerbose) {
-		int[]prec=new int[n];
-		int[]lut=new int[n+1];
-		int[]next=new int[n];
-		int[]label=new int[n];
-		for(int i=0;i<n;i++) {label[i]=i;prec[i]=0;next[i]=0;}
-		
-		int indA,indB,valMin,valMax,indMin,indMax;
-		for(int couple=0;couple<nbCouples;couple++) {
-			indA=connexions[couple][0];
-			indB=connexions[couple][1];
-			if(label[indA]==label[indB])continue;
-			if(label[indA]<label[indB]) {
-				valMin=label[indA];
-				indMin=indA;
-				valMax=label[indB];
-				indMax=indB;
-			}
-			else {
-				valMin=label[indB];
-				indMin=indB;
-				valMax=label[indA];
-				indMax=indA;
-			}
-			while(next[indMin]>0)indMin=next[indMin];
-			while(prec[indMax]>0)indMax=prec[indMax];
-			prec[indMax]=indMin;
-			next[indMin]=indMax;
-			while(next[indMin]>0) {
-				indMin=next[indMin];
-				label[indMin]=valMin;
-			}
-		}
-		//Compute number of objects and volume
-		for (int i=1;i<n ;i++){
-			if(label[i]!=i) {
-				volume[label[i]]+=volume[i];
-				volume[i]=0;
-			}
-		}
-		//copy and sort volumes
-		Object [][]tabSort=new Object[n][2];
-		int selectedIndex=0;
-		for (int i=0;i<n ;i++) {
-			tabSort[i][0]=new Double(volume[i]);
-			tabSort[i][1]=new Integer(i);
-		}
-
-		
-		Arrays.sort(tabSort,new VolumeComparator());
-		if(selectByVolume>n)selectByVolume=n;
-		if(selectByVolume<1)selectByVolume=0;
-		if(selectByVolume!=0)selectedIndex=((Integer)(tabSort[n-selectByVolume][1])).intValue();
-		
-		//Exclude too big or too small objects,
-		int displayedValue=1;
-		for (int i=1;i<n ;i++){
-			if(selectByVolume!=0) {
-				if(i==selectedIndex)lut[i]=255;
-				else lut[i]=0;
-			}
-			else if( (volume[i]>0) && (volume[i]>=volumeLowP) && (volume[i]<=volumeHighP) ) {
-				lut[i]=displayedValue++;
-			}
-		}
-		if(displayedValue>65000) {System.out.println("Warning : connexe , "+(displayedValue-1)+" connected components");}
-		else if(! noVerbose)System.out.println("Number of connected components detected : "+(selectByVolume>0 ? 1 : (displayedValue-1)));
-
-		//Group labels
-		for (int i=0;i<n ;i++){
-			lut[i]=lut[label[i]];
-		}
-		//Tricky little parameters to provide a good display after operation;
-		if(selectByVolume !=0)lut[n]=255;
-		else lut[n]=displayedValue;
-		return lut;
-	}
-		
-	public void testConnexe(ImagePlus img,int thresh,int volMin,int con) {
-		ImagePlus out=connexe(img,thresh,10E32,volMin,1000000000,con,0,true);
-		out.show();
-//		IJ.setMinAndMax(min, max);
-	}
-	
-	public void testResolve() {
-		int[][]connexions=new int[][]{{1,2},{3,4},{4,5},{2,6},{1,1}};
-		int nbCouples=5;
-		int n=7;
-		int []volumes= {0,20,40,80,160,320,640};
-		int volMin = 100;
-		int volMax = 10000;
-		int[]result=resolveConnexitiesGroupsAndExclude(connexions,nbCouples,n,volumes,volMin,volMax,0,true);
-	}
-	
-
-	
 
 
-	/**
-	 * Image mining utilities
-	 * @param img
-	 * @param voxSize
-	 * @param unit
-	 */
-	public void adjustImageCalibration(ImagePlus img,double []voxSize,String unit) {
-		if(img==null)return;
-		img.getCalibration().setUnit(unit);
-		Calibration cal = img.getCalibration();			
-		cal.pixelWidth =voxSize[0];
-		cal.pixelHeight =voxSize[1];
-		cal.pixelDepth =voxSize[2];
-	}
-	
-	public double getVoxelVolume(ImagePlus img) {
-		return img.getCalibration().pixelDepth*img.getCalibration().pixelWidth*img.getCalibration().pixelHeight;
-	}
-		
-	public double meanValueofImageAround(ImagePlus img,int x0,int y0,int z0,double ray) {
-			int xMax=img.getWidth();
-			int xm=(int)Math.round(x0-ray);
-			int xM=(int)Math.round(x0+ray);
-			int ym=(int)Math.round(y0-ray);
-			int yM=(int)Math.round(y0+ray);
-			if(z0<0)z0=0;
-			if(z0>img.getStackSize()-1)z0=img.getStackSize()-1;
-	
-			if(xm<0)xm=0;
-			if(ym<0)ym=0;
-			if(xm>img.getWidth()-1)xm=img.getWidth()-1;
-			if(ym>img.getHeight()-1)ym=img.getHeight()-1;
-	
-			if(xM<0)xM=0;
-			if(yM<0)yM=0;
-			if(xM>img.getWidth()-1)xM=img.getWidth()-1;
-			if(yM>img.getHeight()-1)yM=img.getHeight()-1;
-			double accumulator=0;
-			double nbHits=0;
-			if(img.getType() == ImagePlus.GRAY8) {
-				byte[] valsImg=(byte [])img.getStack().getProcessor(z0+1).getPixels();
-				for(int x=xm;x<=xM;x++) {
-					for(int y=ym;y<=yM;y++) {
-						if( ((x-xM)*(x-xM)+(y-yM)*(y-yM)) < (ray*ray) ) {
-							accumulator+= (int)(  (  (byte)valsImg[xMax*y+x])  & 0xff);
-							nbHits++;
-						}			
-					}
-				}			
-			}
-			else if(img.getType() == ImagePlus.GRAY16) {
-				short[] valsImg=(short[])img.getStack().getProcessor(z0+1).getPixels();
-				for(int x=xm;x<=xM;x++) {
-					for(int y=ym;y<=yM;y++) {
-						if( ((x-xM)*(x-xM)+(y-yM)*(y-yM)) < (ray*ray) ) {
-							accumulator+= (int)(  (  (short)valsImg[xMax*y+x])  & 0xffff);
-							nbHits++;
-						}			
-					}
-				}			
-			}
-			else if(img.getType() == ImagePlus.GRAY32) {
-				float[] valsImg=(float[])img.getStack().getProcessor(z0+1).getPixels();
-				for(int x=xm;x<=xM;x++) {
-					for(int y=ym;y<=yM;y++) {
-						if( ((x-xM)*(x-xM)+(y-yM)*(y-yM)) < (ray*ray) ) {
-							accumulator+=(float)valsImg[xMax*y+x];
-							nbHits++;
-						}			
-					}
-				}			
-			}
-			if(nbHits==0)return 0;
-			else return (accumulator/nbHits);
-	}
-	
-	public double[][] getCoordinatesOf(ImagePlus img,int computationStyle,int minZ,int maxZ){
-		if(computationStyle==COORD_OF_MAX_IN_TWO_LAST_SLICES) {
+	public static double[][] getCoordinatesOf(ImagePlus img,int computationStyle,int minZ,int maxZ){
+		if(computationStyle==VitimageUtils.COORD_OF_MAX_IN_TWO_LAST_SLICES) {
 			double[][]tabRet=new double[2][3];
 			tabRet[1][2]=tabRet[0][2]=-10E10;
 			if(img.getType() == ImagePlus.GRAY32) {
@@ -1357,11 +968,11 @@ public class TransformUtils {
 		   }
 		}
 	
-	public double norm(double[]v){
+	public static double norm(double[]v){
 		return Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
 	}
 
-	public double[] normalize(double[]v){
+	public static double[] normalize(double[]v){
 		double[] ret=new double[3];
 		double nrm=norm(v);
 		ret[0]=v[0]/nrm;
@@ -1370,11 +981,11 @@ public class TransformUtils {
 		return ret;
 	}
 
-	public double scalarProduct(double[]v1,double []v2){
+	public static double scalarProduct(double[]v1,double []v2){
 		return(v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]);
 	}
 
-	public double [] multiplyVector(double[]v,double factor){
+	public static double [] multiplyVector(double[]v,double factor){
 		double[] ret=new double[3];
 		ret[0]=v[0]*factor;
 		ret[1]=v[1]*factor;
@@ -1382,7 +993,7 @@ public class TransformUtils {
 		return ret;
 	}
 
-	public double[] vectorialProduct(double[]v1,double[]v2){
+	public static double[] vectorialProduct(double[]v1,double[]v2){
 		double[] ret=new double[3];
 		ret[0]=v1[1]*v2[2]-v1[2]*v2[1];		
 		ret[1]=v1[2]*v2[0]-v1[0]*v2[2];		
@@ -1390,7 +1001,7 @@ public class TransformUtils {
 		return ret;
 	}
 
-	public double[] vectorialSubstraction(double[]v1,double[]v2){
+	public static double[] vectorialSubstraction(double[]v1,double[]v2){
 		double[] ret=new double[3];
 		ret[0]=v1[0]-v2[0];		
 		ret[1]=v1[1]-v2[1];		
@@ -1398,15 +1009,22 @@ public class TransformUtils {
 		return ret;
 	}
 	
-	public double[] proj_u_of_v(double[]u,double[]v){
+	public static double[] proj_u_of_v(double[]u,double[]v){
 		double scal1=scalarProduct(u,v);
 		double scal2=scalarProduct(u,u);
 		return multiplyVector(u,scal1/scal2);
 	}
 	
 	
+	public static Point3d convertPointToRealSpace(Point3d p,ImagePlus img) {
+		return new Point3d(p.x*img.getCalibration().pixelWidth , p.y*img.getCalibration().pixelHeight , p.z*img.getCalibration().pixelDepth);
+	}
 
+	public static Point3d convertPointToImageSpace(Point3d p,ImagePlus img) {
+		return new Point3d(p.x/img.getCalibration().pixelWidth, p.y/img.getCalibration().pixelHeight, p.z/img.getCalibration().pixelDepth);
+	}
 	
+
 
 
 	/**
@@ -1414,7 +1032,7 @@ public class TransformUtils {
 	 * @param vect
 	 * @param vectNom
 	 */
-	void printVector(double []vect,String vectNom){
+	static void printVector(double []vect,String vectNom){
 		System.out.println(vectNom+" = [ "+vect[0]+" , "+vect[1]+" , "+vect[2]+" ]");
 	}
 
@@ -1457,7 +1075,7 @@ public class TransformUtils {
 	 	return tr;
  	}
 
-	public Transform readMatrixFromFile(String filePath,boolean debug) {
+	public static Transform readMatrixFromFile(String filePath,boolean debug) {
 		Transform tr=new Transform(1,0,0,0,0,1,0,0,0,0,1,0);
 		if (filePath==null)return tr;
 		String strFile;
@@ -1511,7 +1129,7 @@ public class TransformUtils {
   		return tr;
 	}
 
-	public void writeMatrixToFile(String filePath,Transform tr) {
+	public static void writeMatrixToFile(String filePath,Transform tr) {
 		File f = new File(filePath);
 		try {
 			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(f)));
@@ -1525,7 +1143,7 @@ public class TransformUtils {
 		}
 	}
 	
-	public void printMatrix(String sTitre,double[]tab){
+	public static void printMatrix(String sTitre,double[]tab){
 		String s=new String();
 		s+="\n Affichage de la matrice ";
 		s+=sTitre;
@@ -1550,7 +1168,7 @@ public class TransformUtils {
 	*   P21 is the inverse matrix
 	*   vxRatio is the ratio between the voxel sizes : vx2/vx1     
 	*/
-    public void basisChange(double [] T2,double vxRatio,double vyRatio,double vzRatio,double [] T1){
+    public static void basisChange(double [] T2,double vxRatio,double vyRatio,double vzRatio,double [] T1){
 		double vxRatInv=1.0/vxRatio;
 		double vyRatInv=1.0/vyRatio;
 		double vzRatInv=1.0/vzRatio;
@@ -1571,7 +1189,7 @@ public class TransformUtils {
 	*   P2 is the passage matrix from the registration space to the visualization space, built from the voxelSizes of the initial space scales2
 	* @return The global transformation matrix T' = P1 x T x P2
 	*/
-	public double[] doubleBasisChange(double [] scales1,double [] Tinter,double [] scales2){
+	public static double[] doubleBasisChange(double [] scales1,double [] Tinter,double [] scales2){
 		double [] result=new double[12];
 		double vxRatio=scales1[0];
 		double vyRatio=scales1[1];
@@ -1597,7 +1215,7 @@ public class TransformUtils {
 		return result;
 	}
 
-	public void matrixProduct(double[]tab1,double[]tab2,double[]tab3){
+	public static void matrixProduct(double[]tab1,double[]tab2,double[]tab3){
 		//Matrix product in homogeneous coordinates 
 		// [      Rotation       |Translation_x]
 		// [      Rotation       |Translation_y]

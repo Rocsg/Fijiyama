@@ -1,9 +1,11 @@
 package com.vitimage;
 
+import ij.ImagePlus;
+
 public class MRI_FlipFlop extends Acquisition {
 
-	public MRI_FlipFlop(int typeAcquisition, String sourcePath) {
-		super(typeAcquisition, sourcePath);
+	public MRI_FlipFlop(String sourcePath,Capillary cap) {
+		super(AcquisitionType.MRI_FLIPFLOP_SEQ, sourcePath,cap);
 		// TODO Auto-generated constructor stub
 	}
 
@@ -15,6 +17,18 @@ public class MRI_FlipFlop extends Acquisition {
 
 	@Override
 	public void processData() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public ImagePlus createNormalizedHyperImage() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void setImageForRegistration() {
 		// TODO Auto-generated method stub
 		
 	}

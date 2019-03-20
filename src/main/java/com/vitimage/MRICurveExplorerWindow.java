@@ -280,7 +280,7 @@ public class MRICurveExplorerWindow extends PlugInFrame implements ActionListene
 			info1.setText(info);	
 			plotCan2.repaint();
 		}
-		if (e.getKeyChar()=='m') {Vitimage_Toolbox.notYet("Map computation launch in MRI Curve explorer");}
+		if (e.getKeyChar()=='m') {VitiDialogs.notYet("Map computation launch in MRI Curve explorer");}
 		setCanvasSizes();
 		pack();
 		repaint();

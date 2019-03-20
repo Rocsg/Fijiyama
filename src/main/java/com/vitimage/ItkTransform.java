@@ -1,16 +1,20 @@
 package com.vitimage;
 
+import org.itk.simple.ResampleImageFilter;
 import org.itk.simple.Transform;
-import org.itk.simple.VectorDouble;
-
 import ij.ImagePlus;
-import ij.measure.Calibration;
-import ij.plugin.Duplicator;
+import math3d.Point3d;
+import vib.FastMatrix;
 
 public class ItkTransform extends Transform implements ItkImagePlusInterface{
+
 	public static int runTestSequence() {
 		int nbFailed=0;
-		
+		//test bestRigid, bestAffine, bestSimilityde
+		//test transform ij to ITK, then apply to image
+		//test fast mat to ITK, then apply to image
+		//compare with itk applyed to image
+		//test transform image
 		return nbFailed;
 	}
 	
@@ -20,61 +24,79 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 	
 	public ItkTransform(ItkTransform model) {		
-		super(model);//Aie ?
-		return;
-	}
-
-	public ItkTransform(imagescience.transform.Transform tr) {
-		//Constructeur a ecrire
-		//Ce sera la deuxieme passe
-		return;
-	}
-
-	public ItkTransform(org.itk.simple.Transform model) {
 		super(model);
 		return;
 	}
 
-	public static ItkTransform estimateBestRigid3D(ImagePlus imgRef,ImagePlus imgMov,double[][]pointsRef,double[][]pointsMov) {
-		//A copier
-		//Ce sera la deuxieme passe
-		return null;
+	public static ItkTransform ijTransformToItkTransform(imagescience.transform.Transform tr) {
+		org.itk.simple.AffineTransform aff=new org.itk.simple.AffineTransform(
+				ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {tr.get(0,0),tr.get(0,1),tr.get(0,2),  tr.get(1,0),tr.get(1,1),tr.get(1,2),    tr.get(2,0),tr.get(2,1),tr.get(2,2) } ),
+				ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {tr.get(0,3),tr.get(1,3),tr.get(2,3)} ),   ItkImagePlusInterface.doubleArrayToVectorDouble(   new double[] {0,0,0}  )  );
+		return new ItkTransform(aff);
 	}
 
+	public static ItkTransform fastMatrixToItkTransform(FastMatrix fm) {
+		double[]tab=fm.rowwise16();
+		org.itk.simple.AffineTransform aff=new org.itk.simple.AffineTransform(
+				ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {tab[0],tab[1],tab[2],  tab[4],tab[5],tab[6],    tab[8],tab[9],tab[10] } ),
+				ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {tab[3],tab[7],tab[11] } ),   ItkImagePlusInterface.doubleArrayToVectorDouble(   new double[] {0,0,0}  )  );
+		return new ItkTransform(aff);
+	}
+
+	public ItkTransform(org.itk.simple.Transform tr) {
+		super(tr);
+		return ;
+	}
+
+	public static ItkTransform estimateBestAffine3D(Point3d[]setRef,Point3d[]setMov) {
+		return fastMatrixToItkTransform(FastMatrix.bestLinear( setMov, setRef));
+	}
+	
+	
+	public static ItkTransform estimateBestRigid3D(Point3d[]setRef,Point3d[]setMov) {
+		return fastMatrixToItkTransform(FastMatrix.bestRigid( setMov, setRef, false ));
+	}
+
+	public static ItkTransform estimateBestSimilarity3D(Point3d[]setRef,Point3d[]setMov) {
+		return fastMatrixToItkTransform(FastMatrix.bestRigid( setMov, setRef, true ));
+	}
+	
+	public ImagePlus transformImage(ImagePlus imgRef, ImagePlus imgMov) {
+		int val=Math.min(  10    ,    Math.min(   imgMov.getWidth()/20    ,   imgMov.getHeight()/20  ));
+		int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(imgMov,val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(imgMov,imgMov.getWidth()-val-1,imgMov.getHeight()-val-1,0,val)*0.5    );
+		ResampleImageFilter resampler=new ResampleImageFilter();
+		resampler.setDefaultPixelValue(valMean);
+		resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(imgRef));
+		resampler.setTransform(this);
+		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
+	}	
+
+
+	
 	public static ItkTransform readTransformFromFile(String path) {
-		//Constructeur statique à ecrire, qui s'appuie sur les fonctions de lecture et ecriture
-		//Ce sera la deuxieme passe
-		return null;
-	}
-
-	public static ItkTransform computeTransformationForBoutureAlignment(ImagePlus img,boolean automaticDetection,double[][]coordinates,boolean b2) {
-		//detectInoculationPoint(imgTempZ[0]
-		//Ce sera la deuxieme passe
+		VitiDialogs.notYet("ItkTransform > readTransformFromFile");
 		return null;
 	}
 
 
-	public ItkTransform simplify() {
-		//Methode à écrire, qui retire les identités.
-		//Ce sera la deuxieme passe
-		return this;
+
+	public void simplify() {
+		VitiDialogs.notYet("ItkTransform > simplify");
 	}
 
 	public int nbTransformComposed() {
+		VitiDialogs.notYet("ItkTransform > nbTransformComposed");
+		return 0;
 		//A reecrire au vu des decouvertes effectuees sur les chevrons
 		//Ce sera la deuxieme passe
+		
+		/*
 		int nb=(this.toString().split("<<<<<<<<<<")[0].split(">>>>>>>>>").length-1);
 		if(nb==0)nb=1;
-		return nb;
+		return nb;*/
 	}
 
 
-
-	public ImagePlus transformImage(ImagePlus imgMov, ImagePlus imgRef) {
-		// Il s'agit de la méthode permettant de faire des transformations effectives des images, d'un espace mov vers un espace ref, en passant par une transformationa
-		//Ce sera la deuxieme passe
-		return null;
-	}	
 
 	
 	public String toString(String title) {
