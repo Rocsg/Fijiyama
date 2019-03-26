@@ -28,6 +28,7 @@ public abstract class Acquisition implements VitimageUtils{
 	/**
 	 * Parameters
 	 */
+	protected int hyperSize=1;
 	protected ImagePlus normalizedHyperImage;
 	protected ImagePlus[]sourceData;
 	protected ImagePlus[]computedData;
@@ -91,6 +92,7 @@ public abstract class Acquisition implements VitimageUtils{
 	public abstract void setImageForRegistration();
 	public abstract void quickStartFromFile();
 	public abstract void processData();
+	public abstract void start();
 
 	
 	/**
@@ -112,6 +114,7 @@ public abstract class Acquisition implements VitimageUtils{
 	
 	public ImagePlus getImageForRegistrationWithoutCapillary() {
 		ImagePlus img=new Duplicator().run(this.imageForRegistration);
+		if (this.capillary == Capillary.HAS_NO_CAPILLARY)return img;
 		ImagePlus imgSliceInput;
 		int xMax=this.dimX;
 		int yMax=this.dimY;
@@ -162,7 +165,9 @@ public abstract class Acquisition implements VitimageUtils{
 			}
 			else IJ.log("Remove capillary : image type not handled ("+imgSliceInput.getType()+")");
 		}
-		return new ImagePlus("Result_"+img.getShortTitle()+"_no_cap.tif",isRet);	
+		ImagePlus res=new ImagePlus("Result_"+img.getShortTitle()+"_no_cap.tif",isRet);
+		VitimageUtils.adjustImageCalibration(res, this.imageForRegistration);
+		return res;	
 	}
 	
 	public ImagePlus getTransformedRegistrationImage(ImagePlus imgReference) {
@@ -185,7 +190,7 @@ public abstract class Acquisition implements VitimageUtils{
 	public double computeRiceSigmaFromBackgroundValues() {
 		double val1=meanBackground * Math.sqrt(2.0/Math.PI);
 		double val2=sigmaBackground * Math.sqrt(2.0/(4.0-Math.PI));
-		if(Math.abs((val1-val2)/val2) >0.3) {IJ.showMessage("Warning : Acquisition > computeRiceSigma : estimation of sigma rice does not lead to "+
+		if(Math.abs((val1-val2)/val2) >0.3) {System.out.println("Warning : Acquisition > computeRiceSigma : estimation of sigma rice does not lead to "+
 					"the same results from Mu and Sigma : "+val1+" , "+val2+". Initial background characteristics were : "+
 				"sigmaBack="+this.sigmaBackground+" , meanBack="+this.meanBackground+" .Go ahead with the result using the mean, more robust to any eventual preprocessing that obviously occurred there");
 		}
@@ -237,7 +242,7 @@ public abstract class Acquisition implements VitimageUtils{
 			stats[i]=(VitimageUtils.statistics1D(vals[i]));
 			System.out.println("  --> Stats zone "+i+" =  ( "+stats[i][0]+" , "+stats[i][1]+")");
 			if( (Math.abs(stats[i][0]-globStats[0])/globStats[0]>0.3)){
-				IJ.showMessage("Warning : noise computation of "+this.getSourcePath()+" "+this.getTitle()+
+				System.out.println("Warning : noise computation of "+this.getSourcePath()+" "+this.getTitle()+
 							" There should be an object in the supposed background\nthat can lead to misestimate background values. Detected at slice "+samplSize/2+"at "+
 							(i==0 ?"Up-left corner" : i==1 ? "Down-left corner" : i==2 ? "Up-right corner" : "Down-right corner")+
 							". Mean values of squares="+globStats[0]+". Outlier value="+vals[i][0]+" you should inspect the image and run again.");
@@ -383,6 +388,8 @@ public abstract class Acquisition implements VitimageUtils{
 	public String getSourcePath() {
 		return sourcePath;
 	}
-
+	public ImagePlus getImageForRegistration() {
+		return this.imageForRegistration;
+	}
 	
 }

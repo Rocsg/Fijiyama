@@ -272,6 +272,7 @@ public interface ItkImagePlusInterface {
 	public enum Transformation3DType{
 		TRANSLATION,
 		EULER,
+		EULER2D,
 		VERSOR,
 		AFFINE,
 		SIMILARITY

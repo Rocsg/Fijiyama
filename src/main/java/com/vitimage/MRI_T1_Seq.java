@@ -76,6 +76,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	 */
 	public MRI_T1_Seq(String sourcePath,Capillary cap,SupervisionLevel sup) {
 		super(AcquisitionType.MRI_T1_SEQ, sourcePath,cap,sup);
+		this.hyperSize=2;
 	}
 
 	public static MRI_T1_Seq MRI_T1_SeqFactory(String sourcePath,Capillary cap,SupervisionLevel sup,String dataPath) {
@@ -111,7 +112,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 			writeHyperImage();
 			break;
 		case 4:
-			IJ.showMessage("Computation finished for "+this.getTitle());
+			System.out.println("MRI_T1_Seq Computation finished for "+this.getTitle());
 			return false;
 		}
 		writeStep(a+1);	
@@ -173,7 +174,8 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 			//look for a directory Source_data
 			System.out.println("No match with previous analysis ! Starting new analysis...");
 			File directory = new File(this.sourcePath,"Source_data");
-			if(! directory.exists()) {
+			File pathlink = new File(this.sourcePath,"DATA_PATH.tag");
+			if(! directory.exists() && ! pathlink.exists()) {
 				writeStep(-1);
 				return;
 			}
@@ -202,7 +204,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 			 strFile=str.split("\n");
        } catch (IOException ex) {        ex.printStackTrace();   }
 		for(int i=1;i<strFile.length ; i++) {
-			System.out.println("Lecture de la chaine : "+strFile[i]);strFile[i]=strFile[i].split("=")[1];
+			strFile[i]=strFile[i].split("=")[1];
 		}
 		this.sourcePath=strFile[2];
 		this.dataPath=strFile[3];
@@ -272,7 +274,19 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	public void readSourceData() {
 		if( ! this.oldBehaviour) {
 			//Chercher un dossier SL_RAW dans le dossier SourceData
-			File f=new File(this.sourcePath, "Source_data"+slash+"SL_RAW");
+			
+			File pathlink = new File(this.sourcePath,"DATA_PATH.tag");
+			File directory = new File(this.sourcePath,"Source_data");
+			File f=null;
+			if(directory.exists())f=new File(this.sourcePath, "Source_data"+slash+"SL_RAW");
+			else {
+				try {
+					 String str= Files.lines(Paths.get(pathlink.getAbsolutePath()) ).collect(Collectors.joining("\n"));
+					 String strFile=str.split("=")[1];
+					 f=new File(strFile+slash+"SL_RAW");
+		       } catch (IOException ex) {        ex.printStackTrace();   }
+			}
+			
 			if(! f.exists()) {IJ.showMessage("Source path not found : "+this.sourcePath+slash+"Source_data"+slash+"SL_RAW");return;}
 			String strPath=f.getAbsolutePath();
 			String[] strEchoes=f.list();
@@ -439,7 +453,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 		System.out.println("Mask computation : gaussian filtering, and 3D connected component research (~1 mn)...");
 		ImagePlus img=new Duplicator().run(sourceData[sourceData.length-1]);
 		img=VitimageUtils.gaussianFiltering(img,2*this.voxSX(),2*this.voxSY(),2*this.voxSX());
-		double val=this.getCapillaryValue(img);
+		double val=(this.capillary==Capillary.HAS_CAPILLARY ? this.getCapillaryValue(img) : this.defaultNormalisationValues()[0]);
 		ImagePlus imgConObject=VitimageUtils.connexe(img,val/5, val*2,0,10E10,6,1,true);
 		ImagePlus imgConCap=VitimageUtils.connexe(img,val/3, val*2,0,10E10,6,2,true);
 		IJ.run(imgConObject,"8-bit","");

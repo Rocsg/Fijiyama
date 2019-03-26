@@ -11,27 +11,13 @@ public class KhalifaTestSpace {
 	
 	public static void main(String[]args) {
 		System.out.println("Lancement tests Khalifa");
-		testAutomaticRegistration();
-		/*ImageJ ij=new ImageJ();
-		ImagePlus imgReference=IJ.openImage("/home/fernandr/Bureau/Test/Origine/RX_flip.tif");
-		ImagePlus imgMoving=IJ.openImage("/home/fernandr/Bureau/Test/Origine/IRM.tif");
-		imgMoving=runManualRegistration(imgReference,imgMoving);
-		runAutomaticRegistration(imgReference,imgMoving);
-		*/
-	}
-	
-	
-	public static void testManualRegistration() {
-		
-		
-	}
-	
-	public static void testAutomaticRegistration() {
 		ImageJ ij=new ImageJ();
 		ImagePlus imgReference=IJ.openImage("/home/fernandr/Bureau/Test/Origine/RX_flip_sub.tif");
-		ImagePlus imgMoving=IJ.openImage("/home/fernandr/Bureau/Test/Origine/IRM_to_RX_flip_sub.tif");
+		ImagePlus imgMoving=IJ.openImage("/home/fernandr/Bureau/Test/Origine/IRM_sub.tif");
+		imgMoving=runManualRegistration(imgReference,imgMoving);
 		runAutomaticRegistration(imgReference,imgMoving);
 	}
+	
 	
 	public static ImagePlus runManualRegistration(ImagePlus imgRef,ImagePlus imgMov) {
 		ImagePlus imgReference=new Duplicator().run(imgRef);
@@ -45,7 +31,7 @@ public class KhalifaTestSpace {
 		int nbWantedPointsPerImage=5;
 		int j=-1;
 		ItkTransform transGlobal=new ItkTransform();
-		while(j<3) {
+		while(j<2) {
 			j++;
 			Point3d [][]pointTab=VitiDialogs.registrationPointsUI(nbWantedPointsPerImage, imgReference,imgMoving, computeRealCoordinatesTransformation);
 			Point3d []pRef=pointTab[0];
@@ -72,25 +58,14 @@ public class KhalifaTestSpace {
 	public static ImagePlus runAutomaticRegistration(ImagePlus imgRef,ImagePlus imgMov) {
 		System.out.println("Recalage automatique");
 		ItkRegistrationManager manager=new ItkRegistrationManager();
-		ImagePlus result=manager.runScenarioInterModal(imgRef, imgMov);
+		ItkTransform transformAutomatic=manager.runScenarioInterModal(new ItkTransform(),imgRef, imgMov);
+		ImagePlus result=transformAutomatic.transformImage(imgRef, imgMov);
 		System.out.println("Recalage ok.");
+		result.getProcessor().resetMinAndMax();
 		result.show();
-		ImagePlus result2=VitimageUtils.convertFloatToShortWithoutDynamicChanges(result);
-		System.out.println("Conversion  ok");
-		result2.setTitle("Resultat recalage auto");
-		result2.getProcessor().resetMinAndMax();
-		result2.show();
-		return result2;
+		return result;
 	}
 	
 	
 	
-	
-	
-	
-	
-	public KhalifaTestSpace() {
-		
-	}
-
 }

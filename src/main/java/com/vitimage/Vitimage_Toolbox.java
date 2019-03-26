@@ -16,6 +16,7 @@ import ij.plugin.Duplicator;
 import ij.plugin.PlugIn;
 import ij.plugin.frame.RoiManager;
 import ij.process.FloatPolygon;
+import ij.process.StackProcessor;
 import ij.plugin.RGBStackMerge;
 
 import java.awt.Color;
@@ -91,9 +92,30 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 	public static void main(String[] args) {
 		ImageJ imageJ = new ImageJ();
 		Vitimage_Toolbox viti=new Vitimage_Toolbox();
-		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/T1_echo1.tif");
+//		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/T1_echo1.tif");
+		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/VITIMAGE4D/Source_data/MRI_T1_SEQ/Computed_data/3_HyperImage/hyperImage.tif");
+		img.show();
+		ImagePlus []tab=VitimageUtils.stacksFromHyperstack(img, 2);
+		tab[0].show();
+		tab[1].show();
+		VitimageUtils.waitFor(10000);
+		System.exit(0);
+
+		ItkTransform itkTrans=ItkTransform.readFromFile("/home/fernandr/Bureau/Test/VITIMAGE4D/Computed_data/0_Registration/transformation_2_step_afterAxisAlignment.txt");
+		System.out.println("itkTrans = "+itkTrans);
+		ItkTransform itkTrans2=itkTrans.simplify();
+		System.out.println("itkTrans2 = "+itkTrans2);
 		
-//		viti.startPlugin(false);//Basic behaviour is making debugging test
+		Transform transIj=new Transform(1,2,3,4,5,6,7,8,9,10,11,12);
+		ItkTransform transItk=ItkTransform.ijTransformToItkTransform(transIj);
+		transItk.addTransform(transItk);
+		transItk.writeToFile("/home/fernandr/Bureau/Test/testWrite.txt");
+		ItkTransform trans2=ItkTransform.readFromFile("/home/fernandr/Bureau/Test/testWrite.txt");
+		System.out.println("Et en effet :");
+		System.out.println("Transfo 1 ="+transItk);
+		System.out.println("Transfo 2 ="+trans2);
+		
+		//		viti.startPlugin(false);//Basic behaviour is making debugging test
 		//viti.analyse();
 	}	
 	public void run(String arg) {
