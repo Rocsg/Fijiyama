@@ -93,6 +93,7 @@ public interface VitimageUtils {
 
 	}
 
+	public final static String slash=File.separator;
 	public static final int ERROR_VALUE=-1;
 	public static final int COORD_OF_MAX_IN_TWO_LAST_SLICES=1;
 	public static final int COORD_OF_MAX_ALONG_Z=2;
@@ -1040,6 +1041,16 @@ public interface VitimageUtils {
 		gaussFilter.setSigma(sigmaZ);
 		img=gaussFilter.execute(img);
 		return ItkImagePlusInterface.itkImageToImagePlus(img);
+	}
+	
+	public static ImagePlus getTestImage(String title) {
+		System.out.println("Ouverture d image test : "+System.getProperty("user.dir")+slash+"src/test/imgs"+slash+title);
+		return IJ.openImage(System.getProperty("user.dir")+slash+"src/test/imgs"+slash+title);
+	}
+	
+	public static void saveTestResult(ImagePlus img, String title) {
+		System.out.println("Sauvegarde image resultat : "+System.getProperty("user.dir")+slash+"src/test/imgs"+slash+title);
+		IJ.saveAsTiff(img, System.getProperty("user.dir")+slash+"src/test/imgs"+slash+title);
 	}
 	
 	

@@ -10,12 +10,18 @@ public class KhalifaTestSpace {
 	
 	
 	public static void main(String[]args) {
+		testRomain();
+	}
+
+	
+	public static void testRomain() {
 		System.out.println("Lancement tests Khalifa");
 		ImageJ ij=new ImageJ();
-		ImagePlus imgReference=IJ.openImage("/home/fernandr/Bureau/Test/Origine/RX_flip_sub.tif");
-		ImagePlus imgMoving=IJ.openImage("/home/fernandr/Bureau/Test/Origine/IRM_sub.tif");
+		ImagePlus imgReference=VitimageUtils.getTestImage("RX_flip_sub.tif");
+		ImagePlus imgMoving=VitimageUtils.getTestImage("IRM_sub.tif");
 		imgMoving=runManualRegistration(imgReference,imgMoving);
-		runAutomaticRegistration(imgReference,imgMoving);
+		VitimageUtils.saveTestResult(imgMoving,"IRM_sub_to_RX_flip_sub.tif");
+		runAutomaticRegistration(imgReference,imgMoving);		
 	}
 	
 	
@@ -58,7 +64,7 @@ public class KhalifaTestSpace {
 	public static ImagePlus runAutomaticRegistration(ImagePlus imgRef,ImagePlus imgMov) {
 		System.out.println("Recalage automatique");
 		ItkRegistrationManager manager=new ItkRegistrationManager();
-		ItkTransform transformAutomatic=manager.runScenarioInterModal(new ItkTransform(),imgRef, imgMov);
+		ItkTransform transformAutomatic=manager.runScenarioKhalifa(new ItkTransform(),imgRef, imgMov);
 		ImagePlus result=transformAutomatic.transformImage(imgRef, imgMov);
 		System.out.println("Recalage ok.");
 		result.getProcessor().resetMinAndMax();

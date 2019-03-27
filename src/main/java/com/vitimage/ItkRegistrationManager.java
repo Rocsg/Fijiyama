@@ -39,7 +39,7 @@ import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
 
 public class ItkRegistrationManager implements ItkImagePlusInterface{
-	boolean lookLikeOptimizerLooks=true;
+	boolean lookLikeOptimizerLooks=false;
 	boolean movie3D=false;
 	CenteredTransformInitializerFilter centerTransformFilter;
 	private RecursiveGaussianImageFilter gaussFilter;
@@ -170,6 +170,37 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 	}
 
 	
+
+	public ItkTransform runScenarioKhalifa(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov) {
+		this.setMovingImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgMov));
+		this.setReferenceImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgRef));
+		this.setViewSlice(imgRef.getStackSize()/2);
+		this.setMetric(MetricType.MATTES);
+		OptimizerType opt=OptimizerType.AMOEBA ;
+		SamplingStrategy samplStrat=SamplingStrategy.NONE;
+		int dimMinPyramide=3;
+		int dimMinImage=Math.min(imgRef.getWidth()  , Math.min( imgRef.getHeight()  , imgRef.getStackSize() ) );
+		int levelMax=3;//1+(int)Math.floor(Math.log(dimMinImage/dimMinPyramide)/Math.log(2) );
+		int levelMin=1;
+
+		this.addStepToQueue( levelMin ,     levelMax    ,     1     ,    40  , 0.3   ,       Transformation3DType.VERSOR,    null,
+				opt  , ScalerType.SCALER_PHYSICAL, null ,
+		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
+
+		this.addStepToQueue( levelMin ,     levelMax/2    ,     1     ,    40  , 0.3   ,       Transformation3DType.SIMILARITY,    null,
+				opt  , ScalerType.SCALER_PHYSICAL, null ,
+		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
+
+		this.transform=new ItkTransform(trans);
+
+		this.register();
+		this.showRegistrationSummary();
+		
+		ImagePlus result=this.computeRegisteredImage();
+		//return result;
+		
+		return this.transform;
+	}
 	
 	public ItkTransform runScenarioInterModal(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov) {
 		this.setMovingImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgMov));
