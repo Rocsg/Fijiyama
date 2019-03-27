@@ -99,7 +99,7 @@ public class Analyze {
 			else if(explorer) ret+= startExploration();
 			else if(currentShowing==null && getImages)ret+=showImagesForThisStep(indexExplore2);
 			else if(currentShowing != null && hideImages)ret+=hideImages();
-			else if(currentShowing != null && inspection) {ImagePlus img=IJ.getImage();Vitimage_Toolbox.imageChecking(img);ret+="Inspection realisee";}
+			else if(currentShowing != null && inspection) {ImagePlus img=IJ.getImage();VitimageUtils.imageChecking(img);ret+="Inspection realisee";}
 			else if(minHistory || history)ret=ret+"";
 			else if(dontGotIt)ret+= ("Je n'ai pas compris. Mes capacités de comprehension sont encore limitées. Pourriez-vous enoncer plus distinctement votre requête ?");
 /*			else{

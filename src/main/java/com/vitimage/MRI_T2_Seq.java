@@ -282,7 +282,8 @@ public class MRI_T2_Seq extends Acquisition{
 				try {
 					 String str= Files.lines(Paths.get(pathlink.getAbsolutePath()) ).collect(Collectors.joining("\n"));
 					 String strFile=str.split("=")[1];
-					 f=new File(strFile+slash+"SL_RAW");
+					 System.out.println("Open data directory : "+strFile);
+					 f=new File(strFile); 
 		       } catch (IOException ex) {        ex.printStackTrace();   }
 			}
 			
@@ -337,6 +338,7 @@ public class MRI_T2_Seq extends Acquisition{
 				System.out.println("Importation de la sequence");
 				System.out.println("path="+str);
 				sourceData[i] = FolderOpener.open(str, "");
+				VitimageUtils.imageChecking(sourceData[i],"Source data["+i+"]");
 			}
 			this.setDimZ(sourceData[0].getStackSize());
 		}
@@ -448,6 +450,7 @@ public class MRI_T2_Seq extends Acquisition{
 		ImageCalculator ic=new ImageCalculator();
 		this.mask = ic.run("OR create stack", imgConObject,imgConCap);
 		System.out.println("Ok.");
+		VitimageUtils.imageCheckingFast(this.mask,"T2 Mask");
 	}
 	
 

@@ -63,8 +63,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Test/VITIMAGE4D");			
-		System.out.println("Toto 1");
+		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B001_PAL/Source_data/J70");			
 		viti.start();
 		viti.normalizedHyperImage.show();
 	}
@@ -508,7 +507,6 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		ImagePlus imgDebug=this.acquisition.get(0).getImageForRegistrationWithoutCapillary();
 		imgDebug.getProcessor().resetMinAndMax();
 		VitimageUtils.imageChecking(imgDebug);
-
 		System.out.println("La transformation qui va etre appliquee est la suivante "+this.transformation.get(0));
 		ImagePlus imgRef= this.transformation.get(0).transformImage(this.acquisition.get(0).imageForRegistration,this.acquisition.get(0).getImageForRegistrationWithoutCapillary());
 		imgRef.getProcessor().resetMinAndMax();

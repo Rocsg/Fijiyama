@@ -304,7 +304,9 @@ public class RX extends Acquisition{
 		System.out.println("Voxel size avant="+this.voxSX()+" , " +this.voxSY()+" , " +this.voxSZ());
 		System.out.println("Voxel size apres="+this.voxSXFull()+" , " +this.voxSYFull()+" , " +this.voxSZFull());
 		System.out.println("Dim size avant="+this.dimX()+" , " +this.dimY()+" , " +this.dimZ());
-		System.out.println("Dim size apres="+this.dimXFull()+" , " +this.dimYFull()+" , " +this.dimZFull());		
+		System.out.println("Dim size apres="+this.dimXFull()+" , " +this.dimYFull()+" , " +this.dimZFull());	
+		VitimageUtils.imageCheckingFast(this.sourceData[0],"RX SourceData[0]");
+		VitimageUtils.imageCheckingFast(this.sourceData[1],"RX SourceData[1]");
 	}
 
 	
@@ -372,6 +374,7 @@ public class RX extends Acquisition{
 		IJ.run(imgConObject,"8-bit","");
 		this.mask = imgConObject;
 		System.out.println("Ok.");
+		VitimageUtils.imageCheckingFast(this.mask,"RX mask");
 	}
 	
 	public ImagePlus computeNormalizedHyperImage() {

@@ -957,6 +957,7 @@ public interface VitimageUtils {
 		int maxDurationForVisualConfort=1000/minFrameRateForVisualConfort;
 		if (imgInit==null)return;
 		ImagePlus img=new Duplicator().run(imgInit,1,imgInit.getStackSize());
+		img.getProcessor().resetMinAndMax();
 		String titleOld=img.getTitle();
 		String str;
 		if (message.compareTo("")==0)str=titleOld;
@@ -1009,6 +1010,11 @@ public interface VitimageUtils {
 		if (message.compareTo("")==0)imageChecking(img,0,img.getStackSize()-1,1,img.getTitle(),totalDuration);
 		else imageChecking(img,0,img.getStackSize()-1,1,message,totalDuration);
 	}
+	public static void imageCheckingFast(ImagePlus img,String message) {
+		if (message.compareTo("")==0)imageChecking(img,0,img.getStackSize()-1,1,img.getTitle(),2);
+		else imageChecking(img,0,img.getStackSize()-1,1,message,4);
+	}
+
 	public static void imageChecking(ImagePlus img,String message) {
 		if (message.compareTo("")==0)imageChecking(img,0,img.getStackSize()-1,1,img.getTitle(),4);
 		else imageChecking(img,0,img.getStackSize()-1,1,message,4);

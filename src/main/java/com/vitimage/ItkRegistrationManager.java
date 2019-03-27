@@ -211,16 +211,16 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		SamplingStrategy samplStrat=SamplingStrategy.NONE;
 		int dimMinPyramide=3;
 		int dimMinImage=Math.min(imgRef.getWidth()  , Math.min( imgRef.getHeight()  , imgRef.getStackSize() ) );
-		int levelMax=4;//1+(int)Math.floor(Math.log(dimMinImage/dimMinPyramide)/Math.log(2) );
+		int levelMax=2;//1+(int)Math.floor(Math.log(dimMinImage/dimMinPyramide)/Math.log(2) );
 		int levelMin=1;
 
-		this.addStepToQueue( levelMin ,     levelMax    ,     1     ,    40  , 0.3   ,       Transformation3DType.VERSOR,    null,
+		this.addStepToQueue( levelMin ,     levelMax    ,     1     ,    80  , 0.3   ,       Transformation3DType.VERSOR,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-		this.addStepToQueue( levelMin ,     levelMax/2    ,     1     ,    40  , 0.3   ,       Transformation3DType.SIMILARITY,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
+//		this.addStepToQueue( levelMin ,     levelMax/2    ,     1     ,    40  , 0.3   ,       Transformation3DType.SIMILARITY,    null,
+		//				opt  , ScalerType.SCALER_PHYSICAL, null ,
+		//false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
 		this.transform=new ItkTransform(trans);
 
@@ -511,6 +511,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 			tabImg[i]=registrationSummary.get(i);
 		}
 		this.summary=Concatenator.run(tabImg);
+		IJ.saveAsTiff(this.summary, "/home/fernandr/tmpImageRec.tif");
 		VitimageUtils.imageChecking(this.summary,0,this.summary.getStackSize()-1,2,"Registration summary",20);
 		this.summary.changes=false;
 		this.summary.close();

@@ -14,13 +14,16 @@ public class KhalifaTestSpace {
 		//Go
 	}
 
+	public static void testKhalifa() {
+	}
+	
 	
 	public static void testRomain() {
 		System.out.println("Lancement tests Khalifa");
 		ImageJ ij=new ImageJ();
-		ImagePlus imgReference=VitimageUtils.getTestImage("RX_flip_sub.tif");
-		ImagePlus imgMoving=VitimageUtils.getTestImage("IRM_sub.tif");
-		imgMoving=runManualRegistration(imgReference,imgMoving);
+		ImagePlus imgReference = VitimageUtils.getTestImage("RX_flip_sub_sub.tif");
+		ImagePlus imgMoving=VitimageUtils.getTestImage("IRM_sub_sub.tif");
+		imgMoving = runManualRegistration(imgReference,imgMoving);
 		VitimageUtils.saveTestResult(imgMoving,"IRM_sub_to_RX_flip_sub.tif");
 		runAutomaticRegistration(imgReference,imgMoving);		
 	}
@@ -54,7 +57,7 @@ public class KhalifaTestSpace {
 			result.show();
 			ImagePlus comp=VitimageUtils.compositeOf(imgReference, result);
 			VitimageUtils.imageChecking(comp);
-			VitimageUtils.waitFor(10000);
+			VitimageUtils.waitFor(1000);
 			//trans.writeTransform("/home/fernandr/Bureau/Test/Origine/trans_"+j+".itktr");
 			imgMoving=result;
 		}
