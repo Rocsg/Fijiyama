@@ -6,6 +6,7 @@ import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
+import ij.plugin.Duplicator;
 import ij.plugin.frame.RoiManager;
 import math3d.Point3d;
 
@@ -230,5 +231,46 @@ public interface VitiDialogs {
 		return new Point3d[][] {pRef,pMov};
 	}
 	
+	public static Point3d inspectInoculationPoint(ImagePlus img,Point3d suggestedInocPoint) {
+		double ray=1;//en mm
+		ImagePlus imgInspect=new Duplicator().run(img);
+		Point3d pointCoordImage=TransformUtils.convertPointToImageSpace(suggestedInocPoint,imgInspect);
+		imgInspect.getProcessor().resetMinAndMax();
+		IJ.run(imgInspect,"8-bit","");
+		ImagePlus imgPoint=ij.gui.NewImage.createImage("point",img.getWidth(),img.getHeight(),img.getStackSize(),8,ij.gui.NewImage.FILL_BLACK);
+		VitimageUtils.adjustImageCalibration(imgPoint,imgInspect);
+		imgPoint=VitimageUtils.drawCircleInImage(imgPoint,ray,(int)Math.round(pointCoordImage.x),(int)Math.round(pointCoordImage.y),(int)Math.round(pointCoordImage.z));
+		ImagePlus comp=VitimageUtils.compositeOf(imgInspect, imgPoint);
+		VitimageUtils.imageChecking(comp, (int)Math.round(pointCoordImage.z)-comp.getStackSize()/10,
+										  (int)Math.round(pointCoordImage.z)+comp.getStackSize()/10, 
+									  	  3, "Suggested inoculation point", 5,false);
+		comp.show();
+		comp.setSlice((int)Math.round(pointCoordImage.z)+1);
+		int secondsLast=15;
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		IJ.setTool("point");
+		while(secondsLast-- > 0) {
+			comp.setTitle("Change inoc point if necessary. "+secondsLast+" s left...");
+			VitimageUtils.waitFor(1000);
+		}
+		if(rm.getCount()==0) {
+			rm.close();
+			comp.changes=false;
+			comp.close();
+			imgInspect.changes=false;
+			imgInspect.close();		
+			return suggestedInocPoint;
+		}
+		
+		pointCoordImage=new Point3d(rm.getRoi(0 ).getXBase() , rm.getRoi(0).getYBase() ,  rm.getRoi(0).getZPosition());
+		pointCoordImage=TransformUtils.convertPointToRealSpace(pointCoordImage,imgInspect);
+		rm.close();
+		comp.changes=false;
+		comp.close();
+		imgInspect.changes=false;
+		imgInspect.close();
+		return pointCoordImage;		
+	}
 	
 }

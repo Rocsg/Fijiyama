@@ -30,6 +30,9 @@ import ij.plugin.ImageCalculator;
 import ij.process.FloatProcessor;
 
 public class MRI_T2_Seq extends Acquisition{
+	private final double sigmaGaussMapInPixels=0.5;
+	private boolean removeOutliers=true;
+	private double thresholdOutlier=1.5;
 	private double Te[];
 	private double Tr;
 	private double fieldPower;
@@ -44,7 +47,7 @@ public class MRI_T2_Seq extends Acquisition{
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Test/MRI_T2_SEQ",Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED);
+		MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B001_PAL/Source_data/J000/Source_data/MRI_T2_SEQ",Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_T2");
 		mri.start();//
 	}
 
@@ -55,24 +58,27 @@ public class MRI_T2_Seq extends Acquisition{
 	 * Constructors, factory and top level functions
 	 */
 
-	public MRI_T2_Seq(String sourcePath,Capillary cap,SupervisionLevel sup) {
+	public MRI_T2_Seq(String sourcePath,Capillary cap,SupervisionLevel sup,String title) {
 		super(AcquisitionType.MRI_T2_SEQ, sourcePath,cap,sup);
-		this.hyperSize=2;
+		this.title=title;
+		this.hyperSize=3;
 	}
 
 	public static MRI_T2_Seq MRI_T2_SeqFactory(String sourcePath,Capillary cap,SupervisionLevel sup,String dataPath) {
-		MRI_T2_Seq mri=new MRI_T2_Seq(sourcePath,cap,sup);
+		MRI_T2_Seq mri=new MRI_T2_Seq(sourcePath,cap,sup,"Factory");
 		mri.start();
 		return mri;
 	}
 
 	public void start() {
+		this.printStartMessage();
 		quickStartFromFile();
 		while(nextStep());
 	}
 	
 	public boolean nextStep(){
 		int a=readStep();
+		System.out.println("------> "+ " next step : "+a+" "+this.getTitle());
 		switch(a) {
 		case -1:
 			IJ.showMessage("Critical fail, no directory found Source_data in the current directory");
@@ -135,7 +141,9 @@ public class MRI_T2_Seq extends Acquisition{
 	@Override
 	public void quickStartFromFile() {
 		//Gather the path to source data
-		System.out.println("Read a T2 sequence hosted in "+this.sourcePath);
+		System.out.println("Quick start : RX sequence hosted in ");
+		System.out.println(this.sourcePath.substring(0,this.sourcePath.length()/2));
+		System.out.println(this.sourcePath.substring(this.sourcePath.length()/2+1));
 
 		//Explore the path, look for STEPS_DONE.tag and DATA_PARAMETERS.tag
 		File fStep=new File(this.sourcePath+slash+"STEPS_DONE.tag");
@@ -249,7 +257,7 @@ public class MRI_T2_Seq extends Acquisition{
 	
 	
 	public void correctWeirdStuffInTheFirstSlices() {
-		int []coordinates=this.detectCapillaryPosition();
+		int []coordinates=this.detectCapillaryPosition(this.dimZ()/2);
 		for(int ech=0;ech<this.sourceData.length ; ech++) {
 			ImagePlus img=sourceData[ech];
 			double valueSlice1=VitimageUtils.meanValueofImageAround(img,coordinates[0],coordinates[1],0,2);
@@ -320,9 +328,11 @@ public class MRI_T2_Seq extends Acquisition{
 			sourceData=new ImagePlus[nEch];
 			Te=new double[nEch];
 
-			
+			System.out.println("T2 Sequences importation ("+nEch+" echos) from "+fiTr.getAbsolutePath());
+		
 			//Pour chaque Te
 			for(int i=0;i<nEch;i++) {
+				System.out.print(i+" ");
 				fiEc=new File(fiTr.getAbsolutePath(),strEchoes[i]);
 				strSlices=fiEc.list();
 				
@@ -335,12 +345,11 @@ public class MRI_T2_Seq extends Acquisition{
 				
 				//Importer la sequence
 				String str=fiEc.getAbsolutePath();
-				System.out.println("Importation de la sequence");
-				System.out.println("path="+str);
 				sourceData[i] = FolderOpener.open(str, "");
-				VitimageUtils.imageChecking(sourceData[i],"Source data["+i+"]");
+				if (i%4==0)VitimageUtils.imageCheckingFast(sourceData[i],"Source data["+i+"]");
 			}
 			this.setDimZ(sourceData[0].getStackSize());
+			System.out.println("");
 		}
 	}
 
@@ -404,16 +413,18 @@ public class MRI_T2_Seq extends Acquisition{
 	}
 	
 	public void readMaps() {
-		this.computedData=new ImagePlus[2];
-		this.computedData[0]=IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_Maps"+slash+"MapM0.tif");
-		this.computedData[1]=IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_Maps"+slash+"MapT2.tif");
+		this.computedData=new ImagePlus[3];
+		this.computedData[0]=IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_Maps"+slash+"MapEcho1.tif");
+		this.computedData[1]=IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_Maps"+slash+"MapM0.tif");
+		this.computedData[2]=IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_Maps"+slash+"MapT2.tif");
 	}
 	
 	public void writeMaps() {
 		File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"2_Maps");
 		boolean isCreated = dir.mkdirs();
-		IJ.saveAsTiff(this.computedData[0],this.sourcePath+slash+"Computed_data"+slash+"2_Maps"+slash+"MapM0.tif");
-		IJ.saveAsTiff(this.computedData[1],this.sourcePath+slash+"Computed_data"+slash+"2_Maps"+slash+"MapT2.tif");
+		IJ.saveAsTiff(this.computedData[0],this.sourcePath+slash+"Computed_data"+slash+"2_Maps"+slash+"MapEcho1.tif");
+		IJ.saveAsTiff(this.computedData[1],this.sourcePath+slash+"Computed_data"+slash+"2_Maps"+slash+"MapM0.tif");
+		IJ.saveAsTiff(this.computedData[2],this.sourcePath+slash+"Computed_data"+slash+"2_Maps"+slash+"MapT2.tif");
 	}
 	
 	
@@ -468,9 +479,17 @@ public class MRI_T2_Seq extends Acquisition{
 	public void computeMaps() {
 		if(this.sourceData[0].getType() != ImagePlus.GRAY16) {VitiDialogs.notYet("sourceData.getType != 16 in computeMaps in MRI_T2_Seq : "+this.sourceData[0].getType());return;}
 		final int nEch=this.sourceData.length;
-		computedData=new ImagePlus[2];
-		computedData[0]=VitimageUtils.convertShortToFloatWithoutDynamicChanges(this.sourceData[0]);this.computedData[0].getProcessor().set(0);
-		computedData[1]=VitimageUtils.convertShortToFloatWithoutDynamicChanges(this.sourceData[0]);this.computedData[1].getProcessor().set(0);
+		for(int i=0;i<sourceData.length ; i++) {
+			sourceData[i]=VitimageUtils.convertFloatToShortWithoutDynamicChanges(
+					VitimageUtils.gaussianFiltering(
+							sourceData[i],this.voxSX()*sigmaGaussMapInPixels,this.voxSY()*sigmaGaussMapInPixels,this.voxSX()*sigmaGaussMapInPixels));//It's no error : no "big smoothing" over Z, due to misalignment
+		}
+		computedData=new ImagePlus[3];
+		computedData[0]=VitimageUtils.convertShortToFloatWithoutDynamicChanges(this.sourceData[0]);
+		computedData[1]=VitimageUtils.convertShortToFloatWithoutDynamicChanges(this.sourceData[0]);
+		computedData[2]=VitimageUtils.convertShortToFloatWithoutDynamicChanges(this.sourceData[0]);
+		this.computedData[1].getProcessor().set(0);
+		this.computedData[2].getProcessor().set(0);
 		double factorSeconds=8E-5;
 		final int fitType=MRUtils.T2_RELAX_RICE;
 		final int algType=MRUtils.SIMPLEX;
@@ -529,11 +548,26 @@ public class MRI_T2_Seq extends Acquisition{
 
 		VitimageUtils.startAndJoin(threads);  
 		for (int z=0; z< Z; z++) {  
-			this.computedData[0].getStack().setProcessor(tempComputedM0[z], z+1);
-			this.computedData[1].getStack().setProcessor(tempComputedT2[z], z+1);
+			this.computedData[1].getStack().setProcessor(tempComputedM0[z], z+1);
+			this.computedData[2].getStack().setProcessor(tempComputedT2[z], z+1);
 		}  
+		
+		
+		
+		for (int z=0; z< Z; z++) {
+			float []tabEcho=(float[])this.computedData[0].getStack().getProcessor(z+1).getPixels();		
+			for(int y=0;y<Y;y++) {
+				for(int x=0;x<X;x++) {
+					int index=y*X+x;
+					if((int)((byte)tabMask[z][index] &0xff) == 0 ) tabEcho[index]=0;
+				}
+			}
+		}
+
+		
 		this.computedData[0].getProcessor().setMinAndMax(0, defaultNormalisationValues()[0]);
 		this.computedData[1].getProcessor().setMinAndMax(0, defaultNormalisationValues()[1]);
+		this.computedData[2].getProcessor().setMinAndMax(0, defaultNormalisationValues()[2]);
 	}  
 
 
@@ -542,23 +576,28 @@ public class MRI_T2_Seq extends Acquisition{
 	public ImagePlus computeNormalizedHyperImage() {
 		if(this.capillary == Capillary.HAS_CAPILLARY)this.computeNormalisationValues();
 		else this.computedValuesNormalisationFactor=defaultNormalisationValues();
-		System.out.println("Normalisation factor. M0 image="+this.computedValuesNormalisationFactor[0]);
-		System.out.println("Normalisation factor. T2 image="+this.computedValuesNormalisationFactor[1]);
+		System.out.println("Normalisation factor. First echo image="+this.computedValuesNormalisationFactor[0]);
+		System.out.println("Normalisation factor. M0 image="+this.computedValuesNormalisationFactor[1]);
+		System.out.println("Normalisation factor. T2 image="+this.computedValuesNormalisationFactor[2]);
 		int X=this.dimX();
 		int Y=this.dimY();
 		int Z=this.dimZ();
 		int index;
 
-		float[][][]tabComputed=new float[2][Z][];
+		float[][][]tabComputed=new float[3][Z][];
 		for(int z=0;z<Z;z++) {
 			tabComputed[0][z]=(float[])this.computedData[0].getStack().getProcessor(z+1).getPixels();
 			tabComputed[1][z]=(float[])this.computedData[1].getStack().getProcessor(z+1).getPixels();
+			tabComputed[2][z]=(float[])this.computedData[2].getStack().getProcessor(z+1).getPixels();
 		}
 		for(int z=0;z<Z;z++) {
 			for(int y=0;y<Y;y++) {
 				for(int x=0;x<X;x++) {
 					index=y*X+x;
 					for(int i=0;i<computedData.length;i++)tabComputed[i][z][index]/=this.computedValuesNormalisationFactor[i];
+					if(this.removeOutliers) {
+						if( (tabComputed[1][z][index]>this.thresholdOutlier) || (tabComputed[2][z][index]>this.thresholdOutlier) ) {tabComputed[1][z][index]=0;tabComputed[2][z][index]=0;}						
+					}
 				}
 			}
 		}
@@ -570,7 +609,7 @@ public class MRI_T2_Seq extends Acquisition{
 
 
 	public double[]defaultNormalisationValues(){
-		return new double[] {7000,200};
+		return new double[] {7000,7000,200};
 	}
 
 

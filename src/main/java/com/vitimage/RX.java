@@ -49,7 +49,7 @@ public class RX extends Acquisition{
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		RX rx=new RX("/home/fernandr/Bureau/Test/RX",Capillary.HAS_NO_CAPILLARY,SupervisionLevel.GET_INFORMED);
+		RX rx=new RX("/home/fernandr/Bureau/Test/RX",Capillary.HAS_NO_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_RX");
 		rx.start();//
 	}
 
@@ -60,23 +60,26 @@ public class RX extends Acquisition{
 	 * Constructors, factory and top level functions
 	 */
 
-	public RX(String sourcePath,Capillary cap,SupervisionLevel sup) {
+	public RX(String sourcePath,Capillary cap,SupervisionLevel sup,String title) {
 		super(AcquisitionType.RX, sourcePath,cap,sup);
+		this.title=title;
 	}
 
 	public static RX RXFactory(String sourcePath,Capillary cap,SupervisionLevel sup,String dataPath) {
-		RX rx=new RX(sourcePath,cap,sup);
+		RX rx=new RX(sourcePath,cap,sup,"factory");
 		rx.start();
 		return rx;
 	}
 
 	public void start() {
+		this.printStartMessage();
 		quickStartFromFile();
 		while(nextStep());
 	}
 	
 	public boolean nextStep(){
 		int a=readStep();
+		System.out.println("------> "+ " next step : "+a+" "+this.getTitle());
 		switch(a) {
 		case -1:
 			IJ.showMessage("Critical fail, no directory found Source_data in the current directory");
@@ -96,6 +99,18 @@ public class RX extends Acquisition{
 		return true;
 	}
 
+	public void freeMemory() {
+		imageForRegistration=null;
+		normalizedHyperImage=null;
+		for(int i=0;i<sourceData.length;i++) sourceData[i]=null;
+		if(computedData!=null)for(int i=0;i<computedData.length;i++) computedData[i]=null;
+		sourceData=null;
+		computedData=null;
+		mask=null;
+		imageFullSize=null;
+		System.gc();		
+	}
+	
 	public void writeStep(int st) {
 		File f = new File(this.getSourcePath(),"STEPS_DONE.tag");
 		try {
@@ -131,7 +146,9 @@ public class RX extends Acquisition{
 	@Override
 	public void quickStartFromFile() {
 		//Gather the path to source data
-		System.out.println("Read a RX sequence hosted in "+this.sourcePath);
+		System.out.println("Quick start : RX sequence hosted in ");
+		System.out.println(this.sourcePath.substring(0,this.sourcePath.length()/2));
+		System.out.println(this.sourcePath.substring(this.sourcePath.length()/2+1));
 
 		//Explore the path, look for STEPS_DONE.tag and DATA_PARAMETERS.tag
 		File fStep=new File(this.sourcePath+slash+"STEPS_DONE.tag");
@@ -168,7 +185,6 @@ public class RX extends Acquisition{
 			writeStackedSourceData();
 			this.computeMask();
 			writeMask();
-			System.out.println("Writing step");
 			writeStep(1);
 		}
 	}
@@ -300,11 +316,8 @@ public class RX extends Acquisition{
 		this.setVoxelSizes(sourceData[0].getCalibration().pixelWidth, sourceData[0].getCalibration().pixelHeight , sourceData[0].getCalibration().pixelDepth);
 		this.setFullDimensions(sourceData[1].getWidth(),sourceData[1].getHeight(),sourceData[1].getStackSize());
 		this.setFullVoxelSizes(sourceData[1].getCalibration().pixelWidth, sourceData[1].getCalibration().pixelHeight , sourceData[1].getCalibration().pixelDepth);
-		System.out.println("Ok, bilan :");
-		System.out.println("Voxel size avant="+this.voxSX()+" , " +this.voxSY()+" , " +this.voxSZ());
-		System.out.println("Voxel size apres="+this.voxSXFull()+" , " +this.voxSYFull()+" , " +this.voxSZFull());
-		System.out.println("Dim size avant="+this.dimX()+" , " +this.dimY()+" , " +this.dimZ());
-		System.out.println("Dim size apres="+this.dimXFull()+" , " +this.dimYFull()+" , " +this.dimZFull());	
+		System.out.println("Voxel size for registration ="+this.voxSX()+" , " +this.voxSY()+" , " +this.voxSZ());
+		System.out.println("Voxel size of initial image="+this.voxSXFull()+" , " +this.voxSYFull()+" , " +this.voxSZFull());
 		VitimageUtils.imageCheckingFast(this.sourceData[0],"RX SourceData[0]");
 		VitimageUtils.imageCheckingFast(this.sourceData[1],"RX SourceData[1]");
 	}
@@ -368,12 +381,13 @@ public class RX extends Acquisition{
 	public void computeMask() {
 		System.out.println("Mask computation : gaussian filtering, and 3D connected component research (~1 mn)...");
 		ImagePlus img=new Duplicator().run(sourceData[0]);
+		System.out.println("Gaussian filtering");
 		img=VitimageUtils.gaussianFiltering(img,2*this.voxSX(),2*this.voxSY(),2*this.voxSX());
+		System.out.println("Connected components extraction");
 		double val=(this.capillary==Capillary.HAS_CAPILLARY ? this.getCapillaryValue(img) : this.defaultNormalisationValues()[0]);
 		ImagePlus imgConObject=VitimageUtils.connexe(img,val/15, 65500,0,10E10,6,1,true);//Here 65500 for the scotch stuff
 		IJ.run(imgConObject,"8-bit","");
 		this.mask = imgConObject;
-		System.out.println("Ok.");
 		VitimageUtils.imageCheckingFast(this.mask,"RX mask");
 	}
 	

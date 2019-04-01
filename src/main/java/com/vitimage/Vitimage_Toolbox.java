@@ -13,6 +13,7 @@ import ij.gui.TextRoi;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
 import ij.plugin.Duplicator;
+import ij.plugin.Memory;
 import ij.plugin.PlugIn;
 import ij.plugin.frame.RoiManager;
 import ij.process.FloatPolygon;
@@ -42,6 +43,7 @@ import com.vitimage.ItkImagePlusInterface.Transformation3DType;
 
 import imagescience.transform.Transform;
 import math3d.JacobiDouble;
+import math3d.Point3d;
 import vib.FastMatrix;
 
 
@@ -92,14 +94,25 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 	public static void main(String[] args) {
 		ImageJ imageJ = new ImageJ();
 		Vitimage_Toolbox viti=new Vitimage_Toolbox();
-//		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/T1_echo1.tif");
-		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/VITIMAGE4D/Source_data/MRI_T1_SEQ/Computed_data/3_HyperImage/hyperImage.tif");
-		img.show();
-		ImagePlus []tab=VitimageUtils.stacksFromHyperstack(img, 2);
-		tab[0].show();
-		tab[1].show();
-		VitimageUtils.waitFor(10000);
+		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J35/Computed_data/0_Registration/imgRegistration_acq_0_step_afterIPalignment.tif");
+		ImagePlus imgMov=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J35/Computed_data/0_Registration/imgRegistration_acq_1_step_afterIPalignment.tif");
+		ItkRegistrationManager it=new ItkRegistrationManager();
+		it.runScenarioTestStuff(new ItkTransform(), imgRef, imgMov);
+		
+		
+		
 		System.exit(0);
+		
+
+		//ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/VITIMAGE4D/Source_data/MRI_T1_SEQ/Computed_data/3_HyperImage/hyperImage.tif");
+		
+		
+		
+		
+		
+		
+		
+		
 
 		ItkTransform itkTrans=ItkTransform.readFromFile("/home/fernandr/Bureau/Test/VITIMAGE4D/Computed_data/0_Registration/transformation_2_step_afterAxisAlignment.txt");
 		System.out.println("itkTrans = "+itkTrans);
@@ -160,7 +173,7 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 		long diff0=(diff2-diff1)/1000;
 		System.out.println("Duree totale du processus : "+diff0+" secondes");
 		anna.remember("Le processus total a duré ",""+diff0+" secondes");
-		VitimageUtils.imageChecking(resultTemp,0,1000,4,"Deuxieme partie executee : axe aligné",5);
+		VitimageUtils.imageChecking(resultTemp,0,1000,4,"Deuxieme partie executee : axe aligné",5,false);
 		//......That shouldnt move among the tests.......
 	}
 	

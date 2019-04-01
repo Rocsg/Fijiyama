@@ -728,10 +728,10 @@ public interface TransformUtils {
 		}
 	
 	class AngleComparator implements java.util.Comparator {
-		   public int compare(Object o1, Object o2) {
-		      return ((Double) ((Double[]) o1)[2]).compareTo((Double)((Double[]) o2)[2]);
-		   }
-		}
+	   public int compare(Object o1, Object o2) {
+	      return ((Double) ((Double[]) o1)[2]).compareTo((Double)((Double[]) o2)[2]);
+	   }
+	}
 	
 	public static double norm(double[]v){
 		return Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);

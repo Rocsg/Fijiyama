@@ -5,9 +5,11 @@ import org.itk.simple.SimpleITK;
 import org.itk.simple.Transform;
 import org.itk.simple.VectorDouble;
 
+import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.gui.GenericDialog;
+import ij.plugin.Concatenator;
 import ij.plugin.GaussianBlur3D;
 import ij.process.ByteProcessor;
 import ij.process.StackConverter;
@@ -79,7 +81,15 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
 	}	
 
-
+	public ImagePlus transformHyperImage4D(ImagePlus hyperRef,ImagePlus hyperMov,int dimension) {
+		ImagePlus []imgTabRef=VitimageUtils.stacksFromHyperstack(hyperRef, dimension);
+		ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstack(hyperMov, dimension);
+		if(imgTabRef.length != imgTabMov.length)IJ.showMessage("Warning in transformHyperImage4D: tab sizes does not match");
+		for(int i=0;i<dimension;i++) {			
+			imgTabMov[i]= transformImage(imgTabRef[i], imgTabMov[i]);
+		}
+		return Concatenator.run(imgTabMov);
+	}
 	
 	public static ItkTransform readTransformFromFile(String path) {
 		VitiDialogs.notYet("ItkTransform > readTransformFromFile");
@@ -103,7 +113,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return new Point3d(coords[0],coords[1],coords[2]);
 	}
 	
-	public ItkTransform simplify() {
+	public double[][] toAffineArrayRepresentation() {
 		Point3d pt0=new Point3d(0,0,0);
 		Point3d pt0Tr=this.transformPoint(pt0);
 		Point3d pt1=new Point3d(1,0,0);
@@ -112,10 +122,14 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		Point3d pt2Tr=this.transformPoint(pt2);
 		Point3d pt3=new Point3d(0,0,1);
 		Point3d pt3Tr=this.transformPoint(pt3);
-		double[][]transArray=new double[][] {    { pt1Tr.x-pt0Tr.x , pt2Tr.x-pt0Tr.x , pt3Tr.x-pt0Tr.x   ,pt0Tr.x    },    
+		return new double[][] {    { pt1Tr.x-pt0Tr.x , pt2Tr.x-pt0Tr.x , pt3Tr.x-pt0Tr.x   ,pt0Tr.x    },    
 											   { pt1Tr.y-pt0Tr.y , pt2Tr.y-pt0Tr.y , pt3Tr.y-pt0Tr.y   ,pt0Tr.y    },  
 											   { pt1Tr.z-pt0Tr.z , pt2Tr.z-pt0Tr.z , pt3Tr.z-pt0Tr.z   ,pt0Tr.z    },  
 											   { 0 , 0 , 0 , 1 }   };
+	}
+	
+	public ItkTransform simplify() {
+		double[][]transArray=this.toAffineArrayRepresentation();
 		imagescience.transform.Transform transIj=new imagescience.transform.Transform(transArray);
 		return ItkTransform.ijTransformToItkTransform(transIj);		
 	}
@@ -133,6 +147,16 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 
 
+	
+	public String drawableString() {
+		double[][]array=this.toAffineArrayRepresentation();
+		String str=String.format("Current transform\n[%8.5f  %8.5f  %8.5f  %8.5f]\n[%8.5f  %8.5f  %8.5f  %8.5f]\n[%8.5f  %8.5f  %8.5f  %8.5f]\n[%8.5f  %8.5f  %8.5f  %8.5f]",
+									array[0][0] , array[0][1] , array[0][2] , array[0][3] ,
+									array[1][0] , array[1][1] , array[1][2] , array[1][3] ,
+									array[2][0] , array[2][1] , array[2][2] , array[2][3] ,
+									array[3][0] , array[3][1] , array[3][2] , array[3][3] );
+		return str;
+	}
 
 	
 	public String toString(String title) {

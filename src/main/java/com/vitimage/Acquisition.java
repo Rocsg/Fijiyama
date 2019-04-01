@@ -61,7 +61,7 @@ public abstract class Acquisition implements VitimageUtils{
 	protected double []computedValuesNormalisationFactor;
 	protected double sigmaBackground;
 	protected double meanBackground;
-	private String title="-";
+	protected String title="-";
 	protected int timeSerieDay;
 	protected String projectName="VITIMAGE";
 	protected String acquisitionPosition;
@@ -73,6 +73,7 @@ public abstract class Acquisition implements VitimageUtils{
 	/**
 	 * Abstract methods
 	 */
+	
 	
 	public Point getReferencePoint() {
 		return referencePoint;
@@ -111,6 +112,67 @@ public abstract class Acquisition implements VitimageUtils{
 		temp.getProcessor().setMinAndMax(this.valMinForCalibration,this.valMaxForCalibration);
 		return temp;		
 	}
+	
+	
+	public ImagePlus[]getSourceDataWithSmoothedCapillary(){
+
+		//Produce the smoothed version of source Data
+		if (this.capillary == Capillary.HAS_NO_CAPILLARY)return sourceData;
+		ImagePlus img=new Duplicator().run(this.imageForRegistration);
+		ImagePlus []retTab=new ImagePlus[sourceData.length];
+		ImagePlus []smoothTab=new ImagePlus[sourceData.length];
+		for(int sd=0;sd<sourceData.length;sd++) {
+			retTab[sd]=new Duplicator().run(this.sourceData[sd]);
+			smoothTab[sd]=new Duplicator().run(this.sourceData[sd]);
+			smoothTab[sd]=VitimageUtils.convertFloatToShortWithoutDynamicChanges(VitimageUtils.gaussianFiltering(smoothTab[sd],this.voxSX*3, this.voxSX*3, this.voxSX*3));
+		}
+		ImagePlus imgSliceInput;
+		int xMax=this.dimX;
+		int yMax=this.dimY;
+		int zMax=this.dimZ;
+		double diamCap=0.05;
+		double valThresh=this.valMedForThresholding;//standard measured values on echo spin images of bionanoNMRI
+		double x0RoiCap;
+		double y0RoiCap;
+		RoiManager rm=RoiManager.getRoiManager();
+		ImageStack isRet=new ImageStack(img.getWidth(),img.getHeight(),img.getStackSize());
+		for(int z=1;z<=zMax;z++) {
+			//For each slice, look at the capillary area, then replace this area by the smoothed version
+			ImagePlus imgSlice=new ImagePlus("", img.getStack().getProcessor(z));
+			ImagePlus imgCon=VitimageUtils.connexe(imgSlice, valThresh, 10E10, 0, 10E10,4,2,true);
+			imgCon.getProcessor().setMinAndMax(0,255);
+			imgCon.setTitle("Z="+z);
+			imgCon.show();
+			//VitimageUtils.waitFor(1000);
+			imgCon.hide();
+			IJ.run(imgCon,"8-bit","");
+			IJ.setThreshold(imgCon, 255,255);
+			for(int dil=0;dil<(diamCap/img.getCalibration().pixelWidth);dil++) IJ.run(imgCon, "Dilate", "stack");
+			rm.reset();
+			Roi capArea=new ThresholdToSelection().convert(imgCon.getProcessor());	
+			rm.add(imgSlice, capArea, 0);							
+			FloatPolygon tabPoly=capArea.getFloatPolygon();
+			Rectangle rect=tabPoly.getBounds();
+			int xMinRoi=(int) (rect.getX());
+			int yMinRoi=(int) (rect.getY());
+			int xSizeRoi=(int) (rect.getWidth());
+			int ySizeRoi=(int) (rect.getHeight());
+			int xMaxRoi=xMinRoi+xSizeRoi;
+			int yMaxRoi=yMinRoi+ySizeRoi;				
+
+			//Make the replacement on each echo image
+			for(int sd=0;sd<sourceData.length;sd++) {
+				short[] valsRet=(short[])(retTab[sd]).getStack().getProcessor(z).getPixels();
+				short[] valsSmooth=(short[])(smoothTab[sd]).getStack().getProcessor(z).getPixels();
+				for(int xx=xMinRoi;xx<=xMaxRoi;xx++) for(int yy=yMinRoi;yy<yMaxRoi;yy++) if(tabPoly.contains(xx,yy)) valsRet[xMax*yy+xx]=valsSmooth[xMax*yy+xx];
+			}
+		}
+		for(int sd=0;sd<sourceData.length;sd++)smoothTab[sd]=null;
+		smoothTab=null;
+		return retTab;
+	}
+	
+	
 	
 	public ImagePlus getImageForRegistrationWithoutCapillary() {
 		ImagePlus img=new Duplicator().run(this.imageForRegistration);
@@ -176,15 +238,44 @@ public abstract class Acquisition implements VitimageUtils{
 	
 	public void computeNormalisationValues() {
 		this.computedValuesNormalisationFactor=new double[this.computedData.length];
-		int []coordinates=this.detectCapillaryPosition();
+		int []coordinates=this.detectCapillaryPosition(this.dimZ/2);
 		for(int i=0;i<this.computedData.length;i++) {
-			this.computedValuesNormalisationFactor[i]=VitimageUtils.meanValueofImageAround(this.computedData[i],coordinates[0],coordinates[1],coordinates[2],2);
+			this.computedValuesNormalisationFactor[i]=getCapillaryValue(this.computedData[i],coordinates,4,4);
 		}
 	}
 
+	
 	public double getCapillaryValue(ImagePlus img) {
-		int []coordinates=this.detectCapillaryPosition();
-		return VitimageUtils.meanValueofImageAround(img,coordinates[0],coordinates[1],coordinates[2],2);
+		return getCapillaryValue(img,detectCapillaryPosition(this.dimZ/2),4,4);
+	}
+
+	
+	public void freeMemory() {
+		imageForRegistration=null;
+		normalizedHyperImage=null;
+		for(int i=0;i<sourceData.length;i++) sourceData[i]=null;
+		for(int i=0;i<computedData.length;i++) computedData[i]=null;
+		sourceData=null;
+		computedData=null;
+		mask=null;
+		System.gc();
+	}
+	
+	
+	public double getCapillaryValue(ImagePlus img, int[]coordinates,int rayXY,int rayZ) {
+		System.out.println("");
+		System.out.println("Start");
+		int zMin=coordinates[2]-rayZ;
+		int zMax=coordinates[2]+rayZ;
+		if(zMin<0)zMin=0;
+		if(zMax>=img.getStackSize())zMax=img.getStackSize()-1;
+		double val=0;
+		int nbSlices=0;
+		for(int z=zMin;z<=zMax;z++) {
+			val+=VitimageUtils.meanValueofImageAround(img,coordinates[0],coordinates[1],z,rayXY);
+			nbSlices++;
+		}
+		return (val/nbSlices);
 	}
 	
 	public double computeRiceSigmaFromBackgroundValues() {
@@ -197,14 +288,14 @@ public abstract class Acquisition implements VitimageUtils{
 		return val1;
 	}
 	
-	public int[] detectCapillaryPosition() {
+	public int[] detectCapillaryPosition(int Z) {
 		ImagePlus img=new Duplicator().run(this.imageForRegistration);
 		RoiManager rm=RoiManager.getRoiManager();
-		int Z=this.dimZ/2;
 		double valThresh=this.valMedForThresholding;//standard measured values on echo spin images of bionanoNMRI
-		System.out.println("valMedForThresh="+this.valMedForThresholding);
 		ImagePlus imgSlice=new ImagePlus("", img.getStack().getProcessor(Z));
+		VitimageUtils.imageChecking(imgSlice,"Detect capillary, Before connect group");
 		ImagePlus imgCon=VitimageUtils.connexe(imgSlice, valThresh, 10E10, 0, 10E10,4,2,true);
+		VitimageUtils.imageChecking(imgCon,"After selecting the second area up to "+valThresh);
 		imgCon.getProcessor().setMinAndMax(0,255);
 		IJ.run(imgCon,"8-bit","");
 		IJ.setThreshold(imgCon, 255,255);
@@ -212,6 +303,9 @@ public abstract class Acquisition implements VitimageUtils{
 		Roi capArea=new ThresholdToSelection().convert(imgCon.getProcessor());	
 		rm.add(imgSlice, capArea, 0);							
 		Rectangle rect=capArea.getFloatPolygon().getBounds();
+		System.out.println("Capillary position detected is :"+(rect.getX() + rect.getWidth()/2.0)+" , "+
+															 (rect.getY() + rect.getHeight()/2.0)+" , "+
+														 	 Z);
 		return new int[] {(int) (rect.getX() + rect.getWidth()/2.0) , (int) (rect.getY() + rect.getHeight()/2.0) , Z , (int)rect.getWidth(),(int)rect.getHeight()};  
 	}
 	
@@ -223,13 +317,6 @@ public abstract class Acquisition implements VitimageUtils{
 		int y1=this.dimY()-samplSize;
 		int z01=this.dimZ()/2;
 		double[][] vals=new double[4][2];
-		System.out.println("DEBUG : ");
-		System.out.println("x0="+x0);
-		System.out.println("x1="+x1);
-		System.out.println("x0="+x0);
-		System.out.println("y1="+y1);
-		System.out.println("z01="+z01);
-		System.out.println("samplSize/2="+samplSize/2);
 		vals[0]=VitimageUtils.valuesOfImageAround(this.imageForRegistration,x0,y0,z01,samplSize/2);
 		vals[1]=VitimageUtils.valuesOfImageAround(this.imageForRegistration,x0,y1,z01,samplSize/2);
 		vals[2]=VitimageUtils.valuesOfImageAround(this.imageForRegistration,x1,y0,z01,samplSize/2);
@@ -392,4 +479,14 @@ public abstract class Acquisition implements VitimageUtils{
 		return this.imageForRegistration;
 	}
 	
+	public void printStartMessage() {
+		System.out.println("");
+		System.out.println("");
+		System.out.println("####################################");
+		System.out.println("######## Starting new acquisition ");
+		String str=""+this.getAcquisitionType()+"";
+		System.out.println("######## "+str+"");
+		System.out.println("####################################");		
+	}
+			
 }
