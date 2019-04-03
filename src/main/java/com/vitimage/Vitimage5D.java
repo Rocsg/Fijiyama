@@ -36,6 +36,7 @@ import ij.plugin.ImageCalculator;
 import math3d.Point3d;
 
 public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
+	public boolean computeOnlyAcquisitionsAndMaps;
 	public final static String slash=File.separator;
 	public String title="--";
 	public String sourcePath="--";
@@ -59,7 +60,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		Vitimage5D viti = new Vitimage5D(VineType.CUTTING,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT","B051_CT");			
+		Vitimage5D viti = new Vitimage5D(VineType.CUTTING,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT","B051_CT",false);			
 		viti.start();
 		viti.normalizedHyperImage.show();
 	}
@@ -76,6 +77,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	
 	public boolean nextStep(){
 		int a=readStep();
+		if (computeOnlyAcquisitionsAndMaps && a>1) {return false;}
 		switch(a) {
 		case -1:
 			IJ.showMessage("Critical fail, no directory found Source_data in the current directory");
@@ -84,15 +86,18 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 			if(this.supervisionLevel != SupervisionLevel.AUTONOMOUS)IJ.log("No data in this directory");
 			return false;
 		case 1://data are read. Time to compute individual calculus for each acquisition
-			for (Vitimage4D vit4d : this.vitimage4D) {System.out.println("");vit4d.start();}
+			for (Vitimage4D vit4d : this.vitimage4D) {System.out.println("\nVitimage5D : step1, start a new Vitimage4D");vit4d.start();}
 			this.writeParametersToHardDisk();
 			this.setImageForRegistration();
+			if(this.computeOnlyAcquisitionsAndMaps) {writeStep(a+1);return false;}
 			break;
 		case 2: //individual computations are done. Time to register acquisitions
+			System.out.println("\n\nVitimage 5D : step2, startic automatic fine registration");
 			automaticFineRegistration();
 			this.writeTransforms();
 			break;
 		case 3: //Data are shared. Time to compute hyperimage
+			System.out.println("\n\nVitimage 5D : step3, start Normalized hyperimage computation");
 			this.computeNormalizedHyperImage();
 			writeHyperImage();
 			break;
@@ -156,7 +161,8 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	}
 	
 	
-	public Vitimage5D(VineType vineType,String sourcePath,String title) {
+	public Vitimage5D(VineType vineType,String sourcePath,String title,boolean computeOnlyAcquisitionsAndMaps) {
+		this.computeOnlyAcquisitionsAndMaps=computeOnlyAcquisitionsAndMaps;
 		this.title=title;
 		this.sourcePath=sourcePath;
 		this.vineType=vineType;
@@ -234,7 +240,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		}
 	}
 	public void addVitimage4D(String path,SupervisionLevel sup,int dayOfTimeCourse,String title){		
-		this.vitimage4D.add(new Vitimage4D(vineType,dayOfTimeCourse,path,title));
+		this.vitimage4D.add(new Vitimage4D(vineType,dayOfTimeCourse,path,title,this.computeOnlyAcquisitionsAndMaps));
 		this.successiveTimePoints[this.vitimage4D.size()-1]=dayOfTimeCourse;
 		this.transformation.add(new ItkTransform());
 	}

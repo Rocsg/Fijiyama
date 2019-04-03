@@ -13,7 +13,9 @@ import java.util.Date;
 
 import org.itk.simple.Image;
 import org.itk.simple.OtsuThresholdImageFilter;
+import org.itk.simple.PixelIDValueEnum;
 import org.itk.simple.RecursiveGaussianImageFilter;
+import org.itk.simple.VectorUInt32;
 
 import com.vitimage.TransformUtils.AngleComparator;
 import com.vitimage.TransformUtils.VolumeComparator;
@@ -33,6 +35,7 @@ import ij.measure.Calibration;
 import ij.plugin.Duplicator;
 import ij.plugin.GaussianBlur3D;
 import ij.plugin.HyperStackReducer;
+import ij.plugin.ImageCalculator;
 import ij.plugin.RGBStackMerge;
 import ij.plugin.filter.Binary;
 import ij.plugin.filter.ThresholdToSelection;
@@ -179,6 +182,178 @@ public interface VitimageUtils {
 		return ret;
 	}
 
+	
+	
+
+	public static Point3d[] detectAxis(ImagePlus img1,AcquisitionType acqType){
+		ImagePlus img=new Duplicator().run(img1);
+		boolean debug=false;
+		int xMax=img.getWidth();
+		int yMax=img.getHeight();
+		int zMax=img.getStackSize();
+		double vX=img.getCalibration().pixelWidth;
+		double vY=img.getCalibration().pixelHeight;
+		double vZ=img.getCalibration().pixelDepth;
+		double xMoyUp=0,yMoyUp=0,zMoyUp=0;
+		double xMoyDown=0,yMoyDown=0,zMoyDown=0;
+		int hitsUp=0,hitsDown=0;
+
+		//Step 1 : apply gaussian filtering and convert to 8 bits
+		GaussianBlur3D.blur(img,10*0.035/vX,10*0.035/vY,2*0.5/vZ);
+		img.getProcessor().resetMinAndMax();
+		StackConverter sc=new StackConverter(img);
+		sc.convertToGray8();
+		imageChecking(img,"fin step1 ");
+
+		//Step 2 : apply automatic threshold
+		ByteProcessor[] maskTab=new ByteProcessor[zMax];
+		if(acqType != AcquisitionType.MRI_T2_SEQ) {
+			
+			System.out.println("Mask lookup for center of object, case of hign SNR (T1 or RX)");
+			for(int z=0;z<zMax;z++){
+				maskTab[z]=(ByteProcessor) img.getStack().getProcessor(z+1);
+				maskTab[z].setAutoThreshold("Otsu dark");
+				maskTab[z]=maskTab[z].createMask();
+			}
+		}
+		else {
+			System.out.println("Mask lookup for center of object, case of low SNR (T2)");
+			for(int z=0;z<zMax;z++){
+				maskTab[z]=(ByteProcessor) img.getStack().getProcessor(z+1);
+				maskTab[z].setThreshold(20,255,1);
+				maskTab[z]=maskTab[z].createMask();
+			}
+			
+		}
+			
+			
+		//Step 2.1 : Extract two substacks for the upper part and the lower part of the object
+		ImageStack stackUp = new ImageStack(xMax, yMax);	
+		ImageStack stackDown = new ImageStack(xMax, yMax);
+		int zQuarter=zMax/4;
+		int zVentile=zMax/40;
+		zVentile=(zVentile < 10 ? 10 : zVentile);
+		if(zMax<zVentile*2+2)zVentile=zMax/2-1;
+		for(int i=0;i<zVentile;i++) {
+			stackUp.addSlice("",maskTab[zMax/2+zQuarter-zVentile+i] );//de zmax/2 +zQuarter-zVentile à zMax/2 + zQuarter-zVentile5 --> ajouter zMax/2 à la fin			
+			stackDown.addSlice("",maskTab[zMax/2-zQuarter+i+1] );//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
+		}
+		ImagePlus imgUp=new ImagePlus("upMASK",stackUp);
+		imageChecking(imgUp);
+		ImagePlus imgUpCon=connexe(imgUp,0,29,0,10E10,6,2,true);
+		imageChecking(imgUpCon,"imgUpCon");
+		
+		ImagePlus imgDown=new ImagePlus("downMASK",stackDown);
+		imageChecking(imgDown);
+		ImagePlus imgDownCon=connexe(imgDown,0,29,0,10E10,6,2,true);
+		imageChecking(imgDownCon,"imgDownCon");
+
+		//Step 3 : compute the two centers of mass
+		short[][]valsDownCon=new short[zQuarter][];
+		short[][]valsUpCon=new short[zQuarter][];
+		for(int z=0;z<zVentile;z++){
+			valsDownCon[z]=(short[])(imgDownCon).getStack().getProcessor(z+1).getPixels();
+			valsUpCon[z]=(short[])(imgUpCon).getStack().getProcessor(z+1).getPixels();
+		}
+
+		for(int x=0;x<xMax;x++){
+			for(int y=0;y<yMax;y++){
+				for(int z=0;z<zVentile;z++){								
+					if(valsDownCon[z][xMax*y+x]==((short)255)){//We are in the first part of the object
+						hitsDown++;
+						xMoyDown+=x;yMoyDown+=y;zMoyDown+=z;
+					}
+					if(valsUpCon[z][xMax*y+x]==((short	)255)){//We are in the first part of the object
+						hitsUp++;
+						xMoyUp+=x;yMoyUp+=y;zMoyUp+=z;
+					}
+				}
+			}
+		}
+		xMoyUp=xMoyUp/hitsUp;//Center of mass computation. 
+		yMoyUp=yMoyUp/hitsUp;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
+		zMoyUp=zMoyUp/hitsUp+zMax/2+zQuarter-zVentile;//due to the extraction of a substack zmax/2-zQuarter+1 - zmax/2     zMax/2+zQuarter-zVentile
+
+		xMoyDown=xMoyDown/hitsDown;//Center of mass computation. 
+		yMoyDown=yMoyDown/hitsDown;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
+		zMoyDown=zMoyDown/hitsDown+zMax/2-zQuarter+1;//due to the extraction of a substack zmax/2 - zmax/2+zQuarter       zMax/2-zQuarter+1
+
+		if(debug) {
+			System.out.println("HitsUp="+hitsUp+" ..Center of mass up = "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
+			System.out.println("HitsDown="+hitsDown+" ..Center of mass down = "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+		}
+
+		xMoyUp=xMoyUp*vX;		
+		yMoyUp=yMoyUp*vY;		
+		zMoyUp=zMoyUp*vZ;	
+		xMoyDown=xMoyDown*vX;		
+		yMoyDown=yMoyDown*vY;		
+		zMoyDown=zMoyDown*vZ;		
+		if(debug) {
+			System.out.println("Center of mass up (coord reel)= "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
+			System.out.println("Center of mass down (coord reel)= "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+		}
+
+		//Step 4 : compute the axis vector, that will stands for Z vector after alignement
+		double[]vectZ=TransformUtils.normalize(new double[] {xMoyUp - xMoyDown , yMoyUp - yMoyDown , zMoyUp - zMoyDown});
+		System.out.println("Vecteur axial ="+TransformUtils.stringVector(vectZ,""));
+		double []vectXtmp=new double[] {1,0,0};
+		double []vectX=TransformUtils.normalize(TransformUtils.vectorialSubstraction(vectXtmp, TransformUtils.proj_u_of_v(vectZ, vectXtmp)));
+		System.out.println("Vecteur orthogonal ="+TransformUtils.stringVector(vectX,""));
+
+
+		//Step 5 : compute the three points
+		Point3d origine=new Point3d(xMoyUp*0.5+xMoyDown*0.5 , yMoyUp*0.5+yMoyDown*0.5 , zMoyUp*0.5+zMoyDown*0.5 );
+		Point3d ptUp= new Point3d(origine.x + vectZ[0]   ,  origine.y + vectZ[1] , origine.z + vectZ[2]);
+		Point3d ptRight= new Point3d(origine.x + vectX[0]   ,  origine.y + vectX[1] , origine.z + vectX[2]);
+		return new Point3d[] {origine,ptUp,ptRight};
+	}
+
+	
+	public static ImagePlus areaOfPertinentComputation2 (ImagePlus img2,double sigmaGaussMapInPixels){
+		int zMax=img2.getStackSize();
+		double vX=img2.getCalibration().pixelWidth;
+		double []val=Acquisition.caracterizeBackgroundOfImage(img2);
+		double mu=val[0];
+		double sigma=val[1];
+		double thresh=mu+3*sigma;
+		ImagePlus img=VitimageUtils.gaussianFiltering(img2,vX*sigmaGaussMapInPixels,vX*sigmaGaussMapInPixels,vX*sigmaGaussMapInPixels);
+		System.out.println("Mu fond="+mu+" , Sigma fond="+sigma+" , Thresh="+thresh );
+		img.getStack().getProcessor(1).set(0);
+		if(zMax>3) {
+			img.getStack().getProcessor(2).set(0);
+			img.getStack().getProcessor(zMax).set(0);
+			img.getStack().getProcessor(zMax-1).set(0);
+		}
+		ImagePlus imgMask0=VitimageUtils.getBinaryMask(img,thresh);
+		ImagePlus imgMask1=VitimageUtils.connexe(imgMask0,1,255, 0,10E10, 6, 1,false);//L objet
+		ImagePlus imgMask2=VitimageUtils.connexe(imgMask0,1,255, 0,10E10, 6, 2,false);//le cap
+		IJ.run(imgMask1,"8-bit","");
+		IJ.run(imgMask2,"8-bit","");
+		ImageCalculator ic=new ImageCalculator();
+		ImagePlus imgMask3=ic.run("OR create stack", imgMask1,imgMask2);							
+		return imgMask3;
+	}
+
+
+	public static ImagePlus areaOfPertinentMRIMapComputation (ImagePlus img2,double sigmaGaussMapInPixels){
+		double voxVolume=VitimageUtils.getVoxelVolume(img2);
+		int nbThreshObjects=100;
+		double vX=img2.getCalibration().pixelWidth;
+		double []val=Acquisition.caracterizeBackgroundOfImage(img2);
+		double mu=val[0];
+		double sigma=val[1];
+		double thresh=mu+3*sigma;
+		ImagePlus img=VitimageUtils.gaussianFiltering(img2,vX*sigmaGaussMapInPixels,vX*sigmaGaussMapInPixels,vX*sigmaGaussMapInPixels);
+		System.out.println("Mu fond="+mu+" , Sigma fond="+sigma+" , Thresh="+thresh );
+		ImagePlus imgMask0=VitimageUtils.getBinaryMask(img,thresh);
+		ImagePlus imgMask1=VitimageUtils.connexe(imgMask0,1,255, nbThreshObjects*voxVolume,10E10, 26, 0,false);//L objet
+		ImagePlus imgMask2=VitimageUtils.getBinaryMask(imgMask1,1);
+		return imgMask2;
+	}
+	
+	
+	
 	public static Point3d[] detectAxis(Acquisition acq){
 		ImagePlus img=acq.getTransformedRegistrationImage();
 		imageChecking(img,"Start detect axis type "+acq.getAcquisitionType());
@@ -303,6 +478,154 @@ public interface VitimageUtils {
 		Point3d ptRight= new Point3d(origine.x + vectX[0]   ,  origine.y + vectX[1] , origine.z + vectX[2]);
 		return new Point3d[] {origine,ptUp,ptRight};
 	}
+	
+	
+	
+	
+	
+
+	public static Point3d[] detectInoculationPointGuidedByAutomaticComputedOutline(ImagePlus img,ImagePlus maskForOutline) {
+		ImagePlus imgCheck=new Duplicator().run(img);
+		int xMax=img.getWidth();
+		int yMax=img.getHeight();
+		int zMax=img.getStackSize();
+		double vX=img.getCalibration().pixelWidth;
+		double vY=img.getCalibration().pixelHeight;
+		double vZ=img.getCalibration().pixelDepth;
+		int facteurAniso=(int)Math.round(vZ/vX);
+		double IPStdZSize=4; //mm
+		double IPStdXSize=2; //mm
+		double sigmaXY=IPStdXSize/2.0;
+		double sigmaZ=IPStdXSize/4.0;
+		int sigmaPlotZ=5;
+		double sigmaXYInPixels=10*0.035/vX;//sigmaXY/vX;
+		double sigmaZInPixels=0.2*0.5/vZ;//sigmaZ/vZ;
+		int minPossibleZ=zMax/4+2;
+		int maxPossibleZ=(zMax*3)/4-2;
+		ImagePlus imgSlice=new Duplicator().run(maskForOutline,1,1);
+		IJ.run(imgSlice, "Outline", "stack");
+		imgSlice.show();
+		VitimageUtils.waitFor(1000);
+		imgSlice.hide();
+		ImagePlus imgOutline= new Duplicator().run(imgSlice, 1,1);
+		imgSlice=connexe(imgSlice,255,255,0,10E10,8,1,true);
+		System.out.println(" Ok.");
+
+
+		System.out.print("Selection equipartited points for analysis and sort by angle around the center...");
+		IJ.run(imgSlice, "8-bit", "");
+		imgSlice.show();
+		VitimageUtils.waitFor(1000);
+		imgSlice.hide();
+		imgSlice.getProcessor().invert();
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		IJ.run(imgSlice, "Create Selection", "");
+		rm.addRoi(imgSlice.getRoi());
+		Roi roi=rm.getRoi(0);
+		FloatPolygon fp=roi.getContainedFloatPoints();
+		int nAngles=fp.npoints;
+		System.out.println("Nombre de points selectionnes : "+nAngles);
+		double [][]tabCoord=new double[nAngles][3];
+		Double [][]tabSort=new Double[nAngles][3];
+		double xCenter = img.getWidth()/2;
+		double yCenter = img.getHeight()/2;
+		for (int i=0; i<nAngles; i++) {
+			tabSort[i][0]=new Double(fp.xpoints[i]);
+			tabSort[i][1]=new Double(fp.ypoints[i]);
+			tabSort[i][2]=new Double(TransformUtils.calculateAngle(tabSort[i][0]-xCenter,yCenter-tabSort[i][1]));
+			
+		}
+		imgSlice.changes=false;
+		imgSlice.close();
+		rm.close();
+		//sort by angles
+		Arrays.sort(tabSort,new AngleComparator());
+		for (int i=0; i<nAngles; i++) {
+			tabCoord[i][0]=tabSort[i][0].doubleValue();
+			tabCoord[i][1]=tabSort[i][1].doubleValue();
+			tabCoord[i][2]=tabSort[i][2].doubleValue();
+		}
+		System.out.println(" Ok.");
+		double [][]meanValues=new double[nAngles][zMax];
+
+		System.out.print("Measurements");
+		ImagePlus measures=ij.gui.NewImage.createImage("measures",nAngles,zMax*facteurAniso,3,32,ij.gui.NewImage.FILL_BLACK);
+		float[]measuresImg0=(float[]) measures.getStack().getProcessor(1).getPixels();
+		float[]measuresImg1=(float[]) measures.getStack().getProcessor(2).getPixels();
+		float[]measuresImg2=(float[]) measures.getStack().getProcessor(3).getPixels();
+
+		for (int ang=0; ang<nAngles; ang++){
+			for (int z=0; z<zMax; z++){			
+				meanValues[ang][z]=VitimageUtils.meanValueofImageAround(img,(int)Math.round(tabCoord[ang][0]),(int)Math.round(tabCoord[ang][1]),z,sigmaXYInPixels);
+				for(int i=0;i<facteurAniso;i++)measuresImg0[nAngles*(z*facteurAniso+i)+ang]=(float) meanValues[ang][z];
+			}
+		}
+
+		System.out.println(" Ok.");
+
+
+
+
+		System.out.print("Score computation");
+		//
+		double[][][]scores=new double[nAngles][zMax][3];
+		for (int ang=0; ang<nAngles; ang++){
+			for (int z=minPossibleZ; z<=maxPossibleZ; z++){			
+				double acc=0;
+				for(int i=-sigmaPlotZ;i<=sigmaPlotZ;i++)acc+=meanValues[ang][z+i];
+				scores[ang][z][0]=acc/(2*sigmaPlotZ+1);
+				scores[ang][z][1]=(scores[ang][z][0]-meanValues[ang][z])/scores[ang][z][0];
+				scores[ang][z][2]=(scores[ang][z][0]-meanValues[ang][z]);
+				for(int i=0;i<facteurAniso;i++)measuresImg1[nAngles*(z*facteurAniso+i)+ang]=(float) scores[ang][z][1];
+				for(int i=0;i<facteurAniso;i++)measuresImg2[nAngles*(z*facteurAniso+i)+ang]=(float) scores[ang][z][2];
+			}
+		}
+
+		System.out.println(" Ok.");
+		measures.getProcessor().setMinAndMax(measures.getProcessor().getMin(),measures.getProcessor().getMax());
+		IJ.run(measures,"Fire","");
+		//	anna.storeImage(measures, "Image de score");
+		ImagePlus imgDetect=new Duplicator().run(measures,1,measures.getStackSize());
+		IJ.run(imgDetect, "Gaussian Blur...", "sigma="+(1/(2*vX))+" stack");
+		//	anna.remember("Parametre de lissage utilise, en pixel","sigma="+(1/(2*vX)));
+		//	anna.storeImage(imgDetect, "Image de score lissee");
+		imgDetect.getProcessor().resetMinAndMax();
+		imgDetect.show();
+		imgDetect.setTitle("Score map for inoculation detection");
+		VitimageUtils.waitFor(5000);
+		imgDetect.hide();
+		double[][]coordMax=TransformUtils.getCoordinatesOf(imgDetect,VitimageUtils.COORD_OF_MAX_IN_TWO_LAST_SLICES,minPossibleZ*facteurAniso,maxPossibleZ*facteurAniso);
+		System.out.println("Maximum relatif obtenu à ("+coordMax[0][0]+" , "+coordMax[0][1]+" ) soit, en coordonnees images : ( "+
+				tabCoord[(int)Math.round(coordMax[0][0])][0]+" , "+tabCoord[(int)Math.round(coordMax[0][0])][1]+" , "+
+				((coordMax[0][1]-facteurAniso/2.0)/facteurAniso)+" )");
+		System.out.println("Maximum absolu obtenu à ("+coordMax[1][0]+" , "+coordMax[1][1]+" ) soit, en coordonnees images : ( "+
+				tabCoord[(int)Math.round(coordMax[1][0])][0]+" , "+tabCoord[(int)Math.round(coordMax[1][0])][1]+" , "+
+				((coordMax[1][1]-facteurAniso/2.0)/facteurAniso)+" )");
+		Point3d inocPoint=TransformUtils.convertPointToRealSpace(new Point3d( tabCoord[(int)Math.round(coordMax[1][0])][0],  tabCoord[(int)Math.round(coordMax[1][0])][1],  ((coordMax[1][1]-facteurAniso/2.0)/facteurAniso) ),img) ;
+
+		inocPoint=VitiDialogs.inspectInoculationPoint( imgCheck ,inocPoint);
+
+		
+		
+		Point3d origine=TransformUtils.convertPointToRealSpace(new Point3d( xMax/2.0 , yMax/2.0 ,0),img);
+		origine.z=inocPoint.z;
+
+		double[]vect=new double[] {inocPoint.x - origine.x , inocPoint.y - origine.y , inocPoint.z - origine.z };
+		double[]vectNorm=TransformUtils.normalize(vect);
+		System.out.println(TransformUtils.stringVector(vectNorm,"Vecteur normalisé de la moelle vers le point d inoculation"));
+		Point3d originePlusDinoc=new Point3d( origine.x + vectNorm[0] , origine.y + vectNorm[1] , inocPoint.z  + vectNorm[2]);
+		Point3d originePlusDz=new Point3d( origine.x  ,origine.y , origine.z + 1 );
+		Point3d[]ret=new Point3d[] { origine ,  originePlusDz , originePlusDinoc , inocPoint};
+		imgCheck.close();
+		return ret;		
+	}
+
+
+	
+	
+	
+	
 
 	public static Point3d[] detectInoculationPoint(ImagePlus img,double thresholdMin) {
 		ImagePlus imgCheck=new Duplicator().run(img);
@@ -840,6 +1163,90 @@ public interface VitimageUtils {
 		return img;
 	}
 	
+
+	public static ImagePlus drawCircleInImage(ImagePlus imgIn,double ray,int x0,int y0,int z0,int value) {
+		if(imgIn.getType() != ImagePlus.GRAY8)return imgIn;
+		ImagePlus img=new Duplicator().run(imgIn);
+		int xM=img.getWidth();
+		int yM=img.getHeight();
+		int zM=img.getStackSize();
+		double voxSX=img.getCalibration().pixelWidth;
+		double voxSY=img.getCalibration().pixelHeight;
+		double voxSZ=img.getCalibration().pixelDepth;
+		double realDisX;
+		double realDisY;
+		double realDisZ;
+		byte[][] valsImg=new byte[zM][];
+		double distance;
+		for(int z=0;z<zM;z++) {
+			valsImg[z]=(byte [])img.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<xM;x++) {
+				for(int y=0;y<yM;y++) {
+					realDisX=(x-x0)*voxSX;
+					realDisY=(y-y0)*voxSY;
+					realDisZ=(z-z0)*voxSZ;
+					distance=Math.sqrt( realDisX * realDisX  +  realDisY * realDisY  + realDisZ * realDisZ  );
+					if(distance < ray) {
+						valsImg[z][xM*y+x]=  (byte)( value & 0xff);
+					}
+				}
+			}			
+		}
+		return img;
+	}
+
+	
+	
+	public static ImagePlus getBinaryMask(ImagePlus img,double threshold) {
+		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getStackSize();
+		double[]voxSizes=new double[] {img.getCalibration().pixelWidth,img.getCalibration().pixelHeight,img.getCalibration().pixelDepth};
+		
+		int type=(img.getType()==ImagePlus.GRAY8 ? 8 : img.getType()==ImagePlus.GRAY16 ? 16 : img.getType()==ImagePlus.GRAY32 ? 32 : 24);
+		ImagePlus ret=IJ.createImage("", dimX, dimY, dimZ, 8);
+		Calibration cal = ret.getCalibration();
+		cal.setUnit("mm");cal.pixelWidth =voxSizes[0]; cal.pixelHeight =voxSizes[1]; cal.pixelDepth =voxSizes[2];
+		if(type==8) {
+			for(int z=0;z<dimZ;z++) {
+				byte []tabImg=(byte[])img.getStack().getProcessor(z+1).getPixels();
+				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					for(int y=0;y<dimY;y++) {
+						if( (tabImg[dimX*y+x] & 0xff) >= (byte)(((int)Math.round(threshold)) & 0xff)  )tabRet[dimX*y+x]=(byte)(255 & 0xff);
+						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
+					}
+				}
+			}
+		}
+		else if(type==16) {
+			for(int z=0;z<dimZ;z++) {
+				short []tabImg=(short[])img.getStack().getProcessor(z+1).getPixels();
+				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					for(int y=0;y<dimY;y++) {
+						if( (tabImg[dimX*y+x] & 0xffff) >= (short)(((int)Math.round(threshold)) & 0xffff)  )tabRet[dimX*y+x]=(byte)(255 & 0xff);
+						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
+					}
+				}
+			}
+		}
+		else if(type==32) {
+			for(int z=0;z<dimZ;z++) {
+				float []tabImg=(float[])img.getStack().getProcessor(z+1).getPixels();
+				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					for(int y=0;y<dimY;y++) {
+						if( (tabImg[dimX*y+x]) >= threshold )tabRet[dimX*y+x]=(byte)(255 & 0xff);
+						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
+					}
+				}
+			}
+		}
+		else VitiDialogs.notYet("getBinary Mask type "+type);
+		return ret;
+	}
+	
+	
+	
 	public static double []valuesOfImageAround(ImagePlus img,int x0,int y0,int z0,double ray) {
 		int xMax=img.getWidth();
 		int xm=(int)Math.round(x0-ray);
@@ -968,6 +1375,16 @@ public interface VitimageUtils {
 		return (new double[] {mean,std});
 	}
 
+	
+	
+	
+	public static double voxelVolume(ImagePlus img) {
+		double vX=img.getCalibration().pixelWidth;
+		double vY=img.getCalibration().pixelHeight;
+		double vZ=img.getCalibration().pixelDepth;
+		return vX*vY*vZ;
+	}
+	
 	/**
 	 * Connected components utilities
 	 * @param img
@@ -989,7 +1406,7 @@ public interface VitimageUtils {
 		int[][][]tabIn=new int[xMax][yMax][zMax];
 		int[][]connexions=new int[xMax*yMax*zMax*3][2];
 		int[]volume=new int[xMax*yMax*zMax];
-		int[][]neighbours=new int[][]{{1,0,0,0},{1,1,0,0},{0,1,0,0},{0,0,1,0},{1,0,1,0},{1,1,1,0},{1,1,0,0} };
+		int[][]neighbours=new int[][]{{1,0,0,0},{1,1,0,0},{0,1,0,0},{0,0,1,0},{1,0,1,0},{1,1,1,0},{0,1,1,0} };
 		int curComp=0;
 		int indexConnexions=0;
 		if(debug)System.out.println("Choix d'un type");
@@ -1029,6 +1446,17 @@ public interface VitimageUtils {
 					}
 					if(tabIn[x][y][z]>0) {//Here we need to explore the neighbours
 						for(int nei=0;nei<7;nei++)neighbours[nei][3]=1;//At the beginning, every neighbour is possible. 
+						//    Z axis
+						//     /|\ 6---------5         
+						//      | /|        /|
+						//      |/ |       / |  
+						//      3---------4  |
+						//      |  |      |  |
+						//      |  2------|--1
+						//      | /       | /
+						//      |/        |/
+						//      X---------0-----> X axis
+ 						//
 						//Then we need to reduce access according to images dims and chosen connexity
 						if(x==xMax-1)neighbours[0][3]=neighbours[1][3]=neighbours[4][3]=neighbours[5][3]=0;
 						if(y==yMax-1)neighbours[1][3]=neighbours[2][3]=neighbours[5][3]=neighbours[6][3]=0;
@@ -1041,6 +1469,7 @@ public interface VitimageUtils {
 						//Given these neighbours, we can visit them
 						for(int nei=0;nei<7;nei++) {
 							if(neighbours[nei][3]==1) {
+								//System.out.println("Go, avec nei="+nei+" x="+x+" y="+y+" z"+z+" NEIS={"+neighbours[nei][0]+","+neighbours[nei][1]+","+neighbours[nei][2]"}");
 								if(tabIn[x+neighbours[nei][0]][y+neighbours[nei][1]][z+neighbours[nei][2]]==0)continue;
 								if(tabIn[x+neighbours[nei][0]][y+neighbours[nei][1]][z+neighbours[nei][2]]==-1) {
 									tabIn[x+neighbours[nei][0]][y+neighbours[nei][1]][z+neighbours[nei][2]]=tabIn[x][y][z];
@@ -1070,6 +1499,7 @@ public interface VitimageUtils {
 			for(int x=0;x<xMax;x++)for(int y=0;y<yMax;y++) imgOutTab[x+xMax*y] = (short) ( lut[tabIn[x][y][z]]  );
 		}
 		imgOut.getProcessor().setMinAndMax(0,lut[curComp+1]);
+		VitimageUtils.adjustImageCalibration(imgOut, img);
 		return imgOut;	
 	}
 
@@ -1269,15 +1699,21 @@ public interface VitimageUtils {
 	public static ImagePlus gaussianFiltering(ImagePlus imgIn,double sigmaX,double sigmaY,double sigmaZ) {
 		Image img=ItkImagePlusInterface.imagePlusToItkImage(imgIn);
 		RecursiveGaussianImageFilter gaussFilter=new RecursiveGaussianImageFilter();
-		gaussFilter.setDirection(0);
-		gaussFilter.setSigma(sigmaX);
-		img=gaussFilter.execute(img);
-		gaussFilter.setDirection(1);
-		gaussFilter.setSigma(sigmaY);
-		img=gaussFilter.execute(img);
-		gaussFilter.setDirection(2);
-		gaussFilter.setSigma(sigmaZ);
-		img=gaussFilter.execute(img);
+		if(imgIn.getWidth()>=4 && sigmaX>0) {
+			gaussFilter.setDirection(0);
+			gaussFilter.setSigma(sigmaX);
+			img=gaussFilter.execute(img);
+		}
+		if(imgIn.getHeight()>=4 && sigmaY>0) {
+			gaussFilter.setDirection(1);
+			gaussFilter.setSigma(sigmaY);
+			img=gaussFilter.execute(img);
+		}
+		if(imgIn.getStackSize()>=4 && sigmaZ>0) {
+			gaussFilter.setDirection(2);
+			gaussFilter.setSigma(sigmaZ);
+			img=gaussFilter.execute(img);
+		}
 		return ItkImagePlusInterface.itkImageToImagePlus(img);
 	}
 	

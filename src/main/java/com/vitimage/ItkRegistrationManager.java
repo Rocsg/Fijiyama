@@ -307,9 +307,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 	}
 
 	
-	public ImagePlus[] runScenarioInterEchoes(ImagePlus refImgSource, ImagePlus movImgSource,
-					double learningRate,int nbIteration, Transformation3DType transform,OptimizerType opt,MetricType metr,double sigma) {
-				
+	public ImagePlus[] runScenarioInterEchoes(ImagePlus refImgSource, ImagePlus movImgSource) {
 		ImagePlus refImg=new Duplicator().run(refImgSource);
 		ImagePlus movImg=new Duplicator().run(movImgSource);
 		IJ.run(refImg,"32-bit","");
@@ -317,29 +315,29 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.setMovingImage(movImg);
 		this.setReferenceImage(refImg);
 		this.setViewSlice(refImg.getStackSize()/2);
-		this.setMetric(metr);
 		SamplingStrategy samplStrat=SamplingStrategy.NONE;
 		int levelMax=1;
 		int levelMin=1;
+		double learningRate=0.5;
+		double sigma=0.5;
+		MetricType metr=MetricType.CORRELATION;
+		this.setMetric(metr);
 		OptimizerType opt2=OptimizerType.AMOEBA;
-		this.addStepToQueue( levelMin ,    levelMax     ,     sigma   ,   80 ,learningRate   ,       Transformation3DType.TRANSLATION,    null,
+		
+		
+		this.addStepToQueue( levelMin ,    levelMax     ,     sigma   ,   120 ,learningRate   ,       Transformation3DType.TRANSLATION,    null,
 				opt2  , ScalerType.SCALER_PHYSICAL , null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-		this.addStepToQueue( levelMin ,    levelMax     ,     sigma   ,   80 ,learningRate   ,       Transformation3DType.VERSOR,    null,
+		this.addStepToQueue( levelMin ,    levelMax     ,     sigma   ,   120 ,learningRate   ,       Transformation3DType.VERSOR,    null,
 				opt2  , ScalerType.SCALER_PHYSICAL , null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-		this.addStepToQueue( levelMin ,    levelMax     ,     sigma   ,   80 ,learningRate   ,       Transformation3DType.SIMILARITY,    null,
+		this.addStepToQueue( levelMin ,    levelMax     ,     sigma   ,   120 ,learningRate   ,       Transformation3DType.TRANSLATION,    null,
+				opt2  , ScalerType.SCALER_PHYSICAL , null ,
+		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
+		this.addStepToQueue( levelMin ,    levelMax     ,     sigma   ,   120 ,learningRate   ,       Transformation3DType.VERSOR,    null,
 				opt2  , ScalerType.SCALER_PHYSICAL , null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-/*		this.addStepToQueue( levelMin ,    levelMax     ,     0.5     ,    30  , 0.5   ,       Transformation3DType.TRANSLATION,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.addStepToQueue( levelMin ,    levelMax     ,     0.3    ,    30 , 0.3   ,       Transformation3DType.TRANSLATION,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-*/
 		this.register();
 		//this.showRegistrationSummary();
 		IJ.log("Score="+this.registrationMethods.get(registrationMethods.size()-1).getMetricValue());
@@ -968,7 +966,7 @@ class IterationUpdate  extends Command {
 				, (float)durIter,unitIter
 				, (float)durTot,unitTot,improvement
 				);
-		else System.out.format("%sIteration %3d  |  Score = %6.4f  |  Titeration = %8.4f %s  |  Ttotal = %5.2f %s  | Evolution = %4.2f%% |\n",
+		else if(method.getOptimizerIteration()%10==0)System.out.format("%sIteration %3d  |  Score = %6.4f  |  Titeration = %8.4f %s  |  Ttotal = %5.2f %s  | Evolution = %4.2f%% |\n",
 				pyr,method.getOptimizerIteration()
 				,-100.0*method.getMetricValue()
 				, (float)durIter,unitIter

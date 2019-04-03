@@ -37,6 +37,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		CUTTING
 	}
 	public final static String slash=File.separator;
+	public boolean computeOnlyAcquisitionsAndMaps=false;
 	public String title="--";
 	public String sourcePath="--";
 	public String dataPath="--";
@@ -65,7 +66,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J218","B051_CT_J218");			
+		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J218","B051_CT_J218",false);			
 		viti.start();
 		viti.normalizedHyperImage.show();
 	}
@@ -94,6 +95,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	
 	public boolean nextStep(){
 		int a=readStep();
+		if (computeOnlyAcquisitionsAndMaps && a>1) {return false;}
 		switch(a) {
 		case -1:
 			IJ.showMessage("Critical fail, no directory found Source_data in the current directory");
@@ -102,24 +104,29 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 			if(this.supervisionLevel != SupervisionLevel.AUTONOMOUS)IJ.log("No data in this directory");
 			return false;
 		case 1://data are read. Time to compute individual calculus for each acquisition
-			for (Acquisition acq : this.acquisition) {System.out.println("");acq.start();}
+			for (Acquisition acq : this.acquisition) {System.out.println("\nVitimage4D, step1 start a new acquisition");acq.start();}
 			this.setImageForRegistration();
 			this.writeImageForRegistration();
 			this.writeParametersToHardDisk();
+			if (computeOnlyAcquisitionsAndMaps) {writeStep(a+1);return false;}
 			break;
 		case 2: //individual computations are done. Time to register acquisitions
+			System.out.println("\nVitimage4D, step2, start major misalignements");
 			this.handleMajorMisalignments();
 			this.writeTransforms();
 			break;
 		case 3: //individual computations are done. Time to register acquisitions
+			System.out.println("\nVitimage4D, step3, centrage des axes");
 			this.centerAxes();
 			this.writeTransforms();
 			break;
 		case 4: //individual computations are done. Time to register acquisitions
+			System.out.println("\nVitimage4D, step4, detection des points d inoculation");
 			if(vineType==VineType.CUTTING) detectInoculationPoints();
 			this.writeTransforms();
 			break;
 		case 5: //individual computations are done. Time to register acquisitions
+			System.out.println("\nVitimage4D, step5, recalage fin");
 			automaticFineRegistration();
 			this.writeTransforms();
 			break;
@@ -128,6 +135,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 			//this.writeMask();
 			break;
 		case 7: //Data are shared. Time to compute hyperimage
+			System.out.println("\nVitimage4D, step7, compute normalized hyperimage");
 			this.computeNormalizedHyperImage();
 			writeHyperImage();
 			break;
@@ -187,7 +195,8 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	}
 	
 	
-	public Vitimage4D(VineType vineType, int dayAfterExperience,String sourcePath,String title) {
+	public Vitimage4D(VineType vineType, int dayAfterExperience,String sourcePath,String title,boolean computeOnlyAcquisitionsAndMaps) {
+		this.computeOnlyAcquisitionsAndMaps=computeOnlyAcquisitionsAndMaps;
 		this.title=title;
 		this.sourcePath=sourcePath;
 		this.dayAfterExperience=dayAfterExperience;
@@ -284,8 +293,8 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	public void addAcquisition(Acquisition.AcquisitionType acq, String path,Geometry geom,Misalignment mis,Capillary cap,SupervisionLevel sup){
 		
 		switch(acq) {
-		case MRI_T1_SEQ: this.acquisition.add(new MRI_T1_Seq(path,cap,sup,this.title+"_T1"));this.hyperSize+=3;break;
-		case MRI_T2_SEQ: this.acquisition.add(new MRI_T2_Seq(path,cap,sup,this.title+"_T2"));this.hyperSize+=3;break;
+		case MRI_T1_SEQ: this.acquisition.add(new MRI_T1_Seq(path,cap,sup,this.title+"_T1",this.computeOnlyAcquisitionsAndMaps));this.hyperSize+=3;break;
+		case MRI_T2_SEQ: this.acquisition.add(new MRI_T2_Seq(path,cap,sup,this.title+"_T2",this.computeOnlyAcquisitionsAndMaps));this.hyperSize+=3;break;
 		case MRI_DIFF_SEQ: VitiDialogs.notYet("FlipFlop");break;
 		case MRI_FLIPFLOP_SEQ: VitiDialogs.notYet("FlipFlop");break;
 		case MRI_SE_SEQ: VitiDialogs.notYet("FlipFlop");break;

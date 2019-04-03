@@ -52,6 +52,7 @@ import math3d.Point3d;
 public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface{
 	private final double sigmaGaussMapInPixels=0.5;
 	private boolean removeOutliers=true;
+	public boolean computeOnlyAcquisitionsAndMaps=false;
 	private double thresholdOutlier=1.5;
 	private double Te;
 	private double Tr[];
@@ -67,7 +68,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J218/Source_data/MRI_T1_SEQ",Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_MRI_T1");
+		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J218/Source_data/MRI_T1_SEQ",Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_MRI_T1",false);
 		mri.start();
 		return;
 	}
@@ -77,14 +78,15 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	/**
 	 * Constructors, factory and top level functions
 	 */
-	public MRI_T1_Seq(String sourcePath,Capillary cap,SupervisionLevel sup,String title) {
+	public MRI_T1_Seq(String sourcePath,Capillary cap,SupervisionLevel sup,String title,boolean computeOnlyAcquisitionsAndMaps) {
 		super(AcquisitionType.MRI_T1_SEQ, sourcePath,cap,sup);
+		this.computeOnlyAcquisitionsAndMaps=this.computeOnlyAcquisitionsAndMaps;
 		this.title=title;
 		this.hyperSize=3;
 	}
 
 	public static MRI_T1_Seq MRI_T1_SeqFactory(String sourcePath,Capillary cap,SupervisionLevel sup,String dataPath) {
-		MRI_T1_Seq mri=new MRI_T1_Seq(sourcePath,cap,sup,"factory");
+		MRI_T1_Seq mri=new MRI_T1_Seq(sourcePath,cap,sup,"factory",false);
 		mri.start();
 		return mri;
 	}
@@ -106,12 +108,13 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 			if(this.supervisionLevel != SupervisionLevel.AUTONOMOUS)IJ.log("No data in this directory");
 			return false;
 		case 1: //data are read. Time to register
-			this.registerEchoes(0.5,120,Transformation3DType.VERSOR,OptimizerType.AMOEBA,MetricType.MEANSQUARE,0.5);
+			this.registerEchoes();
 			writeRegisteredSourceData();
 			break;
 		case 2: //data are registered. Time to compute Maps
 			this.computeMaps();
 			writeMaps();
+			if(this.computeOnlyAcquisitionsAndMaps) {writeStep(a+1);	return false;}
 			break;
 		case 3: //data are registered. Time to compute Maps
 			this.computeNormalizedHyperImage();
@@ -303,9 +306,9 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 			int nbEch=strEchoes.length;
 			
 			//Compter le nombre d echos : verifier l'eventuelle presence d'une sequence T2 et la virer
-			for(int i=nbEch-1;i>0;i--) {
-				System.out.println("ECHO LU : i="+i+" : "+strEchoes[i]);
+			for(int i=nbEch-1;i>=0;i--) {
 				if(strEchoes[i].equals("TR010000"))nbEch--;
+				else System.out.println("Available recovery time : i="+i+" : "+strEchoes[i]);
 			}
 		
 			//Extraire les parametres généraux depuis une des coupes	
@@ -315,7 +318,6 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 			strSlices=fiTr.list();
 
 			ImagePlus imgPar=IJ.openImage(fiTr.getAbsolutePath()+slash+strSlices[0]);
-			System.out.println("Appel à setParams");
 			this.setParamsFromDCM(imgPar);
 			
 			
@@ -326,7 +328,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 
 			//Pour chaque Tr
 			for(int i=0;i<nbEch;i++) {
-				System.out.print(i+" ");
+				System.out.print("Recovery time "+i+" ");
 				fiTr=new File(strPath,strEchoes[i]);
 				strSlices=fiTr.list();
 				fiTr=new File(fiTr.getAbsolutePath(),strSlices[0]);
@@ -364,7 +366,6 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	}
 	
 	public void setParamsFromDCM(ImagePlus imgPar) {
-		System.out.println("Entree dans setParams (image phase 1 viewing)");
 		String[]params=getParamsFromDCM(imgPar,MRI_T1_Seq.StandardMetadataLookup,"Called from setParams");
 		
 		this.acquisitionDate=VitimageUtils.getDateFromString(params[0]);
@@ -463,23 +464,9 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	
 	
 	public void computeMask() {
-		System.out.println("Mask computation : gaussian filtering, and 3D connected component research (~1 mn)...");
-		ImagePlus img=new Duplicator().run(sourceData[sourceData.length-1]);
-
-		VitimageUtils.imageChecking(img,"Before gaussian");
-		img=VitimageUtils.gaussianFiltering(img,4*this.voxSX(),4*this.voxSY(),4*this.voxSX());
-		VitimageUtils.imageChecking(img,"After gaussian");
-		double val=(this.capillary==Capillary.HAS_CAPILLARY ? this.getCapillaryValue(img) : this.defaultNormalisationValues()[0]);
-		System.out.println("Valeur obtenue = "+val);
-		ImagePlus imgConObject=VitimageUtils.connexe(img,val/5, img.getProcessor().getMax(),0,10E10,6,1,true);
-		VitimageUtils.imageChecking(imgConObject,"imgConObject");
-		ImagePlus imgConCap=VitimageUtils.connexe(img,val/3,  img.getProcessor().getMax(),0,10E10,6,2,true);
-		VitimageUtils.imageChecking(imgConCap,"imgConCap");
-		IJ.run(imgConObject,"8-bit","");
-		IJ.run(imgConCap,"8-bit","");
-		ImageCalculator ic=new ImageCalculator();
-		this.mask = ic.run("OR create stack", imgConObject,imgConCap);
-		System.out.println("Ok.");
+		System.out.println("\nMask computation : gaussian filtering, and 3D connected component research (~1 mn)...");
+		this.mask=VitimageUtils.areaOfPertinentMRIMapComputation (sourceData[sourceData.length-1],sigmaGaussMapInPixels);
+		System.out.println("Mask computation ok.");
 		VitimageUtils.imageCheckingFast(this.mask,"T1 Mask");
 	}
 	
@@ -490,13 +477,12 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 		this.start();
 	}
 	
-
-	public void registerEchoes(double learningRate,int nbIteration, Transformation3DType transform,OptimizerType opt,MetricType metr,double sigma) {
+	
+	public void registerEchoes() {
 		for(int i=0;i<this.sourceData.length-1;i++) {
 			System.out.println("Recalage echo numero "+i);
 			ItkRegistrationManager manager=new ItkRegistrationManager();
-			ImagePlus[] result=manager.runScenarioInterEchoes(sourceData[sourceData.length-1], sourceData[i],
-							learningRate,nbIteration,transform,opt,metr,sigma);
+			ImagePlus[] result=manager.runScenarioInterEchoes(sourceData[sourceData.length-1], sourceData[i]);
 			System.out.println("Recalage echo numero "+i+" ok");
 			sourceData[i]=VitimageUtils.convertFloatToShortWithoutDynamicChanges(result[0]);
 			System.out.println("Conversion "+i+" ok");

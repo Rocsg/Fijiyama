@@ -28,6 +28,7 @@ public abstract class Acquisition implements VitimageUtils{
 	/**
 	 * Parameters
 	 */
+	public final static double maxShortVal=Math.pow(2,16)-1;
 	protected int hyperSize=1;
 	protected ImagePlus normalizedHyperImage;
 	protected ImagePlus[]sourceData;
@@ -246,7 +247,7 @@ public abstract class Acquisition implements VitimageUtils{
 
 	
 	public double getCapillaryValue(ImagePlus img) {
-		return getCapillaryValue(img,detectCapillaryPosition(this.dimZ/2),4,4);
+		return getCapillaryValue(img,detectCapillaryPositionImg(this.dimZ/2,img),4,4);
 	}
 
 	
@@ -288,6 +289,27 @@ public abstract class Acquisition implements VitimageUtils{
 		return val1;
 	}
 	
+	public int[] detectCapillaryPositionImg(int Z,ImagePlus img2) {
+		ImagePlus img=new Duplicator().run(img2);
+		RoiManager rm=RoiManager.getRoiManager();
+		double valThresh=this.valMedForThresholding;//standard measured values on echo spin images of bionanoNMRI
+		ImagePlus imgSlice=new ImagePlus("", img.getStack().getProcessor(Z));
+		VitimageUtils.imageChecking(imgSlice,"Detect capillary, Before connect group");
+		ImagePlus imgCon=VitimageUtils.connexe(imgSlice, valThresh, 10E10, 0, 10E10,4,2,true);
+		VitimageUtils.imageChecking(imgCon,"After selecting the second area up to "+valThresh);
+		imgCon.getProcessor().setMinAndMax(0,255);
+		IJ.run(imgCon,"8-bit","");
+		IJ.setThreshold(imgCon, 255,255);
+		rm.reset();
+		Roi capArea=new ThresholdToSelection().convert(imgCon.getProcessor());	
+		rm.add(imgSlice, capArea, 0);							
+		Rectangle rect=capArea.getFloatPolygon().getBounds();
+		System.out.println("Capillary position detected is :"+(rect.getX() + rect.getWidth()/2.0)+" , "+
+															 (rect.getY() + rect.getHeight()/2.0)+" , "+
+														 	 Z);
+		return new int[] {(int) (rect.getX() + rect.getWidth()/2.0) , (int) (rect.getY() + rect.getHeight()/2.0) , Z , (int)rect.getWidth(),(int)rect.getHeight()};  
+	}
+	
 	public int[] detectCapillaryPosition(int Z) {
 		ImagePlus img=new Duplicator().run(this.imageForRegistration);
 		RoiManager rm=RoiManager.getRoiManager();
@@ -308,6 +330,37 @@ public abstract class Acquisition implements VitimageUtils{
 														 	 Z);
 		return new int[] {(int) (rect.getX() + rect.getWidth()/2.0) , (int) (rect.getY() + rect.getHeight()/2.0) , Z , (int)rect.getWidth(),(int)rect.getHeight()};  
 	}
+	
+	public static double[] caracterizeBackgroundOfImage(ImagePlus img) {
+		int samplSize=Math.min(10+20,img.getWidth()/10);
+		int x0=samplSize;
+		int y0=samplSize;
+		int x1=img.getWidth()-samplSize;
+		int y1=img.getHeight()-samplSize;
+		int z01=img.getStackSize()/2;
+		double[][] vals=new double[4][2];
+		vals[0]=VitimageUtils.valuesOfImageAround(img,x0,y0,z01,samplSize/2);
+		vals[1]=VitimageUtils.valuesOfImageAround(img,x0,y1,z01,samplSize/2);
+		vals[2]=VitimageUtils.valuesOfImageAround(img,x1,y0,z01,samplSize/2);
+		vals[3]=VitimageUtils.valuesOfImageAround(img,x1,y1,z01,samplSize/2);		
+		System.out.println("");
+		double [][]stats=new double[4][2];
+		double []globStats=VitimageUtils.statistics2D(vals);
+		System.out.println("Background statistics averaged on the four corners = ( "+globStats[0]+" , "+globStats[1]+" ) ");
+		for(int i=0;i<4;i++) {
+			stats[i]=(VitimageUtils.statistics1D(vals[i]));
+			System.out.println("  --> Stats zone "+i+" =  ( "+stats[i][0]+" , "+stats[i][1]+")");
+			if( (Math.abs(stats[i][0]-globStats[0])/globStats[0]>0.3)){
+				System.out.println("Warning : noise computation  There should be an object in the supposed background\nthat can lead to misestimate background values. Detected at slice "+samplSize/2+"at "+
+							(i==0 ?"Up-left corner" : i==1 ? "Down-left corner" : i==2 ? "Up-right corner" : "Down-right corner")+
+							". Mean values of squares="+globStats[0]+". Outlier value="+vals[i][0]+" you should inspect the image and run again.");
+				img.show();
+			}
+		}
+		return new double[] {globStats[0],globStats[1]};
+	}
+	
+
 	
 	public void caracterizeBackground() {
 		int samplSize=Math.min(10+20,this.dimX()/10);

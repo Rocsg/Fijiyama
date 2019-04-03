@@ -32,6 +32,7 @@ import ij.process.FloatProcessor;
 public class MRI_T2_Seq extends Acquisition{
 	private final double sigmaGaussMapInPixels=0.5;
 	private boolean removeOutliers=true;
+	public boolean computeOnlyAcquisitionsAndMaps=false;
 	private double thresholdOutlier=1.5;
 	private double Te[];
 	private double Tr;
@@ -47,7 +48,7 @@ public class MRI_T2_Seq extends Acquisition{
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B001_PAL/Source_data/J000/Source_data/MRI_T2_SEQ",Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_T2");
+		MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J218/Source_data/MRI_T2_SEQ",Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_T2",false);
 		mri.start();//
 	}
 
@@ -58,14 +59,15 @@ public class MRI_T2_Seq extends Acquisition{
 	 * Constructors, factory and top level functions
 	 */
 
-	public MRI_T2_Seq(String sourcePath,Capillary cap,SupervisionLevel sup,String title) {
+	public MRI_T2_Seq(String sourcePath,Capillary cap,SupervisionLevel sup,String title,boolean computeOnlyAcquisitionsAndMaps) {
 		super(AcquisitionType.MRI_T2_SEQ, sourcePath,cap,sup);
+		this.computeOnlyAcquisitionsAndMaps=computeOnlyAcquisitionsAndMaps;
 		this.title=title;
 		this.hyperSize=3;
 	}
 
 	public static MRI_T2_Seq MRI_T2_SeqFactory(String sourcePath,Capillary cap,SupervisionLevel sup,String dataPath) {
-		MRI_T2_Seq mri=new MRI_T2_Seq(sourcePath,cap,sup,"Factory");
+		MRI_T2_Seq mri=new MRI_T2_Seq(sourcePath,cap,sup,"Factory",false);
 		mri.start();
 		return mri;
 	}
@@ -89,6 +91,7 @@ public class MRI_T2_Seq extends Acquisition{
 		case 1: //data are read. Time to compute Maps
 			this.computeMaps();
 			writeMaps();
+			if(this.computeOnlyAcquisitionsAndMaps){writeStep(a+1);	return false;}
 			break;
 		case 2: //data are registered. Time to compute Maps
 			this.computeNormalizedHyperImage();
@@ -451,16 +454,8 @@ public class MRI_T2_Seq extends Acquisition{
 	
 	public void computeMask() {
 		System.out.println("Mask computation : gaussian filtering, and 3D connected component research (~1 mn)...");
-		ImagePlus img=new Duplicator().run(sourceData[0]);
-		img=VitimageUtils.gaussianFiltering(img,2*this.voxSX(),2*this.voxSY(),2*this.voxSX());
-		double val=(this.capillary==Capillary.HAS_CAPILLARY ? this.getCapillaryValue(img) : this.defaultNormalisationValues()[0]);
-		ImagePlus imgConObject=VitimageUtils.connexe(img,val/15, val*2,0,10E10,6,1,true);
-		ImagePlus imgConCap=VitimageUtils.connexe(img,val/5, val*2,0,10E10,6,2,true);
-		IJ.run(imgConObject,"8-bit","");
-		IJ.run(imgConCap,"8-bit","");
-		ImageCalculator ic=new ImageCalculator();
-		this.mask = ic.run("OR create stack", imgConObject,imgConCap);
-		System.out.println("Ok.");
+		this.mask=VitimageUtils.areaOfPertinentMRIMapComputation (sourceData[0],sigmaGaussMapInPixels);
+		System.out.println("Mask computation ok.");
 		VitimageUtils.imageCheckingFast(this.mask,"T2 Mask");
 	}
 	
