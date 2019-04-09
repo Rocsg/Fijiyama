@@ -273,4 +273,64 @@ public interface VitiDialogs {
 		return pointCoordImage;		
 	}
 	
+	
+	
+	public static double[][] inspectAxis(ImagePlus img ,double[] vectZ,Point3d ptOrigine,int delayForReacting){
+		double ray=1;//en mm
+		ImagePlus imgInspect=new Duplicator().run(img);
+		Point3d pointCoordImage=TransformUtils.convertPointToImageSpace(ptOrigine,imgInspect);
+		imgInspect.getProcessor().resetMinAndMax();
+		IJ.run(imgInspect,"8-bit","");
+		ImagePlus imgPoint=ij.gui.NewImage.createImage("point",img.getWidth(),img.getHeight(),img.getStackSize(),8,ij.gui.NewImage.FILL_BLACK);
+		VitimageUtils.adjustImageCalibration(imgPoint,imgInspect);
+		imgPoint=VitimageUtils.drawThickLineInImage(imgPoint,ray,(int)Math.round(pointCoordImage.x),(int)Math.round(pointCoordImage.y),(int)Math.round(pointCoordImage.z),vectZ);
+		ImagePlus comp=VitimageUtils.compositeOf(imgInspect, imgPoint);
+		VitimageUtils.imageCheckingFast(comp,  "Suggested axis");
+		comp.show();
+		comp.setSlice((int)Math.round(pointCoordImage.z)+1);
+		int secondsLast=delayForReacting;
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		IJ.setTool("point");
+		while(secondsLast-- > 0) {
+			comp.setTitle("Change axis if necessary. Z-up then Z-down. "+secondsLast+" s left...");
+			VitimageUtils.waitFor(1000);
+		}
+		if(rm.getCount()<2) {
+			rm.close();
+			comp.changes=false;
+			comp.close();
+			imgInspect.changes=false;
+			imgInspect.close();		
+			return new double[][]{vectZ,new double[] {0,0,0},new double[] {0,0,0}};
+		}
+		
+		Point3d pointCoordImageUp=new Point3d(rm.getRoi(0 ).getXBase() , rm.getRoi(0).getYBase() ,  rm.getRoi(0).getZPosition());
+		pointCoordImageUp=TransformUtils.convertPointToRealSpace(pointCoordImageUp,imgInspect);
+		Point3d pointCoordImageDown=new Point3d(rm.getRoi(1 ).getXBase() , rm.getRoi(1).getYBase() ,  rm.getRoi(1).getZPosition());
+		pointCoordImageDown=TransformUtils.convertPointToRealSpace(pointCoordImageDown,imgInspect);
+		rm.close();
+		comp.changes=false;
+		comp.close();
+		imgInspect.changes=false;
+		imgInspect.close();
+		System.out.println("On passe par ici");
+		return new double[][]{TransformUtils.normalize(new double[] { pointCoordImageUp.x - pointCoordImageDown.x , 
+																pointCoordImageUp.y - pointCoordImageDown.y , 
+																pointCoordImageUp.z - pointCoordImageDown.z } ), 
+													new double[] { pointCoordImageUp.x , pointCoordImageUp.y , pointCoordImageUp.z } ,
+													new double[] { pointCoordImageDown.x , pointCoordImageDown.y , pointCoordImageDown.z } };
+		}
+
+		
+		
+		
 }
+	
+	
+	
+	
+	
+	
+	
+	

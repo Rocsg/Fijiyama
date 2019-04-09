@@ -50,7 +50,7 @@ import math3d.Point3d;
  *
  */
 public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface{
-	private final double sigmaGaussMapInPixels=0.5;
+	
 	private boolean removeOutliers=true;
 	public boolean computeOnlyAcquisitionsAndMaps=false;
 	private double thresholdOutlier=1.5;
@@ -68,7 +68,8 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J218/Source_data/MRI_T1_SEQ",Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_MRI_T1",false);
+		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J218/Source_data/MRI_T1_SEQ",
+									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_MRI_T1",ComputingType.COMPUTE_ALL);
 		mri.start();
 		return;
 	}
@@ -78,49 +79,61 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	/**
 	 * Constructors, factory and top level functions
 	 */
-	public MRI_T1_Seq(String sourcePath,Capillary cap,SupervisionLevel sup,String title,boolean computeOnlyAcquisitionsAndMaps) {
+	public MRI_T1_Seq(String sourcePath,Capillary cap,SupervisionLevel sup,String title,ComputingType computingType) {
 		super(AcquisitionType.MRI_T1_SEQ, sourcePath,cap,sup);
-		this.computeOnlyAcquisitionsAndMaps=this.computeOnlyAcquisitionsAndMaps;
+		this.computingType=computingType;
 		this.title=title;
 		this.hyperSize=3;
 	}
 
 	public static MRI_T1_Seq MRI_T1_SeqFactory(String sourcePath,Capillary cap,SupervisionLevel sup,String dataPath) {
-		MRI_T1_Seq mri=new MRI_T1_Seq(sourcePath,cap,sup,"factory",false);
+		MRI_T1_Seq mri=new MRI_T1_Seq(sourcePath,cap,sup,"factory",ComputingType.COMPUTE_ALL);
 		mri.start();
 		return mri;
 	}
 	
 	public void start() {
 		this.printStartMessage();
+		//if(this.computingType==ComputingType.EVERYTHING_AFTER_MAPS)writeStep(3);
+		//if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS)writeStep(1);
 		quickStartFromFile();
 		while(nextStep());
 	}
 	
 	public boolean nextStep(){
 		int a=readStep();
-		System.out.println("------> "+ " next step : "+a+" "+this.getTitle());
+		System.out.println("MRI_T1_SEQ "+this.getTitle()+"------> "+ " next step : "+a+" "+this.getTitle());
 		switch(a) {
 		case -1:
-			IJ.showMessage("Critical fail, no directory found Source_data in the current directory");
-			return false;
+			if(this.computingType!=ComputingType.EVERYTHING_AFTER_MAPS) {
+				IJ.showMessage("Critical fail, no directory found Source_data in the current directory");
+				return false;
+			};break;
 		case 0: // rien --> exit
-			if(this.supervisionLevel != SupervisionLevel.AUTONOMOUS)IJ.log("No data in this directory");
-			return false;
+			if(this.computingType!=ComputingType.EVERYTHING_AFTER_MAPS) {
+				if(this.supervisionLevel != SupervisionLevel.AUTONOMOUS)IJ.log("No data in this directory");
+				return false;
+			};break;			
 		case 1: //data are read. Time to register
-			this.registerEchoes();
-			writeRegisteredSourceData();
-			break;
+			if(this.computingType!=ComputingType.EVERYTHING_AFTER_MAPS) {
+				this.registerEchoes();
+				writeRegisteredSourceData();
+			};break;			
 		case 2: //data are registered. Time to compute Maps
-			this.computeMaps();
-			writeMaps();
-			if(this.computeOnlyAcquisitionsAndMaps) {writeStep(a+1);	return false;}
-			break;
+			if(this.computingType!=ComputingType.EVERYTHING_AFTER_MAPS) {
+				this.computeMask();
+				writeMask();
+				this.computeMaps();
+				writeMaps();
+				if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS) {writeStep(a+1);	return false;}
+			};break;
 		case 3: //data are registered. Time to compute Maps
+			if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS) return false;
 			this.computeNormalizedHyperImage();
 			writeHyperImage();
 			break;
 		case 4:
+			if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS) return false;
 			System.out.println("MRI_T1_Seq Computation finished for "+this.getTitle());
 			return false;
 		}
@@ -163,7 +176,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	@Override
 	public void quickStartFromFile() {
 		//Gather the path to source data
-		System.out.println("Quick start : RX sequence hosted in ");
+		System.out.println("Quick start : T1 sequence hosted in ");
 		System.out.println(this.sourcePath.substring(0,this.sourcePath.length()/2));
 		System.out.println(this.sourcePath.substring(this.sourcePath.length()/2+1));
 
@@ -456,9 +469,9 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	
 	public void readProcessedImages(int step){
 		if(step <1) IJ.log("Error : read process images, but step is lower than 1");
-		if(step>=1) {readStackedSourceData();readMask();}
+		if(step>=1) readStackedSourceData();
 		if(step>=2) readRegisteredSourceData();		
-		if(step>=3) readMaps();
+		if(step>=3) {readMask();readMaps();}
 		if(step>=4) readHyperImage();
 	}
 	
@@ -480,10 +493,10 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	
 	public void registerEchoes() {
 		for(int i=0;i<this.sourceData.length-1;i++) {
-			System.out.println("Recalage echo numero "+i);
+			System.out.println("Recalage sequence numero "+i+" sur sequence numero "+(sourceData.length-1));
 			ItkRegistrationManager manager=new ItkRegistrationManager();
 			ImagePlus[] result=manager.runScenarioInterEchoes(sourceData[sourceData.length-1], sourceData[i]);
-			System.out.println("Recalage echo numero "+i+" ok");
+			System.out.println("Recalage sequence numero "+i+" ok");
 			sourceData[i]=VitimageUtils.convertFloatToShortWithoutDynamicChanges(result[0]);
 			System.out.println("Conversion "+i+" ok");
 			sourceData[i].setTitle("Echo i ="+i);
@@ -536,7 +549,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 		final int totLines=Y*Z;
 
 			
-		System.out.println("Multi-threaded T1 map computation. start fit on "+(X*Y*Z)+" voxels.\n Estimated time @2.5Ghz x 1 core ="+VitimageUtils.dou(factorSeconds*(X*Y*Z)));
+		System.out.println("Multi-threaded T1 map computation. start fit on "+(X*Y*Z)+" voxels.\n--> Estimated time  @2.5Ghz @12 cores : "+VitimageUtils.dou(factorSeconds*(X*Y*Z) )+" s");
 		final Thread[] threads = VitimageUtils.newThreadArray(Z);    
 		for (int ithread = 0; ithread < Z; ithread++) {  
 			threads[ithread] = new Thread() {  { setPriority(Thread.NORM_PRIORITY); }  

@@ -88,6 +88,8 @@ public class RX extends Acquisition{
 			if(this.supervisionLevel != SupervisionLevel.AUTONOMOUS)IJ.log("No data in this directory");
 			return false;
 		case 1: //Time to compute hyperimage
+			this.computeMask();
+			this.writeMask();
 			this.computeNormalizedHyperImage();
 			writeHyperImage();
 			break;

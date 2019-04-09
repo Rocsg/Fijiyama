@@ -3,6 +3,7 @@ package com.vitimage;
 import java.io.File;
 
 import com.vitimage.Vitimage4D.VineType;
+import com.vitimage.VitimageUtils.ComputingType;
 
 import ij.ImageJ;
 
@@ -14,7 +15,8 @@ public class Vitimage6D {
 		File f=new File(mainPath);
 		String []vitiNames=f.list();
 		boolean computeOnlyAcquisitionsAndMaps=true;
-		for(int i=0;i<vitiNames.length;i++) {
+		ComputingType computationType=ComputingType.COMPUTE_ALL;
+		for(int i=vitiNames.length-2;i<vitiNames.length;i++) {
 			
 			for(int j=0;j<10;j++)System.out.println("");
 			System.out.println("######################################################################################################################");
@@ -27,7 +29,7 @@ public class Vitimage6D {
 			String vitiPath=f.getAbsolutePath()+slash+vitiNames[i];
 
 			ImageJ imageJ=new ImageJ();
-			Vitimage5D viti = new Vitimage5D(VineType.CUTTING,vitiPath,vitiNames[i],computeOnlyAcquisitionsAndMaps);
+			Vitimage5D viti = new Vitimage5D(VineType.CUTTING,vitiPath,vitiNames[i],computationType);
 			viti.start();
 			
 			//			viti.getNormalizedHyperImage().show();

@@ -28,10 +28,15 @@ import java.awt.Font;
 import java.awt.Frame;
 import java.awt.Rectangle;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Scanner;
+
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
 
 //import net.imglib2.type.numeric.RealType;
 import org.itk.simple.*;
@@ -41,6 +46,7 @@ import org.itk.simple.*;
 //import org.scijava.plugin.Plugin;
 import org.itk.simple.ImageRegistrationMethod.MetricSamplingStrategyType;
 
+import com.sun.tools.extcheck.Main;
 import com.vitimage.MRUtils;
 import com.vitimage.ItkImagePlusInterface.Transformation3DType;
 import com.vitimage.VitimageUtils.AcquisitionType;
@@ -96,254 +102,82 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 		this.anna=new Analyze("Vitimage toolbox");
 	}
 	
-	public static int[] detectCapillaryPosition(ImagePlus img2,int Z) {
-		//Prepare data
-		double vX=img2.getCalibration().pixelWidth;
-		int zMax=img2.getStackSize();
-		double []val=Acquisition.caracterizeBackgroundOfImage(img2);
-		double mu=val[0];
-		double sigma=val[1];
-		double thresh=mu+2*sigma;
-
-		//VitimageUtils.imageChecking(img2,"Img avant");
-		ImagePlus img=VitimageUtils.gaussianFiltering(img2,vX*2,vX*2,vX*2);
-		//VitimageUtils.imageChecking(img,"Filtered");
-		System.out.println("Mu fond="+mu+" , Sigma fond="+sigma+" , Thresh="+thresh );
-
-		//Extraction de la composante connexe 2
-		ImagePlus imgMask0=VitimageUtils.getBinaryMask(img,thresh);
-		//VitimageUtils.imageChecking(imgMask0,"Binarized");
-		//imgMask0.show();
-
-		//Protection to ensure non-even connections at the top or the back of the image, due to bias in magnet field
-		imgMask0.getStack().getProcessor(1).set(0);
-		imgMask0.getStack().getProcessor(2).set(0);
-		imgMask0.getStack().getProcessor(3).set(0);
-		imgMask0.getStack().getProcessor(4).set(0);
-		imgMask0.getStack().getProcessor(zMax).set(0);
-		imgMask0.getStack().getProcessor(zMax-1).set(0);
-		imgMask0.getStack().getProcessor(zMax-2).set(0);
-		imgMask0.getStack().getProcessor(zMax-3).set(0);
-		ImagePlus imgMask2=VitimageUtils.connexe(imgMask0,1,255, 0,10E10, 26, 2,false);//le cap
-		VitimageUtils.imageChecking(imgMask2,"Connected");
-		IJ.run(imgMask2,"8-bit","");
-		ImagePlus imgSlice=new Duplicator().run(imgMask2,Z,Z);
-		VitimageUtils.imageChecking(imgSlice,"Duplicated");
-
-		//Retrait du bouzin pas beau
-		IJ.run(imgSlice,"Erode","");
-		IJ.run(imgSlice,"Erode","");
-		VitimageUtils.imageChecking(imgSlice,"Eroded");
-		
-		//Preparation seuillage
-		IJ.setThreshold(imgSlice, 255,255);
-		RoiManager rm=RoiManager.getRoiManager();
-		rm.reset();
-		Roi capArea=new ThresholdToSelection().convert(imgSlice.getProcessor());	
-		rm.add(imgSlice, capArea, 0);							
-		Rectangle rect=capArea.getFloatPolygon().getBounds();
-		System.out.println("Capillary position detected is :"+(rect.getX() + rect.getWidth()/2.0)+" , "+
-															 (rect.getY() + rect.getHeight()/2.0)+" , "+
-														 	 Z);
-		rm.close();
-		return new int[] {(int) (rect.getX() + rect.getWidth()/2.0) , (int) (rect.getY() + rect.getHeight()/2.0) , Z , (int)rect.getWidth(),(int)rect.getHeight()};  
+	
+	public static void testRecKhalifa() {
+		String path="/home/fernandr/Bureau/Test/TestKhalifa/";
+		ImagePlus imgRef=IJ.openImage(path+"RX_auto-1.tif");
+		ImagePlus imgMov=IJ.openImage(path+"IRM_auto-2.tif");	
+		ImagePlus masque=IJ.openImage(path+"masque.tif");
+		ItkRegistrationManager it=new ItkRegistrationManager();
+		ItkTransform res=it.runScenarioKhalifa2(new ItkTransform(),imgRef,imgMov,true,null);
+		ImagePlus result=res.transformImage(imgRef, imgMov);
+		result.show();
+		IJ.save(result,"/home/fernandr/Bureau/Test/TestKhalifa/test1.tif");
+		res.writeToFile("/home/fernandr/Bureau/Test/TestKhalifa/test1.txt");
+		//ImagePlus mask=VitimageUtils.restrictionMaskForFadingHandling(imgRef, 10);
+		//mask.show();
+		//imgRef.show();
+		//imgMov.show();
+		//VitimageUtils.waitFor(100000);
+		//recGrad : -0,896554
+		//recGradMask : -0,901105
+		//recGradCut : -0,901103
+		//recAMOEB : -0,916413
+		//recAmoebMask : -0,923018
+		//recAmoebCut : -0,922170
+		//rec
+	
 	}
 	
-	
-	
-	public static ImagePlus areaOfPertinentComputation (ImagePlus img){
-		double vX=img.getCalibration().pixelWidth;
-		double []val=Acquisition.caracterizeBackgroundOfImage(img);
-		double mu=val[0];
-		double sigma=val[1];
-		double thresh=mu+3*sigma;
-		img=VitimageUtils.gaussianFiltering(img,vX*0.5,vX*0.5,vX*0.5);
-		System.out.println("Mu fond="+mu+" , Sigma fond="+sigma+" , Thresh="+thresh );
-		ImagePlus imgMask0=VitimageUtils.getBinaryMask(img,thresh);
-		ImagePlus imgMask1=VitimageUtils.connexe(imgMask0,1,255, 0,10E10, 6, 1,false);//L objet
-		ImagePlus imgMask2=VitimageUtils.connexe(imgMask0,1,255, 0,10E10, 6, 2,false);//le cap
-		IJ.run(imgMask1,"8-bit","");
-		IJ.run(imgMask2,"8-bit","");
-		ImageCalculator ic=new ImageCalculator();
-		ImagePlus imgMask3=ic.run("OR create stack", imgMask1,imgMask2);							
-		return imgMask3;
+	public static void testRemCapHyper() {
+		ImagePlus testIn=IJ.openImage("/home/fernandr/Bureau/Test/Hyper/test.tif");
+		VitimageUtils.imageChecking(testIn,"TestIn");
+		ImagePlus testOut=VitimageUtils.removeCapillaryFromHyperImageForRegistration(testIn);
+		VitimageUtils.imageChecking(testOut,"TestOut");
 	}
 	
+	public static void testRecAvecMasque() {
+		String path="/home/fernandr/Bureau/Test/RecMasque";
+		ImagePlus imgRef=IJ.openImage(path+"/Recovery_3.tif");
+		ImagePlus imgMov=IJ.openImage(path+"/Recovery_1.tif");	
+		ItkRegistrationManager it=new ItkRegistrationManager();
+		ImagePlus[] res=it.runScenarioInterEchoes(imgRef,imgMov);
+		IJ.save(res[0], "/home/fernandr/Bureau/Test/RecMasque/recBLEACH2.tif");
+		//ImagePlus mask=VitimageUtils.restrictionMaskForFadingHandling(imgRef, 10);
+		//mask.show();
+		//imgRef.show();
+		//imgMov.show();
+		//VitimageUtils.waitFor(100000);
+		//recGrad : -0,896554
+		//recGradMask : -0,901105
+		//recGradCut : -0,901103
+		//recAMOEB : -0,916413
+		//recAmoebMask : -0,923018
+		//recAmoebCut : -0,922170
+		//rec
 	
-	public static ImagePlus areaOfPertinentComputation2 (ImagePlus img2){
-		double voxVolume=VitimageUtils.getVoxelVolume(img2);
-		int nbThreshObjects=100;
-		double vX=img2.getCalibration().pixelWidth;
-		double []val=Acquisition.caracterizeBackgroundOfImage(img2);
-		double mu=val[0];
-		double sigma=val[1];
-		double thresh=mu+3*sigma;
-		ImagePlus img=VitimageUtils.gaussianFiltering(img2,vX*0.5,vX*0.5,vX*0.5);
-		System.out.println("Mu fond="+mu+" , Sigma fond="+sigma+" , Thresh="+thresh );
-		ImagePlus imgMask0=VitimageUtils.getBinaryMask(img,thresh);
-		ImagePlus imgMask1=VitimageUtils.connexe(imgMask0,1,255, nbThreshObjects*voxVolume,10E10, 26, 0,false);//L objet
-		ImagePlus imgMask2=VitimageUtils.getBinaryMask(imgMask1,1);
-		return imgMask2;
 	}
-	
-	
-	
-	public static ImagePlus smoothContourOfPlant(ImagePlus img2,int slice) {
-		int zMax=img2.getStackSize();
-		double vX=img2.getCalibration().pixelWidth;
-		double []val=Acquisition.caracterizeBackgroundOfImage(img2);
-		double mu=val[0];
-		double sigma=val[1];
-		double thresh=mu+3*sigma;
-		VitimageUtils.imageChecking(img2,"A l arrivee de smooth contour");
-		ImagePlus img=VitimageUtils.gaussianFiltering(img2,vX*0.5,vX*0.5,vX*0.5);
-		img.getStack().getProcessor(1).set(0);
-		img.getStack().getProcessor(2).set(0);
-		img.getStack().getProcessor(3).set(0);
-		img.getStack().getProcessor(4).set(0);
-		img.getStack().getProcessor(zMax).set(0);
-		img.getStack().getProcessor(zMax-1).set(0);
-		img.getStack().getProcessor(zMax-2).set(0);
-		img.getStack().getProcessor(zMax-3).set(0);
-		System.out.println("Mu fond="+mu+" , Sigma fond="+sigma+" , Thresh="+thresh );
-		ImagePlus imgMask=VitimageUtils.getBinaryMask(img,thresh);
-						VitimageUtils.imageChecking(imgMask,"Premier masque");
-		imgMask=VitimageUtils.connexe(imgMask,1,255, 0,10E10, 6, 1,false);//L objet
-		imgMask=new Duplicator().run(imgMask,slice,slice);
-					VitimageUtils.imageChecking(imgMask,"Connexe");
-		IJ.run(imgMask,"8-bit","");
-		IJ.run(imgMask,"Dilate","");
-		IJ.run(imgMask,"Dilate","");
-		IJ.run(imgMask,"Dilate","");
-		IJ.run(imgMask,"Dilate","");
-		IJ.run(imgMask,"Dilate","");
-		IJ.run(imgMask,"Dilate","");
-		IJ.run(imgMask,"Dilate","");
-		IJ.run(imgMask,"Dilate","");
-		IJ.run(imgMask,"Erode","");
-		IJ.run(imgMask,"Erode","");
-		IJ.run(imgMask,"Erode","");
-		IJ.run(imgMask,"Erode","");
-		IJ.run(imgMask,"Erode","");
-		IJ.run(imgMask,"Erode","");
-		IJ.run(imgMask,"Erode","");
-		IJ.run(imgMask,"Erode","");
-		VitimageUtils.imageChecking(imgMask,"8bit");
-		VitimageUtils.imageChecking(imgMask,"Apres morpho");
-		
-		IJ.run(imgMask, "Fill Holes", "stack");
-		VitimageUtils.imageChecking(imgMask,"Apres fill holes");
-		
-		imgMask=VitimageUtils.gaussianFiltering(imgMask, 10*vX, 10*vX,0);
-		VitimageUtils.imageChecking(imgMask,"Apres lissage");
-		imgMask.getProcessor().resetMinAndMax();
-		return VitimageUtils.getBinaryMask(imgMask, 210);		
-	}
-	
-	
-	
-	public static ImagePlus detectAxisAndSetItVertical(ImagePlus img,AcquisitionType acqType) {
-		int xMax=img.getWidth();
-		int yMax=img.getHeight();
-		int zMax=img.getStackSize();
-		double vX=img.getCalibration().pixelWidth;
-		double vY=img.getCalibration().pixelHeight;
-		double vZ=img.getCalibration().pixelDepth;
-
-		double refCenterX=xMax*vX/2.0;
-		double refCenterY=yMax*vY/2.0;
-		double refCenterZ=zMax*vZ/2.0;
-		Point3d[]pInit=new Point3d[3];
-		Point3d[]pFin=new Point3d[3];
-		pFin=VitimageUtils.detectAxis(img,acqType);//in the order : center of object along its axis , center + daxis , center + dvect Orthogonal to axis 				
-		pInit[0]=new Point3d(refCenterX, refCenterY     , refCenterZ     );//origine
-		pInit[1]=new Point3d(refCenterX, refCenterY     , 1 + refCenterZ );//origine + dZ
-		pInit[2]=new Point3d(refCenterX, 1 + refCenterY , refCenterZ     );//origine + dY
-		System.out.println("Image local basis 0 / 0Z / 0Y : \n"+pFin[0]+"\n"+pFin[1]+"\n"+pFin[2]+"");
-		ItkTransform trAdd=ItkTransform.estimateBestRigid3D(pFin, pInit);
-		VitimageUtils.imageChecking(img);
-		ImagePlus test=trAdd.transformImage(img,img);
-		VitimageUtils.imageChecking(test);
-		
-		return(test);
-	}
-	
-
-	public static void testMask() {
-		for(int i=0;i<10;i++) {
-			for(int T=1;T<3;T++) {
-				String path="/home/fernandr/Bureau/Test/testMasks/imageT"+T+"_"+i+".tif";
-				System.out.println("\n\nTest sur image T"+T+" :\n"+path);
-				ImagePlus img=IJ.openImage(path);
-				ImagePlus areaCompute1=areaOfPertinentComputation(img);
-				ImagePlus areaCompute2=areaOfPertinentComputation2(img);
-				VitimageUtils.imageChecking(img,"Initial image : ind"+i+"-T"+T);
-				VitimageUtils.imageChecking(areaCompute1,"Initial image : ind"+i+"-T"+T);
-				VitimageUtils.imageChecking(areaCompute2,"Initial image : ind"+i+"-T"+T);
-			}
-		}
-		
-	}
-	
-	public static void testSegmentationAndDetectionStrategyUponVariousMRI() {
-		//Test T1 et T2 seuillage à Mu+3*sigma		
-		for(int i=6;i<10;i++) {
-			for(int T=1;T<2;T++) {
-				String path="/home/fernandr/Bureau/Test/testMasks/imageT"+T+"_"+i+".tif";
-				System.out.println("\n\nTest sur image T"+T+" :\n"+path);
-				ImagePlus img1=IJ.openImage(path);
-				//img1.show();
-				//VitimageUtils.waitFor(10000);
-				VitimageUtils.imageChecking(img1,"Image initiale, test="+i+" T"+T);
-				ImagePlus img=detectAxisAndSetItVertical(img1, T==1 ? AcquisitionType.MRI_T1_SEQ : AcquisitionType.MRI_T2_SEQ);
-				img.getProcessor().resetMinAndMax();
-//				img.show();
-				//				VitimageUtils.waitFor(20000);
-				VitimageUtils.imageChecking(img1,"Image alignee, test="+i+" T"+T);
-				System.out.println("\n-Estimation de l aire de calcul des cartes");
-				ImagePlus areaCompute=areaOfPertinentComputation(img);
-
-				System.out.println("\n-Estimation de la zone de contour");
-				ImagePlus contourImg=smoothContourOfPlant(img,img.getStackSize()/2);
-				System.out.println("\n-Estimation de la position du capillaire");
-				int[] coords=detectCapillaryPosition(img,20);				
-				img.getProcessor().resetMinAndMax();
-				ImagePlus img2=new Duplicator().run(img);
-				IJ.run(img2,"8-bit","");
-				ImagePlus capCenterImg=VitimageUtils.drawCircleInImage(img2, 0.7, coords[0], coords[1], coords[2],255);
-				System.out.println("\n-Estimation de la position du point d inoc");
-				VitimageUtils.detectInoculationPointGuidedByAutomaticComputedOutline(img,contourImg);
-				
-				
-				areaCompute.getProcessor().resetMinAndMax();
-				contourImg.getProcessor().resetMinAndMax();
-				ImagePlus res1=VitimageUtils.compositeOf(img,areaCompute,"Area of good computation");
-				ImagePlus res2=VitimageUtils.compositeOf(img,contourImg,"Smooth contour of plant");
-				ImagePlus res3=VitimageUtils.compositeOf(img,capCenterImg,"Capillary exact position");
-
-				
-				VitimageUtils.imageChecking(res1,"Area of good computation");
-				VitimageUtils.imageChecking(res2,"Smooth contour of plant");
-				VitimageUtils.imageChecking(res3,18,23,2,"Capillary exact position",3,false);
-			}
-		}
-		
-		
-		
-		
-		
-	}
-	
 	
 	
 	public static void main(String[] args) {
 		ImageJ imageJ = new ImageJ();
 		Vitimage_Toolbox viti=new Vitimage_Toolbox();
 		//testSegmentationAndDetectionStrategyUponVariousMRI();
-		testMask();
+		//testMask();
+		
+
+		testRemCapHyper();
 		
 		
 		
+		
+		
+		
+		//				ImagePlus imgUp=IJ.openImage("/home/fernandr/Bureau/pouet.tif");
+		//		System.out.println("Est nulle image ?"+VitimageUtils.isNullImage(imgUp));
+		//	imgUp.show();
+		//			VitimageUtils.waitFor(10000);
+		//		VitimageUtils.imageChecking(result);
 		System.exit(0);
 		
 
@@ -694,5 +528,271 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 		}
 	}
 
+	
+	
+	
+	
+	
+	
+
+	public static ImagePlus detectAxisAndSetItVertical(ImagePlus img,AcquisitionType acqType) {
+		int xMax=img.getWidth();
+		int yMax=img.getHeight();
+		int zMax=img.getStackSize();
+		double vX=img.getCalibration().pixelWidth;
+		double vY=img.getCalibration().pixelHeight;
+		double vZ=img.getCalibration().pixelDepth;
+
+		double refCenterX=xMax*vX/2.0;
+		double refCenterY=yMax*vY/2.0;
+		double refCenterZ=zMax*vZ/2.0;
+		Point3d[]pInit=new Point3d[3];
+		Point3d[]pFin=new Point3d[3];
+		pFin=VitimageUtils.detectAxis(img,acqType);//in the order : center of object along its axis , center + daxis , center + dvect Orthogonal to axis 				
+		pInit[0]=new Point3d(refCenterX, refCenterY     , refCenterZ     );//origine
+		pInit[1]=new Point3d(refCenterX, refCenterY     , 1 + refCenterZ );//origine + dZ
+		pInit[2]=new Point3d(refCenterX, 1 + refCenterY , refCenterZ     );//origine + dY
+		System.out.println("Image local basis 0 / 0Z / 0Y : \n"+pFin[0]+"\n"+pFin[1]+"\n"+pFin[2]+"");
+		ItkTransform trAdd=ItkTransform.estimateBestRigid3D(pFin, pInit);
+		ImagePlus test=trAdd.transformImage(img,img);
+		
+		return(test);
+	}
+	
+	public static void testDetectAxis(){
+
+		
+		for(int i=1;i<31;i++) {
+			for(int T=1;T<2;T++) {
+				String path="/home/fernandr/Bureau/Test/testMasks/imageT"+T+"_"+i+".tif";
+				System.out.println("\n\nTest sur image T"+T+" :\n"+path);
+				ImagePlus img=IJ.openImage(path);
+				ImagePlus result=detectAxisAndSetItVertical(img,AcquisitionType.MRI_T1_SEQ); 
+				IJ.save(result,"/home/fernandr/Bureau/Test/testMasks/imageT"+T+"_"+i+"_aligned.tif");
+				img.close();
+			//	VitimageUtils.imageChecking(img,"Initial image : ind"+i+"-T"+T);
+				//VitimageUtils.imageCheckingFast(result,"Cutting resampled along Z axis: ind"+i+"-T"+T);
+			}
+		}
+			
+		
+		for(int i=1;i<8;i++) {
+			String path="/home/fernandr/Bureau/Test/testMasks/imageRX_"+i+".tif";
+			System.out.println("\n\nTest sur image RX T"+i+" :\n"+path);
+			ImagePlus img=IJ.openImage(path);
+			ImagePlus result=detectAxisAndSetItVertical(img,AcquisitionType.RX); 
+			IJ.save(result,"/home/fernandr/Bureau/Test/testMasks/imageRX_"+i+"_aligned.tif");
+			img.close();
+			//	VitimageUtils.imageChecking(img,"Initial image : ind"+i+"-T"+T);
+				//VitimageUtils.imageCheckingFast(result,"Cutting resampled along Z axis: ind"+i+"-T"+T);
+		}
+		
+	}
+	
+	
+	
+	
+	public static void testOutlineAndInocPoint(){		
+		for(int i=18;i<31;i++) {
+			for(int T=1;T<2;T++) {
+				String path="/home/fernandr/Bureau/Test/testMasks/imageT"+T+"_"+i+"_aligned.tif";
+				System.out.println("\n\nTest sur image T"+T+" :\n"+path);
+				ImagePlus img=IJ.openImage(path);
+				Point3d[]pFin=VitimageUtils.detectInoculationPointGuidedByAutomaticComputedOutline(img, VitimageUtils.smoothContourOfPlant(img, 20));
+			img.close();
+			}
+		}
+	}
+
+	
+
+	public static ImagePlus areaOfPertinentComputation2 (ImagePlus img2){
+		double voxVolume=VitimageUtils.getVoxelVolume(img2);
+		int nbThreshObjects=100;
+		double vX=img2.getCalibration().pixelWidth;
+		double []val=Acquisition.caracterizeBackgroundOfImage(img2);
+		double mu=val[0];
+		double sigma=val[1];
+		double thresh=mu+3*sigma;
+		ImagePlus img=VitimageUtils.gaussianFiltering(img2,vX*0.5,vX*0.5,vX*0.5);
+		System.out.println("Mu fond="+mu+" , Sigma fond="+sigma+" , Thresh="+thresh );
+		ImagePlus imgMask0=VitimageUtils.getBinaryMask(img,thresh);
+		ImagePlus imgMask1=VitimageUtils.connexe(imgMask0,1,255, nbThreshObjects*voxVolume,10E10, 26, 0,false);//L objet
+		ImagePlus imgMask2=VitimageUtils.getBinaryMask(imgMask1,1);
+		return imgMask2;
+	}
+	
+	public static void testMask() {
+		for(int i=0;i<10;i++) {
+			for(int T=1;T<3;T++) {
+				String path="/home/fernandr/Bureau/Test/testMasks/imageT"+T+"_"+i+".tif";
+				System.out.println("\n\nTest sur image T"+T+" :\n"+path);
+				ImagePlus img=IJ.openImage(path);
+				ImagePlus areaCompute1=VitimageUtils.areaOfPertinentMRIMapComputation(img,MRI_T1_Seq.sigmaGaussMapInPixels);
+				ImagePlus areaCompute2=areaOfPertinentComputation2(img);
+				VitimageUtils.imageChecking(img,"Initial image : ind"+i+"-T"+T);
+				VitimageUtils.imageChecking(areaCompute1,"Initial image : ind"+i+"-T"+T);
+				VitimageUtils.imageChecking(areaCompute2,"Initial image : ind"+i+"-T"+T);
+			}
+		}
+		
+	}
+	
+	
+
+	/*
+	public static int[] detectCapillaryPositionOld(ImagePlus img2,int Z) {
+		//Prepare data
+		double vX=img2.getCalibration().pixelWidth;
+		int zMax=img2.getStackSize();
+		double []val=Acquisition.caracterizeBackgroundOfImage(img2);
+		double mu=val[0];
+		double sigma=val[1];
+		double thresh=mu+2*sigma;
+
+		//VitimageUtils.imageChecking(img2,"Img avant");
+		ImagePlus img=VitimageUtils.gaussianFiltering(img2,vX*2,vX*2,vX*2);
+		//VitimageUtils.imageChecking(img,"Filtered");
+		System.out.println("Mu fond="+mu+" , Sigma fond="+sigma+" , Thresh="+thresh );
+
+		//Extraction de la composante connexe 2
+		ImagePlus imgMask0=VitimageUtils.getBinaryMask(img,thresh);
+		//VitimageUtils.imageChecking(imgMask0,"Binarized");
+		//imgMask0.show();
+
+		//Protection to ensure non-even connections at the top or the back of the image, due to bias in magnet field
+		imgMask0.getStack().getProcessor(1).set(0);
+		imgMask0.getStack().getProcessor(2).set(0);
+		imgMask0.getStack().getProcessor(3).set(0);
+		imgMask0.getStack().getProcessor(4).set(0);
+		imgMask0.getStack().getProcessor(zMax).set(0);
+		imgMask0.getStack().getProcessor(zMax-1).set(0);
+		imgMask0.getStack().getProcessor(zMax-2).set(0);
+		imgMask0.getStack().getProcessor(zMax-3).set(0);
+		ImagePlus imgMask2=VitimageUtils.connexe(imgMask0,1,255, 0,10E10, 26, 2,false);//le cap
+		//VitimageUtils.imageChecking(imgMask2,"Connected");
+		IJ.run(imgMask2,"8-bit","");
+		ImagePlus imgSlice=new Duplicator().run(imgMask2,Z,Z);
+		//VitimageUtils.imageChecking(imgSlice,"Duplicated");
+
+		//Retrait du bouzin pas beau
+		IJ.run(imgSlice,"Erode","");
+		IJ.run(imgSlice,"Erode","");
+		//VitimageUtils.imageChecking(imgSlice,"Eroded");
+		
+		//Preparation seuillage
+		IJ.setThreshold(imgSlice, 255,255);
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		Roi capArea=new ThresholdToSelection().convert(imgSlice.getProcessor());	
+		rm.add(imgSlice, capArea, 0);							
+		Rectangle rect=capArea.getFloatPolygon().getBounds();
+		System.out.println("Capillary position detected is :"+(rect.getX() + rect.getWidth()/2.0)+" , "+
+															 (rect.getY() + rect.getHeight()/2.0)+" , "+
+														 	 Z);
+		rm.close();
+		return new int[] {(int) (rect.getX() + rect.getWidth()/2.0) , (int) (rect.getY() + rect.getHeight()/2.0) , Z , (int)rect.getWidth(),(int)rect.getHeight()};  
+	}
+*/
+	
+	
+	public static int[] detectCapillaryPosition(ImagePlus img2,int Z) {
+		int zMax=img2.getStackSize();
+		int tailleMorpho=4;
+		ImagePlus imgMask=areaOfPertinentComputation2(img2);
+		IJ.run(imgMask,"8-bit","");
+		//Protection to ensure non-even connections at the top or the back of the image, due to bias in magnet field
+		imgMask.getStack().getProcessor(1).set(0);
+		imgMask.getStack().getProcessor(2).set(0);
+		imgMask.getStack().getProcessor(3).set(0);
+		imgMask.getStack().getProcessor(4).set(0);
+		imgMask.getStack().getProcessor(zMax).set(0);
+		imgMask.getStack().getProcessor(zMax-1).set(0);
+		imgMask.getStack().getProcessor(zMax-2).set(0);
+		imgMask.getStack().getProcessor(zMax-3).set(0);
+		for(int t =0;t<tailleMorpho;t++) IJ.run(imgMask,"Dilate","stack");
+		for(int t =0;t<tailleMorpho;t++) IJ.run(imgMask,"Erode","stack");
+		ImagePlus imgCap=VitimageUtils.connexe(imgMask,1,255,0,10E10, 6, 2,false);//Le cap
+		IJ.run(imgCap,"8-bit","");
+
+		//Mise en slice et Retrait du bouzin pas beau
+		imgCap=new Duplicator().run(imgCap,Z,Z);
+		IJ.run(imgCap,"Erode","");
+		IJ.run(imgCap,"Erode","");
+		
+		
+		//Preparation seuillage
+		IJ.setThreshold(imgCap, 255,255);
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		Roi capArea=new ThresholdToSelection().convert(imgCap.getProcessor());	
+		rm.add(imgCap, capArea, 0);							
+		Rectangle rect=capArea.getFloatPolygon().getBounds();
+		System.out.println("Capillary position detected is :"+(rect.getX() + rect.getWidth()/2.0)+" , "+
+															 (rect.getY() + rect.getHeight()/2.0)+" , "+
+														 	 Z);
+		rm.close();
+		return new int[] {(int) (rect.getX() + rect.getWidth()/2.0) , (int) (rect.getY() + rect.getHeight()/2.0) , Z , (int)rect.getWidth(),(int)rect.getHeight()};  
+	}
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	public static void testDetCapillary() {
+		int tailleMorpho=4;
+		//Test T1 et T2 seuillage à Mu+3*sigma		
+		for(int i=1;i<31;i++) {
+			for(int T=2;T<3;T++) {
+				String path="/home/fernandr/Bureau/Test/testMasks/imageT"+T+"_"+i+".tif";
+				System.out.println("\n\nTest sur image T"+T+" :\n"+path);
+				ImagePlus img=IJ.openImage(path);
+				//img1.show();
+				//VitimageUtils.waitFor(10000);
+	//			VitimageUtils.imageChecking(img,"Image initiale, test="+i+" T"+T);
+
+
+			
+				int[] coords=detectCapillaryPosition(img,20);				
+				img.getProcessor().resetMinAndMax();
+				ImagePlus img2=new Duplicator().run(img);
+				IJ.run(img2,"8-bit","");
+				ImagePlus capCenterImg=VitimageUtils.drawCircleInImage(img2, 0.7, coords[0], coords[1], coords[2],255);
+				//VitimageUtils.detectInoculationPointGuidedByAutomaticComputedOutline(img,contourImg);
+				
+				ImagePlus res3=VitimageUtils.compositeOf(img,capCenterImg,"Capillary exact position");
+
+				
+				VitimageUtils.imageChecking(res3,18,23,2,"Capillary exact position",3,false);
+				IJ.save(res3,"/home/fernandr/Bureau/Test/testMasks/Cap_"+i+".tif");
+			}
+		}
+		
+		
+		
+		
+		
+	}
+	
+	public static void testViewCap(){
+		for(int i=26;i<27;i++) {
+			for(int T=1;T<2;T++) {
+				ImagePlus res3=IJ.openImage("/home/fernandr/Bureau/Test/testMasks/Cap_"+i+".tif");
+				VitimageUtils.imageChecking(res3,18,23,2,"Cap_"+i,3,false);
+				res3.show();
+				VitimageUtils.waitFor(100000);
+			}
+		}
+	}
+	
+	
+	
+	
 	
 }  

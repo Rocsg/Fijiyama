@@ -136,14 +136,24 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 	}
 	
 	public  ItkTransform runScenarioInterTime(ImagePlus imgRef, ImagePlus imgMov) {
-		this.setMovingImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgMov));
-		this.setReferenceImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgRef));
+		this.setMovingImage(imgMov);
+		this.setReferenceImage(imgRef);
+/*		this.setMovingImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgMov));
+		this.setReferenceImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgRef));*/
 		this.setViewSlice(imgRef.getStackSize()/2);
-		this.setMetric(MetricType.MATTES);
+		this.setMetric(MetricType.CORRELATION);
 		OptimizerType opt=OptimizerType.AMOEBA ;
 		SamplingStrategy samplStrat=SamplingStrategy.NONE;
 		int dimMinPyramide=3;
 		int dimMinImage=Math.min(imgRef.getWidth()  , Math.min( imgRef.getHeight()  , imgRef.getStackSize() ) );
+
+		this.addStepToQueue( 1 ,    2    ,     1     ,    100  , 0.3   ,       Transformation3DType.VERSOR,    null,
+				opt  , ScalerType.SCALER_PHYSICAL, null ,
+		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
+
+		this.addStepToQueue( 1 ,    2    ,     1     ,    100  , 0.3   ,       Transformation3DType.TRANSLATION,    null,
+				opt  , ScalerType.SCALER_PHYSICAL, null ,
+		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
 		this.addStepToQueue( 1 ,    2    ,     1     ,    100  , 0.3   ,       Transformation3DType.VERSOR,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
@@ -220,50 +230,83 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		return this.transform;
 	}
 	
-	public ItkTransform runScenarioInterModal(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov) {
+	public ItkTransform runScenarioInterModal(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov,boolean verySimilarData) {
 		this.setMovingImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgMov));
 		this.setReferenceImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgRef));
 		this.setViewSlice(imgRef.getStackSize()/2);
-		this.setMetric(MetricType.MATTES);
+		this.setMetric(MetricType.CORRELATION);
 		OptimizerType opt=OptimizerType.AMOEBA ;
 		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-		int dimMinPyramide=3;
-		int dimMinImage=Math.min(imgRef.getWidth()  , Math.min( imgRef.getHeight()  , imgRef.getStackSize() ) );
-		int levelMax=3;//1+(int)Math.floor(Math.log(dimMinImage/dimMinPyramide)/Math.log(2) );
-		int levelMin=1;
-
-		this.addStepToQueue( 2 ,     3    ,     1     ,    100  , 0.3   ,       Transformation3DType.TRANSLATION,    null,
+		int lMin1=verySimilarData ? 1 : 2;
+		int lMax1=verySimilarData ? 1 : 3;
+		int lMin2=verySimilarData ? 1 : 1;
+		int lMax2=verySimilarData ? 1 : 2;
+		boolean testSpeed=false;
+		
+		this.addStepToQueue( lMin1 ,     lMax1    ,     1     ,   testSpeed ? 2 : 100  , 0.3   ,       Transformation3DType.TRANSLATION,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-		this.addStepToQueue( 2 ,   3    ,     1     ,    100  , 0.3   ,       Transformation3DType.VERSOR,    null,
+		this.addStepToQueue( lMin1 ,   lMax1    ,     1     ,  testSpeed ? 2 :  100  , 0.3   ,       Transformation3DType.VERSOR,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-		this.addStepToQueue( 1 ,     2    ,     1     ,    100  , 0.3   ,       Transformation3DType.TRANSLATION,    null,
+		this.addStepToQueue( lMin2 ,     lMax2    ,     1     ,  testSpeed ? 2 :  100  , 0.3   ,       Transformation3DType.TRANSLATION,    null,
 				OptimizerType.AMOEBA  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-		this.addStepToQueue( 1 ,   2    ,     1     ,    100  , 0.3   ,       Transformation3DType.VERSOR,    null,
+		this.addStepToQueue( lMin2 ,   lMax2    ,     1     ,   testSpeed ? 2 : 100  , 0.3   ,       Transformation3DType.VERSOR,    null,
 				OptimizerType.AMOEBA  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-//		this.addStepToQueue( levelMin ,     levelMax/2    ,     1     ,    40  , 0.3   ,       Transformation3DType.SIMILARITY,    null,
-		//				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		//false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
 		this.transform=new ItkTransform(trans);
 
 		this.register();
 		this.showRegistrationSummary();
 		
-		ImagePlus result=this.computeRegisteredImage();
-		//return result;
-		
 		return this.transform;
 	}
 
 	
+	public ItkTransform runScenarioKhalifa2(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov,boolean verySimilarData,ImagePlus masque) {
+		this.setMovingImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgMov));
+		this.setReferenceImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgRef));
+		this.setViewSlice(imgRef.getStackSize()/2);
+		this.setMetric(MetricType.CORRELATION);
+		OptimizerType opt=OptimizerType.AMOEBA ;
+		SamplingStrategy samplStrat=SamplingStrategy.NONE;
+		this.addStepToQueue( 1 , 1    ,    1.8     ,    20  , 0.2   ,       Transformation3DType.VERSOR,    null,
+				opt  , ScalerType.SCALER_PHYSICAL, null ,
+		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
+		this.addStepToQueue( 1 , 1    ,    0.8     ,    100  , 0.2   ,       Transformation3DType.TRANSLATION,    null,
+				opt  , ScalerType.SCALER_PHYSICAL, null ,
+		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
+		this.addStepToQueue( 1 , 1    ,    0.8     ,    100  , 0.2   ,       Transformation3DType.VERSOR,    null,
+				opt  , ScalerType.SCALER_PHYSICAL, null ,
+		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
+		this.addStepToQueue( 1 , 1    ,    0.8     ,    100  , 0.2   ,       Transformation3DType.SIMILARITY,    null,
+				opt  , ScalerType.SCALER_PHYSICAL, null ,
+		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
+
+
+		this.transform=new ItkTransform(trans);
+
+		for(int i=0;i<this.registrationMethods.size();i++) {
+			if(masque!=null) {
+				Image masqueItk=ItkImagePlusInterface.imagePlusToItkImage(masque);
+				this.registrationMethods.get(i).setMetricFixedMask(masqueItk);
+				this.registrationMethods.get(i).setMetricFixedMask(masqueItk);
+			
+			}
+		}
+		
+		this.register();
+		this.showRegistrationSummary();
+		
+		return this.transform;
+	}
+
 	
 	public ItkTransform runScenarioTestStuff(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov) {
 		this.setMovingImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgMov));
@@ -275,7 +318,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		int dimMinPyramide=3;
 		int dimMinImage=Math.min(imgRef.getWidth()  , Math.min( imgRef.getHeight()  , imgRef.getStackSize() ) );
 
-		this.addStepToQueue( 2 ,     3    ,     1     ,    100  , 0.3   ,       Transformation3DType.TRANSLATION,    null,
+		this.addStepToQueue( 2 ,     3    ,     1     ,    200  , 0.3   ,       Transformation3DType.TRANSLATION,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
@@ -283,17 +326,13 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-		this.addStepToQueue( 1 ,     2    ,     1     ,    100  , 0.3   ,       Transformation3DType.TRANSLATION,    null,
+		this.addStepToQueue( 1 ,     2    ,     1     ,    100  , 0.3   ,       Transformation3DType.SIMILARITY,    null,
 				OptimizerType.AMOEBA  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
 		this.addStepToQueue( 1 ,   2    ,     1     ,    100  , 0.3   ,       Transformation3DType.VERSOR,    null,
 				OptimizerType.AMOEBA  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		//		this.addStepToQueue( levelMin ,     levelMax/2    ,     1     ,    40  , 0.3   ,       Transformation3DType.SIMILARITY,    null,
-		//				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		//false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
 		this.transform=new ItkTransform(trans);
 
@@ -337,7 +376,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.addStepToQueue( levelMin ,    levelMax     ,     sigma   ,   120 ,learningRate   ,       Transformation3DType.VERSOR,    null,
 				opt2  , ScalerType.SCALER_PHYSICAL , null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
+		
 		this.register();
 		//this.showRegistrationSummary();
 		IJ.log("Score="+this.registrationMethods.get(registrationMethods.size()-1).getMetricValue());
@@ -531,6 +570,10 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		
 		this.currentStep=0;
 		while(currentStep<nbStep) {
+			int excludeMargin=ijImgRef.getStackSize()/4;
+			this.registrationMethods.get(currentStep).setMetricFixedMask(ItkImagePlusInterface.imagePlusToItkImage(VitimageUtils.restrictionMaskForFadingHandling(this.ijImgRef,excludeMargin)));
+			this.registrationMethods.get(currentStep).setMetricMovingMask(ItkImagePlusInterface.imagePlusToItkImage(VitimageUtils.restrictionMaskForFadingHandling(this.ijImgMov,excludeMargin)));
+
 			this.createUpdater();
 			//System.out.println("\n\nNOUVELLE ETAPE DE RECALAGE\nTransformation avant optimisation :\n"+transform);
 			updateView(this.dimensions.get(0)[0],this.sigmaFactors.get(0)[0],this.shrinkFactors.get(0)[0],

@@ -23,6 +23,7 @@ import com.vitimage.TransformUtils.Geometry;
 import com.vitimage.TransformUtils.Misalignment;
 import com.vitimage.Vitimage4D.VineType;
 import com.vitimage.VitimageUtils.Capillary;
+import com.vitimage.VitimageUtils.ComputingType;
 import com.vitimage.VitimageUtils.SupervisionLevel;
 
 import ij.IJ;
@@ -36,7 +37,7 @@ import ij.plugin.ImageCalculator;
 import math3d.Point3d;
 
 public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
-	public boolean computeOnlyAcquisitionsAndMaps;
+	public ComputingType computingType;
 	public final static String slash=File.separator;
 	public String title="--";
 	public String sourcePath="--";
@@ -60,7 +61,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		Vitimage5D viti = new Vitimage5D(VineType.CUTTING,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT","B051_CT",false);			
+		Vitimage5D viti = new Vitimage5D(VineType.CUTTING,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B001_PAL","B001_PAL",ComputingType.COMPUTE_ALL);			
 		viti.start();
 		viti.normalizedHyperImage.show();
 	}
@@ -72,24 +73,28 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public void start() {
 		quickStartFromFile();
+		if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS)writeStep(1);
 		while(nextStep());
 	}
 	
 	public boolean nextStep(){
 		int a=readStep();
-		if (computeOnlyAcquisitionsAndMaps && a>1) {return false;}
+		if (this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS && a>1) {return false;}
 		switch(a) {
 		case -1:
-			IJ.showMessage("Critical fail, no directory found Source_data in the current directory");
-			return false;
+			if(this.computingType!=ComputingType.EVERYTHING_AFTER_MAPS) {
+				IJ.showMessage("Critical fail, no directory found Source_data in the current directory");
+				return false;
+			};break;
 		case 0: // rien --> exit
-			if(this.supervisionLevel != SupervisionLevel.AUTONOMOUS)IJ.log("No data in this directory");
-			return false;
+			if(this.computingType!=ComputingType.EVERYTHING_AFTER_MAPS) {
+				if(this.supervisionLevel != SupervisionLevel.AUTONOMOUS)IJ.log("No data in this directory");
+				return false;
+			};break;			
 		case 1://data are read. Time to compute individual calculus for each acquisition
-			for (Vitimage4D vit4d : this.vitimage4D) {System.out.println("\nVitimage5D : step1, start a new Vitimage4D");vit4d.start();}
 			this.writeParametersToHardDisk();
 			this.setImageForRegistration();
-			if(this.computeOnlyAcquisitionsAndMaps) {writeStep(a+1);return false;}
+			if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS) {writeStep(a+1);	return false;}
 			break;
 		case 2: //individual computations are done. Time to register acquisitions
 			System.out.println("\n\nVitimage 5D : step2, startic automatic fine registration");
@@ -161,8 +166,8 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	}
 	
 	
-	public Vitimage5D(VineType vineType,String sourcePath,String title,boolean computeOnlyAcquisitionsAndMaps) {
-		this.computeOnlyAcquisitionsAndMaps=computeOnlyAcquisitionsAndMaps;
+	public Vitimage5D(VineType vineType,String sourcePath,String title,ComputingType computingType) {
+		this.computingType=computingType;
 		this.title=title;
 		this.sourcePath=sourcePath;
 		this.vineType=vineType;
@@ -211,7 +216,9 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 			writeStep(0);
 			System.out.println("Exploring Source_data...");
 			readVitimages();
+			for (Vitimage4D vit4d : this.vitimage4D) {System.out.println("\nVitimage5D : step1, start a new Vitimage4D");vit4d.start();}
 			System.out.println("Writing parameters file");
+
 			writeStep(1);
 		}
 	}
@@ -240,7 +247,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		}
 	}
 	public void addVitimage4D(String path,SupervisionLevel sup,int dayOfTimeCourse,String title){		
-		this.vitimage4D.add(new Vitimage4D(vineType,dayOfTimeCourse,path,title,this.computeOnlyAcquisitionsAndMaps));
+		this.vitimage4D.add(new Vitimage4D(vineType,dayOfTimeCourse,path,title,this.computingType));
 		this.successiveTimePoints[this.vitimage4D.size()-1]=dayOfTimeCourse;
 		this.transformation.add(new ItkTransform());
 	}
@@ -371,30 +378,40 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 
 	
 	public void automaticFineRegistration() {
-		//Store initial alignment transforms for beginning of the composition
-//		for(int i=0;i<this.vitimage4D.size();i++)this.transformation.set(i,this.vitimage4D.get(i).getTransformation(0));
-
 		//Register each i on i-1
 		for (int i=1;i<this.vitimage4D.size();i++) {
+	
 			//Reference image = aligned vitimage4D Jn-1
-			ImagePlus imgRef=this.vitimage4D.get(i-1).getTransformation(0).transformImage(
-					this.imageForRegistration, 
+/*			ImagePlus imgRef=this.vitimage4D.get(i-1).getTransformation(0).transformImage(
+					this.vitimage4D.get(i-1).getAcquisition(0).getImageForRegistrationWithoutCapillary(), 
 					this.vitimage4D.get(i-1).getAcquisition(0).getImageForRegistrationWithoutCapillary());
+			imgRef.getProcessor().resetMinAndMax();*/
+			ImagePlus concatTab=vitimage4D.get(i-1).getNormalizedHyperImage();
+			ImagePlus []imgTab=VitimageUtils.stacksFromHyperstack(concatTab, Vitimage4D.targetHyperSize);
+			ImagePlus imgRef=imgTab[0];
 			imgRef.getProcessor().resetMinAndMax();
-			VitimageUtils.imageCheckingFast(imgRef,"Reference image, J0");
-
+			VitimageUtils.imageCheckingFast(imgRef,"Reference image, "+"J"+vitimage4D.get(i-1).dayAfterExperience);
+			
+			
 			//Moving image = aligned vitimage4D Jn
-			ImagePlus imgMov=this.vitimage4D.get(i).getTransformation(0).transformImage(
+			/*ImagePlus imgMov=this.vitimage4D.get(i).getTransformation(0).transformImage(
 						this.imageForRegistration, 	 this.vitimage4D.get(i).getAcquisition(0).getImageForRegistrationWithoutCapillary());
+			*/
+			concatTab=vitimage4D.get(i).getNormalizedHyperImage();
+			imgTab=VitimageUtils.stacksFromHyperstack(concatTab, Vitimage4D.targetHyperSize);
+			ImagePlus imgMov=imgTab[0];
 			imgMov.getProcessor().resetMinAndMax();
 			VitimageUtils.imageChecking(imgMov,"Moving image, "+"J"+vitimage4D.get(i).dayAfterExperience);
 
 			
-			ItkRegistrationManager manager=new ItkRegistrationManager();
-			
-			ItkTransform transDayItoIminus1=manager.runScenarioInterTime(imgRef,imgMov);
-			for(int j=i;j<this.vitimage4D.size();j++)this.transformation.get(j).addTransform(transDayItoIminus1);
-
+			ItkRegistrationManager manager=new ItkRegistrationManager();			
+			System.out.println("Running registration. ");
+			System.out.println("Ref="+this.vitimage4D.get(i-1).getTitle());
+			System.out.println("Mov="+this.vitimage4D.get(i).getTitle());
+			ItkTransform transDayItoIminus1=manager.runScenarioInterTime(
+					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgRef),
+					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgMov));
+			for(int j=i;j<this.vitimage4D.size();j++)this.transformation.get(j).addTransform(new ItkTransform(transDayItoIminus1));
 		}
 		for(int i=0;i<this.vitimage4D.size();i++)this.transformation.set(i,this.transformation.get(i).simplify());
 		writeRegisteringImages("afterItkRegistration");	

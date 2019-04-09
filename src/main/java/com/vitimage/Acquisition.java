@@ -28,6 +28,8 @@ public abstract class Acquisition implements VitimageUtils{
 	/**
 	 * Parameters
 	 */
+	final static double sigmaGaussMapInPixels=0.5;
+	public ComputingType computingType=ComputingType.COMPUTE_ALL;
 	public final static double maxShortVal=Math.pow(2,16)-1;
 	protected int hyperSize=1;
 	protected ImagePlus normalizedHyperImage;
@@ -176,8 +178,11 @@ public abstract class Acquisition implements VitimageUtils{
 	
 	
 	public ImagePlus getImageForRegistrationWithoutCapillary() {
+		System.out.println("Track 1 ="+this.imageForRegistration.getType());
 		ImagePlus img=new Duplicator().run(this.imageForRegistration);
+		System.out.println("Track 2 ="+img.getType());
 		if (this.capillary == Capillary.HAS_NO_CAPILLARY)return img;
+		System.out.println("Track on est rentre");
 		ImagePlus imgSliceInput;
 		int xMax=this.dimX;
 		int yMax=this.dimY;
@@ -307,27 +312,57 @@ public abstract class Acquisition implements VitimageUtils{
 		System.out.println("Capillary position detected is :"+(rect.getX() + rect.getWidth()/2.0)+" , "+
 															 (rect.getY() + rect.getHeight()/2.0)+" , "+
 														 	 Z);
+		
+		//Check
+		img.getProcessor().resetMinAndMax();
+		ImagePlus imgView=new Duplicator().run(img);
+		IJ.run(imgView,"8-bit","");
+		ImagePlus capCenterImg=VitimageUtils.drawCircleInImage(imgView, 0.7, (int) (rect.getX() + rect.getWidth()/2.0),(int) (rect.getY() + rect.getHeight()/2.0) ,Z,255);		
+		ImagePlus res3=VitimageUtils.compositeOf(img,capCenterImg,"Capillary exact position");
+		VitimageUtils.imageChecking(res3,18,23,2,"Capillary exact position",3,false);
+		res3.close();
+		imgView.close();
+		
 		return new int[] {(int) (rect.getX() + rect.getWidth()/2.0) , (int) (rect.getY() + rect.getHeight()/2.0) , Z , (int)rect.getWidth(),(int)rect.getHeight()};  
 	}
 	
 	public int[] detectCapillaryPosition(int Z) {
 		ImagePlus img=new Duplicator().run(this.imageForRegistration);
+		int zMax=img.getStackSize();
+		int tailleMorpho=4;
+		ImagePlus imgMask=VitimageUtils.areaOfPertinentMRIMapComputation(img,this.sigmaGaussMapInPixels);
+		IJ.run(imgMask,"8-bit","");
+		//Protection to ensure non-even connections at the top or the back of the image, due to bias in magnet field
+		imgMask.getStack().getProcessor(1).set(0);
+		imgMask.getStack().getProcessor(2).set(0);
+		imgMask.getStack().getProcessor(3).set(0);
+		imgMask.getStack().getProcessor(4).set(0);
+		imgMask.getStack().getProcessor(zMax).set(0);
+		imgMask.getStack().getProcessor(zMax-1).set(0);
+		imgMask.getStack().getProcessor(zMax-2).set(0);
+		imgMask.getStack().getProcessor(zMax-3).set(0);
+		for(int t =0;t<tailleMorpho;t++) IJ.run(imgMask,"Dilate","stack");
+		for(int t =0;t<tailleMorpho;t++) IJ.run(imgMask,"Erode","stack");
+		ImagePlus imgCap=VitimageUtils.connexe(imgMask,1,255,0,10E10, 6, 2,false);//Le cap
+		IJ.run(imgCap,"8-bit","");
+
+		//Mise en slice et Retrait du bouzin pas beau
+		imgCap=new Duplicator().run(imgCap,Z,Z);
+		IJ.run(imgCap,"Erode","");
+		IJ.run(imgCap,"Erode","");
+		
+		
+		//Preparation seuillage
+		IJ.setThreshold(imgCap, 255,255);
 		RoiManager rm=RoiManager.getRoiManager();
-		double valThresh=this.valMedForThresholding;//standard measured values on echo spin images of bionanoNMRI
-		ImagePlus imgSlice=new ImagePlus("", img.getStack().getProcessor(Z));
-		VitimageUtils.imageChecking(imgSlice,"Detect capillary, Before connect group");
-		ImagePlus imgCon=VitimageUtils.connexe(imgSlice, valThresh, 10E10, 0, 10E10,4,2,true);
-		VitimageUtils.imageChecking(imgCon,"After selecting the second area up to "+valThresh);
-		imgCon.getProcessor().setMinAndMax(0,255);
-		IJ.run(imgCon,"8-bit","");
-		IJ.setThreshold(imgCon, 255,255);
 		rm.reset();
-		Roi capArea=new ThresholdToSelection().convert(imgCon.getProcessor());	
-		rm.add(imgSlice, capArea, 0);							
+		Roi capArea=new ThresholdToSelection().convert(imgCap.getProcessor());	
+		rm.add(imgCap, capArea, 0);							
 		Rectangle rect=capArea.getFloatPolygon().getBounds();
 		System.out.println("Capillary position detected is :"+(rect.getX() + rect.getWidth()/2.0)+" , "+
 															 (rect.getY() + rect.getHeight()/2.0)+" , "+
 														 	 Z);
+		rm.close();
 		return new int[] {(int) (rect.getX() + rect.getWidth()/2.0) , (int) (rect.getY() + rect.getHeight()/2.0) , Z , (int)rect.getWidth(),(int)rect.getHeight()};  
 	}
 	
@@ -529,7 +564,7 @@ public abstract class Acquisition implements VitimageUtils{
 		return sourcePath;
 	}
 	public ImagePlus getImageForRegistration() {
-		return this.imageForRegistration;
+		return new Duplicator().run(this.imageForRegistration);
 	}
 	
 	public void printStartMessage() {

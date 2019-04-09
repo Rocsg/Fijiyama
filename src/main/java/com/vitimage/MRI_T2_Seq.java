@@ -18,6 +18,7 @@ import com.vitimage.ItkImagePlusInterface.MetricType;
 import com.vitimage.ItkImagePlusInterface.OptimizerType;
 import com.vitimage.ItkImagePlusInterface.Transformation3DType;
 import com.vitimage.VitimageUtils.Capillary;
+import com.vitimage.VitimageUtils.ComputingType;
 import com.vitimage.VitimageUtils.SupervisionLevel;
 
 import ij.IJ;
@@ -48,7 +49,8 @@ public class MRI_T2_Seq extends Acquisition{
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J218/Source_data/MRI_T2_SEQ",Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_T2",false);
+		MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J218/Source_data/MRI_T2_SEQ",
+									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_T2",ComputingType.COMPUTE_ALL);
 		mri.start();//
 	}
 
@@ -59,7 +61,7 @@ public class MRI_T2_Seq extends Acquisition{
 	 * Constructors, factory and top level functions
 	 */
 
-	public MRI_T2_Seq(String sourcePath,Capillary cap,SupervisionLevel sup,String title,boolean computeOnlyAcquisitionsAndMaps) {
+	public MRI_T2_Seq(String sourcePath,Capillary cap,SupervisionLevel sup,String title,ComputingType computingType) {
 		super(AcquisitionType.MRI_T2_SEQ, sourcePath,cap,sup);
 		this.computeOnlyAcquisitionsAndMaps=computeOnlyAcquisitionsAndMaps;
 		this.title=title;
@@ -67,37 +69,48 @@ public class MRI_T2_Seq extends Acquisition{
 	}
 
 	public static MRI_T2_Seq MRI_T2_SeqFactory(String sourcePath,Capillary cap,SupervisionLevel sup,String dataPath) {
-		MRI_T2_Seq mri=new MRI_T2_Seq(sourcePath,cap,sup,"Factory",false);
+		MRI_T2_Seq mri=new MRI_T2_Seq(sourcePath,cap,sup,"Factory",ComputingType.COMPUTE_ALL);
 		mri.start();
 		return mri;
 	}
 
 	public void start() {
 		this.printStartMessage();
+		//if(this.computingType==ComputingType.EVERYTHING_AFTER_MAPS)writeStep(2);
+		//if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS)writeStep(1);
 		quickStartFromFile();
 		while(nextStep());
 	}
 	
 	public boolean nextStep(){
 		int a=readStep();
-		System.out.println("------> "+ " next step : "+a+" "+this.getTitle());
+		System.out.println("MRI_T2_SEQ "+this.getTitle()+"------> "+ " next step : "+a+" "+this.getTitle());
 		switch(a) {
 		case -1:
-			IJ.showMessage("Critical fail, no directory found Source_data in the current directory");
-			return false;
+			if(this.computingType!=ComputingType.EVERYTHING_AFTER_MAPS) {
+				IJ.showMessage("Critical fail, no directory found Source_data in the current directory");
+				return false;
+			};break;
 		case 0: // rien --> exit
-			if(this.supervisionLevel != SupervisionLevel.AUTONOMOUS)IJ.log("No data in this directory");
-			return false;
+			if(this.computingType!=ComputingType.EVERYTHING_AFTER_MAPS) {
+				if(this.supervisionLevel != SupervisionLevel.AUTONOMOUS)IJ.log("No data in this directory");
+				return false;
+			};break;			
 		case 1: //data are read. Time to compute Maps
-			this.computeMaps();
-			writeMaps();
-			if(this.computeOnlyAcquisitionsAndMaps){writeStep(a+1);	return false;}
-			break;
+			if(this.computingType!=ComputingType.EVERYTHING_AFTER_MAPS) {
+				this.computeMask();
+				writeMask();
+				this.computeMaps();
+				writeMaps();
+				if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS) {writeStep(a+1);	return false;}
+			};break;
 		case 2: //data are registered. Time to compute Maps
+			if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS) return false;
 			this.computeNormalizedHyperImage();
 			writeHyperImage();
 			break;
 		case 3:
+			if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS) return false;
 			System.out.println("MRI_T2_SEQ Computation finished for "+this.getTitle());
 			return false;
 		}
@@ -144,7 +157,7 @@ public class MRI_T2_Seq extends Acquisition{
 	@Override
 	public void quickStartFromFile() {
 		//Gather the path to source data
-		System.out.println("Quick start : RX sequence hosted in ");
+		System.out.println("Quick start : T2 sequence hosted in ");
 		System.out.println(this.sourcePath.substring(0,this.sourcePath.length()/2));
 		System.out.println(this.sourcePath.substring(this.sourcePath.length()/2+1));
 
@@ -450,8 +463,7 @@ public class MRI_T2_Seq extends Acquisition{
 		if(step>=2) readMaps();
 		if(step>=3) readHyperImage();
 	}
-	
-	
+		
 	public void computeMask() {
 		System.out.println("Mask computation : gaussian filtering, and 3D connected component research (~1 mn)...");
 		this.mask=VitimageUtils.areaOfPertinentMRIMapComputation (sourceData[0],sigmaGaussMapInPixels);
@@ -509,7 +521,7 @@ public class MRI_T2_Seq extends Acquisition{
 		final int totLines=Y*Z;
 		
 			
-		System.out.println("Multi-threaded T2 map computation. start fit on "+(X*Y*Z)+" voxels.\n Estimated time @2.5Ghz x 1 core ="+VitimageUtils.dou(factorSeconds*(X*Y*Z)));
+		System.out.println("Multi-threaded T2 map computation. start fit on "+(X*Y*Z)+" voxels.\n--> Estimated time  @2.5Ghz @12 cores ="+VitimageUtils.dou(factorSeconds*(X*Y*Z)) +" s");
 		final Thread[] threads = VitimageUtils.newThreadArray(Z);    
 		for (int ithread = 0; ithread < Z; ithread++) {  
 			threads[ithread] = new Thread() {  { setPriority(Thread.NORM_PRIORITY); }  
@@ -564,8 +576,6 @@ public class MRI_T2_Seq extends Acquisition{
 		this.computedData[1].getProcessor().setMinAndMax(0, defaultNormalisationValues()[1]);
 		this.computedData[2].getProcessor().setMinAndMax(0, defaultNormalisationValues()[2]);
 	}  
-
-
 
 
 	public ImagePlus computeNormalizedHyperImage() {
