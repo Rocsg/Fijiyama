@@ -426,6 +426,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 			System.out.println("Running registration. ");
 			System.out.println("Ref="+this.vitimage4D.get(i-1).getTitle());
 			System.out.println("Mov="+this.vitimage4D.get(i).getTitle());
+			
 			ItkTransform transDayItoIminus1=manager.runScenarioInterTime(
 					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgRef),
 					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgMov));
