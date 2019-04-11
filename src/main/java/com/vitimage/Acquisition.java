@@ -28,8 +28,6 @@ public abstract class Acquisition implements VitimageUtils{
 	/**
 	 * Parameters
 	 */
-	final static double sigmaGaussMapInPixels=0.5;
-	public ComputingType computingType=ComputingType.COMPUTE_ALL;
 	public final static double maxShortVal=Math.pow(2,16)-1;
 	protected int hyperSize=1;
 	protected ImagePlus normalizedHyperImage;
@@ -73,6 +71,8 @@ public abstract class Acquisition implements VitimageUtils{
 	public final static String slash=File.separator;
 	protected String acquisitionTime;
 	protected ImagePlus mask;
+	public ComputingType computingType;
+	public static double sigmaGaussMapInPixels=0.5;
 	/**
 	 * Abstract methods
 	 */
@@ -180,11 +180,8 @@ public abstract class Acquisition implements VitimageUtils{
 	
 	
 	public ImagePlus getImageForRegistrationWithoutCapillary() {
-		System.out.println("Track 1 ="+this.imageForRegistration.getType());
 		ImagePlus img=new Duplicator().run(this.imageForRegistration);
-		System.out.println("Track 2 ="+img.getType());
 		if (this.capillary == Capillary.HAS_NO_CAPILLARY)return img;
-		System.out.println("Track on est rentre");
 		ImagePlus imgSliceInput;
 		int xMax=this.dimX;
 		int yMax=this.dimY;
@@ -269,6 +266,7 @@ public abstract class Acquisition implements VitimageUtils{
 		System.gc();
 	}
 	
+	
 	public long getHyperImageModificationTime() {
 		File f=new File(this.sourcePath+slash+ "Computed_data"+slash+"3_HyperImage"+slash+"hyperImage.tif");
 		long val=0;
@@ -276,6 +274,7 @@ public abstract class Acquisition implements VitimageUtils{
 		return val;		
 	}
 
+	
 	public double getCapillaryValue(ImagePlus img, int[]coordinates,int rayXY,int rayZ) {
 		System.out.println("");
 		System.out.println("Start");
