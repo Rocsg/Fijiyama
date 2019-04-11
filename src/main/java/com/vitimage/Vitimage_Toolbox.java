@@ -159,15 +159,21 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 	}
 	
 	
+	
+	
 	public static void main(String[] args) {
 		ImageJ imageJ = new ImageJ();
 		Vitimage_Toolbox viti=new Vitimage_Toolbox();
 		//testSegmentationAndDetectionStrategyUponVariousMRI();
 		//testMask();
-		
-
-		testRemCapHyper();
-		
+//		ImagePlus rec=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B031_NP/Source_data/J218/Computed_data/0_Registration/imgRegistration_acq_1_step_afterIPalignment.tif");
+//		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B031_NP/Source_data/J218/Computed_data/0_Registration/imgRegistration_acq_0_step_afterIPalignment.tif");
+		File f0=new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B031_NP/Source_data/J218/Computed_data/0_Registration/imgRegistration_acq_0_step_afterIPalignment.tif");
+		File f1=new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B031_NP/Source_data/J218/Computed_data/0_Registration/imgRegistration_acq_1_step_afterIPalignment.tif");
+		long l1=f0.lastModified();
+		long l2=f1.lastModified();
+		System.out.println("L1="+l1);
+		System.out.println("L2="+l2);
 		
 		
 		

@@ -49,8 +49,8 @@ public class MRI_T2_Seq extends Acquisition{
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J218/Source_data/MRI_T2_SEQ",
-									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_T2",ComputingType.COMPUTE_ALL);
+		MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B032_NP/Source_data/J218/Source_data/MRI_T2_SEQ",
+									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"B031_NP_J218_MRI_T2_SEQ",ComputingType.COMPUTE_ALL);
 		mri.start();//
 	}
 
@@ -443,7 +443,7 @@ public class MRI_T2_Seq extends Acquisition{
 		IJ.saveAsTiff(this.computedData[2],this.sourcePath+slash+"Computed_data"+slash+"2_Maps"+slash+"MapT2.tif");
 	}
 	
-	
+
 
 	public void readHyperImage() {
 		this.normalizedHyperImage =IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"3_HyperImage"+slash+"hyperImage.tif");

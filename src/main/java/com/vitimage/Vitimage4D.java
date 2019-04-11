@@ -72,8 +72,8 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B001_PAL/Source_data/J70",
-								"B001_PAL_J70",ComputingType.COMPUTE_ALL);			
+		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B032_NP/Source_data/J35",
+								"B031_NP_J218",ComputingType.COMPUTE_ALL);			
 		viti.start();
 		viti.normalizedHyperImage.show();
 	}
@@ -153,6 +153,15 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 			break;
 		case 8:
 			System.out.println("Vitimage 4D, Computation finished for "+this.getTitle());
+			for (Acquisition acq : this.acquisition) {
+				long lThis=this.getHyperImageModificationTime();
+				long lAcq=acq.getHyperImageModificationTime();
+				if(lAcq>lThis) {
+					System.out.println("Vit4D HyperImage update : at least one source acquisition hyper image has been modified since last hyperimage modification : " +acq.getTitle());
+					writeStep(7);
+					return true;
+				}			
+			}
 			return false;
 		}
 		writeStep(a+1);	
@@ -408,6 +417,14 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		IJ.saveAsTiff(this.imageForRegistration,this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"imageForRegistration.tif");
 	}
 
+	public long getHyperImageModificationTime() {
+		File f=new File(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+"hyperImage.tif");
+		long val=0;
+		if(f.exists())val=f.lastModified();
+		return val;		
+	}
+	
+	
 	
 	public void readHyperImage() {
 		this.normalizedHyperImage =IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+"hyperImage.tif");
@@ -547,7 +564,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	
 	public void detectInoculationPoints(){
 		VitimageUtils.soundAlert("Inoculation");
-		
+		VitimageUtils.waitFor(5000);
 		System.out.println("");
 		System.out.println("########## Detect inoculation points for vitimage 4D "+title);
 		double refCenterX=acquisition.get(0).dimX()*acquisition.get(0).voxSX()/2.0;
@@ -598,9 +615,10 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	public void automaticFineRegistration() {
 		ImagePlus imgRef= this.transformation.get(0).transformImage(
 				this.acquisition.get(0).imageForRegistration,
-				this.acquisition.get(0).getImageForRegistrationWithoutCapillary());
+				this.acquisition.get(0).imageForRegistration);
 		imgRef.getProcessor().resetMinAndMax();
-
+		imgRef=VitimageUtils.removeCapillaryFromRandomMriImage(imgRef); 
+		imgRef=VitimageUtils.convertFloatToShortWithoutDynamicChanges(imgRef);
 		for (int i=0;i<this.acquisition.size();i++) {
 			if(i==0)continue;
 			if(T2AndT1SameGeometry && this.acquisition.get(i).acquisitionType == AcquisitionType.MRI_T2_SEQ)this.transformation.set(i,new ItkTransform(this.transformation.get(0)));
@@ -608,18 +626,26 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 			ItkRegistrationManager manager=new ItkRegistrationManager();
 
 			//Preparation of moving image
-			ImagePlus imgMov= this.transformation.get(i).transformImage(
+			ImagePlus imgMov=null;
+			if(this.acquisition.get(i).capillary == Capillary.HAS_CAPILLARY) {
+				imgMov= this.transformation.get(i).transformImage(
 					this.acquisition.get(0).imageForRegistration,
-					this.acquisition.get(i).getImageForRegistrationWithoutCapillary());
+					VitimageUtils.removeCapillaryFromRandomMriImage(this.acquisition.get(i).imageForRegistration));
+					imgMov=VitimageUtils.convertFloatToShortWithoutDynamicChanges(imgMov);
+			}
+			else{
+				imgMov= this.transformation.get(i).transformImage(			
+					this.acquisition.get(0).imageForRegistration,
+					this.acquisition.get(i).imageForRegistration);
+			}
 			imgMov.getProcessor().resetMinAndMax();
-			VitimageUtils.imageChecking(imgRef,"Img ref without capillary : "+this.acquisition.get(0).getTitle());
-			VitimageUtils.imageChecking(this.acquisition.get(i).getImageForRegistrationWithoutCapillary(),"Img mov in acquisition geometry : "+this.acquisition.get(i).getTitle());
-			VitimageUtils.imageChecking(imgMov,"Img mov without capillary : "+this.acquisition.get(i).getTitle());
 
 			System.out.println("Automatic registration intermodal");
 			System.out.println("Ref="+this.acquisition.get(0).getTitle());
 			System.out.println("Mov="+this.acquisition.get(i).getTitle());
-			this.transformation.get(i).addTransform(manager.runScenarioInterModal(
+			imgRef.getProcessor().resetMinAndMax();
+			imgMov.getProcessor().resetMinAndMax();
+				this.transformation.get(i).addTransform(manager.runScenarioInterModal(
 							new ItkTransform(),imgRef,imgMov, (this.acquisition.get(i).acquisitionType == AcquisitionType.MRI_T2_SEQ) ));
 			this.transformation.set(i,this.transformation.get(i).simplify());
 		}

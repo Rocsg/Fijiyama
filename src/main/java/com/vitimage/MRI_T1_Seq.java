@@ -68,8 +68,8 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT/Source_data/J218/Source_data/MRI_T1_SEQ",
-									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_MRI_T1",ComputingType.COMPUTE_ALL);
+		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B032_NP/Source_data/J218/Source_data/MRI_T1_SEQ",
+									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"B032_NP_J218_MRI_T1",ComputingType.COMPUTE_ALL);
 		mri.start();
 		return;
 	}
@@ -453,7 +453,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 		IJ.saveAsTiff(this.computedData[2],this.sourcePath+slash+"Computed_data"+slash+"2_Maps"+slash+"MapT1.tif");
 	}
 	
-	
+
 
 	public void readHyperImage() {
 		this.normalizedHyperImage =IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"3_HyperImage"+slash+"hyperImage.tif");

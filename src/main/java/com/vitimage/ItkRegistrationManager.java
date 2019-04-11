@@ -89,6 +89,32 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 
 
 	
+	public void freeMemory(){
+		if(registrationSummary.size()>0) {
+			for(ImagePlus img : registrationSummary)img=null;
+			registrationSummary=null;
+		}
+		itkImgMov=null;
+		ijImgMov=null;
+		itkImgRef=null;
+		ijImgRef=null;
+
+		itkImgViewRef=null;
+		itkImgViewMov=null;
+		itkSummaryRef=null;
+		itkSummaryMov=null;
+		sliceViewMov=null;
+		sliceViewRef=null;
+		sliceView=null;
+		sliceSummaryRef=null;
+		sliceSummaryMov=null;
+		summary=null;
+		if(imgMovSuccessiveResults.size()>0) {
+			for(ImagePlus img : imgMovSuccessiveResults)img=null;
+			imgMovSuccessiveResults=null;
+		}
+		System.gc();
+	}
 	
 	/** 
 	 * Top level functions : Test function, and main scenarios that will be used by customers classes
@@ -126,7 +152,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		manager.showRegistrationSummary();
 		//ImagePlus resultat=manager.computeRegisteredImage();
 		//resultat.show();
-		
+		freeMemory();
 		return nbFailed;
 	}
 
@@ -165,6 +191,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 
 		this.register();
 		this.showRegistrationSummary();
+		freeMemory();
 		return this.transform;		
 	}
 	
@@ -194,6 +221,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.showRegistrationSummary();
 		
 		ImagePlus result=this.computeRegisteredImage();
+		freeMemory();
 		return result;
 	}
 
@@ -224,9 +252,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.register();
 		this.showRegistrationSummary();
 		
-		ImagePlus result=this.computeRegisteredImage();
-		//return result;
-		
+		freeMemory();
 		return this.transform;
 	}
 	
@@ -264,7 +290,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 
 		this.register();
 		this.showRegistrationSummary();
-		
+		freeMemory();
 		return this.transform;
 	}
 
@@ -303,7 +329,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		
 		this.register();
 		this.showRegistrationSummary();
-		
+		freeMemory();
 		return this.transform;
 	}
 
@@ -339,9 +365,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.register();
 		this.showRegistrationSummary();
 		
-		ImagePlus result=this.computeRegisteredImage();
-		//return result;
-		
+		freeMemory();
 		return this.transform;
 	}
 
@@ -381,9 +405,11 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		//this.showRegistrationSummary();
 		IJ.log("Score="+this.registrationMethods.get(registrationMethods.size()-1).getMetricValue());
 		ImagePlus result=this.computeRegisteredImage();
-		//result.show();
-			return (new ImagePlus[] {result,summary});
-		}
+		ImagePlus sumDup=null;
+		if(summary!=null)sumDup=new Duplicator().run(summary);
+		freeMemory();
+		return (new ImagePlus[] {result,sumDup});
+	}
 
 	
 	

@@ -396,7 +396,7 @@ public interface VitimageUtils {
 		double vY=img.getCalibration().pixelHeight;
 		double vZ=img.getCalibration().pixelDepth;
 		double xMoyUp=0,yMoyUp=0,zMoyUp=0;
-		double xMoyDown=0,yMoyDown=0,zMoyDown=0;
+		double xMoyDown=1,yMoyDown=1,zMoyDown=1;
 		int hitsUp=0,hitsDown=0;
 
 		//Step 1 : apply gaussian filtering and convert to 8 bits
@@ -481,7 +481,7 @@ public interface VitimageUtils {
 			if(debug)imageChecking(imgDownCon,"Apres connexe");
 		}
 		
-		
+		System.out.println("There");
 		
 		//Step 3 : compute the two centers of mass
 		short[][]valsDownCon=new short[zQuarter][];
@@ -505,6 +505,10 @@ public interface VitimageUtils {
 				}
 			}
 		}
+		System.out.println("Here");
+
+		if(hitsUp==0)hitsUp=1;
+		if(hitsDown==0)hitsDown=1;
 		xMoyUp=xMoyUp/hitsUp;//Center of mass computation. 
 		yMoyUp=yMoyUp/hitsUp;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
 		zMoyUp=zMoyUp/hitsUp+zMax/2+zQuarter-zVentile;//due to the extraction of a substack zmax/2-zQuarter+1 - zmax/2     zMax/2+zQuarter-zVentile
@@ -512,11 +516,12 @@ public interface VitimageUtils {
 		xMoyDown=xMoyDown/hitsDown;//Center of mass computation. 
 		yMoyDown=yMoyDown/hitsDown;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
 		zMoyDown=zMoyDown/hitsDown+zMax/2-zQuarter+1;//due to the extraction of a substack zmax/2 - zmax/2+zQuarter       zMax/2-zQuarter+1
-
+		debug =true;
 		if(debug) {
 			System.out.println("HitsUp="+hitsUp+" ..Center of mass up = "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
 			System.out.println("HitsDown="+hitsDown+" ..Center of mass down = "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
 		}
+		System.out.println("Here");
 
 		xMoyUp=xMoyUp*vX;		
 		yMoyUp=yMoyUp*vY;		
@@ -528,6 +533,7 @@ public interface VitimageUtils {
 			System.out.println("Center of mass up (coord reel)= "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
 			System.out.println("Center of mass down (coord reel)= "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
 		}
+		System.out.println("THere");
 
 		//Step 4 : compute the axis vector, that will stands for Z vector after alignement
 		double[]vectZ=TransformUtils.normalize(new double[] {xMoyUp - xMoyDown , yMoyUp - yMoyDown , zMoyUp - zMoyDown});
@@ -573,7 +579,7 @@ public interface VitimageUtils {
 		double vY=img.getCalibration().pixelHeight;
 		double vZ=img.getCalibration().pixelDepth;
 		double xMoyUp=0,yMoyUp=0,zMoyUp=0;
-		double xMoyDown=0,yMoyDown=0,zMoyDown=0;
+		double xMoyDown=1,yMoyDown=1,zMoyDown=1;
 		int hitsUp=0,hitsDown=0;
 		if(debug)imageChecking(img,"Start detect axis type "+acq.getAcquisitionType());
 
@@ -683,6 +689,9 @@ public interface VitimageUtils {
 				}
 			}
 		}
+		System.out.println("hERE");
+		if(hitsUp==0)hitsUp=1;
+		if(hitsDown==0)hitsDown=1;
 		xMoyUp=xMoyUp/hitsUp;//Center of mass computation. 
 		yMoyUp=yMoyUp/hitsUp;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
 		zMoyUp=zMoyUp/hitsUp+zMax/2+zQuarter-zVentile;//due to the extraction of a substack zmax/2-zQuarter+1 - zmax/2     zMax/2+zQuarter-zVentile
@@ -1439,7 +1448,8 @@ public interface VitimageUtils {
 	public static void soundAlert(String message) {
 		if(message.equals("Inoculation")) {
 			try {
-				Runtime.getRuntime().exec("aplay /home/fernandr/Audio/Inoc.wav");
+				Runtime.getRuntime().exec("aplay /home/fernandr/Audio/Inoc.wav &");
+				Runtime.getRuntime().exec("aplay /home/fernandr/Audio/Inoc2.wav &");
 				VitimageUtils.waitFor(5000);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -1602,7 +1612,50 @@ public interface VitimageUtils {
 		}
 		return (hit<1);
 	}
-		
+
+	
+	public static double maxOfImage(ImagePlus img) {
+		double max=0;
+		int xM=img.getWidth();
+		int yM=img.getHeight();
+		int zM=img.getStackSize();
+		if(img.getType() == ImagePlus.GRAY8) {
+			byte[]valsImg;
+			for(int z=0;z<zM;z++) {
+				valsImg=(byte [])img.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<xM;x++) {
+					for(int y=0;y<yM;y++) {
+						if ((valsImg[xM*y+x] & 0xff )> max)max=(double)(valsImg[xM*y+x] & 0xff); 
+					}
+				}			
+			}
+		}
+		if(img.getType() == ImagePlus.GRAY16) {
+			short[]valsImg;
+			for(int z=0;z<zM;z++) {
+				valsImg=(short [])img.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<xM;x++) {
+					for(int y=0;y<yM;y++) {
+						if ((valsImg[xM*y+x] & 0xffff )> max)max=(double)(valsImg[xM*y+x] & 0xffff); 
+					}
+				}			
+			}
+		}
+		if(img.getType() == ImagePlus.GRAY32) {
+			float[]valsImg;
+			for(int z=0;z<zM;z++) {
+				valsImg=(float [])img.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<xM;x++) {
+					for(int y=0;y<yM;y++) {
+						if ((valsImg[xM*y+x])> max)max=(double)(valsImg[xM*y+x]); 
+					}
+				}			
+			}
+		}
+		return max;	
+	}
+
+	
 	public static boolean isNullShortImage(ImagePlus imgIn) {
 		if(imgIn.getType() != ImagePlus.GRAY16)return false;
 		ImagePlus img=new Duplicator().run(imgIn);
@@ -1852,8 +1905,20 @@ public interface VitimageUtils {
 		return (new double[] {mean,std});
 	}
 
-	
-	
+	public static ImagePlus removeCapillaryFromRandomMriImage(ImagePlus imgIn) {
+		ImagePlus rec=new Duplicator().run(imgIn);	
+		ImagePlus img=new Duplicator().run(imgIn);	
+		rec=VitimageUtils.gaussianFiltering(rec, 0.3,0.3, 1.0);	
+		double val=VitimageUtils.maxOfImage(rec);
+		System.out.println("Max detecté ="+val);
+		IJ.run(img,"32-bit","");
+		IJ.run(img,"Divide...","value="+val+" stack");
+		img.getProcessor().resetMinAndMax();
+		ImagePlus ret=VitimageUtils.removeCapillaryFromHyperImageForRegistration(img);
+		IJ.run(ret,"Multiply...","value="+val+" stack");
+		return ret;
+	}
+
 	public static ImagePlus removeCapillaryFromHyperImageForRegistration(ImagePlus imgInit) {
 		double sigmaFilter=0.3;
 		ImagePlus img=new Duplicator().run(imgInit);

@@ -61,9 +61,11 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		Vitimage5D viti = new Vitimage5D(VineType.CUTTING,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B001_PAL","B001_PAL",ComputingType.COMPUTE_ALL);			
+		Vitimage5D viti = new Vitimage5D(VineType.CUTTING,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B031_NP","B031_NP",ComputingType.COMPUTE_ALL);			
 		viti.start();
-		viti.normalizedHyperImage.show();
+		ImagePlus norm=new Duplicator().run(viti.normalizedHyperImage);
+		norm.show();
+		viti.freeMemory();
 	}
 
 
@@ -107,6 +109,16 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 			writeHyperImage();
 			break;
 		case 4:
+			for (Vitimage4D viti : this.vitimage4D) {
+				long lThis=this.getHyperImageModificationTime();
+				long lVit4D=viti.getHyperImageModificationTime();
+				if(lVit4D>lThis) {
+					System.out.println("Vit5D HyperImage update : at least one source vitimage4D hyper image has been modified since last hyperimage modification : " +viti.getTitle());
+					writeStep(3);
+					return true;
+				}			
+			}
+
 			System.out.println("Vitimage 5D, Computation finished for "+this.getTitle());
 			return false;
 		}
@@ -174,7 +186,6 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		vitimage4D=new ArrayList<Vitimage4D>();//Observations goes there
 		imageForRegistration=null;
 		transformation=new ArrayList<ItkTransform>();
-		transformation.add(new ItkTransform());//No transformation for the first image, that is the reference image
 	}
 	
 	/**
@@ -331,6 +342,13 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		IJ.saveAsTiff(this.imageForRegistration,this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"imageForRegistration.tif");
 	}
 
+	public long getHyperImageModificationTime() {
+		File f=new File(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+"hyperImage.tif");
+		long val=0;
+		if(f.exists())val=f.lastModified();
+		return val;		
+	}
+
 	
 	public void readHyperImage() {
 		this.normalizedHyperImage =IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+"hyperImage.tif");
@@ -380,7 +398,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	public void automaticFineRegistration() {
 		//Register each i on i-1
 		for (int i=1;i<this.vitimage4D.size();i++) {
-	
+	//1
 			//Reference image = aligned vitimage4D Jn-1
 /*			ImagePlus imgRef=this.vitimage4D.get(i-1).getTransformation(0).transformImage(
 					this.vitimage4D.get(i-1).getAcquisition(0).getImageForRegistrationWithoutCapillary(), 
@@ -412,6 +430,8 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgRef),
 					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgMov));
 			for(int j=i;j<this.vitimage4D.size();j++)this.transformation.get(j).addTransform(new ItkTransform(transDayItoIminus1));
+			for(int k=0;k<this.vitimage4D.size();k++)this.transformation.set(k,this.transformation.get(k).simplify());
+			writeRegisteringTransforms("AfterAutoStep"+i);
 		}
 		for(int i=0;i<this.vitimage4D.size();i++)this.transformation.set(i,this.transformation.get(i).simplify());
 		writeRegisteringImages("afterItkRegistration");	

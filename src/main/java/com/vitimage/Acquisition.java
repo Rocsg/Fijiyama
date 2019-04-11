@@ -117,6 +117,8 @@ public abstract class Acquisition implements VitimageUtils{
 	}
 	
 	
+
+	
 	public ImagePlus[]getSourceDataWithSmoothedCapillary(){
 
 		//Produce the smoothed version of source Data
@@ -267,7 +269,13 @@ public abstract class Acquisition implements VitimageUtils{
 		System.gc();
 	}
 	
-	
+	public long getHyperImageModificationTime() {
+		File f=new File(this.sourcePath+slash+ "Computed_data"+slash+"3_HyperImage"+slash+"hyperImage.tif");
+		long val=0;
+		if(f.exists())val=f.lastModified();
+		return val;		
+	}
+
 	public double getCapillaryValue(ImagePlus img, int[]coordinates,int rayXY,int rayZ) {
 		System.out.println("");
 		System.out.println("Start");
