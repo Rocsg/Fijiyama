@@ -421,7 +421,6 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 			imgMov.getProcessor().resetMinAndMax();
 			VitimageUtils.imageChecking(imgMov,"Moving image, "+"J"+vitimage4D.get(i).dayAfterExperience);
 
-			
 			ItkRegistrationManager manager=new ItkRegistrationManager();			
 			System.out.println("Running registration. ");
 			System.out.println("Ref="+this.vitimage4D.get(i-1).getTitle());
