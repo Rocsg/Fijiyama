@@ -103,62 +103,19 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 	}
 	
 	
-	public static void testRecKhalifa() {
-		String path="/home/fernandr/Bureau/Test/TestKhalifa/";
-		ImagePlus imgRef=IJ.openImage(path+"RX_auto-1.tif");
-		ImagePlus imgMov=IJ.openImage(path+"IRM_auto-2.tif");	
-		ImagePlus masque=IJ.openImage(path+"masque.tif");
-		ItkRegistrationManager it=new ItkRegistrationManager();
-		ItkTransform res=it.runScenarioKhalifa2(new ItkTransform(),imgRef,imgMov,true,null);
-		ImagePlus result=res.transformImage(imgRef, imgMov);
-		result.show();
-		IJ.save(result,"/home/fernandr/Bureau/Test/TestKhalifa/test1.tif");
-		res.writeToFile("/home/fernandr/Bureau/Test/TestKhalifa/test1.txt");
-		//ImagePlus mask=VitimageUtils.restrictionMaskForFadingHandling(imgRef, 10);
-		//mask.show();
-		//imgRef.show();
-		//imgMov.show();
-		//VitimageUtils.waitFor(100000);
-		//recGrad : -0,896554
-		//recGradMask : -0,901105
-		//recGradCut : -0,901103
-		//recAMOEB : -0,916413
-		//recAmoebMask : -0,923018
-		//recAmoebCut : -0,922170
-		//rec
 	
+	public static void testAnisoDiff() {
+		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/TestKhalifa/TestIRM.tif");
+		Image itkImg=ItkImagePlusInterface.imagePlusToItkImage(img);
+//		Image itkImg=ItkImagePlusInterface.imagePlusToItkImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(img));
+		GradientAnisotropicDiffusionImageFilter gradFilter=new GradientAnisotropicDiffusionImageFilter();
+		gradFilter.setTimeStep(0.002);
+		gradFilter.setNumberOfIterations(10);
+		itkImg=gradFilter.execute(itkImg);
+		ImagePlus out=ItkImagePlusInterface.itkImageToImagePlus(itkImg);
+		img.show();
+		out.show();
 	}
-	
-	public static void testRemCapHyper() {
-		ImagePlus testIn=IJ.openImage("/home/fernandr/Bureau/Test/Hyper/test.tif");
-		VitimageUtils.imageChecking(testIn,"TestIn");
-		ImagePlus testOut=VitimageUtils.removeCapillaryFromHyperImageForRegistration(testIn);
-		VitimageUtils.imageChecking(testOut,"TestOut");
-	}
-	
-	public static void testRecAvecMasque() {
-		String path="/home/fernandr/Bureau/Test/RecMasque";
-		ImagePlus imgRef=IJ.openImage(path+"/Recovery_3.tif");
-		ImagePlus imgMov=IJ.openImage(path+"/Recovery_1.tif");	
-		ItkRegistrationManager it=new ItkRegistrationManager();
-		ImagePlus[] res=it.runScenarioInterEchoes(imgRef,imgMov);
-		IJ.save(res[0], "/home/fernandr/Bureau/Test/RecMasque/recBLEACH2.tif");
-		//ImagePlus mask=VitimageUtils.restrictionMaskForFadingHandling(imgRef, 10);
-		//mask.show();
-		//imgRef.show();
-		//imgMov.show();
-		//VitimageUtils.waitFor(100000);
-		//recGrad : -0,896554
-		//recGradMask : -0,901105
-		//recGradCut : -0,901103
-		//recAMOEB : -0,916413
-		//recAmoebMask : -0,923018
-		//recAmoebCut : -0,922170
-		//rec
-	
-	}
-	
-	
 	
 	
 	public static void main(String[] args) {
@@ -168,15 +125,13 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 		//testMask();
 //		ImagePlus rec=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B031_NP/Source_data/J218/Computed_data/0_Registration/imgRegistration_acq_1_step_afterIPalignment.tif");
 //		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B031_NP/Source_data/J218/Computed_data/0_Registration/imgRegistration_acq_0_step_afterIPalignment.tif");
-		File f0=new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B031_NP/Source_data/J218/Computed_data/0_Registration/imgRegistration_acq_0_step_afterIPalignment.tif");
-		File f1=new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B031_NP/Source_data/J218/Computed_data/0_Registration/imgRegistration_acq_1_step_afterIPalignment.tif");
-		long l1=f0.lastModified();
-		long l2=f1.lastModified();
-		System.out.println("L1="+l1);
-		System.out.println("L2="+l2);
 		
+		//testTranslationField();
+		//testDeformable();
 		
+	//	viti.runMRIWaterTracker(0);
 		
+		testAnisoDiff();
 		
 		
 		//				ImagePlus imgUp=IJ.openImage("/home/fernandr/Bureau/pouet.tif");
@@ -184,7 +139,7 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 		//	imgUp.show();
 		//			VitimageUtils.waitFor(10000);
 		//		VitimageUtils.imageChecking(result);
-		System.exit(0);
+//		System.exit(0);
 		
 
 		//ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/VITIMAGE4D/Source_data/MRI_T1_SEQ/Computed_data/3_HyperImage/hyperImage.tif");
@@ -195,24 +150,6 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 		
 		
 		
-		
-
-		ItkTransform itkTrans=ItkTransform.readFromFile("/home/fernandr/Bureau/Test/VITIMAGE4D/Computed_data/0_Registration/transformation_2_step_afterAxisAlignment.txt");
-		System.out.println("itkTrans = "+itkTrans);
-		ItkTransform itkTrans2=itkTrans.simplify();
-		System.out.println("itkTrans2 = "+itkTrans2);
-		
-		Transform transIj=new Transform(1,2,3,4,5,6,7,8,9,10,11,12);
-		ItkTransform transItk=ItkTransform.ijTransformToItkTransform(transIj);
-		transItk.addTransform(transItk);
-		transItk.writeToFile("/home/fernandr/Bureau/Test/testWrite.txt");
-		ItkTransform trans2=ItkTransform.readFromFile("/home/fernandr/Bureau/Test/testWrite.txt");
-		System.out.println("Et en effet :");
-		System.out.println("Transfo 1 ="+transItk);
-		System.out.println("Transfo 2 ="+trans2);
-		
-		//		viti.startPlugin(false);//Basic behaviour is making debugging test
-		//viti.analyse();
 	}	
 	
 	public void run(String arg) {
@@ -798,7 +735,224 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 	}
 	
 	
+
+	public static void testRecKhalifa() {
+		String path="/home/fernandr/Bureau/Test/TestKhalifa/";
+		ImagePlus imgRef=IJ.openImage(path+"RX_auto-1.tif");
+		ImagePlus imgMov=IJ.openImage(path+"IRM_auto-2.tif");	
+		ImagePlus masque=IJ.openImage(path+"masque.tif");
+		ItkRegistrationManager it=new ItkRegistrationManager();
+		ItkTransform res=it.runScenarioKhalifa2(new ItkTransform(),imgRef,imgMov,true,null);
+		ImagePlus result=res.transformImage(imgRef, imgMov);
+		result.show();
+		IJ.save(result,"/home/fernandr/Bureau/Test/TestKhalifa/test1.tif");
+		res.writeToFile("/home/fernandr/Bureau/Test/TestKhalifa/test1.txt");
+		//ImagePlus mask=VitimageUtils.restrictionMaskForFadingHandling(imgRef, 10);
+		//mask.show();
+		//imgRef.show();
+		//imgMov.show();
+		//VitimageUtils.waitFor(100000);
+		//recGrad : -0,896554
+		//recGradMask : -0,901105
+		//recGradCut : -0,901103
+		//recAMOEB : -0,916413
+		//recAmoebMask : -0,923018
+		//recAmoebCut : -0,922170
+		//rec
 	
+	}
+	
+	public static void testRemCapHyper() {
+		ImagePlus testIn=IJ.openImage("/home/fernandr/Bureau/Test/Hyper/test.tif");
+		VitimageUtils.imageChecking(testIn,"TestIn");
+		ImagePlus testOut=VitimageUtils.removeCapillaryFromHyperImageForRegistration(testIn);
+		VitimageUtils.imageChecking(testOut,"TestOut");
+	}
+	
+	public static void testRecAvecMasque() {
+		String path="/home/fernandr/Bureau/Test/RecMasque";
+		ImagePlus imgRef=IJ.openImage(path+"/Recovery_3.tif");
+		ImagePlus imgMov=IJ.openImage(path+"/Recovery_1.tif");	
+		ItkRegistrationManager it=new ItkRegistrationManager();
+		ImagePlus[] res=it.runScenarioInterEchoes(imgRef,imgMov);
+		IJ.save(res[0], "/home/fernandr/Bureau/Test/RecMasque/recBLEACH2.tif");
+		//ImagePlus mask=VitimageUtils.restrictionMaskForFadingHandling(imgRef, 10);
+		//mask.show();
+		//imgRef.show();
+		//imgMov.show();
+		//VitimageUtils.waitFor(100000);
+		//recGrad : -0,896554
+		//recGradMask : -0,901105
+		//recGradCut : -0,901103
+		//recAMOEB : -0,916413
+		//recAmoebMask : -0,923018
+		//recAmoebCut : -0,922170
+		//rec
+	
+	}
+	
+	
+	public static void testGrid() {
+		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/imgFlo.tif");
+		ImagePlus grid3=VitimageUtils.getBinaryGrid(imgRef, 5);
+
+		imgRef.show();
+		grid3.show();
+	}
+	
+	public static void testTranslationField() {
+		ImagePlus []imgs=new ImagePlus[3];
+		imgs[0]=IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/Field X.tif");
+//		imgs[0].show();
+//		VitimageUtils.waitFor(10000);
+		imgs[1]=IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/Field Y.tif");
+		imgs[2]=IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/Field Z.tif");
+		IJ.run(imgs[0],"Multiply...","value=28 stack");
+		IJ.run(imgs[1],"Multiply...","value=28 stack");
+		IJ.run(imgs[2],"Multiply...","value=2 stack");
+		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/imgRef.tif");
+		ImagePlus imgFlo=IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/imgFlo.tif");
+		Image dis=ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(imgs);
+		DisplacementFieldTransform dft=new DisplacementFieldTransform(dis);
+		ImagePlus imgGrid=VitimageUtils.getBinaryGrid(imgRef, 10);
+		
+		ResampleImageFilter resampler=new ResampleImageFilter();
+		resampler.setDefaultPixelValue(0);
+		resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(imgRef));
+		resampler.setTransform(dft);
+		ImagePlus result=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgGrid)));
+		
+		ImagePlus result2=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgFlo)));
+		
+		imgGrid.show();
+		result.show();
+		imgFlo.show();
+		result2.show();
+//		imgRef.show();
+		//		result.show();	
+	
+	}
+	
+	
+	public static void testDeformable() {
+		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/imgRef.tif");
+		ImagePlus imgFlo=IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/imgFlo.tif");
+		Image imgItkRef=ItkImagePlusInterface.imagePlusToItkImage(imgRef);
+		Image imgItkFlo=ItkImagePlusInterface.imagePlusToItkImage(imgFlo);
+		
+		Image displacementField = new Image(imgItkRef.getSize(), PixelIDValueEnum.sitkVectorFloat64,3);//3
+		System.out.println(TransformUtils.stringVectorN(ItkImagePlusInterface.vectorUInt32ToIntArray(displacementField.getSize()),"DisplacementField") );
+		displacementField.copyInformation(imgItkRef);//metric.getVirtualImage();
+	  	
+	  	DisplacementFieldTransform displacementTx=new DisplacementFieldTransform(displacementField);
+	    double varianceForUpdateField=0.5;
+		double varianceForTotalField=1.0;
+		displacementTx.setSmoothingGaussianOnUpdate(varianceForUpdateField, varianceForTotalField);
+		ImageRegistrationMethod regMethod=new ImageRegistrationMethod();
+		regMethod.setInitialTransform(displacementTx, true);
+		regMethod.setMetricAsMattesMutualInformation();
+		//		regMethod.setMetricAsCorrelation();
+		//regMethod.setMetricAsANTSNeighborhoodCorrelation(4);
+		regMethod.metricUseFixedImageGradientFilterOff();
+		regMethod.metricUseFixedImageGradientFilterOff();
+
+		VectorUInt32 shrinkFactors=ItkImagePlusInterface.intArrayToVectorUInt32(new int[] {8,4,2,1});
+		VectorDouble smoothingSigmas=ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {0.2,0.2,0.1,0.06});
+
+		regMethod.setShrinkFactorsPerLevel(shrinkFactors);
+		regMethod.setSmoothingSigmasPerLevel(smoothingSigmas);
+		regMethod.setOptimizerScalesFromPhysicalShift();
+		DeformableUpdate updater=new DeformableUpdate(regMethod); 
+		double learningRate=1.0;
+		int numberOfIterations=100;
+		double convergenceMinimumValue = 1e-8;
+		regMethod.setOptimizerAsGradientDescent( learningRate,
+						numberOfIterations,
+			convergenceMinimumValue
+			);
+		//regMethod.setOptimizerAsRegularStepGradientDescent(learningRate, 0.1, numberOfIterations);
+		regMethod.removeAllCommands();
+		regMethod.addCommand(EventEnum.sitkIterationEvent,updater);
+
+		Image maskDef=ItkImagePlusInterface.imagePlusToItkImage(IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/maskDef.tif"));
+//		regMethod.setMetricFixedMask(maskDef);
+		//		regMethod.setMetricMovingMask(maskDef);
+		System.out.println("Demarrage modele deformable");
+		ItkTransform resultTrans=new ItkTransform(regMethod.execute(imgItkRef,imgItkFlo));
+		System.out.println("Calcul de la transformation achevé");
+		System.out.println(regMethod.getOptimizerStopConditionDescription());
+		ImagePlus grid=resultTrans.viewAsGrid3D(imgRef, 20);
+		ImagePlus resultFlo=new ItkTransform(resultTrans).transformImage(imgRef, imgFlo);
+		IJ.run(grid,"32-bit","");
+		IJ.run(grid,"Multiply...","value=0.004 stack");
+		grid.getProcessor().resetMinAndMax();
+		grid.show();
+		grid.setTitle("grid");
+		imgRef.show();
+		imgRef.setTitle("imgRef");
+		imgFlo.show();
+		imgFlo.setTitle("imgFlo");
+		IJ.run(grid, "Merge Channels...", "c1=[imgRef] c2=[imgFlo] c4=[grid] create keep");
+		
+		ImagePlus resBefore=VitimageUtils.compositeOf(imgRef, imgFlo);
+		ImagePlus resAfter=VitimageUtils.compositeOf(imgRef, resultFlo);
+		VitimageUtils.adjustImageCalibration(resBefore, imgRef);
+		VitimageUtils.adjustImageCalibration(resAfter, imgRef);
+		resBefore.setTitle("Superposition before diffeomorphic demons");
+		resAfter.setTitle("Superposition after diffeomorphic demons");
+		resBefore.show();
+		resAfter.show();
+		imgRef.show();
+		grid.hide();
+		imgFlo.hide();
+		imgRef.hide();
+		/*	
+		ItkTransform resTrans=new ItkTransform(regMethod.execute(imgItkRef,imgItkFlo));
+		System.out.println("Transformation deformable : "+resTrans);
+		System.out.println("Stop condition : "+regMethod.getOptimizerStopConditionDescription());
+		System.out.println("Iteration : "+regMethod.getOptimizerIteration());
+		System.out.println("Iteration : "+regMethod.getMetricValue());
+		ImagePlus resultImg=resTrans.transformImage(imgRef, imgFlo);
+		imgRef.setTitle("Ref");
+		imgFlo.setTitle("Flo");
+		resultImg.setTitle("Result");
+		imgRef.getProcessor().resetMinAndMax();
+		imgFlo.getProcessor().resetMinAndMax();
+		resultImg.getProcessor().resetMinAndMax();
+		imgRef.show();
+		imgFlo.show();
+		resultImg.show();
+
+		
+		Image imgTrans=displacementTx.getDisplacementField();
+		ImagePlus[] imgField=ItkImagePlusInterface.convertDisplacementFieldToImagePlusArray(imgTrans);
+//		BSplineTransform(dimension,spline_order)bspline.SetTransformDomainOrigin(origin)bspline.SetTransformDomainDirection(direction_matrix_row_major)bspline.SetTransformDomainPhysicalDimensions(domain_physic		
+	
+*/	
+	}
 	
 	
 }  
+
+
+
+
+/**
+ * Listener for gathering optimizer events. It allows the manager to update and display the process state along the running
+ */
+class DeformableUpdate  extends Command {
+	ImageRegistrationMethod m;
+	public DeformableUpdate(ImageRegistrationMethod m) {
+		super();
+		this.m=m;
+	}
+
+	public void execute() {
+		System.out.format("Iteration %3d  |  Score = %6.4f \n",
+				m.getOptimizerIteration()
+				,-100.0*m.getMetricValue()
+				);
+	}
+}
+
+

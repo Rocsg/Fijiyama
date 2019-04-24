@@ -145,16 +145,28 @@ public interface VitiDialogs {
 		return (globalTransform);
 	 }
 		
+
+	public static ItkTransform chooseOneTransformsUI(String strGuess,boolean autonomyLevel){
+		ItkTransform globalTransform = null;
+		OpenDialog od=new OpenDialog("Select_transformation");
+		globalTransform=ItkTransform.readFromFile(od.getPath());
+		return (globalTransform);
+	 }
+		
+
+	
+	
+	
 	public static void saveTransformUI(ItkTransform tr,String strGuess,boolean autonomyLevel,String path,String title){
 		if(autonomyLevel==AUTOMATIC) {
 			String pathSave=path+""+title;
-			tr.writeTransform(pathSave);
+			tr.writeToFile(pathSave);
 		}
 		else {
-			SaveDialog sd=new SaveDialog(strGuess,title,".itktr");
+			SaveDialog sd=new SaveDialog(strGuess,title,".txt");
 			if(sd.getDirectory()==null ||  sd.getFileName()==null)return;
 			String pathSave=sd.getDirectory()+""+sd.getFileName();
-			tr.writeTransform(pathSave);
+			tr.writeToFile(pathSave);
 		}
 	}
 

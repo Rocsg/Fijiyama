@@ -68,8 +68,8 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B032_NP/Source_data/J218/Source_data/MRI_T1_SEQ",
-									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"B032_NP_J218_MRI_T1",ComputingType.COMPUTE_ALL);
+		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B041_DS/Source_data/J218/Source_data/MRI_T1_SEQ",
+									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"B041_DS_J218_MRI_T1",ComputingType.COMPUTE_ALL);
 		mri.start();
 		return;
 	}

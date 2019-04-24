@@ -102,6 +102,81 @@ public interface ItkImagePlusInterface {
 		return ret;
 	}
 	
+	
+	
+	public static ImagePlus[] convertDisplacementFieldToImagePlusArray(Image img){
+		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
+		VectorDouble voxSizes= img.getSpacing();		
+		ImagePlus []ret=new ImagePlus[4];
+		for(int dim=0;dim<4;dim++) {
+			ret[dim]=IJ.createImage("", dimX, dimY, dimZ, 32);
+			Calibration cal = ret[dim].getCalibration();
+			cal.setUnit("mm");
+			cal.pixelWidth =voxSizes.get(0); cal.pixelHeight =voxSizes.get(1); cal.pixelDepth =voxSizes.get(2);
+		}
+		VectorUInt32 coordinates=new VectorUInt32(3);
+		VectorDouble values=new VectorDouble(3);
+		int coordIJ;
+		for(int z=0;z<dimZ;z++) {
+			coordinates.set(2,z);
+			float [][]tabData=new float[4][];
+			tabData[0]=(float[])ret[0].getStack().getProcessor(z+1).getPixels();
+			tabData[1]=(float[])ret[1].getStack().getProcessor(z+1).getPixels();
+			tabData[2]=(float[])ret[2].getStack().getProcessor(z+1).getPixels();
+			tabData[3]=(float[])ret[3].getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<dimX;x++) {
+				coordinates.set(0,x);
+				for(int y=0;y<dimY;y++) {
+					coordinates.set(1,y);
+					coordIJ=dimX*y+x;
+					values= img.getPixelAsVectorFloat64(coordinates);
+					tabData[0][coordIJ]=(float)( values.get(0));
+					tabData[1][coordIJ]=(float)( values.get(1));
+					tabData[2][coordIJ]=(float)( values.get(2));
+					tabData[3][coordIJ]=(float)( Math.sqrt ( values.get(0) * values.get(0) + values.get(1) * values.get(1) + values.get(2) * values.get(2) ) );
+				}
+			}
+		}
+		return ret;
+	}
+	
+	
+
+	public static Image convertImagePlusArrayToDisplacementField(ImagePlus []imgs){
+		int dimX=(int) imgs[0].getWidth(); int dimY=(int) imgs[0].getHeight(); int dimZ=(int) imgs[0].getStackSize();
+		double[]voxSizes=new double[] {imgs[0].getCalibration().pixelWidth,imgs[0].getCalibration().pixelHeight,imgs[0].getCalibration().pixelDepth};
+		Image ret=new Image(dimX,dimY,dimZ,PixelIDValueEnum.sitkVectorFloat64);
+		ret.setSpacing(doubleArrayToVectorDouble(voxSizes));
+		VectorUInt32 coordinates=new VectorUInt32(3);
+		VectorDouble values=new VectorDouble(3);
+		int coordIJ;
+		for(int z=0;z<dimZ;z++) {
+			coordinates.set(2,z);
+			float [][]tabData=new float[3][];
+			tabData[0]=(float[])imgs[0].getStack().getProcessor(z+1).getPixels();
+			tabData[1]=(float[])imgs[1].getStack().getProcessor(z+1).getPixels();
+			tabData[2]=(float[])imgs[2].getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<dimX;x++) {
+				coordinates.set(0,x);
+				for(int y=0;y<dimY;y++) {
+					coordinates.set(1,y);
+					coordIJ=dimX*y+x;
+					values.set(0,tabData[0][coordIJ]);
+					values.set(1,tabData[1][coordIJ]);
+					values.set(2,tabData[2][coordIJ]);
+					ret.setPixelAsVectorFloat64(coordinates,values);
+				}
+			}
+		}
+		return ret;
+	}
+
+	
+	
+	
+	
+	
+	
 	public static ImagePlus itkImageToImagePlus(Image img) {
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		VectorDouble voxSizes= img.getSpacing();		

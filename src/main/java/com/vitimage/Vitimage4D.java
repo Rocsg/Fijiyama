@@ -72,8 +72,8 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B032_NP/Source_data/J35",
-								"B031_NP_J218",ComputingType.COMPUTE_ALL);			
+		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B042_DS/Source_data/J133",
+								"B042_DS_J133",ComputingType.COMPUTE_ALL);			
 		viti.start();
 		viti.normalizedHyperImage.show();
 	}

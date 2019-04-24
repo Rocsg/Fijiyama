@@ -81,6 +81,11 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
 	}	
 
+	public ImagePlus viewAsGrid3D(ImagePlus imgRef,int pixelSpacing) {
+		ImagePlus grid=VitimageUtils.getBinaryGrid(imgRef, pixelSpacing);
+		return this.transformImage(imgRef,grid);
+	}
+	
 	public ImagePlus transformHyperImage4D(ImagePlus hyperRef,ImagePlus hyperMov,int dimension) {
 		ImagePlus []imgTabRef=VitimageUtils.stacksFromHyperstack(hyperRef, dimension);
 		ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstack(hyperMov, dimension);

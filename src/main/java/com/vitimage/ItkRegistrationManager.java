@@ -40,6 +40,7 @@ import ij.plugin.Duplicator;
 
 public class ItkRegistrationManager implements ItkImagePlusInterface{
 	boolean lookLikeOptimizerLooks=false;
+	boolean textInfoAtEachIteration=false;
 	boolean movie3D=false;
 	CenteredTransformInitializerFilter centerTransformFilter;
 	private RecursiveGaussianImageFilter gaussFilter;
@@ -87,8 +88,12 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 	private ArrayList<double[]> voxelSizes;
 	private int fontSize=12;
 
-
-	
+	public void setTextInfoAtEachIterationOn() {
+		textInfoAtEachIteration=true;
+	}
+	public void setTextInfoAtEachIterationOff() {
+		textInfoAtEachIteration=false;
+	}
 	public void freeMemory(){
 		if(registrationSummary.size()>0) {
 			for(ImagePlus img : registrationSummary)img=null;
@@ -170,22 +175,21 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.setMetric(MetricType.CORRELATION);
 		OptimizerType opt=OptimizerType.AMOEBA ;
 		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-		int dimMinPyramide=3;
-		int dimMinImage=Math.min(imgRef.getWidth()  , Math.min( imgRef.getHeight()  , imgRef.getStackSize() ) );
+		boolean testSpeed=false;
 
-		this.addStepToQueue( 1 ,    2    ,     1     ,    100  , 0.3   ,       Transformation3DType.VERSOR,    null,
+		this.addStepToQueue( 1 ,    2    ,     1     ,   testSpeed ? 1 : 100  , 0.3   ,       Transformation3DType.VERSOR,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-		this.addStepToQueue( 1 ,    2    ,     1     ,    100  , 0.3   ,       Transformation3DType.TRANSLATION,    null,
+		this.addStepToQueue( 1 ,    1    ,     1     ,   testSpeed ? 1 : 100 , 0.2   ,       Transformation3DType.TRANSLATION,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-		this.addStepToQueue( 1 ,    2    ,     1     ,    100  , 0.3   ,       Transformation3DType.VERSOR,    null,
+		this.addStepToQueue( 1 ,    1    ,     1     ,   testSpeed ? 1 : 100   , 0.3   ,       Transformation3DType.VERSOR,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-		this.addStepToQueue( 1 ,   2    ,     1     ,    100  , 0.3   ,       Transformation3DType.SIMILARITY,    null,
+		this.addStepToQueue( 1 ,   1    ,     1     ,   testSpeed ? 1 : 100  , 0.3   ,       Transformation3DType.VERSOR,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
@@ -208,7 +212,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		int levelMax=1;//1+(int)Math.floor(Math.log(dimMinImage/dimMinPyramide)/Math.log(2) );
 		int levelMin=1;
 
-		this.addStepToQueue( 1 ,    1    ,     0    ,   200 , 0.4   ,       Transformation3DType.TRANSLATION,    null,
+		this.addStepToQueue( 2 ,   2    ,     0    ,   20 , 0.4   ,       Transformation3DType.TRANSLATION,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		true,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
@@ -333,6 +337,11 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		return this.transform;
 	}
 
+	
+	public ItkTransform getCurrentTransform() {
+		return new ItkTransform(this.transform);
+	}
+	
 	
 	public ItkTransform runScenarioTestStuff(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov) {
 		this.setMovingImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgMov));
@@ -502,10 +511,10 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		case GRADIENT_REGULAR_STEP: reg.setOptimizerAsRegularStepGradientDescent(learningRate, minStep, numberOfIterations,relaxationFactor);break;
 		case GRADIENT_LINE_SEARCH: reg.setOptimizerAsGradientDescentLineSearch(learningRate, numberOfIterations,convergenceMinimumValue, convergenceWindowSize);break;
 		case GRADIENT_CONJUGATE: reg.setOptimizerAsConjugateGradientLineSearch(learningRate, numberOfIterations,convergenceMinimumValue, convergenceWindowSize);break;
-		case LBFGSB: reg.setOptimizerAsLBFGSB(gradientConvergenceTolerance);break;
-		case LBFGS2: reg.setOptimizerAsLBFGS2(solutionAccuracy);break;
-		case POWELL: reg.setOptimizerAsPowell(numberOfIterations, maximumLineIterations, stepLength,stepTolerance, valueTolerance);break;
-		case EVOLUTIONARY: reg.setOptimizerAsOnePlusOneEvolutionary(numberOfIterations);break;
+		//case LBFGSB: reg.setOptimizerAsLBFGSB(gradientConvergenceTolerance);break;
+		//case LBFGS2: reg.setOptimizerAsLBFGS2(solutionAccuracy);break;
+		//case POWELL: reg.setOptimizerAsPowell(numberOfIterations, maximumLineIterations, stepLength,stepTolerance, valueTolerance);break;
+		//case EVOLUTIONARY: reg.setOptimizerAsOnePlusOneEvolutionary(numberOfIterations);break;
 		case EXHAUSTIVE: reg.setOptimizerAsExhaustive(numberOfSteps, stepLength);break;
 		case AMOEBA: reg.setOptimizerAsAmoeba(simplexDelta, numberOfIterations);break;
 		}
@@ -795,7 +804,12 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 	/**
 	 * Initializers
 	 */
-	public void setReferenceImage(ImagePlus img) {
+	public void setReferenceImage(ImagePlus imgIn) {
+		ImagePlus img=null;
+		if(imgIn.getType()==ImagePlus.GRAY32)img=new Duplicator().run(imgIn);
+		else if(imgIn.getType()==ImagePlus.GRAY16)img=VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgIn);
+		else if(imgIn.getType()==ImagePlus.GRAY8)img=VitimageUtils.convertByteToFloatWithoutDynamicChanges(imgIn);
+		else IJ.log("Warning : unusual type of image in ITKRegistrationManager.setReferenceImage : "+imgIn.getType()+" . Registration will fail shortly");
 		this.ijImgRef=new Duplicator().run(img);
 		this.viewHeight=ijImgRef.getHeight()*zoomFactor;
 		this.viewWidth=ijImgRef.getWidth()*zoomFactor;
@@ -810,7 +824,12 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		
 	}
 	
-	public void setMovingImage(ImagePlus img) {
+	public void setMovingImage(ImagePlus imgIn) {
+		ImagePlus img=null;
+		if(imgIn.getType()==ImagePlus.GRAY32)img=new Duplicator().run(imgIn);
+		else if(imgIn.getType()==ImagePlus.GRAY16)img=VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgIn);
+		else if(imgIn.getType()==ImagePlus.GRAY8)img=VitimageUtils.convertByteToFloatWithoutDynamicChanges(imgIn);
+		else IJ.log("Warning : unusual type of image in ITKRegistrationManager.setMovingImage : "+imgIn.getType()+" . Registration will fail shortly");
 		this.ijImgMov=new Duplicator().run(img);
 		this.itkImgMov=ItkImagePlusInterface.imagePlusToItkImage(ijImgMov);
 	}
@@ -1035,7 +1054,7 @@ class IterationUpdate  extends Command {
 				, (float)durIter,unitIter
 				, (float)durTot,unitTot,improvement
 				);
-		else if(method.getOptimizerIteration()%10==0)System.out.format("%sIteration %3d  |  Score = %6.4f  |  Titeration = %8.4f %s  |  Ttotal = %5.2f %s  | Evolution = %4.2f%% |\n",
+		else if(method.getOptimizerIteration()%(manager.textInfoAtEachIteration ? 1 :  10    )==0)System.out.format("%sIteration %3d  |  Score = %6.4f  |  Titeration = %8.4f %s  |  Ttotal = %5.2f %s  | Evolution = %4.2f%% |\n",
 				pyr,method.getOptimizerIteration()
 				,-100.0*method.getMetricValue()
 				, (float)durIter,unitIter

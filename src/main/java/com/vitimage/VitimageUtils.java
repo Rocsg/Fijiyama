@@ -1359,6 +1359,26 @@ public interface VitimageUtils {
 		return ret;
 	}
 	
+	public static ImagePlus convertByteToFloatWithoutDynamicChanges(ImagePlus imgIn) {
+		ImagePlus ret=new Duplicator().run(imgIn);
+		IJ.run(ret,"8-bit","");
+		float[][] out=new float[ret.getStackSize()][];
+		byte[][] in=new byte[imgIn.getStackSize()][];
+		int index;
+		int X=imgIn.getWidth();
+		for(int z=0;z<imgIn.getStackSize();z++) {
+			out[z]=(float []) ret.getStack().getProcessor(z+1).getPixels();
+			in[z]=(byte []) imgIn.getStack().getProcessor(z+1).getPixels();
+
+			for(int x=0;x<imgIn.getWidth();x++) {
+				for(int y=0;y<imgIn.getHeight();y++) {
+					out[z][y*X+x]=(byte)((int)((in[z][y*X+x] & 0xff )));
+				}			
+			}
+		}
+		return ret;
+	}
+	
 
 	public static double getOtsuThreshold(ImagePlus img) {
 		OtsuThresholdImageFilter otsu=new OtsuThresholdImageFilter();
@@ -1382,10 +1402,15 @@ public interface VitimageUtils {
 		//	return(RGBStackMerge.mergeChannels(new ImagePlus[] {img1,img2},false));
 		ImagePlus img1=new Duplicator().run(img1Source);
 		ImagePlus img2=new Duplicator().run(img2Source);
+		//		ImagePlus img3=new Duplicator().run(img2Source);
+		//		img3.getProcessor().set(0);
 		img1.getProcessor().resetMinAndMax();
 		img2.getProcessor().resetMinAndMax();
+		//		img3.getProcessor().setMinAndMax(0,255);
 		IJ.run(img1,"8-bit","");
 		IJ.run(img2,"8-bit","");
+//		IJ.run(img3,"8-bit","");
+//		ImageStack is=RGBStackMerge.mergeStacks(img1.getStack(),img2.getStack(),img3.getStack(),true);
 		ImageStack is=RGBStackMerge.mergeStacks(img1.getStack(),img2.getStack(),null,true);
 		return new ImagePlus("Composite",is);
 	}
@@ -1724,6 +1749,31 @@ public interface VitimageUtils {
 			}
 		}
 		else VitiDialogs.notYet("getBinary Mask type "+type);
+		return ret;
+	}
+
+	public static ImagePlus getBinaryGrid(ImagePlus img,int pixelSpacing) {
+		boolean doDouble=false;
+		if(pixelSpacing<2)pixelSpacing=2;
+		if(pixelSpacing>5)doDouble=true;
+		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getStackSize();
+		ImagePlus ret=IJ.createImage("", dimX, dimY, dimZ, 8);
+		VitimageUtils.adjustImageCalibration(ret,img);
+		for(int z=0;z<dimZ;z++) {
+			byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<dimX;x++) {
+				for(int y=0;y<dimY;y++) {
+					if( (x%pixelSpacing==pixelSpacing/2) || 
+					    (y%pixelSpacing==pixelSpacing/2)  ){
+						tabRet[dimX*y+x]=(byte)(255 & 0xff);
+					}
+					if( doDouble && (x%pixelSpacing==pixelSpacing/2+1) || 
+						    (y%pixelSpacing==pixelSpacing/2+1)){
+							tabRet[dimX*y+x]=(byte)(255 & 0xff);
+					}	
+				}
+			}
+		}	
 		return ret;
 	}
 

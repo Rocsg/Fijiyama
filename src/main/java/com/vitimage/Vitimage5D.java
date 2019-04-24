@@ -61,7 +61,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		Vitimage5D viti = new Vitimage5D(VineType.CUTTING,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B031_NP","B031_NP",ComputingType.COMPUTE_ALL);			
+		Vitimage5D viti = new Vitimage5D(VineType.CUTTING,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT","B051_CT",ComputingType.COMPUTE_ALL);			
 		viti.start();
 		ImagePlus norm=new Duplicator().run(viti.normalizedHyperImage);
 		norm.show();
@@ -431,6 +431,8 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgMov));
 			for(int j=i;j<this.vitimage4D.size();j++)this.transformation.get(j).addTransform(new ItkTransform(transDayItoIminus1));
 			for(int k=0;k<this.vitimage4D.size();k++)this.transformation.set(k,this.transformation.get(k).simplify());
+			File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
+			transDayItoIminus1.writeToFile(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_added_at_step_"+i+".txt");
 			writeRegisteringTransforms("AfterAutoStep"+i);
 		}
 		for(int i=0;i<this.vitimage4D.size();i++)this.transformation.set(i,this.transformation.get(i).simplify());

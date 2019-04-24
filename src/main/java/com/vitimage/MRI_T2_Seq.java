@@ -49,8 +49,8 @@ public class MRI_T2_Seq extends Acquisition{
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B032_NP/Source_data/J218/Source_data/MRI_T2_SEQ",
-									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"B031_NP_J218_MRI_T2_SEQ",ComputingType.COMPUTE_ALL);
+		MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B041_DS/Source_data/J218/Source_data/MRI_T2_SEQ",
+									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"B041_DS_J218_MRI_T2_SEQ",ComputingType.COMPUTE_ALL);
 		mri.start();//
 	}
 
