@@ -168,6 +168,11 @@ public interface ItkImagePlusInterface {
 				}
 			}
 		}
+		imgs[0]=null;
+		imgs[1]=null;
+		imgs[2]=null;
+		imgs=null;
+		System.gc();
 		return ret;
 	}
 
@@ -180,8 +185,8 @@ public interface ItkImagePlusInterface {
 	public static ImagePlus itkImageToImagePlus(Image img) {
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		VectorDouble voxSizes= img.getSpacing();		
-		int type=(img.getPixelID() ==PixelIDValueEnum.sitkUInt8 ? 8 : img.getPixelID() ==PixelIDValueEnum.sitkUInt16 ? 16 : img.getPixelID() ==PixelIDValueEnum.sitkFloat32 ? 32 : 24);
-		ImagePlus ret=IJ.createImage("", dimX, dimY, dimZ, type);
+		int type=(img.getPixelID() ==PixelIDValueEnum.sitkUInt8 ? 8 : img.getPixelID() ==PixelIDValueEnum.sitkUInt16 ? 16 : img.getPixelID() ==PixelIDValueEnum.sitkFloat32 ? 32 : img.getPixelID() ==PixelIDValueEnum.sitkFloat64 ? 64 : 24);
+		ImagePlus ret=IJ.createImage("", dimX, dimY, dimZ, ( type < 33 ? type : 32));
 		Calibration cal = ret.getCalibration();
 		cal.setUnit("mm");
 		cal.pixelWidth =voxSizes.get(0); cal.pixelHeight =voxSizes.get(1); cal.pixelDepth =voxSizes.get(2);
@@ -228,13 +233,28 @@ public interface ItkImagePlusInterface {
 				}
 			}
 		}
+
+		if(type==64) {
+			for(int z=0;z<dimZ;z++) {
+				coordinates.set(2,z);
+				float []tabData=(float[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					coordinates.set(0,x);
+					for(int y=0;y<dimY;y++) {
+						coordinates.set(1,y);
+						tabData[dimX*y+x]=(float)( img.getPixelAsDouble(coordinates) );
+					}
+				}
+			}
+		}
+
 		if(type==24) {
 			VitiDialogs.notYet("Conversion ItkImage vers ImagePlus type RGB");
 		}
 		return ret;
 	}
 		
-	public default ImagePlus itkImageToImagePlusSlice(Image img,int slice) {
+	public static ImagePlus itkImageToImagePlusSlice(Image img,int slice) {
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		if(slice>dimZ)slice=dimZ;
 		if(slice<1)slice=1;
@@ -350,17 +370,20 @@ public interface ItkImagePlusInterface {
 		EULER2D,
 		VERSOR,
 		AFFINE,
-		SIMILARITY
+		SIMILARITY,
+		DENSE
 	}
 
 	public enum MetricType{
 		JOINT,
 		MEANSQUARE,
 		CORRELATION,
+		SQUARED_CORRELATION,
 		MATTES,
 		ANTS,
 		DEMONS
 	}
+	
 	
 	public enum OptimizerType{
 		GRADIENT,

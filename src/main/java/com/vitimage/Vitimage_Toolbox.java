@@ -49,13 +49,12 @@ import org.itk.simple.ImageRegistrationMethod.MetricSamplingStrategyType;
 import com.sun.tools.extcheck.Main;
 import com.vitimage.MRUtils;
 import com.vitimage.ItkImagePlusInterface.Transformation3DType;
-import com.vitimage.VitimageUtils.AcquisitionType;
 
 import imagescience.transform.Transform;
 import math3d.JacobiDouble;
 import math3d.Point3d;
 import vib.FastMatrix;
-
+import com.vitimage.VitimageUtils;
 
 /**
  * Vitimage_Toolbox is the toolbox starting point. It handles Gui through ImageJ utilities and Dialog, and manage the necessary process
@@ -121,6 +120,7 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 	public static void main(String[] args) {
 		ImageJ imageJ = new ImageJ();
 		Vitimage_Toolbox viti=new Vitimage_Toolbox();
+		testGauss();
 		//testSegmentationAndDetectionStrategyUponVariousMRI();
 		//testMask();
 //		ImagePlus rec=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B031_NP/Source_data/J218/Computed_data/0_Registration/imgRegistration_acq_1_step_afterIPalignment.tif");
@@ -130,8 +130,8 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 		//testDeformable();
 		
 	//	viti.runMRIWaterTracker(0);
-		
-		testAnisoDiff();
+		//produceListForRXShorteningMeasurement();
+		//testJacobian();
 		
 		
 		//				ImagePlus imgUp=IJ.openImage("/home/fernandr/Bureau/pouet.tif");
@@ -791,14 +791,46 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 	
 	}
 	
+	public static void testHisto();
 	
-	public static void testGrid() {
-		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/imgFlo.tif");
-		ImagePlus grid3=VitimageUtils.getBinaryGrid(imgRef, 5);
-
-		imgRef.show();
-		grid3.show();
+	public static void testGauss() {
+		ImagePlus img1=IJ.openImage("/home/fernandr/Bureau/Test/Gauss/img1.tif");
+		ImagePlus imgOut1=VitimageUtils.gaussianFiltering(img1,1,1,1);
+		ImagePlus imgOut2=VitimageUtils.gaussianFilteringIJ(img1,1,1,1);
+		imgOut1.setTitle("imgOut1");
+		imgOut2.setTitle("imgOut2");
+		img1.show();
+		imgOut1.show();
+		imgOut2.show();
 	}
+	
+	public static void testJacobian() {
+		DisplacementFieldJacobianDeterminantFilter dfd=new DisplacementFieldJacobianDeterminantFilter();
+		ImagePlus [] imgs=new ImagePlus[3];
+		imgs[0]=IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/Field X.tif");
+		imgs[1]=IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/Field Y.tif");
+		imgs[2]=IJ.openImage("/home/fernandr/Bureau/Test/TestDeformable/Field Z.tif");
+		IJ.run(imgs[0],"Multiply...","value=28 stack");
+		IJ.run(imgs[1],"Multiply...","value=28 stack");
+		IJ.run(imgs[2],"Multiply...","value=2 stack");
+		imgs[0].show();
+		Image dis=ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(imgs);
+		Image disJacob2=new Image(dis);
+		Image disJacob=dfd.execute(dis);
+		System.out.println(disJacob.getNumberOfComponentsPerPixel());
+		System.out.println(disJacob.getDimension());
+		System.out.println(disJacob.getPixelIDTypeAsString());
+		ImagePlus disJacobIJ=ItkImagePlusInterface.itkImageToImagePlus(disJacob);
+
+		ItkTransform trans=new ItkTransform(new DisplacementFieldTransform( disJacob2 ));
+		ImagePlus imgGrid=VitimageUtils.getBinaryGrid(imgs[0], 10);
+		ImagePlus grid2=trans.transformImage(imgGrid, imgGrid);
+		
+		disJacobIJ.show();
+		disJacobIJ.resetDisplayRange();
+		grid2.show();
+	}
+	
 	
 	public static void testTranslationField() {
 		ImagePlus []imgs=new ImagePlus[3];
@@ -930,6 +962,57 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 	
 */	
 	}
+	
+	
+	
+	
+	
+	public static void produceListForRXShorteningMeasurement() {
+		int specimen=7;
+		ImagePlus rx=IJ.openImage("/home/fernandr/Bureau/Test/RX_shortening/RX"+specimen+".tif");
+		ImagePlus irm=IJ.openImage("/home/fernandr/Bureau/Test/RX_shortening/IRM"+specimen+".tif");
+		rx.setTitle("RX");
+		irm.setTitle("IRM");
+		rx.show();
+		irm.show();
+		boolean computeRealCoordinatesTransformation=true;
+		int nbWantedPointsPerImage=15;
+		ItkTransform transGlobal=new ItkTransform();
+		Point3d [][]pointTab=VitiDialogs.registrationPointsUI(nbWantedPointsPerImage, rx,irm, computeRealCoordinatesTransformation);
+		Point3d []pRX=pointTab[0];
+		Point3d []pIRM=pointTab[1];
+
+		System.out.println("");
+		System.out.println("1) Output points coordinates");
+		for(int i=0;i<pRX.length;i++) {
+			System.out.println("Point #"+i);
+			System.out.print("  RX : [ "+VitimageUtils.dou(pRX[i].x)+" , "+ VitimageUtils.dou(pRX[i].y)+" , "+VitimageUtils.dou(pRX[i].z)+" ] ");
+			System.out.print("  IRM : [ "+VitimageUtils.dou(pIRM[i].x)+" , "+ VitimageUtils.dou(pIRM[i].y)+" , "+VitimageUtils.dou(pIRM[i].z)+" ] ");
+		}
+
+		System.out.println("");
+		System.out.println("2) Succcessive vectors between couples of output points");
+		System.out.println("#Couple ; #Pt1 ; #Pt2 ; "+
+							" RX_x ; RX_y ; RX_z ; "+
+							" IRM_x ; IRM_y ; IRM_z ; ");
+		String sep=" ; ";
+		int co=0;
+		for(int i=0;i<pRX.length;i++) {
+			for(int j=i+1;j<pRX.length;j++) {
+				double[]vectRX=new double[] {pRX[i].x- pRX[j].x, pRX[i].y- pRX[j].y,pRX[i].z- pRX[j].z};
+				double[]vectIRM=new double[] {pIRM[i].x- pIRM[j].x, pIRM[i].y- pIRM[j].y,pIRM[i].z- pIRM[j].z};
+				System.out.print((co++) + sep+i+sep+j+sep );
+				System.out.print(vectRX[0]+sep+vectRX[1]+sep+vectRX[2]+sep);
+				System.out.print(vectIRM[0]+sep+vectIRM[1]+sep+vectIRM[2]+sep);
+				System.out.println("");
+			}
+		}
+			
+		
+	}
+	
+	
+	
 	
 	
 }  

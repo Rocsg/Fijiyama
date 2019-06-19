@@ -1,22 +1,34 @@
 package com.vitimage;
 
 import java.awt.Point;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.nio.file.Path;
 
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.WindowManager;
+import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.io.FileSaver;
 import ij.io.OpenDialog;
+import ij.io.SaveDialog;
+import ij.plugin.ImageCalculator;
 import ij.plugin.frame.RoiManager;
 import ij.process.ByteProcessor;
 import ij.process.FloatPolygon;
+import trainableSegmentation.Trainable_Segmentation;
 
 public class TestRomain {
 
@@ -24,23 +36,51 @@ public class TestRomain {
 	public static void main(String [] args) {
 		ImageJ imag=new ImageJ();
 		
-		ImagePlus img1=IJ.openImage("/home/fernandr/Bureau/Test/TestRoiCedric/img1.tif");
-		ImagePlus img2=IJ.openImage("/home/fernandr/Bureau/Test/TestRoiCedric/img2.tif");
-		ImagePlus img3=IJ.openImage("/home/fernandr/Bureau/Test/TestRoiCedric/img3.tif");
+//		ImagePlus img3=  multiplyFloatImages(img1,img2);
+//		img3.show();
+//		test();
+//		System.exit(0);
+		ImagePlus img1=IJ.openImage("/home/fernandr/Bureau/Test/Test_NN/test_IRM-1.tif");
+		IJ.run(img1,"32-bit","");
 		img1.show();
-		img2.show();
-		img3.show();
-		RoiManager rm=new RoiManager();
+		Trainable_Segmentation_EX ts;
+		ts= new Trainable_Segmentation_EX();
+		ts.run("");
 		VitimageUtils.waitFor(10000);
-		
-		//img3.show();
-		TestRomain tr=new TestRomain();
-		tr.run("");
-		
 		
 		
 	}
 
+	
+	
+	public static void test() {
+
+		ImagePlus img1=IJ.openImage("/home/fernandr/Bureau/Test/Test_NN/test_IRM-1.tif");
+		ImagePlus img2=IJ.openImage("/home/fernandr/Bureau/Test/Test_NN/test_IRM.tif");
+		IJ.run(img1,"32-bit","");
+		IJ.run(img2,"32-bit","");
+		img1.show();
+//		img2.show();
+		VitimageUtils.waitFor(10000);
+		RoiManager rm=RoiManager.getRoiManager();
+		Roi roi=rm.getRoi(0);
+		
+		rm.remove(0);
+		rm.close();
+		img1.changes=false;
+		img1.close();
+		 img1=IJ.openImage("/home/fernandr/Bureau/Test/Test_NN/test_IRM-1.tif");
+		 img1.show();
+		 rm=RoiManager.getRoiManager();
+		System.out.println("Retrait effectué");
+		VitimageUtils.waitFor(5000);
+		System.out.println("Chargement equivalent");
+		rm.setVisible(true);
+		rm.show();
+		VitimageUtils.waitFor(50000);
+	}
+	
+	
 	/** Input of the plugin :    - ImageJ is opened, with NImg 2-D images opened : M0, T1, T2, RX, ....
 	 *  						 - The ROI manager is opened, with Nroi ROIs : bois_noir,bois_pasnoir, bois_pasdutoutnoir, ... 
 	 *  						 

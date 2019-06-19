@@ -1,5 +1,9 @@
 package com.vitimage;
 
+import org.itk.simple.DisplacementFieldJacobianDeterminantFilter;
+import org.itk.simple.DisplacementFieldTransform;
+import org.itk.simple.Image;
+import org.itk.simple.PixelIDValueEnum;
 import org.itk.simple.ResampleImageFilter;
 import org.itk.simple.SimpleITK;
 import org.itk.simple.Transform;
@@ -10,6 +14,7 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.gui.GenericDialog;
 import ij.plugin.Concatenator;
+import ij.plugin.Duplicator;
 import ij.plugin.GaussianBlur3D;
 import ij.process.ByteProcessor;
 import ij.process.StackConverter;
@@ -38,6 +43,13 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return;
 	}
 
+	public static ItkTransform itkTransformFromCoefs(double[]coefs) {
+		org.itk.simple.AffineTransform aff=new org.itk.simple.AffineTransform( ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] { coefs[0] , coefs[1] , coefs[2] ,      coefs[4] , coefs[5] , coefs[6] ,   coefs[8] , coefs[9] , coefs[10] } ),    
+				ItkImagePlusInterface.doubleArrayToVectorDouble( new double[] { coefs[3] , coefs[7] , coefs[11] } ), ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {0,0,0} ) );
+		return new ItkTransform(aff);
+	}
+	
+	
 	public static ItkTransform ijTransformToItkTransform(imagescience.transform.Transform tr) {
 		org.itk.simple.AffineTransform aff=new org.itk.simple.AffineTransform(
 				ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {tr.get(0,0),tr.get(0,1),tr.get(0,2),  tr.get(1,0),tr.get(1,1),tr.get(1,2),    tr.get(2,0),tr.get(2,1),tr.get(2,2) } ),
@@ -58,18 +70,73 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return ;
 	}
 
+	public static ItkTransform array16ElementsToItkTransform(double[] tab) {
+		org.itk.simple.AffineTransform aff=new org.itk.simple.AffineTransform(
+				ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {tab[0],tab[1],tab[2], tab[4],tab[5],tab[6],    tab[8],tab[9],tab[10] } ),
+				ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {tab[3],tab[7],tab[11]} ),   ItkImagePlusInterface.doubleArrayToVectorDouble(   new double[] {0,0,0}  )  );
+		return new ItkTransform(aff);
+	}
+
+
 	public static ItkTransform estimateBestAffine3D(Point3d[]setRef,Point3d[]setMov) {
 		return fastMatrixToItkTransform(FastMatrix.bestLinear( setMov, setRef));
 	}
+	
 	
 	
 	public static ItkTransform estimateBestRigid3D(Point3d[]setRef,Point3d[]setMov) {
 		return fastMatrixToItkTransform(FastMatrix.bestRigid( setMov, setRef, false ));
 	}
 
-	public static ItkTransform estimateBestSimilarity3D(Point3d[]setRef,Point3d[]setMov) {
-		return fastMatrixToItkTransform(FastMatrix.bestRigid( setMov, setRef, true ));
+	public static Point3d centerOfPointSet(Point3d []pIn) {
+		double xMoy=0;
+		double yMoy=0;
+		double zMoy=0;
+		Point3d []pOut=new Point3d[pIn.length];
+		for(Point3d p : pIn) {
+			xMoy+=p.x;
+			yMoy+=p.y;
+			zMoy+=p.z;
+		}
+		xMoy/=pIn.length;
+		yMoy/=pIn.length;
+		zMoy/=pIn.length;
+		return new Point3d(xMoy,yMoy,zMoy);
 	}
+
+	
+	public static Point3d []centerPointSet(Point3d []pIn) {
+		double xMoy=0;
+		double yMoy=0;
+		double zMoy=0;
+		Point3d []pOut=new Point3d[pIn.length];
+		for(Point3d p : pIn) {
+			xMoy+=p.x;
+			yMoy+=p.y;
+			zMoy+=p.z;
+		}
+		xMoy/=pIn.length;
+		yMoy/=pIn.length;
+		zMoy/=pIn.length;
+		for(int i=0;i<pIn.length;i++) {
+			pOut[i]=new Point3d( pIn[i].x-xMoy, pIn[i].y-yMoy , pIn[i].z-zMoy );
+		}		
+		return pOut;
+	}
+	
+	public static ItkTransform estimateBestSimilarity3D(Point3d[]setRef,Point3d[]setMov) {
+		FastMatrix fm=FastMatrix.bestRigid( setMov, setRef, true );
+		System.out.println("Similarity transform computed. Coefficient of dilation : "+Math.pow(fm.det(),-0.333333));
+		IJ.log("Similarity transform computed. Coefficient of dilation : "+Math.pow(fm.det(),-0.333333));
+		return fastMatrixToItkTransform(fm);
+	}
+
+	public static double estimateGlobalDilationFactor(Point3d[]setRef,Point3d[]setMov) {
+		FastMatrix fm=FastMatrix.bestRigid( setMov, setRef, true );
+		System.out.println("Similarity transform computed. Coefficient of dilation : "+Math.pow(fm.det(),-0.333333));
+		return Math.pow(fm.det(),-0.333333);
+	}
+
 	
 	public ImagePlus transformImage(ImagePlus imgRef, ImagePlus imgMov) {
 		int val=Math.min(  10    ,    Math.min(   imgMov.getWidth()/20    ,   imgMov.getHeight()/20  ));
@@ -81,10 +148,225 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
 	}	
 
+	
+	
+	
+	
+	public static Point3d[][]trimCorrespondances(Point3d[][] correspondancePoints,ImagePlus imgRef,double sigma,double rejectThreshold){
+		System.out.println("Sigma utilisé ="+sigma+" ="+sigma/imgRef.getCalibration().pixelWidth+" voxels");
+		double epsilon = 10E-10;
+		double epsilonRejection=10E-6;
+		double []voxSizes=VitimageUtils.getVoxelSizes(imgRef);
+		int []dimensions=VitimageUtils.getDimensions(imgRef);
+		int nPt=correspondancePoints[0].length;
+		//Construire la liste des pixels concernes, à partir des corespondance points (attention à inverser vox size)
+		int [][]vectPoints=new int[nPt][3];
+		double [][]vectVals=new double[nPt][3];
+		for(int i=0;i<vectPoints.length;i++) {
+			vectPoints[i][0]=(int)Math.round(correspondancePoints[0][i].x/voxSizes[0]);
+			vectPoints[i][1]=(int)Math.round(correspondancePoints[0][i].y/voxSizes[1]);
+			vectPoints[i][2]=(int)Math.round(correspondancePoints[0][i].z/voxSizes[2]);
+			vectVals[i][0]=correspondancePoints[1][i].x-correspondancePoints[0][i].x;
+			vectVals[i][1]=correspondancePoints[1][i].y-correspondancePoints[0][i].y;
+			vectVals[i][2]=correspondancePoints[1][i].z-correspondancePoints[0][i].z;
+		}
+		
+		
+		//Construire l'image des poids, et l'image des valeurs suivant X, Y et Z
+		ImagePlus imgWeights=IJ.createImage("tempW", dimensions[0], dimensions[1], dimensions[2], 32);
+		ImagePlus imgFieldX=IJ.createImage("tempX", dimensions[0], dimensions[1], dimensions[2], 32);
+		ImagePlus imgFieldY=IJ.createImage("tempY", dimensions[0], dimensions[1], dimensions[2], 32);
+		ImagePlus imgFieldZ=IJ.createImage("tempZ", dimensions[0], dimensions[1], dimensions[2], 32);
+		VitimageUtils.adjustImageCalibration(imgWeights, imgRef);
+		VitimageUtils.adjustImageCalibration(imgFieldX, imgRef);
+		VitimageUtils.adjustImageCalibration(imgFieldY, imgRef);
+		VitimageUtils.adjustImageCalibration(imgFieldZ, imgRef);
+		
+		//Y inserer les informations necessaires
+		imgWeights.getProcessor().set(0);
+		imgFieldX.getProcessor().set(0);
+		imgFieldY.getProcessor().set(0);
+		imgFieldZ.getProcessor().set(0);
+		
+		for(int i=0;i<nPt;i++) {
+			imgWeights.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], 1);
+			imgFieldX.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], (float) vectVals[i][0]);
+			imgFieldY.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], (float) vectVals[i][1]);
+			imgFieldZ.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1],(float) vectVals[i][2]);
+		}
+		
+		//Lisser tout le monde
+		imgWeights=VitimageUtils.gaussianFiltering(imgWeights, sigma,sigma , sigma);
+		imgFieldX=VitimageUtils.gaussianFiltering(imgFieldX, sigma,sigma , sigma);
+		imgFieldY=VitimageUtils.gaussianFiltering(imgFieldY, sigma,sigma , sigma);
+		imgFieldZ=VitimageUtils.gaussianFiltering(imgFieldZ, sigma,sigma , sigma);
+		
+		//puis diviser les valeurs suivants X,Y et Z par les poids lissés. Si les poids sont < epsilon, mettre 0
+		for(int z=0;z<dimensions[2];z++) {
+			float[] valsW=(float [])imgWeights.getStack().getProcessor(z+1).getPixels();
+			float[] valsX=(float [])imgFieldX.getStack().getProcessor(z+1).getPixels();
+			float[] valsY=(float [])imgFieldY.getStack().getProcessor(z+1).getPixels();
+			float[] valsZ=(float [])imgFieldZ.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<dimensions[0];x++) {
+				for(int y=0;y<dimensions[1];y++){
+					int index=dimensions[0]*y+x;
+					if(valsW[index]<epsilon)valsX[index]=valsY[index]=valsZ[index]=0;
+					else{
+						valsX[index]/=valsW[index];
+						valsY[index]/=valsW[index];
+						valsZ[index]/=valsW[index];
+					}
+				}
+			}			
+		}
+		//Pour chaque point de correspondance, calculer les statistiques locales autour du point, suivant chaque coordonnee X,Y,Z
+		int [] flagPoint=new int [nPt];
+		int keepedPoints=0;
+		for(int i=0;i<nPt;i++) {
+			//System.out.println("Trim base sur dense field : evaluation du point "+i+" aux coordonnees ("+vectPoints[i][0]+","+vectPoints[i][1]+","+vectPoints[i][2]+") ");
+			double []statsX=VitimageUtils.statistics1D(VitimageUtils.valuesOfImageAround(imgFieldX, vectPoints[i][0],  vectPoints[i][1],  vectPoints[i][2], sigma*40));
+			double []statsY=VitimageUtils.statistics1D(VitimageUtils.valuesOfImageAround(imgFieldY, vectPoints[i][0],  vectPoints[i][1],  vectPoints[i][2], sigma*40));
+			double []statsZ=VitimageUtils.statistics1D(VitimageUtils.valuesOfImageAround(imgFieldZ, vectPoints[i][0],  vectPoints[i][1],  vectPoints[i][2], sigma*40));
+			//System.out.println("Valeurs mesurees : VectPoint=("+vectVals[i][0]+","+vectVals[i][1]+","+vectVals[i][2]+") et StatImgX="+statsX[0]+" +- "+statsX[1]+" , StatImgY="+statsY[0]+" +- "+statsZ[1]+" , StatImgY="+statsZ[0]+" +- "+statsZ[1]);
+			if( (vectVals[i][0]>statsX[0]+rejectThreshold*statsX[1]+epsilonRejection || vectVals[i][0]<statsX[0]-rejectThreshold*statsX[1]-epsilonRejection ) ||
+				(vectVals[i][1]>statsY[0]+rejectThreshold*statsY[1]+epsilonRejection || vectVals[i][1]<statsY[0]-rejectThreshold*statsY[1]-epsilonRejection ) ||
+				(vectVals[i][2]>statsZ[0]+rejectThreshold*statsZ[1]+epsilonRejection || vectVals[i][2]<statsZ[0]-rejectThreshold*statsZ[1]-epsilonRejection ) ) {
+				//System.out.println("Point rejected");
+				flagPoint [i]=-1;
+			}
+			else {
+				//System.out.println("Point accepted");
+				flagPoint[i]=1;
+				keepedPoints++;
+			}
+		}
+		Point3d [][]newCorrespondances=new Point3d[2][keepedPoints];
+		keepedPoints=0;
+		for(int i=0;i<nPt;i++) {
+			if(flagPoint[i]>0) {
+				newCorrespondances[0][keepedPoints]=new Point3d(correspondancePoints[0][i].x,correspondancePoints[0][i].y,correspondancePoints[0][i].z);
+				newCorrespondances[1][keepedPoints]=new Point3d(correspondancePoints[1][i].x,correspondancePoints[1][i].y,correspondancePoints[1][i].z);
+				keepedPoints++;
+			}
+		}
+		return newCorrespondances;
+	}
+
+	
+	
+	
+	
+	public static Image computeDenseFieldFromSparseCorrespondancePoints(Point3d[][]correspondancePoints,ImagePlus imgRef,double sigma) {
+		double epsilon = 10E-20;
+		double []voxSizes=VitimageUtils.getVoxelSizes(imgRef);
+		int []dimensions=VitimageUtils.getDimensions(imgRef);
+		int nPt=correspondancePoints[0].length;
+		//Construire la liste des pixels concernes, à partir des corespondance points (attention à inverser vox size)
+		int [][]vectPoints=new int[nPt][3];
+		double [][]vectVals=new double[nPt][3];
+		for(int i=0;i<vectPoints.length;i++) {
+			vectPoints[i][0]=(int)Math.round(correspondancePoints[0][i].x/voxSizes[0]);
+			vectPoints[i][1]=(int)Math.round(correspondancePoints[0][i].y/voxSizes[1]);
+			vectPoints[i][2]=(int)Math.round(correspondancePoints[0][i].z/voxSizes[2]);
+			vectVals[i][0]=correspondancePoints[1][i].x-correspondancePoints[0][i].x;
+			vectVals[i][1]=correspondancePoints[1][i].y-correspondancePoints[0][i].y;
+			vectVals[i][2]=correspondancePoints[1][i].z-correspondancePoints[0][i].z;
+		}
+		
+		
+		//Construire l'image des poids, et l'image des valeurs suivant X, Y et Z
+		ImagePlus imgWeights=IJ.createImage("tempW", dimensions[0], dimensions[1], dimensions[2], 32);
+		ImagePlus imgFieldX=IJ.createImage("tempX", dimensions[0], dimensions[1], dimensions[2], 32);
+		ImagePlus imgFieldY=IJ.createImage("tempY", dimensions[0], dimensions[1], dimensions[2], 32);
+		ImagePlus imgFieldZ=IJ.createImage("tempZ", dimensions[0], dimensions[1], dimensions[2], 32);
+		VitimageUtils.adjustImageCalibration(imgWeights, imgRef);
+		VitimageUtils.adjustImageCalibration(imgFieldX, imgRef);
+		VitimageUtils.adjustImageCalibration(imgFieldY, imgRef);
+		VitimageUtils.adjustImageCalibration(imgFieldZ, imgRef);
+		
+		//Y inserer les informations necessaires
+		imgWeights.getProcessor().set(0);
+		imgFieldX.getProcessor().set(0);
+		imgFieldY.getProcessor().set(0);
+		imgFieldZ.getProcessor().set(0);
+		
+		for(int i=0;i<nPt;i++) {
+			imgWeights.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], 1);
+			imgFieldX.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], (float) vectVals[i][0]);
+			imgFieldY.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], (float) vectVals[i][1]);
+			imgFieldZ.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1],(float) vectVals[i][2]);
+		}
+				
+		
+		imgWeights=VitimageUtils.gaussianFilteringIJ(imgWeights, sigma,sigma , sigma);
+		imgFieldX=VitimageUtils.gaussianFilteringIJ(imgFieldX, sigma,sigma , sigma);
+		imgFieldY=VitimageUtils.gaussianFilteringIJ(imgFieldY, sigma,sigma , sigma);
+		imgFieldZ=VitimageUtils.gaussianFilteringIJ(imgFieldZ, sigma,sigma , sigma);
+		
+		
+		//puis diviser les valeurs suivants X,Y et Z par les poids lissés. Si les poids sont < epsilon, mettre 0
+		for(int z=0;z<dimensions[2];z++) {
+			float[] valsW=(float [])imgWeights.getStack().getProcessor(z+1).getPixels();
+			float[] valsX=(float [])imgFieldX.getStack().getProcessor(z+1).getPixels();
+			float[] valsY=(float [])imgFieldY.getStack().getProcessor(z+1).getPixels();
+			float[] valsZ=(float [])imgFieldZ.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<dimensions[0];x++) {
+				for(int y=0;y<dimensions[1];y++){
+					int index=dimensions[0]*y+x;
+					if(valsW[index]<epsilon)valsW[index]=valsX[index]=valsY[index]=valsZ[index]=0;
+					else{
+						valsX[index]/=valsW[index];
+						valsY[index]/=valsW[index];
+						valsZ[index]/=valsW[index];
+						valsW[index]/=valsW[index];
+					}
+				}
+			}			
+		}
+		//Construire le champ vectoriel associe et le rendre
+	  	return ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(new ImagePlus [] {imgFieldX,imgFieldY,imgFieldZ});
+
+	}
+	
 	public ImagePlus viewAsGrid3D(ImagePlus imgRef,int pixelSpacing) {
 		ImagePlus grid=VitimageUtils.getBinaryGrid(imgRef, pixelSpacing);
 		return this.transformImage(imgRef,grid);
 	}
+	
+	public static ImagePlus getJacobian(ItkTransform tr,ImagePlus imgRef) {
+		System.out.println("A0");
+		DisplacementFieldTransform df;
+		System.out.println("A1");
+//		df= new DisplacementFieldTransform((Transform)(tr.flattenDenseField(imgRef)));
+		df= new DisplacementFieldTransform((Transform)(tr));
+		System.out.println("A2");
+		Image im=df.getDisplacementField();
+		System.out.println("A3");
+		ImagePlus ret=getJacobian(im);
+		System.out.println("A4");
+		
+		
+		df.delete();
+		System.out.println("A5");
+		im.delete();
+		System.out.println("A6");
+		return ret;
+//		return getJacobian(new DisplacementFieldTransform((Transform)(tr.flattenDenseField(imgRef))).getDisplacementField());
+	}
+	
+	public static ImagePlus getJacobian(Image denseField) {
+		System.out.println("B1");
+		DisplacementFieldJacobianDeterminantFilter df=new  DisplacementFieldJacobianDeterminantFilter();
+		Image im=df.execute(new Image(denseField));//Cette ligne produit plus tard le crash
+		System.out.println("B2");
+		ImagePlus imIJ=null;
+		//				ImagePlus imIJ=ItkImagePlusInterface.itkImageToImagePlus(im);
+		System.out.println("B3");
+		return imIJ;
+		//		return (ItkImagePlusInterface.itkImageToImagePlus(new DisplacementFieldJacobianDeterminantFilter().execute(denseField)));		
+	}
+
+	
 	
 	public ImagePlus transformHyperImage4D(ImagePlus hyperRef,ImagePlus hyperMov,int dimension) {
 		ImagePlus []imgTabRef=VitimageUtils.stacksFromHyperstack(hyperRef, dimension);
@@ -96,17 +378,133 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return Concatenator.run(imgTabMov);
 	}
 	
-	public static ItkTransform readTransformFromFile(String path) {
-		VitiDialogs.notYet("ItkTransform > readTransformFromFile");
-		return null;
-	}
 
-	public void writeToFile(String path) {
+	public void writeMatrixTransformToFile(String path) {
 		SimpleITK.writeTransform(this,path);
 	}
 
-	public static ItkTransform readFromFile(String path) {
-		return(new ItkTransform(SimpleITK.readTransform(path)));
+	
+	public ImagePlus normOfDenseField(ImagePlus imgRef) {
+		System.out.println("Compute norm of dense field");
+		//Recuperer les dimensions
+		int dimX=imgRef.getWidth();
+		int dimY=imgRef.getHeight();
+		int dimZ=imgRef.getStackSize();
+		
+		//Construire les futures images hotes pour les dimensions x y et z
+		ImagePlus ret;
+		double []voxSizes=new double [] {imgRef.getCalibration().pixelWidth , imgRef.getCalibration().pixelHeight, imgRef.getCalibration().pixelDepth};
+		ret=IJ.createImage("", dimX, dimY, dimZ, 32);
+		ret.getCalibration().setUnit("mm");
+		ret.getCalibration().pixelWidth=voxSizes[0];
+		ret.getCalibration().pixelHeight=voxSizes[1];
+		ret.getCalibration().pixelDepth=voxSizes[2];
+	
+		
+		//Pour chaque voxel, calculer la transformee
+		VectorDouble coords=new VectorDouble(3);
+		double distance=0;
+		VectorDouble coordsTrans=new VectorDouble(3);
+		for(int k=0;k<dimZ;k++) {
+			System.out.print(" "+((k*100)/dimZ)+" %");
+			float[]tab=(float[])ret.getStack().getProcessor(k+1).getPixels();
+			
+			for(int i=0;i<dimX;i++)for(int j=0;j<dimY;j++) {
+				int ind=dimX*j+i;
+				coords.set(0,i*voxSizes[0]);
+				coords.set(1,j*voxSizes[1]);
+				coords.set(2,k*voxSizes[2]);
+				coordsTrans=(this.transformPoint(coords));
+				distance=Math.sqrt(  (coordsTrans.get(0)-coords.get(0)) * (coordsTrans.get(0)-coords.get(0)) + (coordsTrans.get(1)-coords.get(1)) * (coordsTrans.get(1)-coords.get(1)) + (coordsTrans.get(2)-coords.get(2)) * (coordsTrans.get(2)-coords.get(2)) );
+				tab[ind]=(float)(distance);
+			}
+		}
+		ret.resetDisplayRange();
+		System.out.println();
+		return ret;
+	}
+	
+	
+	
+	public ItkTransform flattenDenseField(ImagePlus imgRef) {
+		System.out.println("Flattening dense field transform");
+		//Recuperer les dimensions
+		int dimX=imgRef.getWidth();
+		int dimY=imgRef.getHeight();
+		int dimZ=imgRef.getStackSize();
+		
+		//Construire les futures images hotes pour les dimensions x y et z
+		ImagePlus []ret=new ImagePlus[3];
+		double []voxSizes=new double [] {imgRef.getCalibration().pixelWidth , imgRef.getCalibration().pixelHeight, imgRef.getCalibration().pixelDepth};
+		for(int i=0;i<3;i++) {
+			ret[i]=IJ.createImage("", dimX, dimY, dimZ, 32);
+			ret[i].getCalibration().setUnit("mm");
+			ret[i].getCalibration().pixelWidth=voxSizes[0];
+			ret[i].getCalibration().pixelHeight=voxSizes[1];
+			ret[i].getCalibration().pixelDepth=voxSizes[2];
+		}
+		
+		//Pour chaque voxel, calculer la transformee
+		VectorDouble coords=new VectorDouble(3);
+		VectorDouble coordsTrans=new VectorDouble(3);
+		for(int k=0;k<dimZ;k++) {
+			System.out.print(" "+((k*100)/dimZ)+" %");
+			float[]tabX=(float[])ret[0].getStack().getProcessor(k+1).getPixels();
+			float[]tabY=(float[])ret[1].getStack().getProcessor(k+1).getPixels();
+			float[]tabZ=(float[])ret[2].getStack().getProcessor(k+1).getPixels();
+			
+			for(int i=0;i<dimX;i++)for(int j=0;j<dimY;j++) {
+				int ind=dimX*j+i;
+				coords.set(0,i*voxSizes[0]);
+				coords.set(1,j*voxSizes[1]);
+				coords.set(2,k*voxSizes[2]);
+				coordsTrans=(this.transformPoint(coords));
+				tabX[ind]=(float)(coordsTrans.get(0)-coords.get(0));
+				tabY[ind]=(float)(coordsTrans.get(1)-coords.get(1));
+				tabZ[ind]=(float)(coordsTrans.get(2)-coords.get(2));
+			}
+		}
+		System.out.println();
+		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(ret)));
+	}
+	
+	public static ItkTransform getIdentityDenseFieldTransform(ImagePlus imgRef) {
+		ImagePlus img=imgRef.duplicate();
+		IJ.run(img,"32-bit","");
+		for(int i=0;i<img.getStackSize();i++)img.getStack().getProcessor(i+1).set(0);
+		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(new ImagePlus[] {img,img,img})));
+	}
+	
+	public void writeAsDenseField(String path,ImagePlus imgRef) {
+		String shortPath = (path != null) ? path.substring(0,path.indexOf('.')) : "";
+		ImagePlus[]trans=new ImagePlus[3];
+		DisplacementFieldTransform df=new DisplacementFieldTransform((Transform)(this));
+			
+		trans=ItkImagePlusInterface.convertDisplacementFieldToImagePlusArray(df.getDisplacementField());
+		IJ.saveAsTiff(trans[0],shortPath+".x.tif");
+		IJ.saveAsTiff(trans[1],shortPath+".y.tif");
+		IJ.saveAsTiff(trans[2],shortPath+".z.tif");
+		IJ.run(trans[0],"8-bit","");
+		IJ.saveAsTiff(trans[0],shortPath+".transform.tif");
+	}
+	
+	public static ItkTransform readAsDenseField(String path) {
+		String shortPath = (path != null) ? path.substring(0,path.indexOf('.')) : "";
+		ImagePlus[]trans=new ImagePlus[3];
+		trans[0]=IJ.openImage(shortPath+".x.tif");
+		trans[1]=IJ.openImage(shortPath+".y.tif");
+		trans[2]=IJ.openImage(shortPath+".z.tif");
+		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(trans)));
+	}
+	
+	
+	public static ItkTransform readTransformFromFile(String path) {
+		ItkTransform tr=null;
+		try{
+			if(path.charAt(path.length()-1) == 'f')tr=readAsDenseField(path);
+			else tr=new ItkTransform(SimpleITK.readTransform(path));
+			return tr;
+		} catch (Exception e) {		IJ.log("Wrong transform file. Please provide a   * .transform.tif file or a *.txt file with an ITK matrix in it");return null; }
 	}
 
 	public Point3d transformPoint(Point3d pt) {
@@ -262,210 +660,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		s+= "[ 0 , 0 , 0 , 1 ]\n";
 		return(s);	
 	}
-
-/*
-
-	public static ItkTransform computeTransformationForBoutureAlignment(ImagePlus img,boolean computeZaxisOnly,boolean ignoreUnattemptedDimensions){
-		boolean debug=true;
-		int yMax=img.getHeight();
-		int xMax=img.getWidth();
-		int zMax=img.getStack().getSize();
-		double vX=img.getCalibration().pixelWidth;
-		double vY=img.getCalibration().pixelHeight;
-		double vZ=img.getCalibration().pixelDepth;
-		double xMoyUp=0,yMoyUp=0,zMoyUp=0;
-		double xMoyDown=0,yMoyDown=0,zMoyDown=0;
-		int hitsUp=0,hitsDown=0;
-		
-		//Step 1 : apply gaussian filtering and convert to 8 bits
-		System.out.println("Lissage 3D puis reduction à 8 bits : facteurs de lisage (en pixels)=("+8*0.035/vX+" , "+8*0.035/vY+" , "+2*0.5/vZ+")");
-		GaussianBlur3D.blur(img,8*0.035/vX,8*0.035/vY,2*0.5/vZ);
-		StackConverter sc=new StackConverter(img);
-		sc.convertToGray8();
-
-		//Step 2 : apply automatic threshold
-		ByteProcessor[] maskTab=new ByteProcessor[zMax];
-		for(int z=0;z<zMax;z++){
-			maskTab[z]=(ByteProcessor) img.getStack().getProcessor(z+1);
-			maskTab[z].setAutoThreshold("Otsu dark");
-			maskTab[z].createMask();
-		}
-		//Extract two substacks for the upper part and the lower part of the object
-		ImageStack stackUp = new ImageStack(xMax, yMax);	
-		ImageStack stackDown = new ImageStack(xMax, yMax);
-		int zQuarter=zMax/4;
-		int zVentile=zMax/40;
-		zVentile=(zVentile < 10 ? 10 : zVentile);
-		if(zMax<zVentile*2+2)zVentile=zMax/2-1;
-		System.out.println("Valeurs calculees , zQuarter="+zQuarter+" , zVentile="+zVentile);
-		for(int i=0;i<zVentile;i++) {
-			stackUp.addSlice("",img.getStack().getProcessor(zMax/2+zQuarter-zVentile+1+i));//de zmax/2 à zMax/2 + 5 --> ajouter zMax/2 à la fin			
-			stackDown.addSlice("",img.getStack().getProcessor(zMax/2-zQuarter+1+i+1));//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
-		}
-		ImagePlus imgUp=new ImagePlus("upMASK",stackUp);
-		ImagePlus imgUpCon=VitimageUtils.connexe(imgUp,0,29,0,10E10,6,2,true);
-		ImagePlus imgDown=new ImagePlus("downMASK",stackDown);
-		ImagePlus imgDownCon=VitimageUtils.connexe(imgDown,0,29,0,10E10,6,2,true);
-		
-		
-		//Step 3 : compute the two centers of mass
-		System.out.println("Calcul des centres de masse");
-		short[][]valsDownCon=new short[zQuarter][];
-		short[][]valsUpCon=new short[zQuarter][];
-		for(int z=0;z<zVentile;z++){
-			valsDownCon[z]=(short[])(imgDownCon).getStack().getProcessor(z+1).getPixels();
-			valsUpCon[z]=(short[])(imgUpCon).getStack().getProcessor(z+1).getPixels();
-		}
-
-		for(int x=0;x<xMax;x++){
-			for(int y=0;y<yMax;y++){
-				for(int z=0;z<zVentile;z++){								
-					if(valsDownCon[z][xMax*y+x]==((short)255)){//We are in the first part of the object
-						hitsDown++;
-						xMoyDown+=x;yMoyDown+=y;zMoyDown+=z;
-					}
-					if(valsUpCon[z][xMax*y+x]==((short	)255)){//We are in the first part of the object
-						hitsUp++;
-						xMoyUp+=x;yMoyUp+=y;zMoyUp+=z;
-					}
-				}
-			}
-		}
-		xMoyUp=xMoyUp/hitsUp;//Center of mass computation. 
-		yMoyUp=yMoyUp/hitsUp;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
-		zMoyUp=zMoyUp/hitsUp+zMax/2+zQuarter-zVentile;//due to the extraction of a substack zmax/2-zQuarter+1 - zmax/2     zMax/2+zQuarter-zVentile
-
-		xMoyDown=xMoyDown/hitsDown;//Center of mass computation. 
-		yMoyDown=yMoyDown/hitsDown;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
-		zMoyDown=zMoyDown/hitsDown+zMax/2-zQuarter+1;//due to the extraction of a substack zmax/2 - zmax/2+zQuarter       zMax/2-zQuarter+1
-
-		if(debug) {
-			System.out.println("HitsUp="+hitsUp+" ..Center of mass up = "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
-			System.out.println("HitsDown="+hitsDown+" ..Center of mass down = "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
-		}
-		
-		xMoyUp=xMoyUp*vX+vX/2;		
-		yMoyUp=yMoyUp*vY+vY/2;		
-		zMoyUp=zMoyUp*vZ+vZ/2;		
-		xMoyDown=xMoyDown*vX+vX/2;		
-		yMoyDown=yMoyDown*vY+vY/2;		
-		zMoyDown=zMoyDown*vZ+vZ/2;		
-		if(debug) {
-			System.out.println("Center of mass up (coord reel)= "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
-			System.out.println("Center of mass down (coord reel)= "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
-		}
-		
-		//Step 4 : compute the new basis
-		double []vectXfin=new double[3];
-		double []vectYinit=new double[3];
-		double []vectYfin=new double[3];
-		double []vectZinit=new double[3];
-		double []vectZfin=new double[3];
-
-		//Last vector of the base : tissue axis from low Z values to High Z values
-		vectZinit[1]=yMoyUp-yMoyDown;
-		vectZinit[2]=zMoyUp-zMoyDown;
-
-		//Compute the center of inoculation point
-		double xP=0,yP=0,zP=0;
-		if(computeZaxisOnly) {//Guess a point in the lower part of the image
-			xP=(xMoyUp+xMoyDown)/2.0;
-			yP=(yMoyUp+yMoyDown)/2.0+100*vY;
-			zP=(zMoyUp+zMoyDown)/2.0;
-		}
-		else {//We know the actual point
-			for(int i=0;i<cornersCoordinates.length;i++) {
-				xP+=cornersCoordinates[i][0];
-				yP+=cornersCoordinates[i][1];
-				zP+=cornersCoordinates[i][2];
-			}
-			xP/=cornersCoordinates.length;
-			yP/=cornersCoordinates.length;
-			zP/=cornersCoordinates.length;
-		}
-		if(debug) System.out.println("Inoculation point (in real coordinates) : "+xP+"  ,  "+yP+"  ,  "+zP);
-		
-		
-		//Center of tissue to PI, make the second vector
-		vectYinit[0]=xP-xMoyDown;
-		vectYinit[1]=yP-yMoyDown;
-		vectYinit[2]=zP-zMoyDown;
-
-		//"Graham-schmidt orthogonalisation" (Not exactly, as we use Y and Z to produce X)
-
-		//E3=v3/norm(v3)
-		vectZfin=normalize(vectZinit);
-
-		if(debug) printVector(vectZinit,"v3=");
-		if(debug) printVector(vectZfin,"E3=");
-		//u2=v2-proj_u3_of_v2  ; E2=v2/norm(v2)
-		if(debug) printVector(vectYinit,"v2=");
-		vectYfin=vectorialSubstraction(vectYinit,proj_u_of_v(vectZinit,vectYinit));
-		vectYfin=normalize(vectYfin);
-		if(debug) printVector(vectYfin,"E2=");
-
-		//For E1
-		vectXfin=vectorialProduct(vectYfin,vectZfin);
-		if(debug) printVector(vectXfin,"E1=");
-
-
-
-
-		//Retrieve the translation parameters 
-		//We want that through the transformation, the inoculation point get the coordinates : xFinal,yFinal,zFinal.
-		//That stands for that experiment in which all the data lies in 512 x 512 x 40 stacks.
-		//If one of the dimensions differs a lot, it should propose another strategy. 
-		System.out.println("Calcul de la translation restante");
-		if((xMax != 512) || (yMax != 512) || (zMax < 38) || (zMax > 42)){//Alert
-			if(!ignoreUnattemptedDimensions) {
-				GenericDialog gd = new GenericDialog("Alert !\nUnattempted image dimensions : "+xMax+" x "+yMax+" x "+zMax+"\n512 x 512 x 40 expected\nPlease choose the location of the inoculation point after transformation...");
-	        gd.addNumericField("Confirm X  : ", xMax/2, 5);
-	        gd.addNumericField("Confirm Y  : ", (yMax*380)/512, 5);
-	        gd.addNumericField("Confirm Z  : ", zMax/2, 5);
-	        gd.showDialog();
-	        if (gd.wasCanceled()) return null;
-			xFinal=gd.getNextNumber();	 
-			yFinal=gd.getNextNumber();	 
-			zFinal=gd.getNextNumber();	 
-			}
-			else {
-				xFinal=xMax/2;
-				yFinal=(yMax*380)/512;
-				zFinal=zMax/2;
-			}
-		
-		}
-		xFinal=xFinal*vX+vX/2;	
-		yFinal=yFinal*vY+vY/2;	
-		zFinal=zFinal*vZ+vZ/2;	
-		
-		double trans[]=new double[3];		
-		
-		trans[0]=xP-vectXfin[0]*xFinal-vectYfin[0]*yFinal-vectZfin[0]*zFinal;
-		trans[1]=yP-vectXfin[1]*xFinal-vectYfin[1]*yFinal-vectZfin[1]*zFinal;
-		trans[2]=zP-vectXfin[2]*xFinal-vectYfin[2]*yFinal-vectZfin[2]*zFinal;
-		if(debug) System.out.println("Translation : ["+trans[0]+" , "+trans[1]+" , "+trans[2]+"]");
-		
-		//Assemble and write the transformation matrix
-		Transform tr=new Transform(vectXfin[0],vectYfin[0],vectZfin[0],trans[0],
-								   vectXfin[1],vectYfin[1],vectZfin[1],trans[1],
-								   vectXfin[2],vectYfin[2],vectZfin[2],trans[2]);
-
-		if(debug) System.out.println("Et en effet, lorsqu'on transforme le point final :"+xFinal+" , "+yFinal+" , "+zFinal+"...");
-		if(debug) System.out.println("On obtient bien le point initial attendu, qui était : "+xP+" , "+yP+" , "+zP+"...");
-		double valXtest=vectXfin[0]*xFinal+vectYfin[0]*yFinal+vectZfin[0]*zFinal+trans[0];
-		double valYtest=vectXfin[1]*xFinal+vectYfin[1]*yFinal+vectZfin[1]*zFinal+trans[1];
-		double valZtest=vectXfin[2]*xFinal+vectYfin[2]*yFinal+vectZfin[2]*zFinal+trans[2];
-		
-		if(debug) System.out.println("La preuve, résultat : "+valXtest+" , "+valYtest+" , "+valZtest+"...");
-	
-		Transform trInv=new Transform(tr);
-		trInv.invert();
-		System.out.println(" Matrice complete obtenue en fin de fonction "+ItkTransform.stringMatrix("",transformToArray(tr)));
-		return ItkTransform.ijTransformToItkTransform(tr);	
-	}
-
-	*/
 
 
 

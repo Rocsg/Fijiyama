@@ -385,13 +385,13 @@ public abstract class Acquisition implements VitimageUtils{
 		vals[1]=VitimageUtils.valuesOfImageAround(img,x0,y1,z01,samplSize/2);
 		vals[2]=VitimageUtils.valuesOfImageAround(img,x1,y0,z01,samplSize/2);
 		vals[3]=VitimageUtils.valuesOfImageAround(img,x1,y1,z01,samplSize/2);		
-		System.out.println("");
+		//System.out.println("");
 		double [][]stats=new double[4][2];
 		double []globStats=VitimageUtils.statistics2D(vals);
-		System.out.println("Background statistics averaged on the four corners = ( "+globStats[0]+" , "+globStats[1]+" ) ");
+		//System.out.println("Background statistics averaged on the four corners = ( "+globStats[0]+" , "+globStats[1]+" ) ");
 		for(int i=0;i<4;i++) {
 			stats[i]=(VitimageUtils.statistics1D(vals[i]));
-			System.out.println("  --> Stats zone "+i+" =  ( "+stats[i][0]+" , "+stats[i][1]+")");
+			//System.out.println("  --> Stats zone "+i+" =  ( "+stats[i][0]+" , "+stats[i][1]+")");
 			if( (Math.abs(stats[i][0]-globStats[0])/globStats[0]>0.3)){
 				System.out.println("Warning : noise computation  There should be an object in the supposed background\nthat can lead to misestimate background values. Detected at slice "+samplSize/2+"at "+
 							(i==0 ?"Up-left corner" : i==1 ? "Down-left corner" : i==2 ? "Up-right corner" : "Down-right corner")+

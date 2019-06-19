@@ -72,8 +72,10 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B042_DS/Source_data/J133",
-								"B042_DS_J133",ComputingType.COMPUTE_ALL);			
+		String subject="B001_PAL";
+		String day="J218";
+		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day,
+								subject+"_"+day,ComputingType.COMPUTE_ALL);			
 		viti.start();
 		viti.normalizedHyperImage.show();
 	}
@@ -612,7 +614,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		writeRegisteringImages("afterIPalignment");	
 	}
 	
-	public void automaticFineRegistration() {
+	public void automaticFineRegistrationITK() {
 		ImagePlus imgRef= this.transformation.get(0).transformImage(
 				this.acquisition.get(0).imageForRegistration,
 				this.acquisition.get(0).imageForRegistration);
@@ -647,6 +649,52 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 			imgMov.getProcessor().resetMinAndMax();
 				this.transformation.get(i).addTransform(manager.runScenarioInterModal(
 							new ItkTransform(),imgRef,imgMov, (this.acquisition.get(i).acquisitionType == AcquisitionType.MRI_T2_SEQ) ));
+			this.transformation.set(i,this.transformation.get(i).simplify());
+		}
+		this.transformation.set(0,this.transformation.get(0).simplify());
+		writeRegisteringImages("afterItkRegistration");	
+		writeRegisteringTransforms("afterItkRegistration");
+	}
+	
+	///NEW VERSION
+	//USAGE OF A BLOCK MATCHING MODEL
+	public void automaticFineRegistration() {
+		ImagePlus imgRef= this.transformation.get(0).transformImage(
+				this.acquisition.get(0).imageForRegistration,
+				this.acquisition.get(0).imageForRegistration);
+		imgRef.getProcessor().resetMinAndMax();
+		imgRef=VitimageUtils.removeCapillaryFromRandomMriImage(imgRef); 
+		imgRef=VitimageUtils.convertFloatToShortWithoutDynamicChanges(imgRef);
+		for (int i=0;i<this.acquisition.size();i++) {
+			if(i==0)continue;
+			if(T2AndT1SameGeometry && this.acquisition.get(i).acquisitionType == AcquisitionType.MRI_T2_SEQ)this.transformation.set(i,new ItkTransform(this.transformation.get(0)));
+
+			
+			//Preparation of moving image
+			ImagePlus imgMov=null;
+			if(this.acquisition.get(i).capillary == Capillary.HAS_CAPILLARY) {
+				imgMov= this.transformation.get(i).transformImage(
+					this.acquisition.get(0).imageForRegistration,
+					VitimageUtils.removeCapillaryFromRandomMriImage(this.acquisition.get(i).imageForRegistration));
+					imgMov=VitimageUtils.convertFloatToShortWithoutDynamicChanges(imgMov);
+			}
+			else{
+				imgMov= this.transformation.get(i).transformImage(			
+					this.acquisition.get(0).imageForRegistration,
+					this.acquisition.get(i).imageForRegistration);
+			}
+			imgMov.getProcessor().resetMinAndMax();
+
+			System.out.println("Automatic registration intermodal");
+			System.out.println("Ref="+this.acquisition.get(0).getTitle());
+			System.out.println("Mov="+this.acquisition.get(i).getTitle());
+			imgRef.getProcessor().resetMinAndMax();
+			imgMov.getProcessor().resetMinAndMax();
+			ImagePlus imgMask=new Duplicator().run(imgRef);
+			IJ.run(imgMask,"8-bit","");
+			imgMask=VitimageUtils.set8bitToValue(imgMask,255);
+			this.transformation.get(i).addTransform( BlockMatchingRegistration.setupAndRunStandardBlockMatchingWithoutFineParameterization(
+										imgRef,imgMov,imgMask,true,false,true)  );
 			this.transformation.set(i,this.transformation.get(i).simplify());
 		}
 		this.transformation.set(0,this.transformation.get(0).simplify());

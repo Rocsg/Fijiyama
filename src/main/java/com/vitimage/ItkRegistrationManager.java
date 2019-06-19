@@ -658,12 +658,6 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 	}
 	
 	public void showRegistrationSummary() {
-/*		ImagePlus summary=ij.gui.NewImage.createImage("Registration summary (ref=reference, green=moving)",imageSizeReference[0],imageSizeReference[1],
-										registrationSummary.size(),24,ij.gui.NewImage.FILL_BLACK);
-		for(int i =0;i<registrationSummary.size() ; i++) {
-			summary.getStack().setProcessor(registrationSummary.get(i).getProcessor(),i+1);
-		}
-*/
 		ImagePlus []tabImg=new ImagePlus[registrationSummary.size()];
 		for(int i =0;i<registrationSummary.size() ; i++) {
 			tabImg[i]=registrationSummary.get(i);

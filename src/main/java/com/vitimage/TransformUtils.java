@@ -750,6 +750,11 @@ public interface TransformUtils {
 		return(v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]);
 	}
 
+	public static double scalarProduct(Point3d v1,Point3d v2){
+		return(v1.x*v2.x+v1.y*v2.y+v1.z*v2.z);
+	}
+
+	
 	public static double [] multiplyVector(double[]v,double factor){
 		double[] ret=new double[3];
 		ret[0]=v[0]*factor;
@@ -790,7 +795,10 @@ public interface TransformUtils {
 	}
 	
 
-
+	public static double[] point3dToDoubleArray(Point3d p) {return new double[] {p.x,p.y,p.z};}
+	
+	public static Point3d doubleArrayToPoint3d(double[]d) {return new Point3d(d[0],d[1],d[2]);}
+	
 
 	/**
 	 * IO Utilities for Vectors and Matrices

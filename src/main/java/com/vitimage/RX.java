@@ -34,7 +34,7 @@ import ij.process.StackProcessor;
 
 public class RX extends Acquisition{
 	private static String []StandardMetadataLookup= {};
-	public static final double standardVoxSize=0.0209;//Variable due to ommission of metadata copyin during acquisitions gathering. There should be an improvement there : keep the metadata right in place.
+	private double standardVoxSize;
 	public static final double sliceThicknessForRegistration=0.25;
 	private ImagePlus imageFullSize;
 	private double voxSXFull;
@@ -48,8 +48,10 @@ public class RX extends Acquisition{
 	 */
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
+		String subject="B001_PAL";
+		String day="J218";
 		System.out.println("Test procedure start...");
-		RX rx=new RX("/home/fernandr/Bureau/Test/RX",Capillary.HAS_NO_CAPILLARY,SupervisionLevel.GET_INFORMED,"Test_RX");
+		RX rx=new RX("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day+"/Source_data/RX",Capillary.HAS_NO_CAPILLARY,SupervisionLevel.GET_INFORMED,subject+"_"+day+"_RX");
 		rx.start();//
 	}
 
@@ -257,11 +259,21 @@ public class RX extends Acquisition{
 		} catch (Exception e) {IJ.error("Unable to write transformation to file: "+fParam.getAbsolutePath()+"error: "+e);}	
 	}
 	
-	
-	
-	public void makeSubresolution() {
-		
+	public double parseVoxSizeFromXML(String path){
+		String str="";
+		try {
+			File f=new File(path);
+			str= Files.lines(Paths.get(f.getAbsolutePath()) ).collect(Collectors.joining("\n"));
+		}  catch (IOException ex) {        ex.printStackTrace();   }
+		String[]lines=str.split("\n");
+		String voxStr=lines[0].split(" ")[1];
+		double voxSX=Double.parseDouble(voxStr.split("x")[0]);
+		double voxSY=Double.parseDouble(voxStr.split("x")[1]);
+		double voxSZ=Double.parseDouble(voxStr.split("x")[2]);
+		System.out.println("Read : voxel size init=[ "+voxSX+" x "+voxSY+" x "+voxSZ+" ]");
+		return voxSX;
 	}
+	
 	
 	/**
 	 * I/O images helper functions
@@ -270,16 +282,19 @@ public class RX extends Acquisition{
 		File pathlink = new File(this.sourcePath,"DATA_PATH.tag");
 		File directory = new File(this.sourcePath,"Source_data");
 		File f=null;
+		double voxS=0;
 		if(directory.exists())f=new File(this.sourcePath, "Source_data"+slash+"SlicesY");
 		else {
 			try {
 				 String str= Files.lines(Paths.get(pathlink.getAbsolutePath()) ).collect(Collectors.joining("\n"));
 				 String strFile=str.split("=")[1];
 				 f=new File(strFile+slash+"SlicesY");
-	       } catch (IOException ex) {        ex.printStackTrace();   }
+				 voxS=parseVoxSizeFromXML(strFile+slash+"unireconstruction.xml");
+				 } catch (IOException ex) {        ex.printStackTrace();   }
 		}
 		
 		if(! f.exists()) {IJ.showMessage("Source path not found : "+f.getAbsolutePath());return;}
+		this.standardVoxSize=voxS;
 		String strMainPath=f.getAbsolutePath();
 		String[] strSlices=f.list();
 		strSlices=VitimageUtils.stringArraySort(strSlices);
@@ -287,7 +302,9 @@ public class RX extends Acquisition{
 		
 		//Extraire les parametres généraux depuis une des coupes	
 		ImagePlus imgPar=IJ.openImage(strMainPath+slash+strSlices[0]);
-		System.out.println("Parameters auto detection from : "+strMainPath+slash+strSlices[0]);
+		System.out.println("Parameters auto detection from : XML file");
+		
+		
 		System.out.println("Appel à setParams");
 		System.out.println("Ok.");
 	

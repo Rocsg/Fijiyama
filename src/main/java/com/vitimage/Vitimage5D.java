@@ -61,7 +61,8 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		Vitimage5D viti = new Vitimage5D(VineType.CUTTING,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B051_CT","B051_CT",ComputingType.COMPUTE_ALL);			
+		String subject="B032_NP";
+		Vitimage5D viti = new Vitimage5D(VineType.CUTTING,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject,subject,ComputingType.COMPUTE_ALL);			
 		viti.start();
 		ImagePlus norm=new Duplicator().run(viti.normalizedHyperImage);
 		norm.show();
@@ -114,6 +115,9 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 				long lVit4D=viti.getHyperImageModificationTime();
 				if(lVit4D>lThis) {
 					System.out.println("Vit5D HyperImage update : at least one source vitimage4D hyper image has been modified since last hyperimage modification : " +viti.getTitle());
+					System.out.println("Creation date of vitimage4D="+lVit4D);
+					System.out.println("Creation date of vitimage5D="+lThis);
+					System.out.println("And this time ="+new Date().getTime());
 					writeStep(3);
 					return true;
 				}			
@@ -343,7 +347,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	}
 
 	public long getHyperImageModificationTime() {
-		File f=new File(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+"hyperImage.tif");
+		File f=new File(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+this.getTitle()+"_HyperImage.tif");
 		long val=0;
 		if(f.exists())val=f.lastModified();
 		return val;		
@@ -351,13 +355,13 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 
 	
 	public void readHyperImage() {
-		this.normalizedHyperImage =IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+"hyperImage.tif");
+		this.normalizedHyperImage =IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+this.title+"_HyperImage.tif");
 	}
 	
 	public void writeHyperImage() {
 		File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"2_HyperImage");
 		dir.mkdirs();
-		IJ.saveAsTiff(this.normalizedHyperImage,this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+"hyperImage.tif");
+		IJ.saveAsTiff(this.normalizedHyperImage,this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+this.title+"_HyperImage.tif");
 	}
 
 	public void readMask() {
@@ -374,7 +378,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
 		dir.mkdirs();
 		for(int i=0;i<this.transformation.size() ; i++) {
-			this.transformation.get(i).writeToFile(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+".txt");
+			this.transformation.get(i).writeAsDenseField(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+".tif",this.imageForRegistration);
 		}
 	}
 
@@ -382,20 +386,45 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
 		dir.mkdirs();
 		for(int i=0;i<this.transformation.size() ; i++) {
-			this.transformation.get(i).writeToFile(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+"_step_"+registrationStep+".txt");
+			System.out.println("Ecriture de la transformation :");
+			System.out.println(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+"_step_"+registrationStep+".tif");
+			this.transformation.set(i,this.transformation.get(i).flattenDenseField(this.imageForRegistration));
+			this.transformation.get(i).writeAsDenseField(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+"_step_"+registrationStep+".tif",this.imageForRegistration);
 		}
 	}
-	
 
 	public void readTransforms() {
 		for(int i=0;i<this.transformation.size() ; i++) {
+			System.out.println("Lecture de la transformation :");
+			System.out.println(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+".tif");
+			this.transformation.set(i,ItkTransform.readAsDenseField(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+".tif"));
+		}
+	}
+	
+	public void writeRegisteringTransformsITK(String registrationStep) {
+		File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
+		dir.mkdirs();
+		for(int i=0;i<this.transformation.size() ; i++) {
+			this.transformation.get(i).writeToFile(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+"_step_"+registrationStep+".txt");
+		}
+	}
+
+	public void readTransformsITK() {
+		for(int i=0;i<this.transformation.size() ; i++) {			
 			this.transformation.set(i,ItkTransform.readFromFile(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+".txt"));
+		}
+	}
+	
+	public void writeTransformsITK() {
+		File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
+		dir.mkdirs();
+		for(int i=0;i<this.transformation.size() ; i++) {
+			this.transformation.get(i).writeToFile(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+".txt");
 		}
 	}
 
 
-	
-	public void automaticFineRegistration() {
+	public void automaticFineRegistrationITK() {
 		//Register each i on i-1
 		for (int i=1;i<this.vitimage4D.size();i++) {
 	//1
@@ -438,6 +467,69 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		for(int i=0;i<this.vitimage4D.size();i++)this.transformation.set(i,this.transformation.get(i).simplify());
 		writeRegisteringImages("afterItkRegistration");	
 		writeRegisteringTransforms("afterItkRegistration");
+		writeTransforms();
+	}
+	
+	
+	public void automaticFineRegistration() {
+		for (int i=1;i<this.vitimage4D.size();i++) {
+			
+			//UNSTACK HYPERIMAGE 4D REF TO GET IMAGE FOR REGISTRATION
+			ImagePlus concatTab=vitimage4D.get(i-1).getNormalizedHyperImage();
+			ImagePlus []imgTab=VitimageUtils.stacksFromHyperstack(concatTab, Vitimage4D.targetHyperSize);
+			ImagePlus imgRef=imgTab[0];
+			imgRef.getProcessor().resetMinAndMax();
+			VitimageUtils.imageCheckingFast(imgRef,"Reference image, "+"J"+vitimage4D.get(i-1).dayAfterExperience);
+			
+			//UNSTACK HYPERIMAGE 4D MOV	TO GET IMAGE FOR REGISTRATION		
+			concatTab=vitimage4D.get(i).getNormalizedHyperImage();
+			imgTab=VitimageUtils.stacksFromHyperstack(concatTab, Vitimage4D.targetHyperSize);
+			ImagePlus imgMov=imgTab[0];
+			imgMov.getProcessor().resetMinAndMax();
+			VitimageUtils.imageChecking(imgMov,"Moving image, "+"J"+vitimage4D.get(i).dayAfterExperience);
+
+
+			//COMPUTE THE MASK IMAGE
+			ImagePlus imgMask=IJ.openImage("/home/fernandr/Bureau/Test/BM_subvoxel/mask_little.tif");
+			
+			//COMPUTE THE REGISTRATION, RIGID-BODY, then DENSE
+			System.out.println("Running registration. ");
+			System.out.println("Ref="+this.vitimage4D.get(i-1).getTitle());
+			System.out.println("Mov="+this.vitimage4D.get(i).getTitle());
+			ItkTransform transDayItoIminus1=null;
+			for(int h=0;h<10;h++)System.out.println();
+			System.out.println("Et effectivement, title=|"+this.title+"|");
+			for(int h=0;h<10;h++)System.out.println();
+			if((i==4) && this.title.equals("B001_PAL")) {
+				transDayItoIminus1=BlockMatchingRegistration.testSetupAndRunStandardBlockMatchingWithoutFineParameterization(
+													VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgRef),
+													VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgMov),
+													imgMask,true,false,false,false,true,false);
+				transDayItoIminus1.addTransform(ItkTransform.getIdentityDenseFieldTransform(imgRef));
+				transDayItoIminus1=transDayItoIminus1.flattenDenseField(imgRef);
+			}
+			else transDayItoIminus1=BlockMatchingRegistration.testSetupAndRunStandardBlockMatchingWithoutFineParameterization(
+					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgRef),
+					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgMov),
+					imgMask,true,true,true,true,true,true);
+			
+			System.out.print("Adding transfo computed between "+(i-1)+" and "+i);
+			for(int j=i;j<this.vitimage4D.size();j++) {
+				System.out.print("... add "+j+" ");
+				this.transformation.get(j).addTransform(new ItkTransform(transDayItoIminus1));
+				System.out.print(" flatten "+j+" ");
+				this.transformation.set(j,this.transformation.get(j).flattenDenseField(this.imageForRegistration));
+				System.gc();
+			}
+			System.out.println();
+			File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
+			transDayItoIminus1.writeAsDenseField(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_added_at_step_"+i+".tif",imageForRegistration);
+			writeRegisteringTransforms("AfterAutoStep"+i);
+			System.gc();
+		}
+		System.out.println();
+		writeRegisteringImages("afterItkRegistration");	
+		writeRegisteringTransforms("afterItkRegistration");
 	}
 	
 	
@@ -462,10 +554,10 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 			concatTab[i]=this.transformation.get(i).transformHyperImage4D(concatTab[0],concatTab[i], Vitimage4D.targetHyperSize);
 
 			ImagePlus []tempTab=VitimageUtils.stacksFromHyperstack(concatTab[i], Vitimage4D.targetHyperSize);
-			tempTab[0]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T1-weighted nth Tr", tempTab[0],15,0);
+			tempTab[0]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T1-weighted", tempTab[0],15,0);
 			tempTab[1]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- M0 map from T1 seq", tempTab[1],15,0);
 			tempTab[2]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T1 map from T1 seq", tempTab[2],15,0);
-			tempTab[3]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T2-weighted 1st Te", tempTab[3],15,0);
+			tempTab[3]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T2-weighted", tempTab[3],15,0);
 			tempTab[4]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- M0 map from T2 seq", tempTab[4],15,0);
 			tempTab[5]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T2 map from T2 seq", tempTab[5],15,0);
 			tempTab[6]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- RX ", tempTab[6],15,0);

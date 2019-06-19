@@ -93,6 +93,19 @@ public interface VitiDialogs {
 		 }
 	}
 
+	
+	public static double getDoubleUI(String strGuess,String parameter,double value) {
+		double ret=0;
+		GenericDialog gd = new GenericDialog(strGuess);
+		gd.addNumericField(parameter+" :",value,1);
+        gd.showDialog();
+        if (gd.wasCanceled()) {return value;}
+ 
+	        ret = gd.getNextNumber();
+		 return ret;
+	 }
+	
+	
 	public static boolean getYesNoUI(String strGuess) {
         GenericDialog gd=new GenericDialog(strGuess);
         gd.addMessage(strGuess);
@@ -146,27 +159,43 @@ public interface VitiDialogs {
 	 }
 		
 
-	public static ItkTransform chooseOneTransformsUI(String strGuess,boolean autonomyLevel){
+	public static ItkTransform chooseOneTransformsUI(String strGuess,String path,boolean autonomyLevel){
+		if(autonomyLevel==AUTOMATIC) {
+			return ItkTransform.readTransformFromFile(path);
+		}
 		ItkTransform globalTransform = null;
-		OpenDialog od=new OpenDialog("Select_transformation");
-		globalTransform=ItkTransform.readFromFile(od.getPath());
-		return (globalTransform);
+		OpenDialog od=new OpenDialog(strGuess);
+		return(ItkTransform.readTransformFromFile(od.getPath()));
 	 }
 		
 
+
 	
-	
-	
-	public static void saveTransformUI(ItkTransform tr,String strGuess,boolean autonomyLevel,String path,String title){
+	public static void saveDenseFieldTransformUI(ItkTransform tr,String strGuess,boolean autonomyLevel,String path,String title,ImagePlus imgRef){
 		if(autonomyLevel==AUTOMATIC) {
 			String pathSave=path+""+title;
-			tr.writeToFile(pathSave);
+			tr.writeAsDenseField(pathSave,imgRef);
+		}
+		else {
+			SaveDialog sd=new SaveDialog(strGuess,title,".transform.tif");
+			if(sd.getDirectory()==null ||  sd.getFileName()==null)return;
+			String pathSave=sd.getDirectory()+""+sd.getFileName();
+			tr.writeAsDenseField(pathSave,imgRef);
+		}
+	}
+
+	
+	
+	public static void saveMatrixTransformUI(ItkTransform tr,String strGuess,boolean autonomyLevel,String path,String title){
+		if(autonomyLevel==AUTOMATIC) {
+			String pathSave=path+""+title;
+			tr.writeMatrixTransformToFile(pathSave);
 		}
 		else {
 			SaveDialog sd=new SaveDialog(strGuess,title,".txt");
 			if(sd.getDirectory()==null ||  sd.getFileName()==null)return;
 			String pathSave=sd.getDirectory()+""+sd.getFileName();
-			tr.writeToFile(pathSave);
+			tr.writeMatrixTransformToFile(pathSave);
 		}
 	}
 
@@ -183,6 +212,40 @@ public interface VitiDialogs {
 		}
 	
 	}
+	
+
+	public static double[][] waitForReferencePointsUI(int nbWantedPoints,ImagePlus img,boolean realCoordinates){
+		double[][]tabRet=new double[nbWantedPoints][3];
+		RoiManager rm=RoiManager.getRoiManager();
+		ImagePlus temp=img.duplicate();
+		temp.show();
+		rm.reset();
+		IJ.setTool("point");
+		boolean finished =false;
+		do {
+			try {
+				java.util.concurrent.TimeUnit.MILLISECONDS.sleep(1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			if(rm.getCount()==nbWantedPoints && getYesNoUI("Confirm points ?"))finished=true;
+			System.out.println("Waiting "+nbWantedPoints+". Current number="+rm.getCount());
+		}while (!finished);	
+		for(int indP=0;indP<nbWantedPoints;indP++){
+			tabRet[indP][0]=rm.getRoi(indP).getXBase();
+			tabRet[indP][1]=rm.getRoi(indP).getYBase();
+			tabRet[indP][2]=rm.getRoi(indP).getZPosition();
+			if(realCoordinates) {
+				tabRet[indP][0]=(tabRet[indP][0]+0.5)*(img.getCalibration().pixelWidth);
+				tabRet[indP][1]=(tabRet[indP][1]+0.5)*(img.getCalibration().pixelHeight);
+				tabRet[indP][2]=(tabRet[indP][2]+0.5)*(img.getCalibration().pixelDepth);
+			}	
+			System.out.println("Point retenu numéro "+indP+" : {"+tabRet[indP][0]+","+tabRet[indP][1]+","+tabRet[indP][2]+"}");
+		}
+		temp.close();
+		return tabRet;
+	}
+
 	
 	public static double[][] waitForPointsUI(int nbWantedPoints,ImagePlus img,boolean realCoordinates){
 		double[][]tabRet=new double[nbWantedPoints][3];
@@ -215,12 +278,22 @@ public interface VitiDialogs {
 	}
 	
 	public static Point3d[][] registrationPointsUI(int nbWantedPointsPerImage,ImagePlus imgRef,ImagePlus imgMov,boolean realCoordinates){
+		ImagePlus imgRefBis=imgRef.duplicate();
+		ImagePlus imgMovBis=imgMov.duplicate();
+		imgRefBis.getProcessor().resetMinAndMax();
+		imgMovBis.getProcessor().resetMinAndMax();
+		imgRefBis.show();
+		imgMovBis.show();
+		imgMovBis.setTitle("Moving image");
+		imgRefBis.setTitle("Reference image");
 		Point3d []pRef=new Point3d[nbWantedPointsPerImage];
 		Point3d []pMov=new Point3d[nbWantedPointsPerImage];
 		RoiManager rm=RoiManager.getRoiManager();
 		rm.reset();
 		IJ.setTool("point");
-		IJ.showMessage("Examine images and click on "+(nbWantedPointsPerImage*2)+" points.\n Point 1 : pt A on reference image\n Point 2 : ptA on moving image\n Point 3 : ptB on reference image\n Point 4 : ptB on moving image \n...");
+		IJ.showMessage("Examine images and click on "+(nbWantedPointsPerImage*2)+" points to compute the correspondances,\n on both reference image and moving image (see image titles)"+
+		"For each selected point, use the Roi Manager to save it, with \"add to manager\" option.\n Please follow the following order : "+
+		"\n   Point 1 : item A on reference image\n    Point 2 : item A on moving image\n    Point 3 : item B on reference image\n Point 4 : item B on moving image \n...");
 		boolean finished =false;
 		do {
 			try {
@@ -240,6 +313,8 @@ public interface VitiDialogs {
 			}	
 			//System.out.println("Point retenu numéro "+indP+" : {"+tabRet[indP][0]+","+tabRet[indP][1]+","+tabRet[indP][2]+"}");
 		}
+		imgRefBis.close();
+		imgMovBis.close();
 		return new Point3d[][] {pRef,pMov};
 	}
 	
