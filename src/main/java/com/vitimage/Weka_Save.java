@@ -289,7 +289,7 @@ public class Weka_Save implements PlugIn
 	//                                                0     1       2      3      4      5     6          7       8       9           10           11       12       13
 	private final String[] colorsStr=new String[] {"Red","Green","Blue","Cyan","Pink","White","Yellow","Black","Gray","Dark Gray","Light Gray","Magenta","Orange","Custom color..."};
 	private final Color[] colorsTab=new Color[] {Color.red,Color.green,Color.blue,Color.cyan,Color.pink,Color.white,Color.yellow,Color.black,Color.gray,Color.DARK_GRAY,Color.LIGHT_GRAY,Color.magenta,Color.orange};
-
+	private boolean []isCustomColor=new boolean[100];
 	/**
 	 * Basic constructor for graphical user interface use
 	 */
@@ -965,8 +965,8 @@ saveClassSetupButton.addActionListener(listener);
 			manageConstraints.insets = new Insets(5, 5, 6, 6);
 			manageJPanel.setLayout(manageLayout);
 
-			manageJPanel.add(debugButton, manageConstraints);
-			manageConstraints.gridy++;
+//			manageJPanel.add(debugButton, manageConstraints);
+			//			manageConstraints.gridy++;
 			manageJPanel.add(manageColorsButton, manageConstraints);
 			manageConstraints.gridy++;
 			manageJPanel.add(loadClassSetupButton, manageConstraints);
@@ -3769,25 +3769,65 @@ saveClassSetupButton.addActionListener(listener);
 	
 	
 	private void manageColors() {
-		System.out.println("Action manageColors");
+		System.out.println("Action manageColors, avec userColormap"+this.existingUserColormap);
 		GenericDialog gd= new GenericDialog("Select colors");
-		for(int i=0;i<this.numOfClasses;i++)gd.addChoice("Classe "+(i+1)+" ("+this.wekaSegmentation.getClassLabel(i)+") : ",colorsStr,this.existingUserColormap ? colorsStr[colorChoices[i]] : "" );
+		for(int i=0;i<this.numOfClasses;i++) {
+//			System.out.println("phase 1 : traitement classe num"+i+" et booleen="+this.isCustomColor[i]);
+			String[]choices=new String[colorsStr.length+(this.isCustomColor[i]?1:0)];
+			for(int j=0;j<colorsStr.length;j++) {choices[!this.isCustomColor[i] ? j : j+1]=colorsStr[j];}
+			if(this.isCustomColor[i]) choices[0]="custom("+this.colors[i].getRed()+" , "+this.colors[i].getGreen()+" , "+this.colors[i].getBlue()+")";
+			if(! this.existingUserColormap) {
+				gd.addChoice("Classe "+(i+1)+" ("+this.wekaSegmentation.getClassLabel(i)+") : ",choices,choices[i]);
+			}
+			else{
+				if(this.isCustomColor[i]) {
+					gd.addChoice("Classe "+(i+1)+" ("+this.wekaSegmentation.getClassLabel(i)+") : ",choices,choices[0]);
+				}
+				else{
+					gd.addChoice("Classe "+(i+1)+" ("+this.wekaSegmentation.getClassLabel(i)+") : ",choices,choices[colorChoices[i]]);
+				}					
+			}
+		}
 		gd.showDialog();
 	    if (gd.wasCanceled()) return;	  
-		for(int i=0;i<this.numOfClasses;i++)this.colorChoices[i]=gd.getNextChoiceIndex();
 
 		for(int i=0;i<this.numOfClasses;i++) {
-			if(this.colorChoices[i]<13)this.colors[i]=colorsTab[this.colorChoices[i]];
-			else this.colors[i] = JColorChooser.showDialog(null, "Color choice for classe "+(i+1)+" ("+this.wekaSegmentation.getClassLabel(i)+") : ", Color.WHITE);
+			this.colorChoices[i]=gd.getNextChoiceIndex();
+			System.out.println("phase 2 : traitement classe num"+i+" choix effectue="+this.colorChoices[i]+" et booleen="+this.isCustomColor[i]);
+			if(!this.isCustomColor[i] && this.colorChoices[i]<13)this.colors[i]=colorsTab[this.colorChoices[i]];
+			else if(!this.isCustomColor[i] && this.colorChoices[i]==13) {
+				this.isCustomColor[i]=true;
+				this.colors[i] = JColorChooser.showDialog(null, "Color choice for classe "+(i+1)+" ("+this.wekaSegmentation.getClassLabel(i)+") : ", Color.WHITE);
+			}
+			else if( this.isCustomColor[i] && this.colorChoices[i]==0) {
+				this.colors[i]=this.colors[i];//Actually, do nothing
+			}
+			else if( this.isCustomColor[i] && this.colorChoices[i]<14) {
+				System.out.println("Et pourtant on passe la , à i="+i+" et this.colorChoices="+this.colorChoices[i]);
+				this.colorChoices[i]=this.colorChoices[i]-1;
+				this.colors[i]=this.colorsTab[this.colorChoices[i]];
+				this.isCustomColor[i]=false;
+			}
+			else if( this.isCustomColor[i] && this.colorChoices[i]==14) {
+				this.colors[i] = JColorChooser.showDialog(null, "Color choice for classe "+(i+1)+" ("+this.wekaSegmentation.getClassLabel(i)+") : ", Color.WHITE);
+			}
 			exampleList[i].setForeground(colors[i]);
 		}
+		System.out.println("Pouet8");
 
 		this.overlayLUT = new LUT(this.getColorsChannelValue(0),this.getColorsChannelValue(1),this.getColorsChannelValue(2));
-		this.updateResultOverlay();
+		System.out.println("Pouet9");
+//		this.updateResultOverlay();
+		System.out.println("Pouet91");
 		win.drawExamples();
+		System.out.println("Pouet92");
 		win.updateExampleLists();
+		System.out.println("Pouet10");
 		repaintWindow();
 	    existingUserColormap=true;
+	    System.out.println("Colormap : action finished");
+	    Weka_Save.toggleOverlay();
+	    Weka_Save.toggleOverlay();
 	    return;
 	}
 	
