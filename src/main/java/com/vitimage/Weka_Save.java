@@ -1,4 +1,4 @@
-package trainableSegmentation;
+package com.vitimage;
 
 import fiji.util.gui.GenericDialogPlus;
 import fiji.util.gui.OverlayedImageCanvas;
@@ -13,6 +13,7 @@ import ij.gui.ImageWindow;
 import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.gui.StackWindow;
+
 import ij.io.DirectoryChooser;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
@@ -64,6 +65,7 @@ import java.awt.event.MouseWheelListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
+import java.awt.image.ColorModel;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -88,6 +90,7 @@ import java.util.zip.GZIPOutputStream;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JColorChooser;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
@@ -169,6 +172,14 @@ public class Weka_Save implements PlugIn
 	/** executor service to launch threads for the plugin methods and events */
 	private final ExecutorService exec = Executors.newFixedThreadPool(1);
 
+	/** train classifier button */
+	private JButton debugButton = null;
+	/** train classifier button */
+	private JButton manageColorsButton = null;
+	/** train classifier button */
+	private JButton loadClassSetupButton = null;
+	/** train classifier button */
+	private JButton saveClassSetupButton = null;
 	/** train classifier button */
 	private JButton loadExamplesButton = null;
 	/** train classifier button */
@@ -272,8 +283,12 @@ public class Weka_Save implements PlugIn
 	public static final String SET_OPACITY = "setOpacity";
 	/** boolean flag set to true while training */
 	private boolean trainingFlag = false;
-
+	private boolean existingUserColormap=false;
+	private int[] colorChoices=new int[1000];
 	private boolean isProcessing3D = false;
+	//                                                0     1       2      3      4      5     6          7       8       9           10           11       12       13
+	private final String[] colorsStr=new String[] {"Red","Green","Blue","Cyan","Pink","White","Yellow","Black","Gray","Dark Gray","Light Gray","Magenta","Orange","Custom color..."};
+	private final Color[] colorsTab=new Color[] {Color.red,Color.green,Color.blue,Color.cyan,Color.pink,Color.white,Color.yellow,Color.black,Color.gray,Color.DARK_GRAY,Color.LIGHT_GRAY,Color.magenta,Color.orange};
 
 	/**
 	 * Basic constructor for graphical user interface use
@@ -284,6 +299,8 @@ public class Weka_Save implements PlugIn
 	public static void main(String[]args) {
 		System.out.println("pouyet");
 		ImageJ ij=new ImageJ();
+		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/Test_WEKA/imgTrain.tif");
+		img.show();
 		Weka_Save ws=new Weka_Save();
 		ws.run("3D");
 		//Weka_Plus wp=new Weka_Plus();
@@ -341,6 +358,14 @@ public class Weka_Save implements PlugIn
 		saveExamplesButton = new JButton("Save examples");
 		saveExamplesButton.setToolTipText("Save examples to a .MROI file");
 
+		debugButton = new JButton("Debug info");
+		debugButton.setToolTipText("");
+		manageColorsButton = new JButton("Manage colors");
+		manageColorsButton.setToolTipText("Set color in segmentation visualization for each class");
+		loadClassSetupButton = new JButton("Load setup");
+		loadClassSetupButton.setToolTipText("Load a setup of class with associated names and colours");
+		saveClassSetupButton = new JButton("Save setup");
+		saveClassSetupButton.setToolTipText("Save a setup of class with associated names and colours to a .MCLASS file");
 		
 		trainButton = new JButton("Train classifier");
 		trainButton.setToolTipText("Start training the classifier");
@@ -424,7 +449,23 @@ public class Weka_Save implements PlugIn
 						runStopTraining(command);						
 					}
 
+					if(e.getSource() == loadClassSetupButton)
+					{
+						loadClassSetup();					
+					}
 					
+					if(e.getSource() == manageColorsButton)
+					{
+						manageColors();					
+					}
+					if(e.getSource() == debugButton)
+					{
+						debugInfo();					
+					}
+					if(e.getSource() == saveClassSetupButton)
+					{
+						saveClassSetup();					
+					}
 					
 					else if(e.getSource() == loadExamplesButton)
 					{
@@ -626,6 +667,8 @@ public class Weka_Save implements PlugIn
 		private JPanel buttonsPanel = new JPanel();
 		/** training panel (included in the left side of the GUI) */
 		private JPanel trainingJPanel = new JPanel();
+		/** training panel (included in the left side of the GUI) */
+		private JPanel manageJPanel = new JPanel();
 		/** options panel (included in the left side of the GUI) */
 		private JPanel optionsJPanel = new JPanel();
 		/** main GUI panel (containing the buttons panel on the left,
@@ -748,7 +791,11 @@ public class Weka_Save implements PlugIn
 
 loadExamplesButton.addActionListener(listener);
 saveExamplesButton.addActionListener(listener);
+debugButton.addActionListener(listener);
 
+manageColorsButton.addActionListener(listener);
+loadClassSetupButton.addActionListener(listener);
+saveClassSetupButton.addActionListener(listener);
 			trainButton.addActionListener(listener);
 			overlayButton.addActionListener(listener);
 			resultButton.addActionListener(listener);
@@ -903,10 +950,36 @@ saveExamplesButton.addActionListener(listener);
 			trainingConstraints.gridy++;
 
 
-trainingJPanel.add(saveExamplesButton, trainingConstraints);
-trainingConstraints.gridy++;
-trainingJPanel.add(loadExamplesButton, trainingConstraints);
-trainingConstraints.gridy++;
+			
+			
+			// Training panel (left side of the GUI)
+			manageJPanel.setBorder(BorderFactory.createTitledBorder("Manage setups"));
+			GridBagLayout manageLayout = new GridBagLayout();
+			GridBagConstraints manageConstraints = new GridBagConstraints();
+			manageConstraints.anchor = GridBagConstraints.NORTHWEST;
+			manageConstraints.fill = GridBagConstraints.HORIZONTAL;
+			manageConstraints.gridwidth = 1;
+			manageConstraints.gridheight = 1;
+			manageConstraints.gridx = 0;
+			manageConstraints.gridy = 0;
+			manageConstraints.insets = new Insets(5, 5, 6, 6);
+			manageJPanel.setLayout(manageLayout);
+
+			manageJPanel.add(debugButton, manageConstraints);
+			manageConstraints.gridy++;
+			manageJPanel.add(manageColorsButton, manageConstraints);
+			manageConstraints.gridy++;
+			manageJPanel.add(loadClassSetupButton, manageConstraints);
+			manageConstraints.gridy++;
+			manageJPanel.add(saveClassSetupButton, manageConstraints);
+			manageConstraints.gridy++;
+			manageJPanel.add(loadExamplesButton, manageConstraints);
+			manageConstraints.gridy++;
+			manageJPanel.add(saveExamplesButton, manageConstraints);
+			manageConstraints.gridy++;
+
+
+			
 
 
 			// Options panel
@@ -949,6 +1022,8 @@ trainingConstraints.gridy++;
 			buttonsConstraints.gridheight = 1;
 			buttonsConstraints.gridx = 0;
 			buttonsConstraints.gridy = 0;
+			buttonsPanel.add(manageJPanel, buttonsConstraints);
+			buttonsConstraints.gridy++;
 			buttonsPanel.add(trainingJPanel, buttonsConstraints);
 			buttonsConstraints.gridy++;
 			buttonsPanel.add(optionsJPanel, buttonsConstraints);
@@ -1032,11 +1107,15 @@ trainingConstraints.gridy++;
 						addExampleButton[i].removeActionListener(listener);
 
 
-saveExamplesButton.removeActionListener(listener);
-loadExamplesButton.removeActionListener(listener);
-
-
-
+					saveExamplesButton.removeActionListener(listener);
+					loadExamplesButton.removeActionListener(listener);
+					
+					
+					
+					debugButton.removeActionListener(listener);
+					manageColorsButton.removeActionListener(listener);
+					loadClassSetupButton.removeActionListener(listener);
+					saveClassSetupButton.removeActionListener(listener);
 					trainButton.removeActionListener(listener);
 					overlayButton.removeActionListener(listener);
 					resultButton.removeActionListener(listener);
@@ -1226,6 +1305,10 @@ loadExamplesButton.removeActionListener(listener);
 			loadExamplesButton.setEnabled(s);
 
 
+			debugButton.setEnabled(true);
+			manageColorsButton.setEnabled(s);
+			loadClassSetupButton.setEnabled(s);
+			saveClassSetupButton.setEnabled(s);
 
 			trainButton.setEnabled(s);
 			overlayButton.setEnabled(s);
@@ -1262,6 +1345,9 @@ loadExamplesButton.removeActionListener(listener);
 			}
 			else // If the training is not going on
 			{
+				manageColorsButton.setEnabled( true );	
+				loadClassSetupButton.setEnabled( true );	
+				saveClassSetupButton.setEnabled( true );	
 				final boolean classifierExists =  null != wekaSegmentation.getClassifier();
 
 				trainButton.setEnabled( classifierExists );
@@ -1305,6 +1391,7 @@ loadExamplesButton.removeActionListener(listener);
 				}
 				setSliceSelectorEnabled(true);
 			}
+			debugButton.setEnabled(true);
 		}
 
 		/**
@@ -1476,7 +1563,6 @@ loadExamplesButton.removeActionListener(listener);
 				
 		overlay = overlay.convertToByte(false);
 		overlay.setColorModel(overlayLUT);
-
 		win.resultOverlay.setImage(overlay);
 	}
 	
@@ -2795,7 +2881,6 @@ loadExamplesButton.removeActionListener(listener);
 		}
 	}
 
-	
 	/**
 	 * Display the current probability maps
 	 */
@@ -3432,202 +3517,308 @@ loadExamplesButton.removeActionListener(listener);
 
 
 
-
-
-private void saveExamples() {
-	saveExamplesInFile(convertExamplesToSlicePointRoi());
-	System.out.println("Examples saved.");
-}
-
-private void loadExamples() {
-	loadExamplesFromFile();
-	System.out.println("Examples loaded.");
-}
-
-
-public void saveExamplesInFile(PointRoi[][]prTab) {		
-	VitiDialogs.getYesNoUI("Warning : this routine will build a lot of Roi files, on for each slice represented."+ 
-					"You should consider store them in a separate directory. Also, the 'no' and the 'cancel' answer are just here for the sake of politeness.");	
-	SaveDialog sd = new SaveDialog("Choose save file", "examples",".MROI");
-	if (sd.getFileName()==null)
+	
+	
+	private void saveExamples() {
+		saveExamplesInFile(convertExamplesToSlicePointRoi());
+		System.out.println("Examples saved.");
+	}
+	
+	private void loadExamples() {
+		loadExamplesFromFile();
+		System.out.println("Examples loaded.");
+	}
+	
+	
+	public void saveExamplesInFile(PointRoi[][]prTab) {		
+		VitiDialogs.getYesNoUI("Warning : this routine will build a lot of Roi files, on for each slice represented."+ 
+						"You should consider store them in a separate directory. Also, the 'no' and the 'cancel' answer are just here for the sake of politeness.");	
+		SaveDialog sd = new SaveDialog("Choose save file", "examples",".MROI");
+		if (sd.getFileName()==null)
+			return;
+		String dirName=sd.getDirectory();
+		String fullName=sd.getFileName();
+		String fullPath=new File(dirName,fullName).getAbsolutePath();
+		String fullPathNoExt=fullPath.substring(0, fullPath.lastIndexOf('.'));
+		System.out.println("Saving ROI collection in "+fullPath);
+		
+	
+		System.out.println(fullPathNoExt);
+		System.out.println("Nombre de classes annoncees : "+prTab.length);
+		
+		for(int cl=0;cl<prTab.length;cl++) {
+			System.out.println("Classe "+cl+" , nombre de z : "+prTab[cl].length);
+			for(int z=1;z<=prTab[cl].length;z++) {
+				PointRoi pr=prTab[cl][z-1];
+				if(pr.getContainedPoints().length==0)continue;
+				System.out.println("z="+z+" est non nulle, et va être ecrite");
+				String sliceFileName=fullPathNoExt+"_Class_"+cl+"_Slice_"+z+".txt";
+				PrintWriter writer=null;
+				try {
+					writer = new PrintWriter(sliceFileName, "UTF-8");
+				} catch (FileNotFoundException | UnsupportedEncodingException e) {
+					e.printStackTrace();
+				}
+				writer.println(pr.getContainedPoints().length);
+				for(Point p:pr) {
+					writer.println((int)Math.round(p.x)+" "+(int)Math.round(p.y));
+				}
+				writer.close();	
+			}	
+		}
+		PrintWriter writer=null;
+		try {
+			writer = new PrintWriter(fullPathNoExt+".MROI", "UTF-8");
+		} catch (FileNotFoundException | UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+		writer.println(prTab.length);
+		for(int cl=0;cl<prTab.length;cl++) {
+			writer.println(this.wekaSegmentation.getClassLabels()[cl]);
+		}
+		writer.close();	
 		return;
-	String dirName=sd.getDirectory();
-	String fullName=sd.getFileName();
-	String fullPath=new File(dirName,fullName).getAbsolutePath();
-	String fullPathNoExt=fullPath.substring(0, fullPath.lastIndexOf('.'));
-	System.out.println("Saving ROI collection in "+fullPath);
+	}
+	
+	
+	public PointRoi convertRoiListToUniquePointRoi(List<Roi>list) {
+		PointRoi prOut=new PointRoi();
+		for(Roi r : list) {
+			Point[] ptTab=r.getContainedPoints();
+			for(int pt=0;pt<ptTab.length;pt++) {
+				prOut.addPoint(ptTab[pt].x,ptTab[pt].y);
+			}
+		}
+		return prOut;
+	}
+	
+	
+	public PointRoi [][] convertExamplesToSlicePointRoi() {
+		System.out.println("Conversion des examples");
+		int nClasses=this.numOfClasses;
+		PointRoi[][]tabRoi=new PointRoi[nClasses][this.trainingImage.getStackSize()];
+	
+		//Pour chaque classe
+		for(int cl=0;cl<nClasses;cl++) {
+	
+			//Pour chaque slice, récuperer la liste des roi, l'assembler en une seule pointroi
+			for(int sli=1;sli<=this.trainingImage.getStackSize();sli++) {
+				List<Roi>list=this.wekaSegmentation.getExamples(cl, sli);
+				tabRoi[cl][sli-1]=this.convertRoiListToUniquePointRoi(list);
+			}
+		}
+		return tabRoi;
+	}
+	
+	
+	public void removeAllExamples() {
+		for(int sl=1;sl<=this.trainingImage.getStackSize();sl++) {
+			for(int cl=0;cl<this.numOfClasses;cl++) {
+				int nbEx=this.wekaSegmentation.getExamples(cl,sl).size();
+				for(int ex=nbEx-1;ex>=0;ex--)this.wekaSegmentation.deleteExample(cl, sl,ex);
+			}
+		}
+	}
+			
+	
+	public void loadExamplesFromFile(){
+		removeAllExamples();
+		System.out.println("Add examples from file : start");
+		OpenDialog od=new OpenDialog("Choose file.MROI to load","","examples.MROI");
+		if (od.getFileName()==null)
+			return;
+		String dirName=od.getDirectory();
+		String fullName=od.getFileName();
+		String fullPath=new File(dirName,fullName).getAbsolutePath();
+		String fullPathNoExt=fullPath.substring(0, fullPath.lastIndexOf('.'));
+		System.out.println("Loading ROI collection in "+fullPath);
+		String mroiFile=fullPathNoExt+".MROI";
+		File f=new File(mroiFile);
+		if(!f.exists())return;
+		int nClasses=0;
+		int nSlices=0;
+		
+		try{
+			InputStream flux=new FileInputStream(mroiFile); 
+			InputStreamReader read=new InputStreamReader(flux);
+			BufferedReader buff=new BufferedReader(read);
+			String test=buff.readLine();
+			nClasses=Integer.parseInt(test);
+			System.out.println("Nombre de classes lues="+nClasses);
+			if(nClasses<numOfClasses) {
+				IJ.log("This won't go very well like this, because you want to load a model with a number of class lower than the actual one, what will crash the inteface. What you should do is to close the interface, and open it again. This command abort now to prevent this bad behaviour");
+				buff.close();
+				return;
+			}
+			
+			for(int i=0;i<nClasses;i++) {
+				if(this.numOfClasses<i+1)this.addNewClass(buff.readLine());
+				else Weka_Save.changeClassName(""+i+"",buff.readLine() );
+			}
+			buff.close(); 
+		}		
+		catch (Exception e){e.printStackTrace();}
+		int dimZ=this.displayImage.getStackSize();
+		nSlices=dimZ;
+		PointRoi[][] prTab=new PointRoi[nClasses][nSlices];
+		for(int cl=0;cl<nClasses;cl++) {
+			System.out.print("Traitement classe "+cl);
+			for(int z=1;z<=nSlices;z++) {    
+				prTab[cl][z-1]=new PointRoi();
+				String stringFileSlice=fullPathNoExt+"_Class_"+cl+"_Slice_"+z+".txt";
+				f=new File(stringFileSlice);
+				if(!f.exists())continue;	
+				try{
+					InputStream flux=new FileInputStream(stringFileSlice); 
+					InputStreamReader read=new InputStreamReader(flux);
+					BufferedReader buff=new BufferedReader(read);
+					String ligne=buff.readLine();
+					int nPt=Integer.parseInt(ligne);
+					System.out.println("Points lus : "+nPt);
+					for(int i=0;i<nPt;i++) {
+						ligne=buff.readLine();
+						int x=Integer.parseInt(ligne.split(" ")[0]);
+						int y=Integer.parseInt(ligne.split(" ")[1]);
+						prTab[cl][z-1].addPoint(x, y);
+					}
+					buff.close(); 
+					this.addExampleFromLoadedFile(cl,prTab[cl][z-1],z);
+		//			this.wekaSegmentation.addExample(cl, prTab[cl][z-1], z);
+				}		
+				catch (Exception e){}
+			}
+		}		
+		return;
+	}
 	
 
-	System.out.println(fullPathNoExt);
-	System.out.println("Nombre de classes annoncees : "+prTab.length);
 	
-	for(int cl=0;cl<prTab.length;cl++) {
-		System.out.println("Classe "+cl+" , nombre de z : "+prTab[cl].length);
-		for(int z=1;z<=prTab[cl].length;z++) {
-			PointRoi pr=prTab[cl][z-1];
-			if(pr.getContainedPoints().length==0)continue;
-			System.out.println("z="+z+" est non nulle, et va être ecrite");
-			String sliceFileName=fullPathNoExt+"_Class_"+cl+"_Slice_"+z+".txt";
-			PrintWriter writer=null;
-			try {
-				writer = new PrintWriter(sliceFileName, "UTF-8");
-			} catch (FileNotFoundException | UnsupportedEncodingException e) {
-				e.printStackTrace();
+	
+	private void addExampleFromLoadedFile(int cl,PointRoi r,int slice){
+		displayImage.killRoi();
+		wekaSegmentation.addExample(cl, r, slice);
+		traceCounter[cl]++;
+		win.drawExamples();
+		win.updateExampleLists();
+	}
+		
+	
+	private void loadClassSetup() {
+		System.out.println("Action loadClassSetup");
+		OpenDialog od=new OpenDialog("Choose a setup file for your classes","","setup.MCLASS");
+		if (od.getFileName()==null)
+			return;
+		String dirName=od.getDirectory();
+		String fullName=od.getFileName();
+		String fullPath=new File(dirName,fullName).getAbsolutePath();
+		System.out.println("Loading setup from "+fullPath);
+		try{
+			InputStream flux=new FileInputStream(new File(dirName,fullName)); 
+			InputStreamReader read=new InputStreamReader(flux);
+			BufferedReader buff=new BufferedReader(read);
+			int nClas=Integer.parseInt(buff.readLine());
+			System.out.println("Nombre de classes lues="+nClas);
+			if(nClas<numOfClasses) {
+				IJ.log("This won't go very well like this, because you want to load a model with a number of class lower than the actual one, what will crash the inteface. What you should do is to close the interface, and open it again. This command abort now to prevent this bad behaviour");
+				buff.close();
+				return;
 			}
-			writer.println(pr.getContainedPoints().length);
-			for(Point p:pr) {
-				writer.println((int)Math.round(p.x)+" "+(int)Math.round(p.y));
+			
+			for(int i=0;i<nClas;i++) {
+				if(this.numOfClasses<i+1)this.addNewClass(buff.readLine());
+				else Weka_Save.changeClassName(""+i+"",buff.readLine() );
+				this.colors[i]=new Color(Integer.parseInt(buff.readLine()),Integer.parseInt(buff.readLine()),Integer.parseInt(buff.readLine()));
+				exampleList[i].setForeground(colors[i]);
+			}
+			buff.close(); 
+		}		
+		catch (Exception e){e.printStackTrace();}
+		this.overlayLUT = new LUT(this.getColorsChannelValue(0),this.getColorsChannelValue(1),this.getColorsChannelValue(2));
+		this.updateResultOverlay();
+		win.drawExamples();
+		win.updateExampleLists();
+//		repaintWindow();
+	    existingUserColormap=true;
+		return;
+	}
+	
+	
+	
+	private void saveClassSetup() {
+		System.out.println("Action saveClassSetup");
+		SaveDialog sd = new SaveDialog("Choose a place to save the setup file", "setup",".MCLASS");
+		if (sd.getFileName()==null)
+			return;
+		String dirName=sd.getDirectory();
+		String fullName=sd.getFileName();
+		String fullPath=new File(dirName,fullName).getAbsolutePath();
+		PrintWriter writer=null;
+		try {
+			writer = new PrintWriter(fullPath, "UTF-8");
+			writer.println(this.numOfClasses);
+			for(int cl=0;cl<this.numOfClasses;cl++) {
+				System.out.println("Ecriture de la classe"+cl);
+				writer.println(this.wekaSegmentation.getClassLabel(cl));
+				writer.println(this.colors[cl].getRed());
+				writer.println(this.colors[cl].getGreen());
+				writer.println(this.colors[cl].getBlue());
 			}
 			writer.close();	
+		} catch (FileNotFoundException | UnsupportedEncodingException e) {e.printStackTrace();}
+	}
+	
+	
+	private void manageColors() {
+		System.out.println("Action manageColors");
+		GenericDialog gd= new GenericDialog("Select colors");
+		for(int i=0;i<this.numOfClasses;i++)gd.addChoice("Classe "+(i+1)+" ("+this.wekaSegmentation.getClassLabel(i)+") : ",colorsStr,this.existingUserColormap ? colorsStr[colorChoices[i]] : "" );
+		gd.showDialog();
+	    if (gd.wasCanceled()) return;	  
+		for(int i=0;i<this.numOfClasses;i++)this.colorChoices[i]=gd.getNextChoiceIndex();
+
+		for(int i=0;i<this.numOfClasses;i++) {
+			if(this.colorChoices[i]<13)this.colors[i]=colorsTab[this.colorChoices[i]];
+			else this.colors[i] = JColorChooser.showDialog(null, "Color choice for classe "+(i+1)+" ("+this.wekaSegmentation.getClassLabel(i)+") : ", Color.WHITE);
+			exampleList[i].setForeground(colors[i]);
+		}
+
+		this.overlayLUT = new LUT(this.getColorsChannelValue(0),this.getColorsChannelValue(1),this.getColorsChannelValue(2));
+		this.updateResultOverlay();
+		win.drawExamples();
+		win.updateExampleLists();
+		repaintWindow();
+	    existingUserColormap=true;
+	    return;
+	}
+	
+
+	
+	public byte[] getColorsChannelValue(int ch) {
+		if(ch<0 || ch>2)return null;
+		else {
+			byte[]tab=new byte[256];
+			for(int i=0;i<this.numOfClasses;i++) {
+				tab[i]= (byte) (  (   (ch==0)  ? this.colors[i].getRed() : (ch==1)  ? this.colors[i].getGreen() : this.colors[i].getBlue() ) & 0xff); 
+			}
+		return tab;
+		}
+	}
+	
+	public String lutToString() {
+		String ret="";
+		byte[] vals=this.overlayLUT.getBytes();
+		for(int i=0;i<this.numOfClasses;i++) {
+			ret+=(0xff & vals[i])+" , "+(0xff & vals[256+i]) +" , "+(0xff &vals[512+i])+"\n"; 
 		}	
+		return ret;
 	}
-	PrintWriter writer=null;
-	try {
-		writer = new PrintWriter(fullPathNoExt+".MROI", "UTF-8");
-	} catch (FileNotFoundException | UnsupportedEncodingException e) {
-		e.printStackTrace();
-	}
-	writer.println(prTab.length);
-	for(int cl=0;cl<prTab.length;cl++) {
-		writer.println(this.wekaSegmentation.getClassLabels()[cl]);
-	}
-	writer.close();	
-	return;
-}
-
-
-public PointRoi convertRoiListToUniquePointRoi(List<Roi>list) {
-	PointRoi prOut=new PointRoi();
-	for(Roi r : list) {
-		Point[] ptTab=r.getContainedPoints();
-		for(int pt=0;pt<ptTab.length;pt++) {
-			prOut.addPoint(ptTab[pt].x,ptTab[pt].y);
-		}
-	}
-	return prOut;
-}
-
-
-public PointRoi [][] convertExamplesToSlicePointRoi() {
-	System.out.println("Conversion des examples");
-	int nClasses=this.numOfClasses;
-	PointRoi[][]tabRoi=new PointRoi[nClasses][this.trainingImage.getStackSize()];
-
-	//Pour chaque classe
-	for(int cl=0;cl<nClasses;cl++) {
-
-		//Pour chaque slice, récuperer la liste des roi, l'assembler en une seule pointroi
-		for(int sli=1;sli<=this.trainingImage.getStackSize();sli++) {
-			List<Roi>list=this.wekaSegmentation.getExamples(cl, sli);
-			tabRoi[cl][sli-1]=this.convertRoiListToUniquePointRoi(list);
-		}
-	}
-	return tabRoi;
-}
-
-
-public void removeAllExamples() {
-	for(int sl=1;sl<=this.trainingImage.getStackSize();sl++) {
-		for(int cl=0;cl<this.numOfClasses;cl++) {
-			int nbEx=this.wekaSegmentation.getExamples(cl,sl).size();
-			for(int ex=nbEx-1;ex>=0;ex--)this.wekaSegmentation.deleteExample(cl, sl,ex);
-		}
-	}
-}
-		
-
-public void loadExamplesFromFile(){
-	removeAllExamples();
-	System.out.println("Add examples from file : start");
-	OpenDialog od=new OpenDialog("Choose file.MROI to load","","examples.MROI");
-	if (od.getFileName()==null)
-		return;
-	String dirName=od.getDirectory();
-	String fullName=od.getFileName();
-	String fullPath=new File(dirName,fullName).getAbsolutePath();
-	String fullPathNoExt=fullPath.substring(0, fullPath.lastIndexOf('.'));
-	System.out.println("Loading ROI collection in "+fullPath);
-	String mroiFile=fullPathNoExt+".MROI";
-	File f=new File(mroiFile);
-	if(!f.exists())return;
-	int nClasses=0;
-	int nSlices=0;
 	
-	try{
-		InputStream flux=new FileInputStream(mroiFile); 
-		InputStreamReader read=new InputStreamReader(flux);
-		BufferedReader buff=new BufferedReader(read);
-		String test=buff.readLine();
-		nClasses=Integer.parseInt(test);
-		System.out.println("Nombre de classes lues="+nClasses);
-		if(nClasses<numOfClasses) {
-			IJ.log("This won't go very well like this, because you want to load a model with a number of class lower than the actual one, what will crash the inteface. What you should do is to close the interface, and open it again. This command abort now to prevent this bad behaviour");
-			buff.close();
-			return;
-		}
-		
-		for(int i=0;i<nClasses;i++) {
-			if(this.numOfClasses<i+1)this.addNewClass(buff.readLine());
-			else Weka_Save.changeClassName(""+i+"",buff.readLine() );
-		}
-		buff.close(); 
-	}		
-	catch (Exception e){e.printStackTrace();}
-	int dimZ=this.displayImage.getStackSize();
-	nSlices=dimZ;
-	PointRoi[][] prTab=new PointRoi[nClasses][nSlices];
-	for(int cl=0;cl<nClasses;cl++) {
-		System.out.print("Traitement classe "+cl);
-		for(int z=1;z<=nSlices;z++) {    
-			prTab[cl][z-1]=new PointRoi();
-			String stringFileSlice=fullPathNoExt+"_Class_"+cl+"_Slice_"+z+".txt";
-			f=new File(stringFileSlice);
-			if(!f.exists())continue;	
-			try{
-				InputStream flux=new FileInputStream(stringFileSlice); 
-				InputStreamReader read=new InputStreamReader(flux);
-				BufferedReader buff=new BufferedReader(read);
-				String ligne=buff.readLine();
-				int nPt=Integer.parseInt(ligne);
-				System.out.println("Points lus : "+nPt);
-				for(int i=0;i<nPt;i++) {
-					ligne=buff.readLine();
-					int x=Integer.parseInt(ligne.split(" ")[0]);
-					int y=Integer.parseInt(ligne.split(" ")[1]);
-					prTab[cl][z-1].addPoint(x, y);
-				}
-				buff.close(); 
-				this.addExampleFromLoadedFile(cl,prTab[cl][z-1],z);
-	//			this.wekaSegmentation.addExample(cl, prTab[cl][z-1], z);
-			}		
-			catch (Exception e){}
-		}
-	}		
-	return;
-}
-
-
-/*public void addExamplesBis(Roi r,int cl, int sl)
-{
-	displayImage.killRoi();
-	displayImage.setSlice(sl);
-//	examples[cl].add(r);
-	exampleList[cl].add("trace " + traceCounter[cl]); 
-	traceCounter[cl]++;
-	//		drawExamples();
-	System.out.println("Added an example in addExamplesBis. Actual count="+traceCounter[0]+" , "+traceCounter[1]);
-}
-*/
-
-
-private void addExampleFromLoadedFile(int cl,PointRoi r,int slice){
-	displayImage.killRoi();
-	wekaSegmentation.addExample(cl, r, slice);
-	traceCounter[cl]++;
-	win.drawExamples();
-	win.updateExampleLists();
-}
 	
+	public void debugInfo() {
+		System.out.println("\nAffichage d'informations pour le debug");
+		System.out.println(lutToString());
+	}
+
 	
 }// end of Weka_Segmentation class
 
