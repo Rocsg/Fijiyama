@@ -297,14 +297,15 @@ public class Weka_Save implements PlugIn
 	
 
 	public static void main(String[]args) {
+		boolean testing=false;
 		System.out.println("pouyet");
 		ImageJ ij=new ImageJ();
-		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/Test_WEKA/imgTrain.tif");
-		img.show();
+		if(testing) {
+			ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/Test_WEKA/imgTrain.tif");
+			img.show();
+		}
 		Weka_Save ws=new Weka_Save();
 		ws.run("3D");
-		//Weka_Plus wp=new Weka_Plus();
-//		wp.start("");
 	}
 
 	
