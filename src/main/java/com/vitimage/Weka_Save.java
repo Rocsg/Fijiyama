@@ -284,12 +284,12 @@ public class Weka_Save implements PlugIn
 	/** boolean flag set to true while training */
 	private boolean trainingFlag = false;
 	private boolean existingUserColormap=false;
-	private int[] colorChoices=new int[1000];
+	private int[] colorChoices=new int[WekaSegmentation.MAX_NUM_CLASSES];
 	private boolean isProcessing3D = false;
 	//                                                0     1       2      3      4      5     6          7       8       9           10           11       12       13
 	private final String[] colorsStr=new String[] {"Red","Green","Blue","Cyan","Pink","White","Yellow","Black","Gray","Dark Gray","Light Gray","Magenta","Orange","Custom color..."};
 	private final Color[] colorsTab=new Color[] {Color.red,Color.green,Color.blue,Color.cyan,Color.pink,Color.white,Color.yellow,Color.black,Color.gray,Color.DARK_GRAY,Color.LIGHT_GRAY,Color.magenta,Color.orange};
-	private boolean []isCustomColor=new boolean[100];
+	private boolean []isCustomColor=new boolean[WekaSegmentation.MAX_NUM_CLASSES];
 	/**
 	 * Basic constructor for graphical user interface use
 	 */
@@ -316,33 +316,13 @@ public class Weka_Save implements PlugIn
 		final byte[] red = new byte[ 256 ];
 		final byte[] green = new byte[ 256 ];
 		final byte[] blue = new byte[ 256 ];
-		
 		// assign colors to classes				
 		colors = new Color[ WekaSegmentation.MAX_NUM_CLASSES ];
-		
-		// hue for assigning new color ([0.0-1.0])
-		float hue = 0f;
-		// saturation for assigning new color ([0.5-1.0]) 
-		float saturation = 1f; 
-		
-		// first color is red: HSB( 0, 1, 1 )
 
-		for(int i=0; i<WekaSegmentation.MAX_NUM_CLASSES; i++)
-		{
-			colors[ i ] = Color.getHSBColor(hue, saturation, 1);
-
-			hue += 0.38197f; // golden angle
-			if (hue > 1) 
-				hue -= 1;
-			saturation += 0.38197f; // golden angle
-			if (saturation > 1)
-				saturation -= 1;
-			saturation = 0.5f * saturation + 0.5f;							
-		}
-							
 		for(int i = 0 ; i < WekaSegmentation.MAX_NUM_CLASSES; i++)
 		{
-			//IJ.log("i = " + i + " color index = " + colorIndex);
+			colorChoices[i]=i%13;
+			colors[i]=colorsTab[colorChoices[i]];
 			red[i] = (byte) colors[ i ].getRed();
 			green[i] = (byte) colors[ i ].getGreen();
 			blue[i] = (byte) colors[ i ].getBlue();
@@ -3706,6 +3686,7 @@ saveClassSetupButton.addActionListener(listener);
 	private void loadClassSetup() {
 		System.out.println("Action loadClassSetup");
 		OpenDialog od=new OpenDialog("Choose a setup file for your classes","","setup.MCLASS");
+		this.existingUserColormap=true;
 		if (od.getFileName()==null)
 			return;
 		String dirName=od.getDirectory();
@@ -3727,18 +3708,31 @@ saveClassSetupButton.addActionListener(listener);
 			for(int i=0;i<nClas;i++) {
 				if(this.numOfClasses<i+1)this.addNewClass(buff.readLine());
 				else Weka_Save.changeClassName(""+i+"",buff.readLine() );
-				this.colors[i]=new Color(Integer.parseInt(buff.readLine()),Integer.parseInt(buff.readLine()),Integer.parseInt(buff.readLine()));
+				int r=Integer.parseInt(buff.readLine());
+				int g=Integer.parseInt(buff.readLine());
+				int b=Integer.parseInt(buff.readLine());
+				if(r>=0) {
+					this.colors[i]=new Color(r,g,b);
+					this.isCustomColor[i]=true;
+				}
+				else {
+					this.colorChoices[i]=(-r-1);
+					this.colors[i]=this.colorsTab[this.colorChoices[i]];
+					this.isCustomColor[i]=false;
+				}
 				exampleList[i].setForeground(colors[i]);
 			}
 			buff.close(); 
 		}		
 		catch (Exception e){e.printStackTrace();}
 		this.overlayLUT = new LUT(this.getColorsChannelValue(0),this.getColorsChannelValue(1),this.getColorsChannelValue(2));
-		this.updateResultOverlay();
 		win.drawExamples();
 		win.updateExampleLists();
-//		repaintWindow();
+		repaintWindow();
 	    existingUserColormap=true;
+	    Weka_Save.toggleOverlay();
+	    Weka_Save.toggleOverlay();
+	    System.out.println("Load setup : action finished");
 		return;
 	}
 	
@@ -3759,9 +3753,16 @@ saveClassSetupButton.addActionListener(listener);
 			for(int cl=0;cl<this.numOfClasses;cl++) {
 				System.out.println("Ecriture de la classe"+cl);
 				writer.println(this.wekaSegmentation.getClassLabel(cl));
-				writer.println(this.colors[cl].getRed());
-				writer.println(this.colors[cl].getGreen());
-				writer.println(this.colors[cl].getBlue());
+				if(this.isCustomColor[cl]) {
+					writer.println(this.colors[cl].getRed());
+					writer.println(this.colors[cl].getGreen());
+					writer.println(this.colors[cl].getBlue());
+				}
+				else {
+					writer.println(-1-this.colorChoices[cl]);
+					writer.println(-1-this.colorChoices[cl]);
+					writer.println(-1-this.colorChoices[cl]);
+				}
 			}
 			writer.close();	
 		} catch (FileNotFoundException | UnsupportedEncodingException e) {e.printStackTrace();}
@@ -3813,16 +3814,10 @@ saveClassSetupButton.addActionListener(listener);
 			}
 			exampleList[i].setForeground(colors[i]);
 		}
-		System.out.println("Pouet8");
 
 		this.overlayLUT = new LUT(this.getColorsChannelValue(0),this.getColorsChannelValue(1),this.getColorsChannelValue(2));
-		System.out.println("Pouet9");
-//		this.updateResultOverlay();
-		System.out.println("Pouet91");
 		win.drawExamples();
-		System.out.println("Pouet92");
 		win.updateExampleLists();
-		System.out.println("Pouet10");
 		repaintWindow();
 	    existingUserColormap=true;
 	    System.out.println("Colormap : action finished");
