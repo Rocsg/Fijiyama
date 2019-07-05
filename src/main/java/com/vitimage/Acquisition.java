@@ -458,6 +458,15 @@ public abstract class Acquisition implements VitimageUtils{
 		this.voxSY=voxSY;
 		this.voxSZ=voxSZ;		
 	}
+	
+	
+	public final void setVoxelSizes(double []voxS) {
+		this.voxSX=voxS[0];
+		this.voxSY=voxS[1];
+		this.voxSZ=voxS[2];		
+	}
+
+	
 	public ImagePlus[] getComputedData() {
 		return this.computedData;
 	}
