@@ -270,8 +270,8 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 					imgsOut[1]=globalTransform.transformImage(imTemp,imgTab[1]);
 				}
 				if(VitiDialogs.getYesNoUI("Save the transformation and its inverse ?")) {
-					VitiDialogs.saveTransformUI(globalTransform,"Save transformation from moving to reference space ?",SUPERVISED,"","transformation_from_"+titleMov+"_to_"+titleRef);
-					VitiDialogs.saveTransformUI(new ItkTransform(globalTransform.getInverse()),"Save inverse transformation from reference to moving space ?",SUPERVISED,"","transformation_from_"+titleRef+"_to_"+titleMov);
+					VitiDialogs.saveMatrixTransformUI(globalTransform,"Save transformation from moving to reference space ?",SUPERVISED,"","transformation_from_"+titleMov+"_to_"+titleRef);
+					VitiDialogs.saveMatrixTransformUI(new ItkTransform(globalTransform.getInverse()),"Save inverse transformation from reference to moving space ?",SUPERVISED,"","transformation_from_"+titleRef+"_to_"+titleMov);
 				}
 				if(VitiDialogs.getYesNoUI("Save the image (and the mask if so) ?")) {
 					for(int i=0;i<imgsOut.length;i++) {VitiDialogs.saveImageUI(imgsOut[i],(i==0 ?"Registered image":"Mask image"),SUPERVISED,"",imgsOut[i].getTitle());}
@@ -280,8 +280,8 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 				break;
 			case TR3D_2_MAT_TR:
 				globalTransform=VitiDialogs.chooseTransformsUI("Matrix path from moving to reference",SUPERVISED);
-				VitiDialogs.saveTransformUI(globalTransform,"Save transformation from moving to reference space ?",SUPERVISED,"","globalTransfo");
-				VitiDialogs.saveTransformUI(new ItkTransform(globalTransform.getInverse()),"Save inverse transformation from reference to moving space ?",SUPERVISED,"","globalTransfoInverse");				
+				VitiDialogs.saveMatrixTransformUI(globalTransform,"Save transformation from moving to reference space ?",SUPERVISED,"","globalTransfo");
+				VitiDialogs.saveMatrixTransformUI(new ItkTransform(globalTransform.getInverse()),"Save inverse transformation from reference to moving space ?",SUPERVISED,"","globalTransfoInverse");				
 				break;
 			case TR3D_3_MANALIGN_TR:
 				imgTab=new ImagePlus[] {IJ.getImage()};
@@ -746,7 +746,7 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 		ImagePlus result=res.transformImage(imgRef, imgMov);
 		result.show();
 		IJ.save(result,"/home/fernandr/Bureau/Test/TestKhalifa/test1.tif");
-		res.writeToFile("/home/fernandr/Bureau/Test/TestKhalifa/test1.txt");
+		res.writeMatrixTransformToFile("/home/fernandr/Bureau/Test/TestKhalifa/test1.txt");
 		//ImagePlus mask=VitimageUtils.restrictionMaskForFadingHandling(imgRef, 10);
 		//mask.show();
 		//imgRef.show();
@@ -791,7 +791,10 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 	
 	}
 	
-	public static void testHisto();
+	public static void testHisto() {
+		
+		
+	}
 	
 	public static void testGauss() {
 		ImagePlus img1=IJ.openImage("/home/fernandr/Bureau/Test/Gauss/img1.tif");

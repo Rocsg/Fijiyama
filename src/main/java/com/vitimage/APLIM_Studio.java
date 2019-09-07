@@ -164,7 +164,7 @@ public class APLIM_Studio  implements PlugIn,ItkImagePlusInterface,VitiDialogs,V
 		result.getProcessor().setMinAndMax(imgMov.getProcessor().getMin(),imgMov.getProcessor().getMax());
 		result.show();
 		System.out.println("Result transformation : \n"+resTrans.drawableString());
-		if(VitiDialogs.getYesNoUI("Do you want to save the computed transformation ?"))VitiDialogs.saveTransformUI(
+		if(VitiDialogs.getYesNoUI("Do you want to save the computed transformation ?"))VitiDialogs.saveMatrixTransformUI(
 											resTrans, "Save the computed transformation", SUPERVISED, "", "Mat_transform_"+movTitle+"_to_"+refTitle);
 		if(VitiDialogs.getYesNoUI("Do you want to save the resulting transformed image ?"))VitiDialogs.saveImageUI(
 											result,"Save the result image",SUPERVISED,"", "Result image_"+movTitle+"_to_"+refTitle+".tif"); 
@@ -194,7 +194,7 @@ public class APLIM_Studio  implements PlugIn,ItkImagePlusInterface,VitiDialogs,V
 
 	public void runTransformFriendImage() {		
 		ImagePlus[]imgs=VitiDialogs.chooseTwoImagesUI("Choose reference image and moving image","Reference (used as reference image space)","Moving image (to be transformed)");
-		ItkTransform trans=VitiDialogs.chooseOneTransformsUI("Choose transform to apply", SUPERVISED);
+		ItkTransform trans=VitiDialogs.chooseOneTransformsUI("Choose transform to apply","", SUPERVISED);
 		ImagePlus result=trans.transformImage(imgs[0],imgs[1]);
 		result.getProcessor().setMinAndMax(imgs[1].getProcessor().getMin(),imgs[0].getProcessor().getMax());
 		result.show();

@@ -87,7 +87,7 @@
 		<dependency>
 		    <groupId>net.imagej</groupId>
 		    <artifactId>ij</artifactId>
-		    <version>1.52o</version>
+		    <version>1.52p</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>

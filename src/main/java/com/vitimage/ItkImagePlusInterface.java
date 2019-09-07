@@ -1,5 +1,6 @@
 package com.vitimage;
 
+import org.itk.simple.DisplacementFieldTransform;
 import org.itk.simple.Image;
 import org.itk.simple.ImageFileReader;
 import org.itk.simple.ImageFileWriter;
@@ -55,8 +56,8 @@ public interface ItkImagePlusInterface {
 	public static Image imagePlusToItkImage(ImagePlus img) {
 		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getStackSize();
 		double[]voxSizes=new double[] {img.getCalibration().pixelWidth,img.getCalibration().pixelHeight,img.getCalibration().pixelDepth};
-		int type=(img.getType()==ImagePlus.GRAY8 ? 8 : img.getType()==ImagePlus.GRAY16 ? 16 : img.getType()==ImagePlus.GRAY32 ? 32 : 24);
-		Image ret=new Image(dimX,dimY,dimZ,type==8 ? PixelIDValueEnum.sitkUInt8 : type==16 ? PixelIDValueEnum.sitkUInt16 : PixelIDValueEnum.sitkFloat32);
+		int type=(img.getType()==ImagePlus.GRAY8 ? 8 : img.getType()==ImagePlus.GRAY16 ? 16 : img.getType()==ImagePlus.GRAY32 ? 32 : 4);
+		Image ret=new Image(dimX,dimY,dimZ,type==8 ? PixelIDValueEnum.sitkUInt8 : type==16 ? PixelIDValueEnum.sitkUInt16 : type==32 ? PixelIDValueEnum.sitkFloat32 : PixelIDValueEnum.sitkUInt32);
 		ret.setSpacing(doubleArrayToVectorDouble(voxSizes));
 		VectorUInt32 coordinates=new VectorUInt32(3);
 		if(type==8) {
@@ -98,11 +99,27 @@ public interface ItkImagePlusInterface {
 				}
 			}
 		}	
+		else if(type==4) {
+			for(int z=0;z<dimZ;z++) {
+				coordinates.set(2,z);
+				int []tabData=(int[])img.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					coordinates.set(0,x);
+					for(int y=0;y<dimY;y++) {
+						coordinates.set(1,y);
+						ret.setPixelAsUInt32(coordinates,tabData[dimX*y+x]);
+					}
+				}
+			}
+		}	
 		else VitiDialogs.notYet("Conversion ImagePlus vers ItkImage type RGB");
 		return ret;
 	}
 	
 	
+	public static ImagePlus[] convertItkTransformToImagePlusArray(ItkTransform tr){
+		return convertDisplacementFieldToImagePlusArray((new DisplacementFieldTransform((org.itk.simple.Transform)tr).getDisplacementField()));
+	}
 	
 	public static ImagePlus[] convertDisplacementFieldToImagePlusArray(Image img){
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
@@ -168,10 +185,6 @@ public interface ItkImagePlusInterface {
 				}
 			}
 		}
-		imgs[0]=null;
-		imgs[1]=null;
-		imgs[2]=null;
-		imgs=null;
 		System.gc();
 		return ret;
 	}
@@ -185,7 +198,7 @@ public interface ItkImagePlusInterface {
 	public static ImagePlus itkImageToImagePlus(Image img) {
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		VectorDouble voxSizes= img.getSpacing();		
-		int type=(img.getPixelID() ==PixelIDValueEnum.sitkUInt8 ? 8 : img.getPixelID() ==PixelIDValueEnum.sitkUInt16 ? 16 : img.getPixelID() ==PixelIDValueEnum.sitkFloat32 ? 32 : img.getPixelID() ==PixelIDValueEnum.sitkFloat64 ? 64 : 24);
+		int type=(img.getPixelID() ==PixelIDValueEnum.sitkUInt8 ? 8 : img.getPixelID() ==PixelIDValueEnum.sitkUInt16 ? 16 : img.getPixelID() ==PixelIDValueEnum.sitkFloat32 ? 32 : img.getPixelID() ==PixelIDValueEnum.sitkFloat64 ? 64 : 4);
 		ImagePlus ret=IJ.createImage("", dimX, dimY, dimZ, ( type < 33 ? type : 32));
 		Calibration cal = ret.getCalibration();
 		cal.setUnit("mm");
@@ -234,6 +247,20 @@ public interface ItkImagePlusInterface {
 			}
 		}
 
+		if(type==4) {
+			for(int z=0;z<dimZ;z++) {
+				coordinates.set(2,z);
+				int []tabData=(int[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					coordinates.set(0,x);
+					for(int y=0;y<dimY;y++) {
+						coordinates.set(1,y);
+						tabData[dimX*y+x]=(int)( img.getPixelAsUInt32(coordinates) );
+					}
+				}
+			}
+		}
+
 		if(type==64) {
 			for(int z=0;z<dimZ;z++) {
 				coordinates.set(2,z);
@@ -248,9 +275,6 @@ public interface ItkImagePlusInterface {
 			}
 		}
 
-		if(type==24) {
-			VitiDialogs.notYet("Conversion ItkImage vers ImagePlus type RGB");
-		}
 		return ret;
 	}
 		

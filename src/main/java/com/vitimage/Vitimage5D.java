@@ -37,6 +37,7 @@ import ij.plugin.ImageCalculator;
 import math3d.Point3d;
 
 public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
+	public boolean ge3dComputation=true;
 	public ComputingType computingType;
 	public final static String slash=File.separator;
 	public String title="--";
@@ -61,9 +62,10 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		String subject="B032_NP";
+		String subject="B099_PCH";
 		Vitimage5D viti = new Vitimage5D(VineType.CUTTING,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject,subject,ComputingType.COMPUTE_ALL);			
-		viti.start();
+		//viti.useGe3dForTimeRegistration=false;
+		viti.start(10);
 		ImagePlus norm=new Duplicator().run(viti.normalizedHyperImage);
 		norm.show();
 		viti.freeMemory();
@@ -74,14 +76,15 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	/**
 	 * Top level functions
 	 */
-	public void start() {
+	public void start(int ending) {
 		quickStartFromFile();
 		if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS)writeStep(1);
-		while(nextStep());
+		while(nextStep(ending));
 	}
 	
-	public boolean nextStep(){
+	public boolean nextStep(int ending){
 		int a=readStep();
+		if(a>=ending)return false;
 		if (this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS && a>1) {return false;}
 		switch(a) {
 		case -1:
@@ -100,16 +103,20 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 			if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS) {writeStep(a+1);	return false;}
 			break;
 		case 2: //individual computations are done. Time to register acquisitions
-			System.out.println("\n\nVitimage 5D : step2, startic automatic fine registration");
-			automaticFineRegistration();
-			this.writeTransforms();
+			System.out.println("\n\nVitimage 5D : step2, start automatic fine rigid registration");
+			automaticRigidFineRegistration();
 			break;
-		case 3: //Data are shared. Time to compute hyperimage
+		case 3: //individual computations are done. Time to register acquisitions
+			System.out.println("\n\nVitimage 5D : step3, start automatic fine dense registration");
+			automaticDenseFineRegistration();
+			break;
+		case 4: //Data are shared. Time to compute hyperimage
 			System.out.println("\n\nVitimage 5D : step3, start Normalized hyperimage computation");
-			this.computeNormalizedHyperImage();
+			this.computeNormalizedHyperImage(true);
 			writeHyperImage();
+			System.out.println("HYPERIMAGE WRITTEN");
 			break;
-		case 4:
+		case 5:
 			for (Vitimage4D viti : this.vitimage4D) {
 				long lThis=this.getHyperImageModificationTime();
 				long lVit4D=viti.getHyperImageModificationTime();
@@ -122,7 +129,13 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 					return true;
 				}			
 			}
-
+		case 6:
+			if(this.ge3dComputation)computeTransfosForGe3dAlignement();saveTransfosForGe3dAlignement();
+			return true;
+		case 7:
+			if(this.ge3dComputation)computeGe3dHyperImage();
+			return true;
+		case 8:			
 			System.out.println("Vitimage 5D, Computation finished for "+this.getTitle());
 			return false;
 		}
@@ -177,8 +190,8 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	public void readProcessedImages(int step){
 		if(step <1) IJ.log("Error : read process images, but step is lower than 1");
 		if(step>=2)this.readImageForRegistration();
-		if(step>=3)readTransforms();
-		if(step>=4) readHyperImage();
+		if(step>=4)readDenseTransforms();
+		if(step>=5) readHyperImage();
 	}
 	
 	
@@ -210,7 +223,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 			System.out.println("It's a match ! The tag files tells me that data have already been processed here");
 			System.out.println("Start reading acquisitions");
 			readVitimages();			
-			for (Vitimage4D viti4d : this.vitimage4D) {System.out.println("");viti4d.start();}
+			for (Vitimage4D viti4d : this.vitimage4D) {System.out.println("");viti4d.start(Vitimage4D.UNTIL_END);}
 			System.out.println("Start reading parameters");
 			readParametersFromHardDisk();//Read parameters, path and load data in memory
 			writeParametersToHardDisk();//In the case that a data appears since last time
@@ -231,7 +244,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 			writeStep(0);
 			System.out.println("Exploring Source_data...");
 			readVitimages();
-			for (Vitimage4D vit4d : this.vitimage4D) {System.out.println("\nVitimage5D : step1, start a new Vitimage4D");vit4d.start();}
+			for (Vitimage4D vit4d : this.vitimage4D) {System.out.println("\nVitimage5D : step1, start a new Vitimage4D");vit4d.start(Vitimage4D.UNTIL_END);}
 			System.out.println("Writing parameters file");
 
 			writeStep(1);
@@ -393,6 +406,36 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		}
 	}
 
+	public void writeRigidTransform(int i) {
+		File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
+		if(!dir.exists())dir.mkdirs();
+		this.transformation.get(i).writeMatrixTransformToFile(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"trans_rig_with_flo_"+i+".txt");
+	}
+
+	public void writeDenseTransform(int i) {
+		File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
+		if(!dir.exists())dir.mkdirs();
+		this.transformation.get(i).writeAsDenseField(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"trans_dense_with_flo_"+i+".tif",this.imageForRegistration);
+	}
+	
+	
+	public void readRigidTransforms() {
+		this.transformation.set(0,new ItkTransform());
+		for(int i=1;i<this.transformation.size() ; i++) {
+			System.out.println("Lecture de la transformation :");
+			this.transformation.set(i,ItkTransform.readTransformFromFile(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"trans_rig_with_flo_"+i+".txt"));
+		}
+	}
+
+	public void readDenseTransforms() {
+		this.transformation.set(0,new ItkTransform());
+		for(int i=1;i<this.transformation.size() ; i++) {
+			System.out.println("Lecture de la transformation :");
+			this.transformation.set(i,ItkTransform.readAsDenseField(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"trans_rig_and_dense_with_flo_"+i+".tif"));
+		}
+	}
+
+	
 	public void readTransforms() {
 		for(int i=0;i<this.transformation.size() ; i++) {
 			System.out.println("Lecture de la transformation :");
@@ -400,79 +443,53 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 			this.transformation.set(i,ItkTransform.readAsDenseField(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+".tif"));
 		}
 	}
-	
-	public void writeRegisteringTransformsITK(String registrationStep) {
-		File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
-		dir.mkdirs();
-		for(int i=0;i<this.transformation.size() ; i++) {
-			this.transformation.get(i).writeToFile(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+"_step_"+registrationStep+".txt");
-		}
-	}
 
-	public void readTransformsITK() {
-		for(int i=0;i<this.transformation.size() ; i++) {			
-			this.transformation.set(i,ItkTransform.readFromFile(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+".txt"));
-		}
-	}
-	
-	public void writeTransformsITK() {
-		File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
-		dir.mkdirs();
-		for(int i=0;i<this.transformation.size() ; i++) {
-			this.transformation.get(i).writeToFile(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+i+".txt");
-		}
-	}
-
-
-	public void automaticFineRegistrationITK() {
-		//Register each i on i-1
-		for (int i=1;i<this.vitimage4D.size();i++) {
-	//1
-			//Reference image = aligned vitimage4D Jn-1
-/*			ImagePlus imgRef=this.vitimage4D.get(i-1).getTransformation(0).transformImage(
-					this.vitimage4D.get(i-1).getAcquisition(0).getImageForRegistrationWithoutCapillary(), 
-					this.vitimage4D.get(i-1).getAcquisition(0).getImageForRegistrationWithoutCapillary());
-			imgRef.getProcessor().resetMinAndMax();*/
+	public void automaticRigidFineRegistration() {
+		int startsAt=1;		
+		for (int i=startsAt;i<this.vitimage4D.size();i++) {
+			//UNSTACK HYPERIMAGE 4D REF TO GET IMAGE FOR REGISTRATION
 			ImagePlus concatTab=vitimage4D.get(i-1).getNormalizedHyperImage();
 			ImagePlus []imgTab=VitimageUtils.stacksFromHyperstack(concatTab, Vitimage4D.targetHyperSize);
 			ImagePlus imgRef=imgTab[0];
 			imgRef.getProcessor().resetMinAndMax();
 			VitimageUtils.imageCheckingFast(imgRef,"Reference image, "+"J"+vitimage4D.get(i-1).dayAfterExperience);
 			
-			
-			//Moving image = aligned vitimage4D Jn
-			/*ImagePlus imgMov=this.vitimage4D.get(i).getTransformation(0).transformImage(
-						this.imageForRegistration, 	 this.vitimage4D.get(i).getAcquisition(0).getImageForRegistrationWithoutCapillary());
-			*/
+			//UNSTACK HYPERIMAGE 4D MOV	TO GET IMAGE FOR REGISTRATION		
 			concatTab=vitimage4D.get(i).getNormalizedHyperImage();
 			imgTab=VitimageUtils.stacksFromHyperstack(concatTab, Vitimage4D.targetHyperSize);
 			ImagePlus imgMov=imgTab[0];
 			imgMov.getProcessor().resetMinAndMax();
-			VitimageUtils.imageChecking(imgMov,"Moving image, "+"J"+vitimage4D.get(i).dayAfterExperience);
+			VitimageUtils.imageChecking(imgMov,"Moving image, "+"J"+vitimage4D.get(i).dayAfterExperience
+					);
 
-			ItkRegistrationManager manager=new ItkRegistrationManager();			
-			System.out.println("Running registration. ");
+
+			//COMPUTE THE MASK IMAGE
+			ImagePlus imgMask=IJ.openImage("/home/fernandr/Bureau/Test/BM_subvoxel/mask_little.tif");
+			
+			//COMPUTE THE REGISTRATION, RIGID-BODY, then DENSE
+			System.out.println("\n\n\n\n\n\n\nRunning rigid registration step  ");
 			System.out.println("Ref="+this.vitimage4D.get(i-1).getTitle());
 			System.out.println("Mov="+this.vitimage4D.get(i).getTitle());
-			
-			ItkTransform transDayItoIminus1=manager.runScenarioInterTime(
+			ItkTransform transDayItoIminus1=null;
+			transDayItoIminus1=BlockMatchingRegistration.testSetupAndRunStandardBlockMatchingWithoutFineParameterization(
 					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgRef),
-					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgMov));
-			for(int j=i;j<this.vitimage4D.size();j++)this.transformation.get(j).addTransform(new ItkTransform(transDayItoIminus1));
-			for(int k=0;k<this.vitimage4D.size();k++)this.transformation.set(k,this.transformation.get(k).simplify());
-			File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
-			transDayItoIminus1.writeToFile(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_added_at_step_"+i+".txt");
-			writeRegisteringTransforms("AfterAutoStep"+i);
+					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgMov),
+					imgMask,true,false,true,true,true,true);
+			this.transformation.set(i,transDayItoIminus1);
+			writeRigidTransform(i);
+			writeRegisteredImage(i,"rigid",imgMov);
+			writeReferenceImage(i,"rigidreference",imgRef);
 		}
-		for(int i=0;i<this.vitimage4D.size();i++)this.transformation.set(i,this.transformation.get(i).simplify());
-		writeRegisteringImages("afterItkRegistration");	
-		writeRegisteringTransforms("afterItkRegistration");
-		writeTransforms();
 	}
 	
 	
-	public void automaticFineRegistration() {
-		for (int i=1;i<this.vitimage4D.size();i++) {
+	
+	public void automaticDenseFineRegistration() {
+		int startsAt=1;
+		startsAt=1;
+		this.readRigidTransforms();
+		
+		for (int i=startsAt;i<this.vitimage4D.size();i++) {
 			
 			//UNSTACK HYPERIMAGE 4D REF TO GET IMAGE FOR REGISTRATION
 			ImagePlus concatTab=vitimage4D.get(i-1).getNormalizedHyperImage();
@@ -492,46 +509,44 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 			//COMPUTE THE MASK IMAGE
 			ImagePlus imgMask=IJ.openImage("/home/fernandr/Bureau/Test/BM_subvoxel/mask_little.tif");
 			
-			//COMPUTE THE REGISTRATION, RIGID-BODY, then DENSE
-			System.out.println("Running registration. ");
+			//COMPUTE THE REGISTRATION
+			System.out.println("\n\n\n\n\n\n\nRunning registration step  ");
 			System.out.println("Ref="+this.vitimage4D.get(i-1).getTitle());
 			System.out.println("Mov="+this.vitimage4D.get(i).getTitle());
 			ItkTransform transDayItoIminus1=null;
-			for(int h=0;h<10;h++)System.out.println();
-			System.out.println("Et effectivement, title=|"+this.title+"|");
-			for(int h=0;h<10;h++)System.out.println();
 			if((i==4) && this.title.equals("B001_PAL")) {
-				transDayItoIminus1=BlockMatchingRegistration.testSetupAndRunStandardBlockMatchingWithoutFineParameterization(
-													VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgRef),
-													VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgMov),
-													imgMask,true,false,false,false,true,false);
-				transDayItoIminus1.addTransform(ItkTransform.getIdentityDenseFieldTransform(imgRef));
-				transDayItoIminus1=transDayItoIminus1.flattenDenseField(imgRef);
+				transDayItoIminus1=this.transformation.get(i);
 			}
-			else transDayItoIminus1=BlockMatchingRegistration.testSetupAndRunStandardBlockMatchingWithoutFineParameterization(
+			else transDayItoIminus1=BlockMatchingRegistration.testSetupAndRunStandardBlockMatchingWithoutFineParameterizationFromRigidStart(
 					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgRef),
 					VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgMov),
-					imgMask,true,true,true,true,true,true);
-			
-			System.out.print("Adding transfo computed between "+(i-1)+" and "+i);
-			for(int j=i;j<this.vitimage4D.size();j++) {
-				System.out.print("... add "+j+" ");
-				this.transformation.get(j).addTransform(new ItkTransform(transDayItoIminus1));
-				System.out.print(" flatten "+j+" ");
-				this.transformation.set(j,this.transformation.get(j).flattenDenseField(this.imageForRegistration));
-				System.gc();
-			}
-			System.out.println();
-			File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
-			transDayItoIminus1.writeAsDenseField(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_added_at_step_"+i+".tif",imageForRegistration);
-			writeRegisteringTransforms("AfterAutoStep"+i);
+					imgMask,this.transformation.get(i),true,true,true,true,true);
+			this.transformation.set(i, transDayItoIminus1);
+			System.out.print("Saving transfo computed between "+(i-1)+" and "+i);
+			transDayItoIminus1.writeAsDenseField(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"trans_rig_and_dense_with_flo_"+i+".tif",imageForRegistration);
 			System.gc();
+		
+			System.out.println();
+			writeRegisteredImage(i,"dense",imgMov);
+			writeReferenceImage(i,"densereference",imgRef);
 		}
-		System.out.println();
-		writeRegisteringImages("afterItkRegistration");	
-		writeRegisteringTransforms("afterItkRegistration");
-	}
+	}	
 	
+	
+	public void writeRegisteredImage(int i,String step,ImagePlus imgMov) {
+		ImagePlus tempView=this.transformation.get(i).transformImage(
+				this.vitimage4D.get(0).getAcquisition(0).getImageForRegistration(),
+				imgMov);
+		tempView.getProcessor().resetMinAndMax();
+		IJ.saveAsTiff(tempView, this.sourcePath+slash+"Computed_data"+slash+"0_Registration"+slash+"imgRegistration_J"+this.successiveTimePoints[i]+"_step_"+step+".tif");
+	}
+
+	public void writeReferenceImage(int i,String step,ImagePlus imgRef) {
+		ImagePlus tempView=imgRef;
+		tempView.getProcessor().resetMinAndMax();
+		IJ.saveAsTiff(tempView, this.sourcePath+slash+"Computed_data"+slash+"0_Registration"+slash+"imgRegistration_J"+this.successiveTimePoints[i]+"_step_"+step+".tif");
+	}
+
 	
 	public void writeRegisteringImages(String registrationStep) {
 		for(int i=0;i<this.vitimage4D.size() ; i++) {
@@ -544,7 +559,23 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		}
 	}
 	
-	public void computeNormalizedHyperImage() {
+	public void computeNormalizedHyperImage(boolean useDenseTransfo) {
+		//Calcul des transformations composees
+		System.out.println("Hyperimage : lecture transfo denses");
+//		this.readDenseTransforms();
+		ItkTransform[]transTemp=new ItkTransform[this.transformation.size()];
+		for(int i=0;i<transTemp.length;i++) transTemp[i]=new ItkTransform();
+		for(int i=0;i<transTemp.length;i++) {
+			System.out.println("Hyperimage : composition pour transfo i="+i);
+			for(int j=i;j<transTemp.length;j++) {
+				transTemp[j].addTransform(this.transformation.get(i));
+			}
+		}
+		for(int i=0;i<transTemp.length;i++) {
+			System.out.println("Hyperimage : flatten transfo i="+i);
+			this.transformation.set(i,transTemp[i].flattenDenseField(this.imageForRegistration));
+		}
+		
 		System.out.println("Calcul de l'hyperimage 5D");
 		ImagePlus []concatTab=new ImagePlus[vitimage4D.size()];
 		for(int i=0;i<vitimage4D.size();i++) {
@@ -577,6 +608,109 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 
 	
 	
+	
+	
+	public void computeNormalizedHyperImageGe3d() {
+		//Calcul des transformations composees
+		this.readRigidTransforms();
+		ItkTransform[]transTemp=new ItkTransform[this.transformation.size()];
+		for(int i=0;i<transTemp.length;i++) transTemp[i]=new ItkTransform();
+		for(int i=0;i<transTemp.length;i++) {
+			for(int j=i;j<transTemp.length;j++) {
+				transTemp[j].addTransform(this.transformation.get(i));
+			}
+		}
+		for(int i=0;i<transTemp.length;i++) this.transformation.set(i,transTemp[i]);
+		
+
+		
+		System.out.println("Calcul de l'hyperimage 5D");
+		ImagePlus []concatTab=new ImagePlus[vitimage4D.size()];
+		for(int i=0;i<vitimage4D.size();i++) {
+			System.out.println("Add vitimage 4D "+i+" GE3d corresponding to day"+this.successiveTimePoints[i]+" that is"+
+					vitimage4D.get(i).dayAfterExperience+" from path="+vitimage4D.get(i).sourcePath);			
+			//concatTab[i]=vitimage4D.get(i).getNormalizedGe3dAndM0();
+			concatTab[i]=this.transformation.get(i).transformHyperImage4D(concatTab[0],concatTab[i], Vitimage4D.targetHyperSize);
+
+			ImagePlus []tempTab=VitimageUtils.stacksFromHyperstack(concatTab[i], Vitimage4D.targetHyperSize);
+			tempTab[0]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T1-weighted", tempTab[0],15,0);
+			tempTab[1]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- M0 map from T1 seq", tempTab[1],15,0);
+			tempTab[2]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T1 map from T1 seq", tempTab[2],15,0);
+			tempTab[3]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T2-weighted", tempTab[3],15,0);
+			tempTab[4]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- M0 map from T2 seq", tempTab[4],15,0);
+			tempTab[5]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T2 map from T2 seq", tempTab[5],15,0);
+			tempTab[6]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- RX ", tempTab[6],15,0);
+			concatTab[i]=Concatenator.run(tempTab);
+		}
+		Concatenator con=new Concatenator();
+		con.setIm5D(true);
+		ImagePlus concatImage=con.concatenate(concatTab,true);
+		System.out.println("vitimage4D.size()"+vitimage4D.size());
+		System.out.println(" vitimage4D.get(0).dimZ()"+ vitimage4D.get(0).dimZ());
+		System.out.println(" vitimage4D.get(0).getHyperSize()"+ vitimage4D.get(0).getHyperSize());
+		this.normalizedHyperImage=HyperStackConverter.toHyperStack(concatImage, Vitimage4D.targetHyperSize, vitimage4D.get(0).dimZ(),this.successiveTimePoints.length,"xyzct","Grayscale");
+		
+		//IJ.run(concatImage,"Open Series as Image5D", "3rd=z 4th=ch 3rd_dimension_size=" + dimZ() + " 4th_dimension_size="+vitimage4D.get(0).getHyperSize());
+//        ImagePlus hyper = WindowManager.getImage(WindowManager.getImageCount());
+	}
+
+	
+	
+	
+	
+//TO REFACTOR A LITTLE BIT
+	public void computeTransfosForGe3dAlignement() {
+		System.out.println("What s next ?");
+		System.exit(0);
+
+		//Load reference image
+		ImagePlus imgRef=vitimage4D.get(0).getAcquisition(2).getImageForRegistration();
+		ItkTransform transTemp=vitimage4D.get(0).transformation.get(2);
+		transTemp.transformImage(imgRef, imgRef);
+		VitimageUtils.imageCheckingFast(imgRef,"Reference image Ge3d at J0");
+		
+
+		//Compute registrations and store them for movie computing
+		
+		
+	}
+	
+	public void saveTransfosForGe3dAlignement() {
+	}
+	
+	
+	
+	public void computeGe3dHyperImage() {
+		System.out.println("Calcul de l'hyperimage 5D basée sur ge3d");
+		ImagePlus []concatTab=new ImagePlus[vitimage4D.size()];
+		for(int i=0;i<vitimage4D.size();i++) {
+			System.out.println("Add vitimage 4D "+i+" corresponding to day"+this.successiveTimePoints[i]+" that is"+
+					vitimage4D.get(i).dayAfterExperience+" from path="+vitimage4D.get(i).sourcePath);			
+			concatTab[i]=vitimage4D.get(i).getNormalizedHyperImage();
+			concatTab[i]=this.transformation.get(i).transformHyperImage4D(concatTab[0],concatTab[i], Vitimage4D.targetHyperSize);
+
+			ImagePlus []tempTab=VitimageUtils.stacksFromHyperstack(concatTab[i], Vitimage4D.targetHyperSize);
+			tempTab[0]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T1-weighted", tempTab[0],15,0);
+			tempTab[1]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- M0 map from T1 seq", tempTab[1],15,0);
+			tempTab[2]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T1 map from T1 seq", tempTab[2],15,0);
+			tempTab[3]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T2-weighted", tempTab[3],15,0);
+			tempTab[4]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- M0 map from T2 seq", tempTab[4],15,0);
+			tempTab[5]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- T2 map from T2 seq", tempTab[5],15,0);
+			tempTab[6]=VitimageUtils.writeTextOnImage(vitimage4D.get(i).title+"- RX ", tempTab[6],15,0);
+			concatTab[i]=Concatenator.run(tempTab);
+		}
+		Concatenator con=new Concatenator();
+		con.setIm5D(true);
+		ImagePlus concatImage=con.concatenate(concatTab,true);
+		System.out.println("vitimage4D.size()"+vitimage4D.size());
+		System.out.println(" vitimage4D.get(0).dimZ()"+ vitimage4D.get(0).dimZ());
+		System.out.println(" vitimage4D.get(0).getHyperSize()"+ vitimage4D.get(0).getHyperSize());
+		this.normalizedHyperImage=HyperStackConverter.toHyperStack(concatImage, Vitimage4D.targetHyperSize, vitimage4D.get(0).dimZ(),this.successiveTimePoints.length,"xyzct","Grayscale");
+		
+		//IJ.run(concatImage,"Open Series as Image5D", "3rd=z 4th=ch 3rd_dimension_size=" + dimZ() + " 4th_dimension_size="+vitimage4D.get(0).getHyperSize());
+//        ImagePlus hyper = WindowManager.getImage(WindowManager.getImageCount());
+	}
+
 	
 	/**
 	 * Minor functions

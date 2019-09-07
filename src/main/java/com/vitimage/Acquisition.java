@@ -72,7 +72,7 @@ public abstract class Acquisition implements VitimageUtils{
 	protected String acquisitionTime;
 	protected ImagePlus mask;
 	public ComputingType computingType;
-	public static double sigmaGaussMapInPixels=0.5;
+	public static double sigmaGaussMapInPixels=0.8;
 	/**
 	 * Abstract methods
 	 */
@@ -141,10 +141,12 @@ public abstract class Acquisition implements VitimageUtils{
 		double y0RoiCap;
 		RoiManager rm=RoiManager.getRoiManager();
 		ImageStack isRet=new ImageStack(img.getWidth(),img.getHeight(),img.getStackSize());
+		Roi capArea=null,capArea2=null;
+		ImagePlus imgSlice,imgCon;
 		for(int z=1;z<=zMax;z++) {
 			//For each slice, look at the capillary area, then replace this area by the smoothed version
-			ImagePlus imgSlice=new ImagePlus("", img.getStack().getProcessor(z));
-			ImagePlus imgCon=VitimageUtils.connexe(imgSlice, valThresh, 10E10, 0, 10E10,4,2,true);
+			imgSlice=new ImagePlus("", img.getStack().getProcessor(z));
+			imgCon=VitimageUtils.connexe(imgSlice, valThresh, 10E10, 0, 10E10,4,2,true);
 			imgCon.getProcessor().setMinAndMax(0,255);
 			imgCon.setTitle("Z="+z);
 			imgCon.show();
@@ -153,8 +155,12 @@ public abstract class Acquisition implements VitimageUtils{
 			IJ.run(imgCon,"8-bit","");
 			IJ.setThreshold(imgCon, 255,255);
 			for(int dil=0;dil<(diamCap/img.getCalibration().pixelWidth);dil++) IJ.run(imgCon, "Dilate", "stack");
+			imgCon.show();
+//			VitimageUtils.waitFor(1000000); 
 			rm.reset();
-			Roi capArea=new ThresholdToSelection().convert(imgCon.getProcessor());	
+			capArea=new ThresholdToSelection().convert(imgCon.getProcessor());
+			if(capArea != null)capArea2=capArea;
+			else capArea=capArea2;
 			rm.add(imgSlice, capArea, 0);							
 			FloatPolygon tabPoly=capArea.getFloatPolygon();
 			Rectangle rect=tabPoly.getBounds();
@@ -164,6 +170,7 @@ public abstract class Acquisition implements VitimageUtils{
 			int ySizeRoi=(int) (rect.getHeight());
 			int xMaxRoi=xMinRoi+xSizeRoi;
 			int yMaxRoi=yMinRoi+ySizeRoi;				
+			imgCon.hide();
 
 			//Make the replacement on each echo image
 			for(int sd=0;sd<sourceData.length;sd++) {
@@ -350,7 +357,7 @@ public abstract class Acquisition implements VitimageUtils{
 		imgMask.getStack().getProcessor(zMax-3).set(0);
 		for(int t =0;t<tailleMorpho;t++) IJ.run(imgMask,"Dilate","stack");
 		for(int t =0;t<tailleMorpho;t++) IJ.run(imgMask,"Erode","stack");
-		ImagePlus imgCap=VitimageUtils.connexe(imgMask,1,255,0,10E10, 6, 2,false);//Le cap
+		ImagePlus imgCap=VitimageUtils.connexe(imgMask,1,256,0,10E10, 6, 2,false);//Le cap
 		IJ.run(imgCap,"8-bit","");
 
 		//Mise en slice et Retrait du bouzin pas beau
@@ -363,6 +370,8 @@ public abstract class Acquisition implements VitimageUtils{
 		IJ.setThreshold(imgCap, 255,255);
 		RoiManager rm=RoiManager.getRoiManager();
 		rm.reset();
+//		imgCap.show();
+		
 		Roi capArea=new ThresholdToSelection().convert(imgCap.getProcessor());	
 		rm.add(imgCap, capArea, 0);							
 		Rectangle rect=capArea.getFloatPolygon().getBounds();

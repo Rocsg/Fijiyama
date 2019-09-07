@@ -9,26 +9,16 @@ package com.vitimage;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-
-import org.itk.simple.ResampleImageFilter;
-
-import com.vitimage.ItkImagePlusInterface.OptimizerType;
-import com.vitimage.VitimageUtils.AcquisitionType;
-import com.vitimage.VitimageUtils.Capillary;
 
 import ij.IJ;
 import ij.ImageJ;
@@ -36,12 +26,7 @@ import ij.ImagePlus;
 import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
 import ij.plugin.FolderOpener;
-import ij.plugin.ImageCalculator;
 import ij.process.FloatProcessor;
-import ij.process.ImageProcessor;
-import ij.process.ShortProcessor;
-import imagescience.shape.Point;
-import math3d.Point3d;
 
 
 
@@ -53,7 +38,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	
 	private boolean removeOutliers=true;
 	public boolean computeOnlyAcquisitionsAndMaps=false;
-	private double thresholdOutlier=1.5;
+	private double thresholdOutlier=2.0;
 	private double Te;
 	private double Tr[];
 	private double fieldPower;
@@ -68,7 +53,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B041_DS/Source_data/J218/Source_data/MRI_T1_SEQ",
+		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B099_PCH/Source_data/J0/Source_data/MRI_T1_SEQ",
 									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"B041_DS_J218_MRI_T1",ComputingType.COMPUTE_ALL);
 		mri.start();
 		return;
@@ -491,7 +476,31 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	}
 	
 	
+	
 	public void registerEchoes() {
+		for(int i=0;i<this.sourceData.length-1;i++) {
+			System.out.println("Recalage sequence numero "+i+" sur sequence numero "+(sourceData.length-1));
+			ItkTransform trTemp=BlockMatchingRegistration.testSetupAndRunStandardBlockMatchingWithoutFineParameterization(
+					sourceData[sourceData.length-1], sourceData[i],null,true,false,false,false,true,false);//Avant dernier : true
+			System.out.println("Transformation calculée interechos = "+trTemp.drawableString());
+			for(int h=0;h<10;h++)System.out.println("COUCOU");
+			System.out.println("Le type devrait etre unsigned short, surement");
+			System.out.println("Et avant, le type est = "+sourceData[i].getBitDepth());
+			sourceData[i]=trTemp.transformImage(sourceData[i],sourceData[i]);
+			sourceData[i]=VitimageUtils.convertFloatToShortWithoutDynamicChanges(sourceData[i]);
+			System.out.println("Et apres, le type est = "+sourceData[i].getBitDepth());
+			System.out.println("Recalage sequence numero "+i+" ok");
+			sourceData[i].setTitle("Echo i ="+i);
+			System.out.println("Conversion accomplie"+i+" ok");
+		}
+		if(sourceData[sourceData.length-1].getBitDepth()==32)sourceData[sourceData.length-1]=VitimageUtils.convertFloatToShortWithoutDynamicChanges(sourceData[sourceData.length-1]);
+	}
+		
+		
+	
+	
+	
+	public void registerEchoesITK() {
 		for(int i=0;i<this.sourceData.length-1;i++) {
 			System.out.println("Recalage sequence numero "+i+" sur sequence numero "+(sourceData.length-1));
 			ItkRegistrationManager manager=new ItkRegistrationManager();
@@ -634,6 +643,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 			}
 		}
 		this.normalizedHyperImage=Concatenator.run(computedData);
+		//this.imageForRegistration=this.computedData[0];
 		this.normalizedHyperImage.getProcessor().setMinAndMax(0,1);
 		return this.normalizedHyperImage;
 	}

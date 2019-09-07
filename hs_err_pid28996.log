@@ -1,0 +1,1290 @@
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  SIGSEGV (0xb) at pc=0x00007f68b509d20e, pid=28996, tid=0x00007f697a4d4700
+#
+# JRE version: Java(TM) SE Runtime Environment (8.0_201-b09) (build 1.8.0_201-b09)
+# Java VM: Java HotSpot(TM) 64-Bit Server VM (25.201-b09 mixed mode linux-amd64 compressed oops)
+# Problematic frame:
+# C  [libSimpleITKJava.so+0xc3f020e]  vnl_matrix<double>::update(vnl_matrix<double> const&, unsigned int, unsigned int)+0x5e
+#
+# Failed to write core dump. Core dumps have been disabled. To enable core dumping, try "ulimit -c unlimited" before starting Java again
+#
+# If you would like to submit a bug report, please visit:
+#   http://bugreport.java.com/bugreport/crash.jsp
+# The crash happened outside the Java Virtual Machine in native code.
+# See problematic frame for where to report the bug.
+#
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x00007f697400c800):  JavaThread "main" [_thread_in_native, id=29001, stack(0x00007f697a3d5000,0x00007f697a4d5000)]
+
+siginfo: si_signo: 11 (SIGSEGV), si_code: 2 (SEGV_ACCERR), si_addr: 0x00007f685c4ca610
+
+Registers:
+RAX=0x00007f6974cf66f8, RBX=0x00007f685c4ca610, RCX=0x0000000000000000, RDX=0x0000000000000318
+RSP=0x00007f697a4d03b8, RBP=0x000000000000031a, RSI=0x00007f697a4d0420, RDI=0x000000000000031b
+R8 =0x0000000000000001, R9 =0x0000000000000000, R10=0x0000000000000003, R11=0x00007f697549a050
+R12=0x00007f697a4d0410, R13=0x0000000000000318, R14=0x00007f697a4d0450, R15=0x00007f68f434b028
+RIP=0x00007f68b509d20e, EFLAGS=0x0000000000010293, CSGSFS=0x002b000000000033, ERR=0x0000000000000006
+  TRAPNO=0x000000000000000e
+
+Top of Stack: (sp=0x00007f697a4d03b8)
+0x00007f697a4d03b8:   00007f697a4d0420 00007f68f434c8d0
+0x00007f697a4d03c8:   00007f68b21675af 00007f6974cf66f8
+0x00007f697a4d03d8:   00007f697a4d0468 00007f697a4d0480
+0x00007f697a4d03e8:   00007f697a4d0430 00007f6974cf65e0
+0x00007f697a4d03f8:   00007f68f537f710 0000000000000000
+0x00007f697a4d0408:   0000000300000000 0000000300000003
+0x00007f697a4d0418:   00007f69754a2e60 0000000300000003
+0x00007f697a4d0428:   00007f69754a2cc0 c00afdab42b40000
+0x00007f697a4d0438:   bfdb0ecab0400000 bf94bad400000000
+0x00007f697a4d0448:   00007f69797502ed 400b33d4ac9ddd87
+0x00007f697a4d0458:   0000000000000000 0000000000000000
+0x00007f697a4d0468:   0000000000000000 400b33d4ac9ddd87
+0x00007f697a4d0478:   0000000000000000 0000000000000000
+0x00007f697a4d0488:   0000000000000000 400b33d4ac9ddd87
+0x00007f697a4d0498:   00007f68b5141e89 00000000000acda0
+0x00007f697a4d04a8:   00007f6974cf65e0 00000000000acda0
+0x00007f697a4d04b8:   00007f697a4d04f0 00007f697a4d04e0
+0x00007f697a4d04c8:   00007f68f537f6f8 00007f6974d942b0
+0x00007f697a4d04d8:   00007f68b2167748 0000000c0000000c
+0x00007f697a4d04e8:   00007f6975486850 0000000000000000
+0x00007f697a4d04f8:   0000000001034700 0000000001034700
+0x00007f697a4d0508:   00007f69754a2ce0 00007f6974cf65e0
+0x00007f697a4d0518:   00000000000acd9f 00000000000acda0
+0x00007f697a4d0528:   00007f68f537f6f8 00007f6974d942b0
+0x00007f697a4d0538:   00007f68b2167843 00000000000acda0
+0x00007f697a4d0548:   00007f697a4d05c0 00007f6974cd50b0
+0x00007f697a4d0558:   00007f697a4d056f 00007f6974cd4fb0
+0x00007f697a4d0568:   00007f69754860b0 00007f6975f73e10
+0x00007f697a4d0578:   00007f68b5012afb 00007f68b7ef3610
+0x00007f697a4d0588:   00007f68af275940 00007f69754a2d60
+0x00007f697a4d0598:   00007f68af360e6e 00007f6975497840
+0x00007f697a4d05a8:   00007f6974cd5058 00007f6974cd4fb0 
+
+Instructions: (pc=0x00007f68b509d20e)
+0x00007f68b509d1ee:   41 89 c8 0f 1f 80 00 00 00 00 45 89 c1 41 29 c9
+0x00007f68b509d1fe:   f2 43 0f 10 04 cb 45 89 c1 41 83 c0 01 45 39 d0
+0x00007f68b509d20e:   f2 42 0f 11 04 cb 75 e2 83 c5 01 39 fd 75 b3 5b
+0x00007f68b509d21e:   5d f3 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 
+
+Register to memory mapping:
+
+RAX=0x00007f6974cf66f8 is an unknown value
+RBX=0x00007f685c4ca610 is an unknown value
+RCX=0x0000000000000000 is an unknown value
+RDX=0x0000000000000318 is an unknown value
+RSP=0x00007f697a4d03b8 is pointing into the stack for thread: 0x00007f697400c800
+RBP=0x000000000000031a is an unknown value
+RSI=0x00007f697a4d0420 is pointing into the stack for thread: 0x00007f697400c800
+RDI=0x000000000000031b is an unknown value
+R8 =0x0000000000000001 is an unknown value
+R9 =0x0000000000000000 is an unknown value
+R10=0x0000000000000003 is an unknown value
+R11=0x00007f697549a050 is an unknown value
+R12=0x00007f697a4d0410 is pointing into the stack for thread: 0x00007f697400c800
+R13=0x0000000000000318 is an unknown value
+R14=0x00007f697a4d0450 is pointing into the stack for thread: 0x00007f697400c800
+R15=0x00007f68f434b028 is an unknown value
+
+
+Stack: [0x00007f697a3d5000,0x00007f697a4d5000],  sp=0x00007f697a4d03b8,  free space=1004k
+Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
+C  [libSimpleITKJava.so+0xc3f020e]  vnl_matrix<double>::update(vnl_matrix<double> const&, unsigned int, unsigned int)+0x5e
+
+Java frames: (J=compiled Java code, j=interpreted, Vv=VM code)
+j  org.itk.simple.SimpleITKJNI.InverseDisplacementFieldImageFilter_execute__SWIG_1(JLorg/itk/simple/InverseDisplacementFieldImageFilter;JLorg/itk/simple/Image;JLorg/itk/simple/VectorUInt32;JLorg/itk/simple/VectorDouble;JLorg/itk/simple/VectorDouble;J)J+0
+j  org.itk.simple.InverseDisplacementFieldImageFilter.execute(Lorg/itk/simple/Image;Lorg/itk/simple/VectorUInt32;Lorg/itk/simple/VectorDouble;Lorg/itk/simple/VectorDouble;J)Lorg/itk/simple/Image;+33
+j  com.vitimage.TestRomain.chiasse()V+140
+j  com.vitimage.TestRomain.main([Ljava/lang/String;)V+8
+v  ~StubRoutines::call_stub
+
+---------------  P R O C E S S  ---------------
+
+Java Threads: ( => current thread )
+  0x00007f6974ea1800 JavaThread "AWT-EventQueue-0" [_thread_blocked, id=29026, stack(0x00007f69377ee000,0x00007f69378ef000)]
+  0x00007f6974e9f000 JavaThread "AWT-Shutdown" [_thread_blocked, id=29025, stack(0x00007f69378ef000,0x00007f69379f0000)]
+  0x00007f6974d9d000 JavaThread "AWT-XAWT" daemon [_thread_in_native, id=29024, stack(0x00007f693c007000,0x00007f693c108000)]
+  0x00007f6974d61000 JavaThread "Java2D Disposer" daemon [_thread_blocked, id=29023, stack(0x00007f693c108000,0x00007f693c209000)]
+  0x00007f69740d2000 JavaThread "Service Thread" daemon [_thread_blocked, id=29021, stack(0x00007f693eb26000,0x00007f693ec27000)]
+  0x00007f69740cf000 JavaThread "C1 CompilerThread3" daemon [_thread_blocked, id=29020, stack(0x00007f693ec28000,0x00007f693ed28000)]
+  0x00007f69740cc800 JavaThread "C2 CompilerThread2" daemon [_thread_blocked, id=29019, stack(0x00007f693ed29000,0x00007f693ee29000)]
+  0x00007f69740cb000 JavaThread "C2 CompilerThread1" daemon [_thread_blocked, id=29018, stack(0x00007f693ee2a000,0x00007f693ef2a000)]
+  0x00007f69740c8000 JavaThread "C2 CompilerThread0" daemon [_thread_blocked, id=29017, stack(0x00007f693ef2b000,0x00007f693f02b000)]
+  0x00007f69740c6800 JavaThread "Signal Dispatcher" daemon [_thread_blocked, id=29016, stack(0x00007f693f02b000,0x00007f693f12c000)]
+  0x00007f6974093000 JavaThread "Finalizer" daemon [_thread_blocked, id=29015, stack(0x00007f693fafb000,0x00007f693fbfc000)]
+  0x00007f6974090800 JavaThread "Reference Handler" daemon [_thread_blocked, id=29014, stack(0x00007f693fbfc000,0x00007f693fcfd000)]
+=>0x00007f697400c800 JavaThread "main" [_thread_in_native, id=29001, stack(0x00007f697a3d5000,0x00007f697a4d5000)]
+
+Other Threads:
+  0x00007f6974087000 VMThread [stack: 0x00007f693fcfe000,0x00007f693fdfe000] [id=29013]
+  0x00007f69740d4800 WatcherThread [stack: 0x00007f693ea26000,0x00007f693eb26000] [id=29022]
+
+VM state:not at safepoint (normal execution)
+
+VM Mutex/Monitor currently owned by a thread: None
+
+heap address: 0x0000000167000000, size: 26000 MB, Compressed Oops mode: Zero based, Oop shift amount: 3
+Narrow klass base: 0x0000000000000000, Narrow klass shift: 3
+Compressed class space size: 1073741824 Address: 0x00000007c0000000
+
+Heap:
+ PSYoungGen      total 149504K, used 36025K [0x00000005a2580000, 0x00000005acc00000, 0x00000007c0000000)
+  eden space 128512K, 28% used [0x00000005a2580000,0x00000005a48ae5f0,0x00000005aa300000)
+  from space 20992K, 0% used [0x00000005ab780000,0x00000005ab780000,0x00000005acc00000)
+  to   space 20992K, 0% used [0x00000005aa300000,0x00000005aa300000,0x00000005ab780000)
+ ParOldGen       total 341504K, used 0K [0x0000000167000000, 0x000000017bd80000, 0x00000005a2580000)
+  object space 341504K, 0% used [0x0000000167000000,0x0000000167000000,0x000000017bd80000)
+ Metaspace       used 13965K, capacity 14121K, committed 14464K, reserved 1062912K
+  class space    used 1328K, capacity 1384K, committed 1408K, reserved 1048576K
+
+Card table byte_map: [0x00007f6960adb000,0x00007f6963da4000] byte_map_base: 0x00007f695ffa3000
+
+Marking Bits: (ParMarkBitMap*) 0x00007f697969bd80
+ Begin Bits: [0x00007f68f5380000, 0x00007f690e9c0000)
+ End Bits:   [0x00007f690e9c0000, 0x00007f6928000000)
+
+Polling page: 0x00007f697a512000
+
+CodeCache: size=245760Kb used=3609Kb max_used=3613Kb free=242150Kb
+ bounds [0x00007f6964164000, 0x00007f69644f4000, 0x00007f6973164000]
+ total_blobs=1808 nmethods=931 adapters=791
+ compilation: enabled
+
+Compilation events (10 events):
+Event: 0,872 Thread 0x00007f69740cf000 nmethod 927 0x00007f69644e6a10 code [0x00007f69644e6b80, 0x00007f69644e6d90]
+Event: 0,872 Thread 0x00007f69740cf000  928       1       java.util.jar.Manifest::getMainAttributes (5 bytes)
+Event: 0,872 Thread 0x00007f69740cf000 nmethod 928 0x00007f69644e6750 code [0x00007f69644e68a0, 0x00007f69644e69b0]
+Event: 0,872 Thread 0x00007f69740cb000 nmethod 926 0x00007f69644e6550 code [0x00007f69644e6680, 0x00007f69644e66d8]
+Event: 0,872 Thread 0x00007f69740cf000  929       3       java.util.ArrayDeque::poll (5 bytes)
+Event: 0,872 Thread 0x00007f69740cf000 nmethod 929 0x00007f69644e6190 code [0x00007f69644e6300, 0x00007f69644e64a8]
+Event: 0,872 Thread 0x00007f69740cf000  931   !   3       java.lang.ClassLoader::findNative (86 bytes)
+Event: 0,872 Thread 0x00007f69740cf000 nmethod 931 0x00007f69644ecb90 code [0x00007f69644ecd40, 0x00007f69644ed618]
+Event: 0,872 Thread 0x00007f69740cf000  930       3       java.util.ArrayDeque::pollFirst (42 bytes)
+Event: 0,872 Thread 0x00007f69740cf000 nmethod 930 0x00007f69644ec590 code [0x00007f69644ec700, 0x00007f69644eca30]
+
+GC Heap History (0 events):
+No events
+
+Deoptimization events (10 events):
+Event: 0,103 Thread 0x00007f697400c800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x00007f69642f3158 method=java.net.URL.<init>(Ljava/net/URL;Ljava/lang/String;Ljava/net/URLStreamHandler;)V @ 170
+Event: 0,103 Thread 0x00007f697400c800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x00007f69642c11d8 method=java.lang.String.indexOf([CII[CIII)I @ 134
+Event: 0,381 Thread 0x00007f697400c800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x00007f696430cc58 method=java.io.UnixFileSystem.normalize(Ljava/lang/String;)Ljava/lang/String; @ 60
+Event: 0,405 Thread 0x00007f697400c800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x00007f69643f2f4c method=java.util.HashMap.putVal(ILjava/lang/Object;Ljava/lang/Object;ZZ)Ljava/lang/Object; @ 181
+Event: 0,408 Thread 0x00007f697400c800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x00007f6964433330 method=sun.misc.URLClassPath$JarLoader.getResource(Ljava/lang/String;Z)Lsun/misc/Resource; @ 15
+Event: 0,411 Thread 0x00007f697400c800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x00007f69642e76c8 method=java.lang.AbstractStringBuilder.append(Ljava/lang/String;)Ljava/lang/AbstractStringBuilder; @ 1
+Event: 0,411 Thread 0x00007f697400c800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x00007f69642d720c method=java.lang.AbstractStringBuilder.append(Ljava/lang/String;)Ljava/lang/AbstractStringBuilder; @ 1
+Event: 0,513 Thread 0x00007f697400c800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x00007f6964450e48 method=java.lang.Long.valueOf(J)Ljava/lang/Long; @ 13
+Event: 0,538 Thread 0x00007f6974ea1800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x00007f6964296b14 method=java.util.StringTokenizer.scanToken(I)I @ 42
+Event: 0,543 Thread 0x00007f6974ea1800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x00007f69643812d0 method=java.lang.ref.SoftReference.get()Ljava/lang/Object; @ 6
+
+Classes redefined (0 events):
+No events
+
+Internal exceptions (10 events):
+Event: 0,226 Thread 0x00007f697400c800 Exception <a 'java/security/PrivilegedActionException'> (0x00000005a375a8e8) thrown at [/HUDSON/workspace/8-2-build-linux-amd64/jdk8u201/12317/hotspot/src/share/vm/prims/jvm.cpp, line 1502]
+Event: 0,226 Thread 0x00007f697400c800 Exception <a 'java/security/PrivilegedActionException'> (0x00000005a375aaf8) thrown at [/HUDSON/workspace/8-2-build-linux-amd64/jdk8u201/12317/hotspot/src/share/vm/prims/jvm.cpp, line 1502]
+Event: 0,255 Thread 0x00007f697400c800 Exception <a 'java/lang/NoSuchFieldError': method resolution failed> (0x00000005a3829c60) thrown at [/HUDSON/workspace/8-2-build-linux-amd64/jdk8u201/12317/hotspot/src/share/vm/prims/methodHandles.cpp, line 1167]
+Event: 0,256 Thread 0x00007f697400c800 Exception <a 'java/lang/NoSuchFieldError': method resolution failed> (0x00000005a38373d0) thrown at [/HUDSON/workspace/8-2-build-linux-amd64/jdk8u201/12317/hotspot/src/share/vm/prims/methodHandles.cpp, line 1167]
+Event: 0,269 Thread 0x00007f697400c800 Exception <a 'java/io/FileNotFoundException'> (0x00000005a38b54b0) thrown at [/HUDSON/workspace/8-2-build-linux-amd64/jdk8u201/12317/hotspot/src/share/vm/prims/jni.cpp, line 709]
+Event: 0,269 Thread 0x00007f697400c800 Exception <a 'java/io/FileNotFoundException'> (0x00000005a38b5f68) thrown at [/HUDSON/workspace/8-2-build-linux-amd64/jdk8u201/12317/hotspot/src/share/vm/prims/jni.cpp, line 709]
+Event: 0,377 Thread 0x00007f697400c800 Exception <a 'java/io/FileNotFoundException'> (0x00000005a3dc8be0) thrown at [/HUDSON/workspace/8-2-build-linux-amd64/jdk8u201/12317/hotspot/src/share/vm/prims/jni.cpp, line 709]
+Event: 0,411 Thread 0x00007f697400c800 Implicit null exception at 0x00007f69642e72f5 to 0x00007f69642e76b5
+Event: 0,411 Thread 0x00007f697400c800 Implicit null exception at 0x00007f69642d6e36 to 0x00007f69642d71f5
+Event: 0,777 Thread 0x00007f6974ea1800 Exception <a 'java/lang/UnsupportedOperationException': > (0x00000005a41e8560) thrown at [/HUDSON/workspace/8-2-build-linux-amd64/jdk8u201/12317/hotspot/src/share/vm/prims/jni.cpp, line 735]
+
+Events (10 events):
+Event: 0,872 loading class org/itk/simple/VectorUInt32
+Event: 0,872 loading class org/itk/simple/VectorUInt32 done
+Event: 0,872 loading class org/itk/simple/VectorDouble
+Event: 0,872 loading class org/itk/simple/VectorDouble done
+Event: 0,923 loading class com/vitimage/TransformUtils
+Event: 0,923 loading class com/vitimage/TransformUtils done
+Event: 0,924 loading class org/itk/simple/InverseDisplacementFieldImageFilter
+Event: 0,924 loading class org/itk/simple/InverseDisplacementFieldImageFilter done
+Event: 4,055 Executing VM operation: EnableBiasedLocking
+Event: 4,055 Executing VM operation: EnableBiasedLocking done
+
+
+Dynamic libraries:
+00400000-00401000 r-xp 00000000 103:05 399591                            /usr/lib/jvm/java-8-oracle/bin/java
+00600000-00601000 r--p 00000000 103:05 399591                            /usr/lib/jvm/java-8-oracle/bin/java
+00601000-00602000 rw-p 00001000 103:05 399591                            /usr/lib/jvm/java-8-oracle/bin/java
+00700000-00721000 rw-p 00000000 00:00 0                                  [heap]
+167000000-17bd80000 rw-p 00000000 00:00 0 
+17bd80000-5a2580000 ---p 00000000 00:00 0 
+5a2580000-5acc00000 rw-p 00000000 00:00 0 
+5acc00000-7c0000000 ---p 00000000 00:00 0 
+7c0000000-7c0160000 rw-p 00000000 00:00 0 
+7c0160000-800000000 ---p 00000000 00:00 0 
+7f6538227000-7f685c000000 rw-p 00000000 00:00 0 
+7f685c000000-7f685c021000 rw-p 00000000 00:00 0 
+7f685c021000-7f6860000000 ---p 00000000 00:00 0 
+7f6864000000-7f6864021000 rw-p 00000000 00:00 0 
+7f6864021000-7f6868000000 ---p 00000000 00:00 0 
+7f6868000000-7f6868021000 rw-p 00000000 00:00 0 
+7f6868021000-7f686c000000 ---p 00000000 00:00 0 
+7f686c000000-7f686c021000 rw-p 00000000 00:00 0 
+7f686c021000-7f6870000000 ---p 00000000 00:00 0 
+7f6870000000-7f6870021000 rw-p 00000000 00:00 0 
+7f6870021000-7f6874000000 ---p 00000000 00:00 0 
+7f6874000000-7f6874021000 rw-p 00000000 00:00 0 
+7f6874021000-7f6878000000 ---p 00000000 00:00 0 
+7f687c000000-7f687c021000 rw-p 00000000 00:00 0 
+7f687c021000-7f6880000000 ---p 00000000 00:00 0 
+7f6884000000-7f6884021000 rw-p 00000000 00:00 0 
+7f6884021000-7f6888000000 ---p 00000000 00:00 0 
+7f688c000000-7f688c021000 rw-p 00000000 00:00 0 
+7f688c021000-7f6890000000 ---p 00000000 00:00 0 
+7f6894000000-7f6894021000 rw-p 00000000 00:00 0 
+7f6894021000-7f6898000000 ---p 00000000 00:00 0 
+7f689a230000-7f689e304000 rw-p 00000000 00:00 0 
+7f689e304000-7f689e305000 ---p 00000000 00:00 0 
+7f689e305000-7f689eb05000 rw-p 00000000 00:00 0 
+7f689eb05000-7f689eb06000 ---p 00000000 00:00 0 
+7f689eb06000-7f689f306000 rw-p 00000000 00:00 0 
+7f689f306000-7f689f307000 ---p 00000000 00:00 0 
+7f689f307000-7f689fb07000 rw-p 00000000 00:00 0 
+7f689fb07000-7f689fb08000 ---p 00000000 00:00 0 
+7f689fb08000-7f68a0308000 rw-p 00000000 00:00 0 
+7f68a0b09000-7f68a8cad000 rw-p 00000000 00:00 0 
+7f68a8cad000-7f68b6d74000 r-xp 00000000 103:05 1975135                   /home/fernandr/Programmes/Fiji.app/lib/linux64/libSimpleITKJava.so
+7f68b6d74000-7f68b6f73000 ---p 0e0c7000 103:05 1975135                   /home/fernandr/Programmes/Fiji.app/lib/linux64/libSimpleITKJava.so
+7f68b6f73000-7f68b7fe1000 rw-p 0e0c6000 103:05 1975135                   /home/fernandr/Programmes/Fiji.app/lib/linux64/libSimpleITKJava.so
+7f68b7fe1000-7f68b8000000 rw-p 00000000 00:00 0 
+7f68b8000000-7f68b8090000 rw-p 00000000 00:00 0 
+7f68b8090000-7f68bc000000 ---p 00000000 00:00 0 
+7f68bc000000-7f68bc021000 rw-p 00000000 00:00 0 
+7f68bc021000-7f68c0000000 ---p 00000000 00:00 0 
+7f68c0000000-7f68c0021000 rw-p 00000000 00:00 0 
+7f68c0021000-7f68c4000000 ---p 00000000 00:00 0 
+7f68c4000000-7f68c4021000 rw-p 00000000 00:00 0 
+7f68c4021000-7f68c8000000 ---p 00000000 00:00 0 
+7f68c8000000-7f68c8021000 rw-p 00000000 00:00 0 
+7f68c8021000-7f68cc000000 ---p 00000000 00:00 0 
+7f68cc000000-7f68cc021000 rw-p 00000000 00:00 0 
+7f68cc021000-7f68d0000000 ---p 00000000 00:00 0 
+7f68d0000000-7f68d031f000 rw-p 00000000 00:00 0 
+7f68d031f000-7f68d4000000 ---p 00000000 00:00 0 
+7f68d4000000-7f68d4021000 rw-p 00000000 00:00 0 
+7f68d4021000-7f68d8000000 ---p 00000000 00:00 0 
+7f68d8000000-7f68d824a000 rw-p 00000000 00:00 0 
+7f68d824a000-7f68dc000000 ---p 00000000 00:00 0 
+7f68dc000000-7f68dc482000 rw-p 00000000 00:00 0 
+7f68dc482000-7f68e0000000 ---p 00000000 00:00 0 
+7f68e0000000-7f68e0021000 rw-p 00000000 00:00 0 
+7f68e0021000-7f68e4000000 ---p 00000000 00:00 0 
+7f68e4000000-7f68e44c4000 rw-p 00000000 00:00 0 
+7f68e44c4000-7f68e8000000 ---p 00000000 00:00 0 
+7f68e8000000-7f68e8021000 rw-p 00000000 00:00 0 
+7f68e8021000-7f68ec000000 ---p 00000000 00:00 0 
+7f68ec000000-7f68ec021000 rw-p 00000000 00:00 0 
+7f68ec021000-7f68f0000000 ---p 00000000 00:00 0 
+7f68f0000000-7f68f0021000 rw-p 00000000 00:00 0 
+7f68f0021000-7f68f4000000 ---p 00000000 00:00 0 
+7f68f434b000-7f6928000000 rw-p 00000000 00:00 0 
+7f6928000000-7f6928021000 rw-p 00000000 00:00 0 
+7f6928021000-7f692c000000 ---p 00000000 00:00 0 
+7f692c000000-7f692c021000 rw-p 00000000 00:00 0 
+7f692c021000-7f6930000000 ---p 00000000 00:00 0 
+7f6930000000-7f6930021000 rw-p 00000000 00:00 0 
+7f6930021000-7f6934000000 ---p 00000000 00:00 0 
+7f6934781000-7f69367eb000 rw-p 00000000 00:00 0 
+7f69367eb000-7f6936815000 r-xp 00000000 103:05 1319030                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libdcpr.so
+7f6936815000-7f6936a14000 ---p 0002a000 103:05 1319030                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libdcpr.so
+7f6936a14000-7f6936a15000 r--p 00029000 103:05 1319030                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libdcpr.so
+7f6936a15000-7f6936a18000 rw-p 0002a000 103:05 1319030                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libdcpr.so
+7f6936a18000-7f6936a23000 r--s 00000000 103:05 2754318                   /var/cache/fontconfig/945677eb7aeaf62f1d50efc3fb3ec7d8-le64.cache-7
+7f6936a23000-7f6936a28000 r--s 00000000 103:05 2754289                   /var/cache/fontconfig/2300eef321c393bfd76478a5c0e95b23-le64.cache-7
+7f6936a28000-7f6936a29000 r--s 00000000 103:05 2754282                   /var/cache/fontconfig/0d8c3b2ac0904cb8a57a757ad11a4a08-le64.cache-7
+7f6936a29000-7f6936a2d000 r--s 00000000 103:05 2758608                   /var/cache/fontconfig/6d41288fd70b0be22e8c3a91e032eec0-le64.cache-7
+7f6936a2d000-7f6936a42000 r--s 00000000 103:05 2754278                   /var/cache/fontconfig/04aabc0a78ac019cf9454389977116d2-le64.cache-7
+7f6936a42000-7f6936a43000 r--s 00000000 103:05 2754286                   /var/cache/fontconfig/1ac9eb803944fde146138c791f5cc56a-le64.cache-7
+7f6936a43000-7f6936a44000 r--s 00000000 103:05 2754337                   /var/cache/fontconfig/dc05db6664285cc2f12bf69c139ae4c3-le64.cache-7
+7f6936a44000-7f6936a46000 r--s 00000000 103:05 2754283                   /var/cache/fontconfig/14a5e22175779b556eaa434240950366-le64.cache-7
+7f6936a46000-7f6936a47000 r--s 00000000 103:05 2754310                   /var/cache/fontconfig/660208299946a285a940457d1287da33-le64.cache-7
+7f6936a47000-7f6936a49000 r--s 00000000 103:05 2754301                   /var/cache/fontconfig/4f3e3037c9980c83b53a9351efadef62-le64.cache-7
+7f6936a49000-7f6936a4b000 r--s 00000000 103:05 2754315                   /var/cache/fontconfig/767a8244fc0220cfb567a839d0392e0b-le64.cache-7
+7f6936a4b000-7f6936a4c000 r--s 00000000 103:05 2759328                   /var/cache/fontconfig/4794a0821666d79190d59a36cb4f44b5-le64.cache-7
+7f6936a4c000-7f6936a4e000 r--s 00000000 103:05 2759434                   /var/cache/fontconfig/0bd3dc0958fa2205aaaa8ebb13e2872b-le64.cache-7
+7f6936a4e000-7f6936a53000 r--s 00000000 103:05 2754338                   /var/cache/fontconfig/def309198bfa603429122923fa2bb2d4-le64.cache-7
+7f6936a53000-7f6936a54000 r--s 00000000 103:05 2754326                   /var/cache/fontconfig/b872e6e592da6075ffa4ab0a1fcc0c75-le64.cache-7
+7f6936a54000-7f6936a55000 r--s 00000000 103:05 2754343                   /var/cache/fontconfig/f6d4eedfaab2589bde49f7a3ff831d22-le64.cache-7
+7f6936a55000-7f6936a56000 r--s 00000000 103:05 2754308                   /var/cache/fontconfig/589f83ef4c36d296ce6e1c846f468f08-le64.cache-7
+7f6936a56000-7f6936a57000 r--s 00000000 103:05 2754328                   /var/cache/fontconfig/bab58bb527bb656aaa9f116d68a48d89-le64.cache-7
+7f6936a57000-7f6936a58000 r--s 00000000 103:05 2754287                   /var/cache/fontconfig/2171a34dccabdb6bcbbc728186263178-le64.cache-7
+7f6936a58000-7f6936a59000 r--s 00000000 103:05 2754329                   /var/cache/fontconfig/c5c45a61289222e0d30b1a26ef4effbe-le64.cache-7
+7f6936a59000-7f6936a5a000 r--s 00000000 103:05 2754324                   /var/cache/fontconfig/aec30016f93e1b46d1a973dce0d74068-le64.cache-7
+7f6936a5a000-7f6936a5b000 r--s 00000000 103:05 2754294                   /var/cache/fontconfig/3f589640d34b7dc9042c8d453f7c8b9c-le64.cache-7
+7f6936a5b000-7f6936a5c000 r--s 00000000 103:05 2754284                   /var/cache/fontconfig/16c2fda60d1b4b719f4b3d06fd951d25-le64.cache-7
+7f6936a5c000-7f6936a61000 r--s 00000000 103:05 2754981                   /var/cache/fontconfig/9d2451b1fd30e5bffe8383fd27c35478-le64.cache-7
+7f6936a61000-7f6936a74000 r--s 00000000 103:05 2754334                   /var/cache/fontconfig/d52a8644073d54c13679302ca1180695-le64.cache-7
+7f6936c50000-7f6936d10000 rw-p 00000000 00:00 0 
+7f6936d10000-7f6936e50000 ---p 00000000 00:00 0 
+7f6936f51000-7f6936fbd000 r-xp 00000000 103:05 1319045                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libt2k.so
+7f6936fbd000-7f69371bd000 ---p 0006c000 103:05 1319045                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libt2k.so
+7f69371bd000-7f69371c3000 r--p 0006c000 103:05 1319045                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libt2k.so
+7f69371c3000-7f69371c4000 rw-p 00072000 103:05 1319045                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libt2k.so
+7f69371c4000-7f69371d5000 r-xp 00000000 103:05 1319086                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libnio.so
+7f69371d5000-7f69373d4000 ---p 00011000 103:05 1319086                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libnio.so
+7f69373d4000-7f69373d5000 r--p 00010000 103:05 1319086                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libnio.so
+7f69373d5000-7f69373d6000 rw-p 00011000 103:05 1319086                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libnio.so
+7f69373d6000-7f69373ec000 r-xp 00000000 103:05 1319083                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libnet.so
+7f69373ec000-7f69375ec000 ---p 00016000 103:05 1319083                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libnet.so
+7f69375ec000-7f69375ed000 r--p 00016000 103:05 1319083                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libnet.so
+7f69375ed000-7f69375ee000 rw-p 00017000 103:05 1319083                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libnet.so
+7f69375ee000-7f69377ee000 rw-p 00000000 00:00 0 
+7f69377ee000-7f69377f1000 ---p 00000000 00:00 0 
+7f69377f1000-7f69378ef000 rw-p 00000000 00:00 0 
+7f69378ef000-7f69378f2000 ---p 00000000 00:00 0 
+7f69378f2000-7f6937bf0000 rw-p 00000000 00:00 0 
+7f6937bf0000-7f6937bf5000 r-xp 00000000 103:05 401423                    /usr/lib/x86_64-linux-gnu/libXfixes.so.3.1.0
+7f6937bf5000-7f6937df4000 ---p 00005000 103:05 401423                    /usr/lib/x86_64-linux-gnu/libXfixes.so.3.1.0
+7f6937df4000-7f6937df5000 r--p 00004000 103:05 401423                    /usr/lib/x86_64-linux-gnu/libXfixes.so.3.1.0
+7f6937df5000-7f6937df6000 rw-p 00005000 103:05 401423                    /usr/lib/x86_64-linux-gnu/libXfixes.so.3.1.0
+7f6937df6000-7f6937dff000 r-xp 00000000 103:05 401415                    /usr/lib/x86_64-linux-gnu/libXcursor.so.1.0.2
+7f6937dff000-7f6937ffe000 ---p 00009000 103:05 401415                    /usr/lib/x86_64-linux-gnu/libXcursor.so.1.0.2
+7f6937ffe000-7f6937fff000 r--p 00008000 103:05 401415                    /usr/lib/x86_64-linux-gnu/libXcursor.so.1.0.2
+7f6937fff000-7f6938000000 rw-p 00009000 103:05 401415                    /usr/lib/x86_64-linux-gnu/libXcursor.so.1.0.2
+7f6938000000-7f6938021000 rw-p 00000000 00:00 0 
+7f6938021000-7f693c000000 ---p 00000000 00:00 0 
+7f693c000000-7f693c001000 r--s 00000000 103:05 2754323                   /var/cache/fontconfig/a48eab177a16e4f3713381162db2f3e9-le64.cache-7
+7f693c001000-7f693c007000 r--s 00000000 103:05 2759433                   /var/cache/fontconfig/3047814df9a2f067bd2d96a2b9c36e5a-le64.cache-7
+7f693c007000-7f693c00a000 ---p 00000000 00:00 0 
+7f693c00a000-7f693c108000 rw-p 00000000 00:00 0 
+7f693c108000-7f693c10b000 ---p 00000000 00:00 0 
+7f693c10b000-7f693c209000 rw-p 00000000 00:00 0 
+7f693c209000-7f693c220000 r-xp 00000000 103:05 3801339                   /lib/x86_64-linux-gnu/libgcc_s.so.1
+7f693c220000-7f693c41f000 ---p 00017000 103:05 3801339                   /lib/x86_64-linux-gnu/libgcc_s.so.1
+7f693c41f000-7f693c420000 r--p 00016000 103:05 3801339                   /lib/x86_64-linux-gnu/libgcc_s.so.1
+7f693c420000-7f693c421000 rw-p 00017000 103:05 3801339                   /lib/x86_64-linux-gnu/libgcc_s.so.1
+7f693c421000-7f693c422000 r--s 00000000 103:05 2754304                   /var/cache/fontconfig/564b2e68ac9bc4e36a6f7f6d6125ec1c-le64.cache-7
+7f693c422000-7f693c42a000 r--s 00000000 103:05 2753774                   /var/cache/fontconfig/bf3b770c553c462765856025a94f1ce6-le64.cache-7
+7f693c42a000-7f693c42b000 r--s 00000000 103:05 2754305                   /var/cache/fontconfig/56cf4f4769d0f4abc89a4895d7bd3ae1-le64.cache-7
+7f693c42b000-7f693c42c000 r--s 00000000 103:05 2754327                   /var/cache/fontconfig/b9d506c9ac06c20b433354fa67a72993-le64.cache-7
+7f693c42c000-7f693c432000 r--s 00000000 103:05 2754325                   /var/cache/fontconfig/b47c4e1ecd0709278f4910c18777a504-le64.cache-7
+7f693c432000-7f693c433000 r--s 00000000 103:05 2754292                   /var/cache/fontconfig/370e5b74bf5dafc30834de68e24a87a4-le64.cache-7
+7f693c433000-7f693c434000 r--s 00000000 103:05 2754313                   /var/cache/fontconfig/6b2c5944714ca7831b25bed9e85cb5c8-le64.cache-7
+7f693c434000-7f693c435000 r--s 00000000 103:05 2754333                   /var/cache/fontconfig/d5178ab6d91b49bf20a416737dcea9e8-le64.cache-7
+7f693c435000-7f693c436000 r--s 00000000 103:05 2754303                   /var/cache/fontconfig/551ecf3b0e8b0bca0f25c0944f561853-le64.cache-7
+7f693c436000-7f693c439000 r--s 00000000 103:05 2754342                   /var/cache/fontconfig/f259c2cffa685e28062317905db73c4a-le64.cache-7
+7f693c439000-7f693c43b000 r--s 00000000 103:05 2754302                   /var/cache/fontconfig/550f3886151c940c12a5ed35f6a00586-le64.cache-7
+7f693c43b000-7f693c43e000 r--s 00000000 103:05 2754311                   /var/cache/fontconfig/674d1711f2d1d2a09646eb0bdcadee49-le64.cache-7
+7f693c43e000-7f693c43f000 r--s 00000000 103:05 2754295                   /var/cache/fontconfig/3f7329c5293ffd510edef78f73874cfd-le64.cache-7
+7f693c43f000-7f693c44d000 r--s 00000000 103:05 2754320                   /var/cache/fontconfig/9b89f8e3dae116d678bbf48e5f21f69b-le64.cache-7
+7f693c44d000-7f693c45b000 r--s 00000000 103:05 2764616                   /var/cache/fontconfig/e13b20fdb08344e0e664864cc2ede53d-le64.cache-7
+7f693c45b000-7f693c4b8000 r-xp 00000000 103:05 1319057                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libfontmanager.so
+7f693c4b8000-7f693c6b8000 ---p 0005d000 103:05 1319057                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libfontmanager.so
+7f693c6b8000-7f693c6bb000 r--p 0005d000 103:05 1319057                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libfontmanager.so
+7f693c6bb000-7f693c6bc000 rw-p 00060000 103:05 1319057                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libfontmanager.so
+7f693c6bc000-7f693c6cf000 r-xp 00000000 103:05 3806054                   /lib/x86_64-linux-gnu/libbsd.so.0.8.7
+7f693c6cf000-7f693c8ce000 ---p 00013000 103:05 3806054                   /lib/x86_64-linux-gnu/libbsd.so.0.8.7
+7f693c8ce000-7f693c8cf000 r--p 00012000 103:05 3806054                   /lib/x86_64-linux-gnu/libbsd.so.0.8.7
+7f693c8cf000-7f693c8d0000 rw-p 00013000 103:05 3806054                   /lib/x86_64-linux-gnu/libbsd.so.0.8.7
+7f693c8d0000-7f693c8d1000 rw-p 00000000 00:00 0 
+7f693c8d1000-7f693c8d6000 r-xp 00000000 103:05 401419                    /usr/lib/x86_64-linux-gnu/libXdmcp.so.6.0.0
+7f693c8d6000-7f693cad5000 ---p 00005000 103:05 401419                    /usr/lib/x86_64-linux-gnu/libXdmcp.so.6.0.0
+7f693cad5000-7f693cad6000 r--p 00004000 103:05 401419                    /usr/lib/x86_64-linux-gnu/libXdmcp.so.6.0.0
+7f693cad6000-7f693cad7000 rw-p 00005000 103:05 401419                    /usr/lib/x86_64-linux-gnu/libXdmcp.so.6.0.0
+7f693cad7000-7f693cad9000 r-xp 00000000 103:05 401408                    /usr/lib/x86_64-linux-gnu/libXau.so.6.0.0
+7f693cad9000-7f693ccd9000 ---p 00002000 103:05 401408                    /usr/lib/x86_64-linux-gnu/libXau.so.6.0.0
+7f693ccd9000-7f693ccda000 r--p 00002000 103:05 401408                    /usr/lib/x86_64-linux-gnu/libXau.so.6.0.0
+7f693ccda000-7f693ccdb000 rw-p 00003000 103:05 401408                    /usr/lib/x86_64-linux-gnu/libXau.so.6.0.0
+7f693ccdb000-7f693cd01000 r-xp 00000000 103:05 396084                    /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
+7f693cd01000-7f693cf01000 ---p 00026000 103:05 396084                    /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
+7f693cf01000-7f693cf02000 r--p 00026000 103:05 396084                    /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
+7f693cf02000-7f693cf03000 rw-p 00027000 103:05 396084                    /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
+7f693cf03000-7f693cf12000 r-xp 00000000 103:05 401429                    /usr/lib/x86_64-linux-gnu/libXi.so.6.1.0
+7f693cf12000-7f693d111000 ---p 0000f000 103:05 401429                    /usr/lib/x86_64-linux-gnu/libXi.so.6.1.0
+7f693d111000-7f693d112000 r--p 0000e000 103:05 401429                    /usr/lib/x86_64-linux-gnu/libXi.so.6.1.0
+7f693d112000-7f693d113000 rw-p 0000f000 103:05 401429                    /usr/lib/x86_64-linux-gnu/libXi.so.6.1.0
+7f693d113000-7f693d118000 r-xp 00000000 103:05 401447                    /usr/lib/x86_64-linux-gnu/libXtst.so.6.1.0
+7f693d118000-7f693d317000 ---p 00005000 103:05 401447                    /usr/lib/x86_64-linux-gnu/libXtst.so.6.1.0
+7f693d317000-7f693d318000 r--p 00004000 103:05 401447                    /usr/lib/x86_64-linux-gnu/libXtst.so.6.1.0
+7f693d318000-7f693d319000 rw-p 00005000 103:05 401447                    /usr/lib/x86_64-linux-gnu/libXtst.so.6.1.0
+7f693d319000-7f693d322000 r-xp 00000000 103:05 401441                    /usr/lib/x86_64-linux-gnu/libXrender.so.1.3.0
+7f693d322000-7f693d521000 ---p 00009000 103:05 401441                    /usr/lib/x86_64-linux-gnu/libXrender.so.1.3.0
+7f693d521000-7f693d522000 r--p 00008000 103:05 401441                    /usr/lib/x86_64-linux-gnu/libXrender.so.1.3.0
+7f693d522000-7f693d523000 rw-p 00009000 103:05 401441                    /usr/lib/x86_64-linux-gnu/libXrender.so.1.3.0
+7f693d523000-7f693d656000 r-xp 00000000 103:05 400060                    /usr/lib/x86_64-linux-gnu/libX11.so.6.3.0
+7f693d656000-7f693d856000 ---p 00133000 103:05 400060                    /usr/lib/x86_64-linux-gnu/libX11.so.6.3.0
+7f693d856000-7f693d857000 r--p 00133000 103:05 400060                    /usr/lib/x86_64-linux-gnu/libX11.so.6.3.0
+7f693d857000-7f693d85b000 rw-p 00134000 103:05 400060                    /usr/lib/x86_64-linux-gnu/libX11.so.6.3.0
+7f693d85b000-7f693d86c000 r-xp 00000000 103:05 401421                    /usr/lib/x86_64-linux-gnu/libXext.so.6.4.0
+7f693d86c000-7f693da6b000 ---p 00011000 103:05 401421                    /usr/lib/x86_64-linux-gnu/libXext.so.6.4.0
+7f693da6b000-7f693da6c000 r--p 00010000 103:05 401421                    /usr/lib/x86_64-linux-gnu/libXext.so.6.4.0
+7f693da6c000-7f693da6d000 rw-p 00011000 103:05 401421                    /usr/lib/x86_64-linux-gnu/libXext.so.6.4.0
+7f693da6d000-7f693da71000 r--s 00000000 103:05 2754335                   /var/cache/fontconfig/d589a48862398ed80a3d6066f4f56f4c-le64.cache-7
+7f693da71000-7f693da72000 r--s 00000000 103:05 2754281                   /var/cache/fontconfig/0c9eb80ebd1c36541ebe2852d3bb0c49-le64.cache-7
+7f693da72000-7f693da73000 r--s 00000000 103:05 2754288                   /var/cache/fontconfig/22368d551a680bfe5a62c02760edf4ea-le64.cache-7
+7f693da73000-7f693da74000 r--s 00000000 103:05 2754300                   /var/cache/fontconfig/4d9c95eba1cb85bbcf2878543262124a-le64.cache-7
+7f693da74000-7f693da75000 r--s 00000000 103:05 2754317                   /var/cache/fontconfig/85e0a52ce643a7ba2ae53e5d6949cead-le64.cache-7
+7f693da75000-7f693da76000 r--s 00000000 103:05 2754297                   /var/cache/fontconfig/49f0de54bdd920fe4f0dfd4cbac43e6b-le64.cache-7
+7f693da76000-7f693da77000 r--s 00000000 103:05 2754344                   /var/cache/fontconfig/f6e6e0a5c3d2f6ae0c0c2e0ecd42a997-le64.cache-7
+7f693da77000-7f693da78000 r--s 00000000 103:05 2754298                   /var/cache/fontconfig/4b2eda6bb976bda485cb2176619421d5-le64.cache-7
+7f693da78000-7f693da7a000 r--s 00000000 103:05 2754312                   /var/cache/fontconfig/6afa1bb216ce958c1589e297e8008489-le64.cache-7
+7f693da7a000-7f693da81000 r--s 00000000 103:05 657616                    /usr/lib/x86_64-linux-gnu/gconv/gconv-modules.cache
+7f693da81000-7f693daa7000 r--p 00000000 103:05 1182632                   /usr/share/locale-langpack/fr/LC_MESSAGES/libc.mo
+7f693daa7000-7f693dafa000 r-xp 00000000 103:05 1319090                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libawt_xawt.so
+7f693dafa000-7f693dcf9000 ---p 00053000 103:05 1319090                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libawt_xawt.so
+7f693dcf9000-7f693dcfa000 r--p 00052000 103:05 1319090                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libawt_xawt.so
+7f693dcfa000-7f693dcfd000 rw-p 00053000 103:05 1319090                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libawt_xawt.so
+7f693dcfd000-7f693dcfe000 rw-p 00000000 00:00 0 
+7f693dcfe000-7f693dd9e000 r-xp 00000000 103:05 1319075                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libawt.so
+7f693dd9e000-7f693df9d000 ---p 000a0000 103:05 1319075                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libawt.so
+7f693df9d000-7f693df9e000 r--p 0009f000 103:05 1319075                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libawt.so
+7f693df9e000-7f693dfa9000 rw-p 000a0000 103:05 1319075                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libawt.so
+7f693dfa9000-7f693dfce000 rw-p 00000000 00:00 0 
+7f693dfce000-7f693dfd8000 r--s 0022a000 103:05 2232033                   /home/fernandr/.m2/repository/net/imagej/ij/1.52o/ij-1.52o.jar
+7f693dfd8000-7f693dfdf000 r--s 00084000 103:05 1983764                   /home/fernandr/Programmes/Fiji.app/plugins/3D_Viewer-4.0.2.jar
+7f693dfdf000-7f693dfe0000 r--s 00000000 103:05 1984080                   /home/fernandr/Programmes/Fiji.app/jars/jogl-all-main-2.3.2.jar
+7f693dfe0000-7f693dfe5000 r--s 00031000 103:05 1984076                   /home/fernandr/Programmes/Fiji.app/jars/jocl-2.3.2.jar
+7f693dfe5000-7f693dfe6000 r--s 00000000 103:05 1984077                   /home/fernandr/Programmes/Fiji.app/jars/jocl-main-2.3.2.jar
+7f693dfe6000-7f693dfe8000 r--s 0000f000 103:05 1984074                   /home/fernandr/Programmes/Fiji.app/jars/joal-2.3.2.jar
+7f693dfe8000-7f693dfe9000 r--s 00000000 103:05 1984075                   /home/fernandr/Programmes/Fiji.app/jars/joal-main-2.3.2.jar
+7f693dfe9000-7f693dfea000 r--s 00000000 103:05 1983748                   /home/fernandr/Programmes/Fiji.app/jars/gluegen-rt-main-2.3.2.jar
+7f693dfea000-7f693dfeb000 r--s 00001000 103:05 1984158                   /home/fernandr/Programmes/Fiji.app/jars/scijava-config-2.0.2.jar
+7f693dfeb000-7f693dfed000 r--s 00008000 103:05 1984152                   /home/fernandr/Programmes/Fiji.app/jars/scifio-cli-0.5.0.jar
+7f693dfed000-7f693dfef000 r--s 0001a000 103:05 1984156                   /home/fernandr/Programmes/Fiji.app/jars/scifio-ome-xml-0.15.0.jar
+7f693dfef000-7f693dff0000 r--s 00004000 103:05 1984155                   /home/fernandr/Programmes/Fiji.app/jars/scifio-lifesci-0.8.0.jar
+7f693dff0000-7f693dff2000 r--s 00006000 103:05 1984153                   /home/fernandr/Programmes/Fiji.app/jars/scifio-hdf5-0.1.3.jar
+7f693dff2000-7f693dff4000 r--s 00004000 103:05 1984151                   /home/fernandr/Programmes/Fiji.app/jars/scifio-bf-compat-3.0.0.jar
+7f693dff4000-7f693dff6000 r--s 0000d000 103:05 1984184                   /home/fernandr/Programmes/Fiji.app/jars/trakem2-transform-1.0.1.jar
+7f693dff6000-7f693dff7000 r--s 0000b000 103:05 1983924                   /home/fernandr/Programmes/Fiji.app/jars/VectorString-2.0.2.jar
+7f693dff7000-7f693dffd000 r--s 00081000 103:05 1984137                   /home/fernandr/Programmes/Fiji.app/jars/postgresql-9.1-901-1.jdbc4.jar
+7f693dffd000-7f693dffe000 r--s 00001000 103:05 1983922                   /home/fernandr/Programmes/Fiji.app/jars/T2-TreelineGraph-1.1.2.jar
+7f693dffe000-7f693e012000 r--s 001bd000 103:05 1984044                   /home/fernandr/Programmes/Fiji.app/jars/jai-core-1.1.3.jar
+7f693e012000-7f693e016000 r--s 0003c000 103:05 1984043                   /home/fernandr/Programmes/Fiji.app/jars/jai-codec-1.1.3.jar
+7f693e016000-7f693e018000 r--s 00149000 103:05 1983921                   /home/fernandr/Programmes/Fiji.app/jars/T2-NIT-1.1.2.jar
+7f693e018000-7f693e01b000 r--s 00018000 103:05 1984179                   /home/fernandr/Programmes/Fiji.app/jars/spim_data-2.2.2.jar
+7f693e01b000-7f693e01d000 r--s 00014000 103:05 1983951                   /home/fernandr/Programmes/Fiji.app/jars/bigdataviewer-vistools-1.0.0-beta-11.jar
+7f693e01d000-7f693e024000 r--s 00043000 103:05 1984178                   /home/fernandr/Programmes/Fiji.app/jars/snakeyaml-1.23.jar
+7f693e024000-7f693e027000 r--s 0001b000 103:05 1984187                   /home/fernandr/Programmes/Fiji.app/jars/ui-behaviour-1.7.4.jar
+7f693e027000-7f693e02c000 r--s 00036000 103:05 1984006                   /home/fernandr/Programmes/Fiji.app/jars/gson-2.8.5.jar
+7f693e02c000-7f693e035000 r--s 00071000 103:05 1983950                   /home/fernandr/Programmes/Fiji.app/jars/bigdataviewer-core-5.1.0.jar
+7f693e035000-7f693e03c000 r--s 0004b000 103:05 1983975                   /home/fernandr/Programmes/Fiji.app/jars/commons-codec-1.11.jar
+7f693e03c000-7f693e03e000 r--s 0000e000 103:05 1984049                   /home/fernandr/Programmes/Fiji.app/jars/jcommander-1.48.jar
+7f693e03e000-7f693e04b000 r--s 00083000 103:05 1983976                   /home/fernandr/Programmes/Fiji.app/jars/commons-collections-3.2.2.jar
+7f693e04b000-7f693e050000 r--s 00038000 103:05 1983974                   /home/fernandr/Programmes/Fiji.app/jars/commons-beanutils-1.9.3.jar
+7f693e050000-7f693e052000 r--s 00012000 103:05 1984131                   /home/fernandr/Programmes/Fiji.app/jars/opencsv-3.9.jar
+7f693e052000-7f693e054000 r--s 0000e000 103:05 1984037                   /home/fernandr/Programmes/Fiji.app/jars/imglib2-ui-2.0.0.jar
+7f693e054000-7f693e055000 r--s 00003000 103:05 1984191                   /home/fernandr/Programmes/Fiji.app/jars/weave_jy2java-2.1.1.jar
+7f693e055000-7f693e057000 r--s 00007000 103:05 1984057                   /home/fernandr/Programmes/Fiji.app/jars/jgoodies-common-1.7.0.jar
+7f693e057000-7f693e059000 r--s 0001b000 103:05 1984058                   /home/fernandr/Programmes/Fiji.app/jars/jgoodies-forms-1.7.2.jar
+7f693e059000-7f693e06a000 r--s 000c5000 103:05 1984099                   /home/fernandr/Programmes/Fiji.app/jars/legacy-imglib1-1.1.9.jar
+7f693e06a000-7f693e06f000 r--s 00041000 103:05 1983979                   /home/fernandr/Programmes/Fiji.app/jars/commons-lang-2.6.jar
+7f693e06f000-7f693e08a000 r--s 008d1000 103:05 1984062                   /home/fernandr/Programmes/Fiji.app/jars/jhdf5-14.12.6.jar
+7f693e08a000-7f693e08c000 r--s 00015000 103:05 1983994                   /home/fernandr/Programmes/Fiji.app/jars/fiji-lib-2.1.2.jar
+7f693e08c000-7f693e08d000 r--s 0000a000 103:05 1984133                   /home/fernandr/Programmes/Fiji.app/jars/pal-optimization-2.0.1.jar
+7f693e08d000-7f693e094000 r--s 00095000 103:05 1983923                   /home/fernandr/Programmes/Fiji.app/jars/VIB-lib-2.2.0.jar
+7f693e094000-7f693e09f000 r--s 000b6000 103:05 1984061                   /home/fernandr/Programmes/Fiji.app/jars/jgraphx-3.4.1.3.jar
+7f693e09f000-7f693e0a4000 r--s 00032000 103:05 1983947                   /home/fernandr/Programmes/Fiji.app/jars/batik-svggen-1.10.jar
+7f693e0a4000-7f693e0a6000 r--s 00002000 103:05 1983941                   /home/fernandr/Programmes/Fiji.app/jars/batik-ext-1.10.jar
+7f693e0a6000-7f693e0aa000 r--s 00029000 103:05 1983940                   /home/fernandr/Programmes/Fiji.app/jars/batik-dom-1.10.jar
+7f693e0aa000-7f693e0b0000 r--s 00045000 103:05 1984052                   /home/fernandr/Programmes/Fiji.app/jars/jdom2-2.0.6.jar
+7f693e0b0000-7f693e0b2000 r--s 0000a000 103:05 1984088                   /home/fernandr/Programmes/Fiji.app/jars/json-20090211.jar
+7f693e0b2000-7f693e0b7000 r--s 00018000 103:05 1983919                   /home/fernandr/Programmes/Fiji.app/jars/JWlz-1.4.0.jar
+7f693e0b7000-7f693e0e9000 r--s 0042f000 103:05 1984125                   /home/fernandr/Programmes/Fiji.app/jars/netcdf-4.3.22.jar
+7f693e0e9000-7f693e100000 r--s 00112000 103:05 1984194                   /home/fernandr/Programmes/Fiji.app/jars/xercesImpl-2.8.1.jar
+7f693e100000-7f693e102000 r--s 0001b000 103:05 1984197                   /home/fernandr/Programmes/Fiji.app/jars/xmpcore-5.1.2.jar
+7f693e102000-7f693e106000 r--s 00030000 103:05 1984113                   /home/fernandr/Programmes/Fiji.app/jars/metadata-extractor-2.6.2.jar
+7f693e106000-7f693e109000 r--s 00018000 103:05 1984135                   /home/fernandr/Programmes/Fiji.app/jars/perf4j-0.9.13.jar
+7f693e109000-7f693e10a000 r--s 00004000 103:05 1984124                   /home/fernandr/Programmes/Fiji.app/jars/native-lib-loader-2.3.2.jar
+7f693e10a000-7f693e10d000 r--s 00010000 103:05 1983926                   /home/fernandr/Programmes/Fiji.app/jars/args4j-2.0.25.jar
+7f693e10d000-7f693e113000 r--s 00041000 103:05 1984106                   /home/fernandr/Programmes/Fiji.app/jars/logback-classic-1.2.3.jar
+7f693e113000-7f693e11e000 r--s 00069000 103:05 1984107                   /home/fernandr/Programmes/Fiji.app/jars/logback-core-1.2.3.jar
+7f693e11e000-7f693e120000 r--s 00009000 103:05 1984128                   /home/fernandr/Programmes/Fiji.app/jars/objenesis-2.1.jar
+7f693e120000-7f693e122000 r--s 00000000 103:05 1984118                   /home/fernandr/Programmes/Fiji.app/jars/minlog-1.2.jar
+7f693e122000-7f693e128000 r--s 0004d000 103:05 1984096                   /home/fernandr/Programmes/Fiji.app/jars/kryo-2.24.0.jar
+7f693e128000-7f693e12a000 r--s 00009000 103:05 1984177                   /home/fernandr/Programmes/Fiji.app/jars/slf4j-api-1.7.25.jar
+7f693e12a000-7f693e12c000 r--s 0000c000 103:05 1984084                   /home/fernandr/Programmes/Fiji.app/jars/jply-0.2.0.jar
+7f693e12c000-7f693e12e000 r--s 00004000 103:05 1983920                   /home/fernandr/Programmes/Fiji.app/jars/OMEVisual-1.1.2.jar
+7f693e12e000-7f693e137000 r--s 0007f000 103:05 1984053                   /home/fernandr/Programmes/Fiji.app/jars/jep-2.4.2.jar
+7f693e137000-7f693e13b000 r--s 00023000 103:05 1984032                   /home/fernandr/Programmes/Fiji.app/jars/imglib2-algorithm-gpl-0.2.3.jar
+7f693e13b000-7f693e13e000 r--s 0001a000 103:05 1319100                   /usr/lib/jvm/java-8-oracle/jre/lib/jce.jar
+7f693e13e000-7f693e142000 r--s 000a1000 103:05 1319021                   /usr/lib/jvm/java-8-oracle/jre/lib/jsse.jar
+7f693e142000-7f693e14d000 r--s 0015c000 103:05 1984083                   /home/fernandr/Programmes/Fiji.app/jars/jpedalSTD-2.80b11.jar
+7f693e14d000-7f693e14e000 r--s 00007000 103:05 1984010                   /home/fernandr/Programmes/Fiji.app/jars/image4j-0.7.jar
+7f693e14e000-7f693e151000 r--s 0002c000 103:05 1983942                   /home/fernandr/Programmes/Fiji.app/jars/batik-gvt-1.10.jar
+7f693e151000-7f693e156000 r--s 00010000 103:05 1984195                   /home/fernandr/Programmes/Fiji.app/jars/xml-apis-ext-1.3.04.jar
+7f693e156000-7f693e161000 r--s 00099000 103:05 1984196                   /home/fernandr/Programmes/Fiji.app/jars/xmlgraphics-commons-2.3.jar
+7f693e161000-7f693e163000 r--s 00007000 103:05 1983949                   /home/fernandr/Programmes/Fiji.app/jars/batik-xml-1.10.jar
+7f693e163000-7f693e164000 r--s 00002000 103:05 1983943                   /home/fernandr/Programmes/Fiji.app/jars/batik-i18n-1.10.jar
+7f693e164000-7f693e166000 r--s 00001000 103:05 1983938                   /home/fernandr/Programmes/Fiji.app/jars/batik-constants-1.10.jar
+7f693e166000-7f693e169000 r--s 0001d000 103:05 1983948                   /home/fernandr/Programmes/Fiji.app/jars/batik-util-1.10.jar
+7f693e169000-7f693e16d000 r--s 00035000 103:05 1983946                   /home/fernandr/Programmes/Fiji.app/jars/batik-svg-dom-1.10.jar
+7f693e16d000-7f693e16f000 r--s 00005000 103:05 1983945                   /home/fernandr/Programmes/Fiji.app/jars/batik-script-1.10.jar
+7f693e16f000-7f693e171000 r--s 00011000 103:05 1983944                   /home/fernandr/Programmes/Fiji.app/jars/batik-parser-1.10.jar
+7f693e171000-7f693e179000 r--s 00048000 103:05 1983939                   /home/fernandr/Programmes/Fiji.app/jars/batik-css-1.10.jar
+7f693e179000-7f693e181000 r--s 00060000 103:05 1983936                   /home/fernandr/Programmes/Fiji.app/jars/batik-awt-util-1.10.jar
+7f693e181000-7f693e18d000 r--s 0006a000 103:05 1983935                   /home/fernandr/Programmes/Fiji.app/jars/batik-anim-1.10.jar
+7f693e18d000-7f693e199000 r--s 0009f000 103:05 1983937                   /home/fernandr/Programmes/Fiji.app/jars/batik-bridge-1.10.jar
+7f693e199000-7f693e19e000 r--s 00052000 103:05 1984120                   /home/fernandr/Programmes/Fiji.app/jars/mpicbg-1.2.0.jar
+7f693e19e000-7f693e1b6000 r--s 0021f000 103:05 1984039                   /home/fernandr/Programmes/Fiji.app/jars/itextpdf-5.5.13.jar
+7f693e1b6000-7f693e1ba000 r--s 00167000 103:05 1984066                   /home/fernandr/Programmes/Fiji.app/jars/jna-4.5.2.jar
+7f693e1ba000-7f693e1bf000 r--s 0003d000 103:05 1984121                   /home/fernandr/Programmes/Fiji.app/jars/mtj-1.0.4.jar
+7f693e1bf000-7f693e1c3000 r--s 0002f000 103:05 1983967                   /home/fernandr/Programmes/Fiji.app/jars/bounce-0.18.jar
+7f693e1c3000-7f693e224000 r--s 00873000 103:05 1984192                   /home/fernandr/Programmes/Fiji.app/jars/weka-dev-3.9.3.jar
+7f693e224000-7f693e233000 r--s 000f1000 103:05 1984042                   /home/fernandr/Programmes/Fiji.app/jars/j3dutils-1.6.0-scijava-2.jar
+7f693e233000-7f693e257000 r--s 0031e000 103:05 1984079                   /home/fernandr/Programmes/Fiji.app/jars/jogl-all-2.3.2.jar
+7f693e257000-7f693e25d000 r--s 0004f000 103:05 1983998                   /home/fernandr/Programmes/Fiji.app/jars/gluegen-rt-2.3.2.jar
+7f693e25d000-7f693e26a000 r--s 001ce000 103:05 1984041                   /home/fernandr/Programmes/Fiji.app/jars/j3dcore-1.6.0-scijava-2.jar
+7f693e26a000-7f693e26d000 r--s 00026000 103:05 1984190                   /home/fernandr/Programmes/Fiji.app/jars/vecmath-1.6.0-scijava-2.jar
+7f693e26d000-7f693e273000 r--s 00042000 103:05 1984089                   /home/fernandr/Programmes/Fiji.app/jars/jsoup-1.7.2.jar
+7f693e273000-7f693e275000 r--s 00004000 103:05 1983925                   /home/fernandr/Programmes/Fiji.app/jars/ahocorasick-0.2.4.jar
+7f693e275000-7f693e277000 r--s 00002000 103:05 1984182                   /home/fernandr/Programmes/Fiji.app/jars/swing-worker-1.1.jar
+7f693e277000-7f693e27e000 r--s 0004d000 103:05 1983995                   /home/fernandr/Programmes/Fiji.app/jars/filters-2.0.235.jar
+7f693e27e000-7f693e299000 r--s 00139000 103:05 1984183                   /home/fernandr/Programmes/Fiji.app/jars/swingx-1.6.1.jar
+7f693e299000-7f693e29b000 r--s 0000c000 103:05 1984130                   /home/fernandr/Programmes/Fiji.app/jars/op-finder-0.1.3.jar
+7f693e29b000-7f693e29f000 r--s 00021000 103:05 1983932                   /home/fernandr/Programmes/Fiji.app/jars/autocomplete-2.6.1.jar
+7f693e29f000-7f693e2ac000 r--s 00116000 103:05 1984144                   /home/fernandr/Programmes/Fiji.app/jars/rhino-1.7.6.jar
+7f693e2ac000-7f693e2bc000 r--s 00104000 103:05 1984097                   /home/fernandr/Programmes/Fiji.app/jars/languagesupport-2.6.0.jar
+7f693e2bc000-7f693e2c8000 r--s 0010f000 103:05 1984145                   /home/fernandr/Programmes/Fiji.app/jars/rsyntaxtextarea-2.6.1.jar
+7f693e2c8000-7f693e2d0000 r--s 00073000 103:05 1983980                   /home/fernandr/Programmes/Fiji.app/jars/commons-lang3-3.8.1.jar
+7f693e2d0000-7f693e2d2000 r--s 00000000 103:05 1984162                   /home/fernandr/Programmes/Fiji.app/jars/scijava-plugins-text-plain-0.1.3.jar
+7f693e2d2000-7f693e2d4000 r--s 00009000 103:05 1984109                   /home/fernandr/Programmes/Fiji.app/jars/markdownj-0.3.0-1.0.2b4.jar
+7f693e2d4000-7f693e2d6000 r--s 00000000 103:05 1984161                   /home/fernandr/Programmes/Fiji.app/jars/scijava-plugins-text-markdown-0.1.3.jar
+7f693e2d6000-7f693e2d8000 r--s 00001000 103:05 1984160                   /home/fernandr/Programmes/Fiji.app/jars/scijava-plugins-platforms-0.3.1.jar
+7f693e2d8000-7f693e2d9000 r--s 00005000 103:05 1984159                   /home/fernandr/Programmes/Fiji.app/jars/scijava-plugins-commands-0.2.3.jar
+7f693e2d9000-7f693e2da000 r--s 00002000 103:05 1984026                   /home/fernandr/Programmes/Fiji.app/jars/imagej-ui-awt-0.3.1.jar
+7f693e2da000-7f693e2fb000 r--s 001e0000 103:05 1984064                   /home/fernandr/Programmes/Fiji.app/jars/jhotdraw-7.6.0.jar
+7f693e2fb000-7f693e30c000 r--s 0016c000 103:05 1984056                   /home/fernandr/Programmes/Fiji.app/jars/jfreechart-1.5.0.jar
+7f693e30c000-7f693e312000 r--s 0003a000 103:05 1984027                   /home/fernandr/Programmes/Fiji.app/jars/imagej-ui-swing-0.22.0.jar
+7f693e312000-7f693e323000 r--s 0008c000 103:05 1984078                   /home/fernandr/Programmes/Fiji.app/jars/joda-time-2.10.1.jar
+7f693e323000-7f693e350000 r--s 0084f000 103:05 1984086                   /home/fernandr/Programmes/Fiji.app/jars/jruby-stdlib-9.1.17.0.jar
+7f693e350000-7f693e352000 r--s 00000000 103:05 1984119                   /home/fernandr/Programmes/Fiji.app/jars/modulator-1.0.jar
+7f693e352000-7f693e353000 r--s 00000000 103:05 1984188                   /home/fernandr/Programmes/Fiji.app/jars/unsafe-fences-1.0.jar
+7f693e353000-7f693e354000 r--s 00003000 103:05 1984132                   /home/fernandr/Programmes/Fiji.app/jars/options-1.4.jar
+7f693e354000-7f693e355000 r--s 0000a000 103:05 1984038                   /home/fernandr/Programmes/Fiji.app/jars/invokebinder-1.10.jar
+7f693e355000-7f693e357000 r--s 00003000 103:05 1983987                   /home/fernandr/Programmes/Fiji.app/jars/dirgra-0.3.jar
+7f693e357000-7f693e367000 r--s 00182000 103:05 1984048                   /home/fernandr/Programmes/Fiji.app/jars/jcodings-1.0.27.jar
+7f693e367000-7f693e368000 r--s 00002000 103:05 1983969                   /home/fernandr/Programmes/Fiji.app/jars/bytelist-1.0.15.jar
+7f693e368000-7f693e36b000 r--s 0002f000 103:05 1984082                   /home/fernandr/Programmes/Fiji.app/jars/joni-2.1.15.jar
+7f693e36b000-7f693e36d000 r--s 000a1000 103:05 1984054                   /home/fernandr/Programmes/Fiji.app/jars/jffi-1.2.16-native.jar
+7f693e36d000-7f693e370000 r--s 00022000 103:05 1984055                   /home/fernandr/Programmes/Fiji.app/jars/jffi-1.2.16.jar
+7f693e370000-7f693e376000 r--s 00052000 103:05 1984067                   /home/fernandr/Programmes/Fiji.app/jars/jnr-constants-0.9.9.jar
+7f693e376000-7f693e37b000 r--s 00036000 103:05 1984071                   /home/fernandr/Programmes/Fiji.app/jars/jnr-posix-3.0.44.jar
+7f693e37b000-7f693e37c000 r--s 0000a000 103:05 1984072                   /home/fernandr/Programmes/Fiji.app/jars/jnr-unixsocket-0.17.jar
+7f693e37c000-7f693e37d000 r--s 00006000 103:05 1984068                   /home/fernandr/Programmes/Fiji.app/jars/jnr-enxio-0.16.jar
+7f693e37d000-7f693e380000 r--s 0000d000 103:05 1984070                   /home/fernandr/Programmes/Fiji.app/jars/jnr-netdb-1.1.6.jar
+7f693e380000-7f693e434000 r--s 00864000 103:05 1984085                   /home/fernandr/Programmes/Fiji.app/jars/jruby-core-9.1.17.0.jar
+7f693e434000-7f693e436000 r--s 00001000 103:05 1984173                   /home/fernandr/Programmes/Fiji.app/jars/scripting-jruby-0.3.0.jar
+7f693e436000-7f693e465000 r--s 00239000 103:05 1984007                   /home/fernandr/Programmes/Fiji.app/jars/guava-21.0.jar
+7f693e465000-7f693e46b000 r--s 00080000 103:05 1984149                   /home/fernandr/Programmes/Fiji.app/jars/scala-xml_2.12-1.0.6.jar
+7f693e46b000-7f693e48d000 r--s 0033e000 103:05 1984148                   /home/fernandr/Programmes/Fiji.app/jars/scala-reflect-2.12.1.jar
+7f693e48d000-7f693e4d8000 r--s 00910000 103:05 1984146                   /home/fernandr/Programmes/Fiji.app/jars/scala-compiler-2.12.1.jar
+7f693e4d8000-7f693e510000 r--s 004d0000 103:05 1984147                   /home/fernandr/Programmes/Fiji.app/jars/scala-library-2.12.1.jar
+7f693e510000-7f693e511000 r--s 00001000 103:05 1984176                   /home/fernandr/Programmes/Fiji.app/jars/scripting-scala-0.2.1.jar
+7f693e511000-7f693e513000 r--s 0000e000 103:05 1983981                   /home/fernandr/Programmes/Fiji.app/jars/commons-logging-1.2.jar
+7f693e513000-7f693e516000 r--s 0001e000 103:05 1984001                   /home/fernandr/Programmes/Fiji.app/jars/graphics-0.8.1906.jar
+7f693e516000-7f693e519000 r--s 00014000 103:05 1984000                   /home/fernandr/Programmes/Fiji.app/jars/grDevices-0.8.1906.jar
+7f693e519000-7f693e51b000 r--s 0000e000 103:05 1984093                   /home/fernandr/Programmes/Fiji.app/jars/jung-graph-impl-2.0.1.jar
+7f693e51b000-7f693e522000 r--s 0005a000 103:05 1984189                   /home/fernandr/Programmes/Fiji.app/jars/utils-0.8.1906.jar
+7f693e522000-7f693e525000 r--s 00026000 103:05 1983985                   /home/fernandr/Programmes/Fiji.app/jars/datasets-0.8.1906.jar
+7f693e525000-7f693e531000 r--s 0013b000 103:05 1984114                   /home/fernandr/Programmes/Fiji.app/jars/methods-0.8.1906.jar
+7f693e531000-7f693e533000 r--s 00013000 103:05 1984142                   /home/fernandr/Programmes/Fiji.app/jars/renjin-gnur-runtime-0.8.1906.jar
+7f693e533000-7f693e534000 r--s 00005000 103:05 1984140                   /home/fernandr/Programmes/Fiji.app/jars/renjin-appl-0.8.1906.jar
+7f693e534000-7f693e540000 r--s 000ae000 103:05 1984180                   /home/fernandr/Programmes/Fiji.app/jars/stats-0.8.1906.jar
+7f693e540000-7f693e544000 r--s 00022000 103:05 1983972                   /home/fernandr/Programmes/Fiji.app/jars/codemodel-2.6.jar
+7f693e544000-7f693e546000 r--s 00009000 103:05 1983929                   /home/fernandr/Programmes/Fiji.app/jars/asm-commons-5.0.4.jar
+7f693e546000-7f693e548000 r--s 00006000 103:05 1983930                   /home/fernandr/Programmes/Fiji.app/jars/asm-tree-5.0.4.jar
+7f693e548000-7f693e549000 r--s 0000a000 103:05 1983931                   /home/fernandr/Programmes/Fiji.app/jars/asm-util-5.0.4.jar
+7f693e549000-7f693e54b000 r--s 0000c000 103:05 1983927                   /home/fernandr/Programmes/Fiji.app/jars/asm-5.0.4.jar
+7f693e54b000-7f693e557000 r--s 00076000 103:05 1983973                   /home/fernandr/Programmes/Fiji.app/jars/collections-generic-4.01.jar
+7f693e557000-7f693e55a000 r--s 00008000 103:05 1984092                   /home/fernandr/Programmes/Fiji.app/jars/jung-api-2.0.1.jar
+7f693e55a000-7f693e565000 r--s 0006f000 103:05 1984091                   /home/fernandr/Programmes/Fiji.app/jars/jtransforms-2.4.jar
+7f693e565000-7f693e569000 r--s 00014000 103:05 1984198                   /home/fernandr/Programmes/Fiji.app/jars/xz-1.0.jar
+7f693e569000-7f693e56e000 r--s 00036000 103:05 1983977                   /home/fernandr/Programmes/Fiji.app/jars/commons-compress-1.4.1.jar
+7f693e56e000-7f693e570000 r--s 00005000 103:05 1984139                   /home/fernandr/Programmes/Fiji.app/jars/regexp-1.3.jar
+7f693e570000-7f693e572000 r--s 00008000 103:05 1984111                   /home/fernandr/Programmes/Fiji.app/jars/maven-scm-provider-svn-commons-1.4.jar
+7f693e572000-7f693e575000 r--s 0000f000 103:05 1984112                   /home/fernandr/Programmes/Fiji.app/jars/maven-scm-provider-svnexe-1.4.jar
+7f693e575000-7f693e57a000 r--s 00039000 103:05 1984136                   /home/fernandr/Programmes/Fiji.app/jars/plexus-utils-1.5.6.jar
+7f693e57a000-7f693e57e000 r--s 00014000 103:05 1984110                   /home/fernandr/Programmes/Fiji.app/jars/maven-scm-api-1.4.jar
+7f693e57e000-7f693e587000 r--s 0005d000 103:05 1983984                   /home/fernandr/Programmes/Fiji.app/jars/commons-vfs2-2.0.jar
+7f693e587000-7f693e589000 r--s 0000d000 103:05 1983966                   /home/fernandr/Programmes/Fiji.app/jars/blas-0.8.jar
+7f693e589000-7f693e58a000 r--s 00000000 103:05 1984193                   /home/fernandr/Programmes/Fiji.app/jars/xerbla-0.8.jar
+7f693e58a000-7f693e58c000 r--s 0000f000 103:05 1983990                   /home/fernandr/Programmes/Fiji.app/jars/f2jutil-0.8.jar
+7f693e58c000-7f693e59a000 r--s 000dd000 103:05 1984098                   /home/fernandr/Programmes/Fiji.app/jars/lapack-0.8.jar
+7f693e59a000-7f693e59b000 r--s 00093000 103:05 1984126                   /home/fernandr/Programmes/Fiji.app/jars/netlib-java-0.9.3-renjin-patched-2.jar
+7f693e59b000-7f693e59d000 r--s 00004000 103:05 1983996                   /home/fernandr/Programmes/Fiji.app/jars/gcc-runtime-0.8.1906.jar
+7f693e59d000-7f693e5b0000 r--s 000df000 103:05 1983982                   /home/fernandr/Programmes/Fiji.app/jars/commons-math-2.2.jar
+7f693e5b0000-7f693e5df000 r--s 002e2000 103:05 1984141                   /home/fernandr/Programmes/Fiji.app/jars/renjin-core-0.8.1906.jar
+7f693e5df000-7f693e5e1000 r--s 00003000 103:05 1984143                   /home/fernandr/Programmes/Fiji.app/jars/renjin-script-engine-0.8.1906.jar
+7f693e5e1000-7f693e5e2000 r--s 00001000 103:05 1984175                   /home/fernandr/Programmes/Fiji.app/jars/scripting-renjin-0.2.2.jar
+7f693e5e2000-7f693e632000 rw-p 00000000 00:00 0 
+7f693e632000-7f693e825000 r--s 025ab000 103:05 1984094                   /home/fernandr/Programmes/Fiji.app/jars/jython-shaded-2.7.1.jar
+7f693e825000-7f693e826000 r--s 00001000 103:05 1984174                   /home/fernandr/Programmes/Fiji.app/jars/scripting-jython-0.4.2.jar
+7f693e826000-7f693e829000 r--s 0002c000 103:05 1984199                   /home/fernandr/Programmes/Fiji.app/jars/yecht-1.0.jar
+7f693e829000-7f693e82b000 r--s 00007000 103:05 1984123                   /home/fernandr/Programmes/Fiji.app/jars/nailgun-server-0.9.1.jar
+7f693e82b000-7f693e82d000 r--s 00010000 103:05 1984095                   /home/fernandr/Programmes/Fiji.app/jars/jzlib-1.1.3.jar
+7f693e82d000-7f693e83d000 r--s 0008e000 103:05 1984069                   /home/fernandr/Programmes/Fiji.app/jars/jnr-ffi-1.0.7.jar
+7f693e83d000-7f693e840000 r--s 00033000 103:05 1984073                   /home/fernandr/Programmes/Fiji.app/jars/jnr-x86asm-1.0.2.jar
+7f693e840000-7f693e841000 r--s 00004000 103:05 1983928                   /home/fernandr/Programmes/Fiji.app/jars/asm-analysis-4.0.jar
+7f693e841000-7f693e842000 r--s 0000e000 103:05 1984117                   /home/fernandr/Programmes/Fiji.app/jars/minimaven-2.2.1.jar
+7f693e842000-7f693e843000 r--s 00004000 103:05 1984171                   /home/fernandr/Programmes/Fiji.app/jars/scripting-java-0.4.1.jar
+7f693e843000-7f693e844000 r--s 0000e000 103:05 1984090                   /home/fernandr/Programmes/Fiji.app/jars/jsr166y-1.7.0.jar
+7f693e844000-7f693e84a000 r--s 00037000 103:05 1984122                   /home/fernandr/Programmes/Fiji.app/jars/multiverse-core-0.7.0.jar
+7f693e84a000-7f693e866000 r--s 00136000 103:05 1983999                   /home/fernandr/Programmes/Fiji.app/jars/gpars-1.2.1.jar
+7f693e866000-7f693e87c000 r--s 00124000 103:05 1984040                   /home/fernandr/Programmes/Fiji.app/jars/ivy-2.4.0.jar
+7f693e87c000-7f693e8c8000 r--s 0040c000 103:05 1984002                   /home/fernandr/Programmes/Fiji.app/jars/groovy-2.4.8.jar
+7f693e8c8000-7f693e8c9000 r--s 00003000 103:05 1984170                   /home/fernandr/Programmes/Fiji.app/jars/scripting-groovy-0.2.7.jar
+7f693e8c9000-7f693e90c000 r--s 00332000 103:05 1983971                   /home/fernandr/Programmes/Fiji.app/jars/clojure-1.8.0.jar
+7f693e90c000-7f693e90e000 r--s 00001000 103:05 1984169                   /home/fernandr/Programmes/Fiji.app/jars/scripting-clojure-0.1.6.jar
+7f693e90e000-7f693e913000 r--s 0005a000 103:05 1983968                   /home/fernandr/Programmes/Fiji.app/jars/bsh-2.0b6.jar
+7f693e913000-7f693e914000 r--s 00002000 103:05 1984168                   /home/fernandr/Programmes/Fiji.app/jars/scripting-beanshell-0.3.3.jar
+7f693e914000-7f693e916000 r--s 00007000 103:05 1984025                   /home/fernandr/Programmes/Fiji.app/jars/imagej-scripting-0.8.2.jar
+7f693e916000-7f693e918000 r--s 00003000 103:05 1984024                   /home/fernandr/Programmes/Fiji.app/jars/imagej-plugins-uploader-webdav-0.2.2.jar
+7f693e918000-7f693e91c000 r--s 00041000 103:05 1984087                   /home/fernandr/Programmes/Fiji.app/jars/jsch-0.1.55.jar
+7f693e91c000-7f693e91e000 r--s 00004000 103:05 1984023                   /home/fernandr/Programmes/Fiji.app/jars/imagej-plugins-uploader-ssh-0.3.2.jar
+7f693e91e000-7f693e920000 r--s 0000b000 103:05 1984022                   /home/fernandr/Programmes/Fiji.app/jars/imagej-plugins-tools-0.3.1.jar
+7f693e920000-7f693e922000 r--s 00003000 103:05 1983933                   /home/fernandr/Programmes/Fiji.app/jars/base64-2.3.8.jar
+7f693e922000-7f693e928000 r--s 00051000 103:05 1984021                   /home/fernandr/Programmes/Fiji.app/jars/imagej-plugins-commands-0.8.1.jar
+7f693e928000-7f693e93a000 r--s 0009c000 103:05 1984013                   /home/fernandr/Programmes/Fiji.app/jars/imagej-deprecated-0.1.2.jar
+7f693e93a000-7f693e93e000 r--s 00031000 103:05 1983978                   /home/fernandr/Programmes/Fiji.app/jars/commons-io-2.6.jar
+7f693e93e000-7f693e940000 r--s 00004000 103:05 1983934                   /home/fernandr/Programmes/Fiji.app/jars/batch-processor-0.3.0.jar
+7f693e940000-7f693e941000 r--s 00001000 103:05 1984020                   /home/fernandr/Programmes/Fiji.app/jars/imagej-plugins-batch-0.1.1.jar
+7f693e941000-7f693e94b000 r--s 000b4000 103:05 1984047                   /home/fernandr/Programmes/Fiji.app/jars/javassist-3.24.0-GA.jar
+7f693e94b000-7f693e94d000 r--s 00007000 103:05 1984051                   /home/fernandr/Programmes/Fiji.app/jars/jdatepicker-1.3.2.jar
+7f693e94d000-7f693e94f000 r--s 00005000 103:05 1984127                   /home/fernandr/Programmes/Fiji.app/jars/object-inspector-0.1.jar
+7f693e94f000-7f693e951000 r--s 00001000 103:05 1984181                   /home/fernandr/Programmes/Fiji.app/jars/swing-checkbox-tree-1.0.2.jar
+7f693e951000-7f693e955000 r--s 0002a000 103:05 1984166                   /home/fernandr/Programmes/Fiji.app/jars/scijava-ui-swing-0.12.0.jar
+7f693e955000-7f693e957000 r--s 0000a000 103:05 1984165                   /home/fernandr/Programmes/Fiji.app/jars/scijava-ui-awt-0.1.6.jar
+7f693e957000-7f693e95a000 r--s 00014000 103:05 1984034                   /home/fernandr/Programmes/Fiji.app/jars/imglib2-ij-2.0.0-beta-44.jar
+7f693e95a000-7f693e95d000 r--s 00024000 103:05 1984009                   /home/fernandr/Programmes/Fiji.app/jars/ij1-patcher-0.12.9.jar
+7f693e95d000-7f693e96f000 r--s 000c9000 103:05 1984157                   /home/fernandr/Programmes/Fiji.app/jars/scijava-common-2.76.1.jar
+7f693e96f000-7f693e974000 r--s 00025000 103:05 1984033                   /home/fernandr/Programmes/Fiji.app/jars/imglib2-cache-1.0.0-beta-11.jar
+7f693e974000-7f693e98b000 r--s 000d7000 103:05 1983970                   /home/fernandr/Programmes/Fiji.app/jars/caffeine-2.4.0.jar
+7f693e98b000-7f693e99b000 r--s 000e6000 103:05 1984154                   /home/fernandr/Programmes/Fiji.app/jars/scifio-jai-imageio-1.1.1.jar
+7f693e99b000-7f693e9a6000 r--s 000f2000 103:05 1984150                   /home/fernandr/Programmes/Fiji.app/jars/scifio-0.37.3.jar
+7f693e9a6000-7f693e9aa000 r--s 00038000 103:05 1984028                   /home/fernandr/Programmes/Fiji.app/jars/imagej-updater-0.9.3.jar
+7f693e9aa000-7f693e9ad000 r--s 00099000 103:05 1984081                   /home/fernandr/Programmes/Fiji.app/jars/joml-1.9.12.jar
+7f693e9ad000-7f693e9ae000 r--s 0000a000 103:05 1984134                   /home/fernandr/Programmes/Fiji.app/jars/parsington-1.0.4.jar
+7f693e9ae000-7f693e9ba000 r--s 00087000 103:05 1984030                   /home/fernandr/Programmes/Fiji.app/jars/imglib2-algorithm-0.11.1.jar
+7f693e9ba000-7f693e9e9000 r--s 001a5000 103:05 1984019                   /home/fernandr/Programmes/Fiji.app/jars/imagej-ops-0.43.1.jar
+7f693e9e9000-7f693ea10000 r--s 001f6000 103:05 1983983                   /home/fernandr/Programmes/Fiji.app/jars/commons-math3-3.6.1.jar
+7f693ea10000-7f693ea25000 r--s 001d7000 103:05 1984116                   /home/fernandr/Programmes/Fiji.app/jars/mines-jtk-20151125.jar
+7f693ea25000-7f693ea26000 ---p 00000000 00:00 0 
+7f693ea26000-7f693eb26000 rw-p 00000000 00:00 0 
+7f693eb26000-7f693eb29000 ---p 00000000 00:00 0 
+7f693eb29000-7f693ec27000 rw-p 00000000 00:00 0 
+7f693ec27000-7f693ec28000 ---p 00000000 00:00 0 
+7f693ec28000-7f693ec2b000 ---p 00000000 00:00 0 
+7f693ec2b000-7f693ed28000 rw-p 00000000 00:00 0 
+7f693ed28000-7f693ed29000 ---p 00000000 00:00 0 
+7f693ed29000-7f693ed2c000 ---p 00000000 00:00 0 
+7f693ed2c000-7f693ee29000 rw-p 00000000 00:00 0 
+7f693ee29000-7f693ee2a000 ---p 00000000 00:00 0 
+7f693ee2a000-7f693ee2d000 ---p 00000000 00:00 0 
+7f693ee2d000-7f693ef2a000 rw-p 00000000 00:00 0 
+7f693ef2a000-7f693ef2b000 ---p 00000000 00:00 0 
+7f693ef2b000-7f693ef2e000 ---p 00000000 00:00 0 
+7f693ef2e000-7f693f02b000 rw-p 00000000 00:00 0 
+7f693f02b000-7f693f02e000 ---p 00000000 00:00 0 
+7f693f02e000-7f693f12c000 rw-p 00000000 00:00 0 
+7f693f12c000-7f693fafb000 r--p 00000000 103:05 400112                    /usr/lib/locale/locale-archive
+7f693fafb000-7f693fafe000 ---p 00000000 00:00 0 
+7f693fafe000-7f693fbfc000 rw-p 00000000 00:00 0 
+7f693fbfc000-7f693fbff000 ---p 00000000 00:00 0 
+7f693fbff000-7f693fcfd000 rw-p 00000000 00:00 0 
+7f693fcfd000-7f693fcfe000 ---p 00000000 00:00 0 
+7f693fcfe000-7f6940000000 rw-p 00000000 00:00 0 
+7f6940000000-7f6940021000 rw-p 00000000 00:00 0 
+7f6940021000-7f6944000000 ---p 00000000 00:00 0 
+7f6944000000-7f6944003000 r--s 0001a000 103:05 1984035                   /home/fernandr/Programmes/Fiji.app/jars/imglib2-realtransform-2.1.0.jar
+7f6944003000-7f6944006000 r--s 0001a000 103:05 1984138                   /home/fernandr/Programmes/Fiji.app/jars/prettytime-4.0.1.Final.jar
+7f6944006000-7f6944008000 r--s 00011000 103:05 1984115                   /home/fernandr/Programmes/Fiji.app/jars/miglayout-3.7.4-swing.jar
+7f6944008000-7f694400a000 r--s 0000e000 103:05 1984163                   /home/fernandr/Programmes/Fiji.app/jars/scijava-search-0.5.0.jar
+7f694400a000-7f694402b000 r--s 0018e000 103:05 1984129                   /home/fernandr/Programmes/Fiji.app/jars/ojalgo-45.1.1.jar
+7f694402b000-7f6948000000 rw-p 00000000 00:00 0 
+7f6948000000-7f6948021000 rw-p 00000000 00:00 0 
+7f6948021000-7f694c000000 ---p 00000000 00:00 0 
+7f694c000000-7f694c021000 rw-p 00000000 00:00 0 
+7f694c021000-7f6950000000 ---p 00000000 00:00 0 
+7f6950000000-7f6950021000 rw-p 00000000 00:00 0 
+7f6950021000-7f6954000000 ---p 00000000 00:00 0 
+7f6954000000-7f6954021000 rw-p 00000000 00:00 0 
+7f6954021000-7f6958000000 ---p 00000000 00:00 0 
+7f6958000000-7f6958021000 rw-p 00000000 00:00 0 
+7f6958021000-7f695c000000 ---p 00000000 00:00 0 
+7f695c000000-7f695c001000 r--s 00001000 103:05 1984172                   /home/fernandr/Programmes/Fiji.app/jars/scripting-javascript-0.4.4.jar
+7f695c001000-7f695c003000 r--s 00004000 103:05 1984031                   /home/fernandr/Programmes/Fiji.app/jars/imglib2-algorithm-fft-0.2.0.jar
+7f695c003000-7f695c005000 r--s 00003000 103:05 1983997                   /home/fernandr/Programmes/Fiji.app/jars/gentyref-1.1.0.jar
+7f695c005000-7f695c006000 r--s 00006000 103:05 1984016                   /home/fernandr/Programmes/Fiji.app/jars/imagej-mesh-0.7.1.jar
+7f695c006000-7f695c008000 r--s 0001d000 103:05 1984186                   /home/fernandr/Programmes/Fiji.app/jars/udunits-4.3.18.jar
+7f695c008000-7f695c00b000 r--s 00012000 103:05 1983989                   /home/fernandr/Programmes/Fiji.app/jars/eventbus-1.4.jar
+7f695c00b000-7f695c00d000 r--s 00008000 103:05 1984164                   /home/fernandr/Programmes/Fiji.app/jars/scijava-table-0.2.0.jar
+7f695c00d000-7f695c035000 r--s 00241000 103:05 1984185                   /home/fernandr/Programmes/Fiji.app/jars/trove4j-3.0.3.jar
+7f695c035000-7f695c03e000 r--s 0006f000 103:05 1984105                   /home/fernandr/Programmes/Fiji.app/jars/log4j-1.2.17.jar
+7f695c03e000-7f695c04f000 r--s 000aa000 103:05 1984029                   /home/fernandr/Programmes/Fiji.app/jars/imglib2-5.6.3.jar
+7f695c04f000-7f695d3ab000 rw-p 00000000 00:00 0 
+7f695d3ab000-7f695d585000 r--s 03d6f000 103:05 1319016                   /usr/lib/jvm/java-8-oracle/jre/lib/rt.jar
+7f695d585000-7f695dff7000 rw-p 00000000 00:00 0 
+7f695dff7000-7f695dff8000 ---p 00000000 00:00 0 
+7f695dff8000-7f695e0f8000 rw-p 00000000 00:00 0 
+7f695e0f8000-7f695e0f9000 ---p 00000000 00:00 0 
+7f695e0f9000-7f695e1f9000 rw-p 00000000 00:00 0 
+7f695e1f9000-7f695e1fa000 ---p 00000000 00:00 0 
+7f695e1fa000-7f695e2fa000 rw-p 00000000 00:00 0 
+7f695e2fa000-7f695e2fb000 ---p 00000000 00:00 0 
+7f695e2fb000-7f695e3fb000 rw-p 00000000 00:00 0 
+7f695e3fb000-7f695e3fc000 ---p 00000000 00:00 0 
+7f695e3fc000-7f695e4fc000 rw-p 00000000 00:00 0 
+7f695e4fc000-7f695e4fd000 ---p 00000000 00:00 0 
+7f695e4fd000-7f695e5fd000 rw-p 00000000 00:00 0 
+7f695e5fd000-7f695e5fe000 ---p 00000000 00:00 0 
+7f695e5fe000-7f695e6fe000 rw-p 00000000 00:00 0 
+7f695e6fe000-7f695e6ff000 ---p 00000000 00:00 0 
+7f695e6ff000-7f695e7ff000 rw-p 00000000 00:00 0 
+7f695e7ff000-7f695e800000 ---p 00000000 00:00 0 
+7f695e800000-7f695e9a7000 rw-p 00000000 00:00 0 
+7f695e9a7000-7f6960adb000 ---p 00000000 00:00 0 
+7f6960adb000-7f6960b82000 rw-p 00000000 00:00 0 
+7f6960b82000-7f6962cb5000 ---p 00000000 00:00 0 
+7f6962cb5000-7f6962d09000 rw-p 00000000 00:00 0 
+7f6962d09000-7f6963da3000 ---p 00000000 00:00 0 
+7f6963da3000-7f6963db3000 rw-p 00000000 00:00 0 
+7f6963db3000-7f6964164000 ---p 00000000 00:00 0 
+7f6964164000-7f69644f4000 rwxp 00000000 00:00 0 
+7f69644f4000-7f6973164000 ---p 00000000 00:00 0 
+7f6973164000-7f697317f000 r-xp 00000000 103:05 1319079                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libzip.so
+7f697317f000-7f697337e000 ---p 0001b000 103:05 1319079                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libzip.so
+7f697337e000-7f697337f000 r--p 0001a000 103:05 1319079                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libzip.so
+7f697337f000-7f6973380000 rw-p 0001b000 103:05 1319079                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libzip.so
+7f6973380000-7f697338b000 r-xp 00000000 103:05 3806148                   /lib/x86_64-linux-gnu/libnss_files-2.27.so
+7f697338b000-7f697358a000 ---p 0000b000 103:05 3806148                   /lib/x86_64-linux-gnu/libnss_files-2.27.so
+7f697358a000-7f697358b000 r--p 0000a000 103:05 3806148                   /lib/x86_64-linux-gnu/libnss_files-2.27.so
+7f697358b000-7f697358c000 rw-p 0000b000 103:05 3806148                   /lib/x86_64-linux-gnu/libnss_files-2.27.so
+7f697358c000-7f6973592000 rw-p 00000000 00:00 0 
+7f6973592000-7f69735a9000 r-xp 00000000 103:05 3806142                   /lib/x86_64-linux-gnu/libnsl-2.27.so
+7f69735a9000-7f69737a8000 ---p 00017000 103:05 3806142                   /lib/x86_64-linux-gnu/libnsl-2.27.so
+7f69737a8000-7f69737a9000 r--p 00016000 103:05 3806142                   /lib/x86_64-linux-gnu/libnsl-2.27.so
+7f69737a9000-7f69737aa000 rw-p 00017000 103:05 3806142                   /lib/x86_64-linux-gnu/libnsl-2.27.so
+7f69737aa000-7f69737ac000 rw-p 00000000 00:00 0 
+7f69737ac000-7f69737b7000 r-xp 00000000 103:05 3806159                   /lib/x86_64-linux-gnu/libnss_nis-2.27.so
+7f69737b7000-7f69739b6000 ---p 0000b000 103:05 3806159                   /lib/x86_64-linux-gnu/libnss_nis-2.27.so
+7f69739b6000-7f69739b7000 r--p 0000a000 103:05 3806159                   /lib/x86_64-linux-gnu/libnss_nis-2.27.so
+7f69739b7000-7f69739b8000 rw-p 0000b000 103:05 3806159                   /lib/x86_64-linux-gnu/libnss_nis-2.27.so
+7f69739b8000-7f69739c0000 r-xp 00000000 103:05 3806144                   /lib/x86_64-linux-gnu/libnss_compat-2.27.so
+7f69739c0000-7f6973bc0000 ---p 00008000 103:05 3806144                   /lib/x86_64-linux-gnu/libnss_compat-2.27.so
+7f6973bc0000-7f6973bc1000 r--p 00008000 103:05 3806144                   /lib/x86_64-linux-gnu/libnss_compat-2.27.so
+7f6973bc1000-7f6973bc2000 rw-p 00009000 103:05 3806144                   /lib/x86_64-linux-gnu/libnss_compat-2.27.so
+7f6973bc2000-7f6973bee000 r-xp 00000000 103:05 1319071                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libjava.so
+7f6973bee000-7f6973dee000 ---p 0002c000 103:05 1319071                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libjava.so
+7f6973dee000-7f6973def000 r--p 0002c000 103:05 1319071                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libjava.so
+7f6973def000-7f6973df1000 rw-p 0002d000 103:05 1319071                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libjava.so
+7f6973df1000-7f6973dfe000 r-xp 00000000 103:05 1319077                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libverify.so
+7f6973dfe000-7f6973ffd000 ---p 0000d000 103:05 1319077                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libverify.so
+7f6973ffd000-7f6973fff000 r--p 0000c000 103:05 1319077                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libverify.so
+7f6973fff000-7f6974000000 rw-p 0000e000 103:05 1319077                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/libverify.so
+7f6974000000-7f69764dc000 rw-p 00000000 00:00 0 
+7f69764dc000-7f6978000000 ---p 00000000 00:00 0 
+7f6978000000-7f6978001000 r--s 00003000 103:05 1984018                   /home/fernandr/Programmes/Fiji.app/jars/imagej-notebook-0.3.0.jar
+7f6978001000-7f6978007000 r--s 0004f000 103:05 1983988                   /home/fernandr/Programmes/Fiji.app/jars/ejml-0.24.jar
+7f6978007000-7f6978008000 r--s 00004000 103:05 1984065                   /home/fernandr/Programmes/Fiji.app/jars/jitk-tps-3.0.0.jar
+7f6978008000-7f6978029000 rw-p 00000000 00:00 0 
+7f6978029000-7f697802a000 ---p 00000000 00:00 0 
+7f697802a000-7f697812a000 rw-p 00000000 00:00 0 
+7f697812a000-7f6978131000 r-xp 00000000 103:05 3806199                   /lib/x86_64-linux-gnu/librt-2.27.so
+7f6978131000-7f6978330000 ---p 00007000 103:05 3806199                   /lib/x86_64-linux-gnu/librt-2.27.so
+7f6978330000-7f6978331000 r--p 00006000 103:05 3806199                   /lib/x86_64-linux-gnu/librt-2.27.so
+7f6978331000-7f6978332000 rw-p 00007000 103:05 3806199                   /lib/x86_64-linux-gnu/librt-2.27.so
+7f6978332000-7f69784cf000 r-xp 00000000 103:05 3806121                   /lib/x86_64-linux-gnu/libm-2.27.so
+7f69784cf000-7f69786ce000 ---p 0019d000 103:05 3806121                   /lib/x86_64-linux-gnu/libm-2.27.so
+7f69786ce000-7f69786cf000 r--p 0019c000 103:05 3806121                   /lib/x86_64-linux-gnu/libm-2.27.so
+7f69786cf000-7f69786d0000 rw-p 0019d000 103:05 3806121                   /lib/x86_64-linux-gnu/libm-2.27.so
+7f69786d0000-7f69793b8000 r-xp 00000000 103:05 1581920                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/server/libjvm.so
+7f69793b8000-7f69795b7000 ---p 00ce8000 103:05 1581920                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/server/libjvm.so
+7f69795b7000-7f697964d000 r--p 00ce7000 103:05 1581920                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/server/libjvm.so
+7f697964d000-7f697967e000 rw-p 00d7d000 103:05 1581920                   /usr/lib/jvm/java-8-oracle/jre/lib/amd64/server/libjvm.so
+7f697967e000-7f69796b9000 rw-p 00000000 00:00 0 
+7f69796b9000-7f69798a0000 r-xp 00000000 103:05 3806058                   /lib/x86_64-linux-gnu/libc-2.27.so
+7f69798a0000-7f6979aa0000 ---p 001e7000 103:05 3806058                   /lib/x86_64-linux-gnu/libc-2.27.so
+7f6979aa0000-7f6979aa4000 r--p 001e7000 103:05 3806058                   /lib/x86_64-linux-gnu/libc-2.27.so
+7f6979aa4000-7f6979aa6000 rw-p 001eb000 103:05 3806058                   /lib/x86_64-linux-gnu/libc-2.27.so
+7f6979aa6000-7f6979aaa000 rw-p 00000000 00:00 0 
+7f6979aaa000-7f6979aad000 r-xp 00000000 103:05 3806081                   /lib/x86_64-linux-gnu/libdl-2.27.so
+7f6979aad000-7f6979cac000 ---p 00003000 103:05 3806081                   /lib/x86_64-linux-gnu/libdl-2.27.so
+7f6979cac000-7f6979cad000 r--p 00002000 103:05 3806081                   /lib/x86_64-linux-gnu/libdl-2.27.so
+7f6979cad000-7f6979cae000 rw-p 00003000 103:05 3806081                   /lib/x86_64-linux-gnu/libdl-2.27.so
+7f6979cae000-7f6979cc5000 r-xp 00000000 103:05 409197                    /usr/lib/jvm/java-8-oracle/lib/amd64/jli/libjli.so
+7f6979cc5000-7f6979ec4000 ---p 00017000 103:05 409197                    /usr/lib/jvm/java-8-oracle/lib/amd64/jli/libjli.so
+7f6979ec4000-7f6979ec5000 r--p 00016000 103:05 409197                    /usr/lib/jvm/java-8-oracle/lib/amd64/jli/libjli.so
+7f6979ec5000-7f6979ec6000 rw-p 00017000 103:05 409197                    /usr/lib/jvm/java-8-oracle/lib/amd64/jli/libjli.so
+7f6979ec6000-7f6979ee0000 r-xp 00000000 103:05 3806191                   /lib/x86_64-linux-gnu/libpthread-2.27.so
+7f6979ee0000-7f697a0df000 ---p 0001a000 103:05 3806191                   /lib/x86_64-linux-gnu/libpthread-2.27.so
+7f697a0df000-7f697a0e0000 r--p 00019000 103:05 3806191                   /lib/x86_64-linux-gnu/libpthread-2.27.so
+7f697a0e0000-7f697a0e1000 rw-p 0001a000 103:05 3806191                   /lib/x86_64-linux-gnu/libpthread-2.27.so
+7f697a0e1000-7f697a0e5000 rw-p 00000000 00:00 0 
+7f697a0e5000-7f697a0eb000 r-xp 00000000 103:05 413404                    /usr/lib/x86_64-linux-gnu/libgtk3-nocsd.so.0
+7f697a0eb000-7f697a2ea000 ---p 00006000 103:05 413404                    /usr/lib/x86_64-linux-gnu/libgtk3-nocsd.so.0
+7f697a2ea000-7f697a2eb000 r--p 00005000 103:05 413404                    /usr/lib/x86_64-linux-gnu/libgtk3-nocsd.so.0
+7f697a2eb000-7f697a2ec000 rw-p 00006000 103:05 413404                    /usr/lib/x86_64-linux-gnu/libgtk3-nocsd.so.0
+7f697a2ec000-7f697a313000 r-xp 00000000 103:05 3806030                   /lib/x86_64-linux-gnu/ld-2.27.so
+7f697a313000-7f697a315000 r--s 00008000 103:05 1984045                   /home/fernandr/Programmes/Fiji.app/jars/jama-1.0.3.jar
+7f697a315000-7f697a31c000 r--s 0003a000 103:05 1984036                   /home/fernandr/Programmes/Fiji.app/jars/imglib2-roi-0.7.0.jar
+7f697a31c000-7f697a31d000 r--s 00002000 103:05 1984011                   /home/fernandr/Programmes/Fiji.app/jars/imagej-2.0.0-rc-69.jar
+7f697a31d000-7f697a31f000 r--s 0000b000 103:05 1983992                   /home/fernandr/Programmes/Fiji.app/jars/fiji-2.0.0-pre-8.jar
+7f697a31f000-7f697a32a000 r--s 00093000 103:05 1983880                   /home/fernandr/Programmes/LIB_EXT/JAR/simpleitk-1.2.0.jar
+7f697a32a000-7f697a3d4000 rw-p 00000000 00:00 0 
+7f697a3d4000-7f697a3d5000 ---p 00000000 00:00 0 
+7f697a3d5000-7f697a3d8000 ---p 00000000 00:00 0 
+7f697a3d8000-7f697a4d9000 rw-p 00000000 00:00 0 
+7f697a4d9000-7f697a4e0000 r--s 00095000 103:05 2028044                   /home/fernandr/Programmes/LIB_EXT/JAR/VIB-lib-2.1.2.jar
+7f697a4e0000-7f697a4e1000 r--s 00005000 103:05 3411772                   /home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/target/lib/ext/lma.jar
+7f697a4e1000-7f697a509000 rw-p 00000000 00:00 0 
+7f697a509000-7f697a511000 rw-s 00000000 103:05 2884344                   /tmp/hsperfdata_fernandr/28996
+7f697a511000-7f697a512000 rw-p 00000000 00:00 0 
+7f697a512000-7f697a513000 r--p 00000000 00:00 0 
+7f697a513000-7f697a514000 r--p 00027000 103:05 3806030                   /lib/x86_64-linux-gnu/ld-2.27.so
+7f697a514000-7f697a515000 rw-p 00028000 103:05 3806030                   /lib/x86_64-linux-gnu/ld-2.27.so
+7f697a515000-7f697a516000 rw-p 00000000 00:00 0 
+7ffdfc81d000-7ffdfc83f000 rw-p 00000000 00:00 0                          [stack]
+7ffdfc9c9000-7ffdfc9cc000 r--p 00000000 00:00 0                          [vvar]
+7ffdfc9cc000-7ffdfc9ce000 r-xp 00000000 00:00 0                          [vdso]
+ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]
+
+VM Arguments:
+jvm_args: -Xmx26000m -Djava.library.path=/usr/lib/jni:/home/fernandr/Programmes/Fiji.app/lib/linux64 -Dfile.encoding=UTF-8 
+java_command: com.vitimage.TestRomain
+java_class_path (initial): /home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/target/lib/ext/lma.jar:/home/fernandr/eclipse-workspace/MyIJPlugs/vitimage/target/classes:/home/fernandr/Programmes/LIB_EXT/JAR/simpleitk-1.2.0.jar:/home/fernandr/Programmes/LIB_EXT/JAR/VIB-lib-2.1.2.jar:/home/fernandr/Programmes/Fiji.app/jars/fiji-2.0.0-pre-8.jar:/home/fernandr/Programmes/Fiji.app/plugins/3D_Viewer-4.0.2.jar:/home/fernandr/.m2/repository/net/imagej/ij/1.52o/ij-1.52o.jar:/usr/lib/jvm/java-8-oracle/lib/tools.jar:/home/fernandr/.m2/repository/sc/fiji/imagescience/3.0.0/imagescience-3.0.0.jar:/home/fernandr/.m2/repository/sc/fiji/Image_5D/1.2.6/Image_5D-1.2.6.jar:/home/fernandr/.m2/repository/sc/fiji/VIB-lib/2.1.2/VIB-lib-2.1.2.jar:/home/fernandr/.m2/repository/sc/fiji/pal-optimization/2.0.0/pal-optimization-2.0.0.jar:/home/fernandr/.m2/repository/gov/nist/math/jama/1.0.3/jama-1.0.3.jar:/home/fernandr/.m2/repository/sc/fiji/Trainable_Segmentation/3.2.2/Trainable_Segmentation-3.2.2.jar:/home/fernandr/.m2/repository/sc/fiji/Anisotropic_Diffusion_2D/2.0.0/Anisotropic_Diffusion_2D-2.0.0.jar:/home/fernandr/.m2/repository/sc/fiji/fiji-lib/2.1.1/fiji-lib-2.1.1.jar:/home/fernandr/.m2/repository/net/imagej/ij1-patcher/0.12.2/ij1-patcher-0.12.2.jar:/home/fernandr/.m2/repository/org/javassist/javassist/3.16.1-GA/javassist-3.16.1-GA.jar:/home/fernandr/.m2/repository/net/imglib2/imglib2/2.9.0/imglib2-2.9.0.jar:/home/fernandr/.m2/repository/net/imglib2/imglib2-ij/2.0.0-beta-33/imglib2-ij-2.0.0-beta-33.jar:/home/fernandr/.m2/repository/net/imagej/imagej-common/0.20.1/imagej-common-0.20.1.jar:/home/fernandr/.m2/repository/net/imglib2/imglib2-roi/0.4.2/imglib2-roi-0.4.2.jar:/home/fernandr/.m2/repository/net/sf/trove4j/trove4j/3.0.3/trove4j-3.0.3.jar:/home/fernandr/.m2/repository/org/scijava/scijava-common/2.53.0/scijava-common-2.53.0.jar:/home/fernandr/.m2/repository/com/googlecode/gentyref/gentyref/1.1.0/gentyref-1.1.0.jar:/home/fernandr/.m2/repository/org/bushe/eventbus/1.4/eventbus-1.4.
+Launcher Type: SUN_STANDARD
+
+Environment Variables:
+JAVA_HOME=/usr/lib/jvm/java-8-oracle
+PATH=/home/fernandr/.local/share/umake/bin:/home/fernandr/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/fernandr/Programmes/ImageJ:/home/fernandr/Programmes/Fiji.app:/snap/bin:/usr/lib/jvm/java-8-oracle/bin:/usr/lib/jvm/java-8-oracle/db/bin:/usr/lib/jvm/java-8-oracle/jre/bin
+USERNAME=fernandr
+LD_PRELOAD=libgtk3-nocsd.so.0
+SHELL=/bin/bash
+DISPLAY=:1
+
+Signal Handlers:
+SIGSEGV: [libjvm.so+0xad3e60], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGBUS: [libjvm.so+0xad3e60], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGFPE: [libjvm.so+0x90b880], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGPIPE: [libjvm.so+0x90b880], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGXFSZ: [libjvm.so+0x90b880], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGILL: [libjvm.so+0x90b880], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGUSR1: SIG_DFL, sa_mask[0]=00000000000000000000000000000000, sa_flags=none
+SIGUSR2: [libjvm.so+0x90b750], sa_mask[0]=00100000000000000000000000000000, sa_flags=SA_RESTART|SA_SIGINFO
+SIGHUP: [libjvm.so+0x90bd70], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGINT: [libjvm.so+0x90bd70], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGTERM: [libjvm.so+0x90bd70], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGQUIT: [libjvm.so+0x90bd70], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+
+
+---------------  S Y S T E M  ---------------
+
+OS:DISTRIB_ID=Ubuntu
+DISTRIB_RELEASE=18.04
+DISTRIB_CODENAME=bionic
+DISTRIB_DESCRIPTION="Ubuntu 18.04.2 LTS"
+
+uname:Linux 4.15.0-54-generic #58-Ubuntu SMP Mon Jun 24 10:55:24 UTC 2019 x86_64
+libc:glibc 2.27 NPTL 2.27 
+rlimit: STACK 8192k, CORE 0k, NPROC 127337, NOFILE 4096, AS infinity
+load average:1,20 1,25 2,01
+
+/proc/meminfo:
+MemTotal:       32693760 kB
+MemFree:        14454472 kB
+MemAvailable:   14913548 kB
+Buffers:          156664 kB
+Cached:           848560 kB
+SwapCached:       186904 kB
+Active:         15292712 kB
+Inactive:        2365896 kB
+Active(anon):   14962908 kB
+Inactive(anon):  1890100 kB
+Active(file):     329804 kB
+Inactive(file):   475796 kB
+Unevictable:       13392 kB
+Mlocked:           13392 kB
+SwapTotal:      19530748 kB
+SwapFree:       14649084 kB
+Dirty:                76 kB
+Writeback:             0 kB
+AnonPages:      16567944 kB
+Mapped:           664728 kB
+Shmem:            197100 kB
+Slab:             155304 kB
+SReclaimable:      49896 kB
+SUnreclaim:       105408 kB
+KernelStack:       22160 kB
+PageTables:       107456 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:    35877628 kB
+Committed_AS:   30188516 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:           0 kB
+VmallocChunk:          0 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:         0 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+CmaTotal:              0 kB
+CmaFree:               0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+DirectMap4k:      829948 kB
+DirectMap2M:    32479232 kB
+DirectMap1G:     1048576 kB
+
+container (cgroup) information:
+container_type: cgroupv1
+cpu_cpuset_cpus: 0-11
+cpu_memory_nodes: 0
+active_processor_count: 12
+cpu_quota: -1
+cpu_period: 100000
+cpu_shares: -1
+memory_limit_in_bytes: -1
+memory_and_swap_limit_in_bytes: -2
+memory_soft_limit_in_bytes: -1
+memory_usage_in_bytes: 18073862144
+memory_max_usage_in_bytes: 0
+
+
+CPU:total 12 (initial active 12) (6 cores per cpu, 2 threads per core) family 6 model 158 stepping 10, cmov, cx8, fxsr, mmx, sse, sse2, sse3, ssse3, sse4.1, sse4.2, popcnt, avx, avx2, aes, clmul, erms, rtm, 3dnowpref, lzcnt, ht, tsc, tscinvbit, bmi1, bmi2, adx
+
+/proc/cpuinfo:
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 158
+model name	: Intel(R) Xeon(R) E-2186M  CPU @ 2.90GHz
+stepping	: 10
+microcode	: 0xb4
+cpu MHz		: 4648.327
+cache size	: 12288 KB
+physical id	: 0
+siblings	: 12
+core id		: 0
+cpu cores	: 6
+apicid		: 0
+initial apicid	: 0
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 22
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds
+bogomips	: 5808.00
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 158
+model name	: Intel(R) Xeon(R) E-2186M  CPU @ 2.90GHz
+stepping	: 10
+microcode	: 0xb4
+cpu MHz		: 4686.162
+cache size	: 12288 KB
+physical id	: 0
+siblings	: 12
+core id		: 1
+cpu cores	: 6
+apicid		: 2
+initial apicid	: 2
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 22
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds
+bogomips	: 5808.00
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 2
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 158
+model name	: Intel(R) Xeon(R) E-2186M  CPU @ 2.90GHz
+stepping	: 10
+microcode	: 0xb4
+cpu MHz		: 4597.624
+cache size	: 12288 KB
+physical id	: 0
+siblings	: 12
+core id		: 2
+cpu cores	: 6
+apicid		: 4
+initial apicid	: 4
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 22
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds
+bogomips	: 5808.00
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 3
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 158
+model name	: Intel(R) Xeon(R) E-2186M  CPU @ 2.90GHz
+stepping	: 10
+microcode	: 0xb4
+cpu MHz		: 4639.512
+cache size	: 12288 KB
+physical id	: 0
+siblings	: 12
+core id		: 3
+cpu cores	: 6
+apicid		: 6
+initial apicid	: 6
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 22
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds
+bogomips	: 5808.00
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 4
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 158
+model name	: Intel(R) Xeon(R) E-2186M  CPU @ 2.90GHz
+stepping	: 10
+microcode	: 0xb4
+cpu MHz		: 4669.962
+cache size	: 12288 KB
+physical id	: 0
+siblings	: 12
+core id		: 4
+cpu cores	: 6
+apicid		: 8
+initial apicid	: 8
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 22
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds
+bogomips	: 5808.00
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 5
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 158
+model name	: Intel(R) Xeon(R) E-2186M  CPU @ 2.90GHz
+stepping	: 10
+microcode	: 0xb4
+cpu MHz		: 4692.330
+cache size	: 12288 KB
+physical id	: 0
+siblings	: 12
+core id		: 5
+cpu cores	: 6
+apicid		: 10
+initial apicid	: 10
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 22
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds
+bogomips	: 5808.00
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 6
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 158
+model name	: Intel(R) Xeon(R) E-2186M  CPU @ 2.90GHz
+stepping	: 10
+microcode	: 0xb4
+cpu MHz		: 4660.366
+cache size	: 12288 KB
+physical id	: 0
+siblings	: 12
+core id		: 0
+cpu cores	: 6
+apicid		: 1
+initial apicid	: 1
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 22
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds
+bogomips	: 5808.00
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 7
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 158
+model name	: Intel(R) Xeon(R) E-2186M  CPU @ 2.90GHz
+stepping	: 10
+microcode	: 0xb4
+cpu MHz		: 4599.013
+cache size	: 12288 KB
+physical id	: 0
+siblings	: 12
+core id		: 1
+cpu cores	: 6
+apicid		: 3
+initial apicid	: 3
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 22
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds
+bogomips	: 5808.00
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 8
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 158
+model name	: Intel(R) Xeon(R) E-2186M  CPU @ 2.90GHz
+stepping	: 10
+microcode	: 0xb4
+cpu MHz		: 4490.834
+cache size	: 12288 KB
+physical id	: 0
+siblings	: 12
+core id		: 2
+cpu cores	: 6
+apicid		: 5
+initial apicid	: 5
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 22
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds
+bogomips	: 5808.00
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 9
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 158
+model name	: Intel(R) Xeon(R) E-2186M  CPU @ 2.90GHz
+stepping	: 10
+microcode	: 0xb4
+cpu MHz		: 4693.188
+cache size	: 12288 KB
+physical id	: 0
+siblings	: 12
+core id		: 3
+cpu cores	: 6
+apicid		: 7
+initial apicid	: 7
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 22
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds
+bogomips	: 5808.00
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 10
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 158
+model name	: Intel(R) Xeon(R) E-2186M  CPU @ 2.90GHz
+stepping	: 10
+microcode	: 0xb4
+cpu MHz		: 4634.165
+cache size	: 12288 KB
+physical id	: 0
+siblings	: 12
+core id		: 4
+cpu cores	: 6
+apicid		: 9
+initial apicid	: 9
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 22
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds
+bogomips	: 5808.00
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 11
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 158
+model name	: Intel(R) Xeon(R) E-2186M  CPU @ 2.90GHz
+stepping	: 10
+microcode	: 0xb4
+cpu MHz		: 4645.075
+cache size	: 12288 KB
+physical id	: 0
+siblings	: 12
+core id		: 5
+cpu cores	: 6
+apicid		: 11
+initial apicid	: 11
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 22
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds
+bogomips	: 5808.00
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+
+
+Memory: 4k page, physical 32693760k(14454472k free), swap 19530748k(14649084k free)
+
+vm_info: Java HotSpot(TM) 64-Bit Server VM (25.201-b09) for linux-amd64 JRE (1.8.0_201-b09), built on Dec 15 2018 11:35:59 by "java_re" with gcc 7.3.0
+
+time: Mon Jul  8 16:44:16 2019
+timezone: CEST
+elapsed time: 4 seconds (0d 0h 0m 4s)
+

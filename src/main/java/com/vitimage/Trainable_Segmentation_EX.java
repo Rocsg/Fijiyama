@@ -42,6 +42,7 @@ import fiji.util.gui.GenericDialogPlus;
 import fiji.util.gui.OverlayedImageCanvas;
 import hr.irb.fastRandomForest.FastRandomForest;
 import ij.IJ;
+import ij.ImageJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.WindowManager;
@@ -58,8 +59,10 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import trainableSegmentation.FeatureStack;
+import trainableSegmentation.FeatureStack3D;
 import trainableSegmentation.ImageOverlay;
 import trainableSegmentation.RoiListOverlay;
+import trainableSegmentation.WekaSegmentation;
 import trainableSegmentation.Weka_Segmentation;
 
 import java.awt.AlphaComposite;
@@ -94,6 +97,9 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
@@ -114,6 +120,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -122,10 +130,16 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
+
 import weka.classifiers.AbstractClassifier;
+import weka.classifiers.pmml.consumer.PMMLClassifier;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instances;
+import weka.core.SerializationHelper;
+import weka.core.pmml.PMMLFactory;
+import weka.core.pmml.PMMLModel;
+import weka.gui.explorer.ClassifierPanel;
 
 @Deprecated
 public class Trainable_Segmentation_EX implements PlugIn 
@@ -166,6 +180,8 @@ public class Trainable_Segmentation_EX implements PlugIn
 	/** flag to update the whole set of instances (used when there is any change on the features) */
 	private boolean updateWholeData = true;
 	
+	private JButton loadModelButton;
+	private JButton saveModelButton;
 	/** train classifier button */
 	private JButton trainButton;
 	/** toggle overlay button */
@@ -176,11 +192,8 @@ public class Trainable_Segmentation_EX implements PlugIn
 	private JButton applyButton;
 	/** create probability image button */
 	private JButton probimgButton;
-	/** load data button */
 	private JButton loadDataButton;
-	/** save data button */
 	private JButton saveDataButton;
-	/** settings button */
 	private JButton settingsButton;
 	/** create new class button */
 	private JButton addClassButton;
@@ -188,7 +201,8 @@ public class Trainable_Segmentation_EX implements PlugIn
 	private JButton examplesLoadButton;
 	/** save examples */
 	private JButton examplesSaveButton;
-	
+
+	private Instances trainHeader = null;
 	/** array of roi list overlays to paint the transparent rois of each class */
 	private RoiListOverlay [] roiOverlay;
 	/** current segmentation result overlay */
@@ -222,6 +236,31 @@ public class Trainable_Segmentation_EX implements PlugIn
 	/** GUI/no GUI flag */
 	private boolean useGUI = true;
 	
+	
+	
+	public static void main(String [] args) {
+		ImageJ imag=new ImageJ();
+		
+//		ImagePlus img3=  multiplyFloatImages(img1,img2);
+//		img3.show();
+//		test();
+//		System.exit(0);
+		ImagePlus img1=IJ.openImage("/home/fernandr/Bureau/Test/Test_NN/test_IRM-1.tif");
+		IJ.run(img1,"32-bit","");
+		img1.show();
+		Trainable_Segmentation_EX ts;
+		ts= new Trainable_Segmentation_EX();
+		ts.run("");
+//		VitimageUtils.waitFor(10000);
+		
+		
+	}
+
+	
+	
+	
+	
+	
 	/**
 	 * Basic constructor
 	 */
@@ -250,6 +289,15 @@ public class Trainable_Segmentation_EX implements PlugIn
 		roiOverlay = new RoiListOverlay[MAX_NUM_CLASSES];
 		resultOverlay = new ImageOverlay();
 		
+		loadModelButton = new JButton("load a pre-train model");
+		loadModelButton.setToolTipText("Allow to load in the system a model that have been trained before and save in a .model file");
+
+		saveModelButton = new JButton("save a trained model");
+		saveModelButton.setToolTipText("Allow to save in the system a model that have been trained in a .model file");
+
+		trainButton = new JButton("Train classifier");
+		trainButton.setToolTipText("Start training the classifier");
+
 		trainButton = new JButton("Train classifier");
 		trainButton.setToolTipText("Start training the classifier");
 		
@@ -538,6 +586,12 @@ public class Trainable_Segmentation_EX implements PlugIn
 							e.printStackTrace();
 						}
 					}
+					else if(e.getSource() == loadModelButton){
+						loadModel();
+					}
+					else if(e.getSource() == saveModelButton){
+						saveModel();
+					}
 					else if(e.getSource() == examplesSaveButton){
 						saveExamples();
 					}
@@ -750,6 +804,8 @@ public class Trainable_Segmentation_EX implements PlugIn
 				addExampleButton[i].addActionListener(listener);
 			examplesSaveButton.addActionListener(listener);
 			examplesLoadButton.addActionListener(listener);
+			saveModelButton.addActionListener(listener);
+			loadModelButton.addActionListener(listener);
 			trainButton.addActionListener(listener);
 			overlayButton.addActionListener(listener);
 			resultButton.addActionListener(listener);
@@ -778,6 +834,10 @@ public class Trainable_Segmentation_EX implements PlugIn
 			trainingJPanel.add(overlayButton, trainingConstraints);
 			trainingConstraints.gridy++;
 			trainingJPanel.add(resultButton, trainingConstraints);
+			trainingConstraints.gridy++;
+			trainingJPanel.add(loadModelButton, trainingConstraints);
+			trainingConstraints.gridy++;
+			trainingJPanel.add(saveModelButton, trainingConstraints);
 			trainingConstraints.gridy++;
 			
 /////////////////////////////////////////////////////
@@ -896,6 +956,8 @@ public class Trainable_Segmentation_EX implements PlugIn
 						addExampleButton[i].removeActionListener(listener);
 					examplesLoadButton.removeActionListener(listener);
 					examplesSaveButton.removeActionListener(listener);
+					saveModelButton.removeActionListener(listener);
+					loadModelButton.removeActionListener(listener);
 					trainButton.removeActionListener(listener);
 					overlayButton.removeActionListener(listener);
 					resultButton.removeActionListener(listener);
@@ -1032,6 +1094,8 @@ public class Trainable_Segmentation_EX implements PlugIn
 	{
 		if(useGUI)
 		{
+			saveModelButton.setEnabled(s);
+			loadModelButton.setEnabled(s);
 			trainButton.setEnabled(s);
 			overlayButton.setEnabled(s);
 			resultButton.setEnabled(s);
@@ -1374,9 +1438,12 @@ public class Trainable_Segmentation_EX implements PlugIn
 			setButtonsEnabled(true);
 		}
 		
-		
+
 		//featureStack.show();
 	}
+	
+	
+	
 	
 	/**
 	 * Update whole data set with current number of classes and features
@@ -1421,21 +1488,27 @@ public class Trainable_Segmentation_EX implements PlugIn
 	{
 		IJ.log("Applying classifier in " + numThreads + " threads...");
 		IJ.showStatus("Classifying image...");
-						
+						System.out.println("Sur combien de threads : "+numThreads);
 		final long start = System.currentTimeMillis();
-
+		System.out.println("Pouet 0");
 		final ExecutorService exe = Executors.newFixedThreadPool(numThreads);
+		System.out.println("Pouet 02");
 		final double[][] results = new double[numThreads][];
 		final Instances[] partialData = new Instances[numThreads];
+		System.out.println("Pouet 04");
 		final int partialSize = data.numInstances() / numThreads;
+		System.out.println("Pouet 05");
 		Future<double[]>[] fu = new Future[numThreads];
+		System.out.println("Pouet 1");
 		
 		final AtomicInteger counter = new AtomicInteger();
 		
 		//IJ.log("Dividing dataset into subsets for parallel execution...");
-		
+		System.out.println("Pouet 2");
+
 		for(int i = 0; i<numThreads; i++)
 		{
+			System.out.println("Pouet thread "+i);
 			if(i == numThreads-1)
 				partialData[i] = new Instances(data, i*partialSize, data.numInstances()-i*partialSize);
 			else
@@ -1443,19 +1516,22 @@ public class Trainable_Segmentation_EX implements PlugIn
 			
 			fu[i] = exe.submit(classifyIntances(partialData[i], classifier, counter));
 		}
-		
+		System.out.println("Pouet 3");
+
 		ScheduledExecutorService monitor = Executors.newScheduledThreadPool(1);
 		ScheduledFuture task = monitor.scheduleWithFixedDelay(new Runnable() {
 			public void run() {
 				IJ.showProgress(counter.get(), data.numInstances());
 			}
 		}, 0, 1, TimeUnit.SECONDS);
+		System.out.println("Pouet 4");
 		
 		//IJ.log("Waiting for jobs...");
 		
 		// Join threads
 		for(int i = 0; i<numThreads; i++)
 		{
+			System.out.println("Pouet 5 thread "+i);
 			try {
 				results[i] = fu[i].get();
 			} catch (InterruptedException e) {
@@ -1473,6 +1549,7 @@ public class Trainable_Segmentation_EX implements PlugIn
 				IJ.showProgress(1);
 			}
 		}
+		System.out.println("Pouet 6");
 		
 		
 		exe.shutdown();
@@ -1482,7 +1559,8 @@ public class Trainable_Segmentation_EX implements PlugIn
 		for(int i = 0; i<numThreads; i++)
 			System.arraycopy(results[i], 0, classificationResult, i*partialSize, results[i].length);
 			
-		
+		System.out.println("Pouet 7");
+
 		IJ.showProgress(1.0);
 		final long end = System.currentTimeMillis();
 		IJ.log("Classifying whole image data took: " + (end-start) + "ms");
@@ -1491,6 +1569,8 @@ public class Trainable_Segmentation_EX implements PlugIn
 		final ImageProcessor classifiedImageProcessor = new FloatProcessor(w, h, classificationResult);
 		classifiedImageProcessor.convertToByte(true);
 		ImagePlus classImg = new ImagePlus("Classification result", classifiedImageProcessor);
+		System.out.println("Pouet 8");
+
 		return classImg;
 	}
 	
@@ -2603,6 +2683,346 @@ public class Trainable_Segmentation_EX implements PlugIn
 	{
 		return classifiedImage;
 	}
+	
+	
+	
+	
+	public void loadModel() {
+		OpenDialog od=new OpenDialog("Load classifier from a .model file","",".model");
+		String path=new File(od.getDirectory(),od.getFileName()).getAbsolutePath();
+		loadModel(path);
+		applyClassifierToTestData();
+		if(true)return;
+		AbstractClassifier cls = null;
+		try {
+			cls = (AbstractClassifier) SerializationHelper.read(path);
+		} catch (Exception e) {
+			IJ.log("Error when loading classifier from " + path);
+			e.printStackTrace();
+		}
+		this.classifier=cls;
+/*		if(featureStack.isEmpty()){
+			IJ.showStatus("Creating feature stack...");
+			System.out.println("Creating feature stack...");
+			featureStack.updateFeaturesMT();
+		}
+		updateTestSet();
+		classifiedImage = applyClassifier(wholeImageData, trainingImage.getWidth(), trainingImage.getHeight(), Runtime.getRuntime().availableProcessors());
+		repaintWindow();
+*/
+
+	}
+
+	public void saveModel() {
+		SaveDialog sd=new SaveDialog("Save classifier in a .model file","",".model");
+		String path=new File(sd.getDirectory(),sd.getFileName()).getAbsolutePath();
+		saveModel(path);
+	}
+
+	/**
+	 * Save current classifier into a file
+	 * 
+	 * @param classifierPathName complete path name for the classifier file
+	 */
+	public void saveModel( String classifierPathName )
+	{
+		final ImageWindow iw = WindowManager.getCurrentImage().getWindow();
+		if( iw instanceof CustomWindow )
+		{
+			final CustomWindow win = (CustomWindow) iw;
+			if( !this.saveClassifier( classifierPathName ) )
+			{
+				IJ.error("Error while writing classifier into a file");
+				return;
+			}
+		}
+	}
+
+	/**
+	 * Write current classifier into a file
+	 *
+	 * @param filename name (with complete path) of the destination file
+	 * @return false if error
+	 */
+	public boolean saveClassifier(String filename)
+	{
+		File sFile = null;
+		boolean saveOK = true;
+
+
+		IJ.log("Saving model to file...");
+
+		try {
+			sFile = new File(filename);
+			OutputStream os = new FileOutputStream(sFile);
+			if (sFile.getName().endsWith(".gz"))
+			{
+				os = new GZIPOutputStream(os);
+			}
+			ObjectOutputStream objectOutputStream = new ObjectOutputStream(os);
+			objectOutputStream.writeObject(classifier);
+			trainHeader = trainHeader.stringFreeStructure();
+			if (trainHeader != null)
+				objectOutputStream.writeObject(trainHeader);
+			objectOutputStream.flush();
+			objectOutputStream.close();
+		}
+		catch (Exception e)
+		{
+			IJ.error("Save Failed", "Error when saving classifier into a file");
+			saveOK = false;
+			e.printStackTrace();
+			
+		}
+		if (saveOK)
+			IJ.log("Saved model into " + filename );
+
+		return saveOK;
+	}
+	
+	
+	public boolean loadModel(String filename)
+	{
+		AbstractClassifier newClassifier = null;
+		Instances newHeader = null;
+		File selected = new File(filename);
+		try {
+			InputStream is = new FileInputStream( selected );
+			if (selected.getName().endsWith(ClassifierPanel.PMML_FILE_EXTENSION))
+			{
+				PMMLModel model = PMMLFactory.getPMMLModel(is, null);
+				if (model instanceof PMMLClassifier)
+					newClassifier = (PMMLClassifier)model;
+				else
+					throw new Exception("PMML model is not a classification/regression model!");
+			}
+			else
+			{
+				if (selected.getName().endsWith(".gz"))
+					is = new GZIPInputStream(is);
+
+				try {
+					LoadedClassifier loadresult = internalLoadClassifier(is);
+					newHeader = loadresult.newHeader;
+					newClassifier = loadresult.newClassifier;
+				} catch (Exception e) {
+					IJ.error("Load Failed", "Error while loading train header");
+					e.printStackTrace();
+					return false;
+				}
+
+			}
+		}
+		catch (Exception e)
+		{
+			IJ.error("Load Failed", "Error while loading classifier");
+			e.printStackTrace();
+			return false;
+		}
+
+		try{
+			// Check if the loaded information corresponds to current state of the segmentator
+			// (the attributes can be adjusted, but the classes must match)
+			if(false)
+			{
+				IJ.log("Error: current segmentator state could not be updated to loaded data requirements (attributes and classes)");
+				return false;
+			}
+		}catch(Exception e)
+		{
+			IJ.log("Error while adjusting data!");
+			e.printStackTrace();
+			return false;
+		}
+
+		this.classifier = newClassifier;
+		this.trainHeader = newHeader;
+
+		return true;
+	}
+
+	
+	
+	
+
+	/**
+	 * bag class for getting the result of the loaded classifier
+	 */
+	private static class LoadedClassifier {
+		private AbstractClassifier newClassifier = null;
+		private Instances newHeader = null;
+	}
+
+	/**
+	 * load a binary classifier
+	 *
+	 * @param classifierInputStream
+	 * @throws Exception
+	 *             exception is thrown if the reading is not properly done, the
+	 *             caller has to handle this exception
+	 */
+	private LoadedClassifier internalLoadClassifier(
+			InputStream classifierInputStream) throws Exception {
+		ObjectInputStream objectInputStream = new ObjectInputStream(
+				classifierInputStream);
+		LoadedClassifier lc = new LoadedClassifier();
+		lc.newClassifier = (AbstractClassifier) objectInputStream.readObject();
+		try { // see if we can load the header
+			lc.newHeader = (Instances) objectInputStream.readObject();
+		} finally {
+			objectInputStream.close();
+		}
+		return lc;
+	}
+
+	/**
+	 * load a binary classifier from a stream
+	 *
+	 * @param classifierInputStream
+	 *            the input stream
+	 * @return true if properly read, false otherwise
+	 */
+	public boolean loadClassifier(InputStream classifierInputStream) {
+		assert classifierInputStream != null;
+		try {
+
+			LoadedClassifier loadresult = internalLoadClassifier(classifierInputStream);
+
+			try {
+				// Check if the loaded information corresponds to current state
+				// of
+				// the segmentator
+				// (the attributes can be adjusted, but the classes must match)
+				if (!adjustSegmentationStateToData(loadresult.newHeader)) {
+					IJ.log("Error: current segmentator state could not be updated to loaded data requirements (attributes and classes)");
+					return false;
+				}
+			} catch (Exception e) {
+				IJ.log("Error while adjusting data!");
+				e.printStackTrace();
+				return false;
+			}
+
+			this.classifier = loadresult.newClassifier;
+			this.trainHeader = loadresult.newHeader;
+
+			return true;
+
+		} catch (Exception e) {
+			IJ.error("Load Failed", "Error while loading classifier");
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	/**
+	 * Read header classifier from a .model file
+	 * @param filename complete path and file name
+	 * @return false if error
+	 */
+	public boolean loadClassifier(String filename)
+	{
+		AbstractClassifier newClassifier = null;
+		Instances newHeader = null;
+		File selected = new File(filename);
+		try {
+			InputStream is = new FileInputStream( selected );
+			if (selected.getName().endsWith(ClassifierPanel.PMML_FILE_EXTENSION))
+			{
+				PMMLModel model = PMMLFactory.getPMMLModel(is, null);
+				if (model instanceof PMMLClassifier)
+					newClassifier = (PMMLClassifier)model;
+				else
+					throw new Exception("PMML model is not a classification/regression model!");
+			}
+			else
+			{
+				if (selected.getName().endsWith(".gz"))
+					is = new GZIPInputStream(is);
+
+				try {
+					LoadedClassifier loadresult = internalLoadClassifier(is);
+					newHeader = loadresult.newHeader;
+					newClassifier = loadresult.newClassifier;
+				} catch (Exception e) {
+					IJ.error("Load Failed", "Error while loading train header");
+					e.printStackTrace();
+					return false;
+				}
+
+			}
+		}
+		catch (Exception e)
+		{
+			IJ.error("Load Failed", "Error while loading classifier");
+			e.printStackTrace();
+			return false;
+		}
+
+		try{
+			// Check if the loaded information corresponds to current state of the segmentator
+			// (the attributes can be adjusted, but the classes must match)
+			if(!adjustSegmentationStateToData(newHeader))
+			{
+				IJ.log("Error: current segmentator state could not be updated to loaded data requirements (attributes and classes)");
+				return false;
+			}
+		}catch(Exception e)
+		{
+			IJ.log("Error while adjusting data!");
+			e.printStackTrace();
+			return false;
+		}
+
+		this.classifier = newClassifier;
+		this.trainHeader = newHeader;
+
+		return true;
+	}
+
+
+
+	/**
+	 * Adjust current segmentation state (attributes and classes) to
+	 * loaded data
+	 * @param data loaded instances
+	 * @return false if error
+	 */
+	public boolean adjustSegmentationStateToData(Instances data)
+	{
+
+		// Check if classes match
+		Attribute classAttribute = data.classAttribute();
+		Enumeration<Object> classValues  = classAttribute.enumerateValues();
+
+		// Update list of names of loaded classes
+		loadedClassNames = new ArrayList<String>();
+
+		int j = 0;
+		this.numOfClasses=0;
+
+		while(classValues.hasMoreElements())
+		{
+			final String className = ( (String) classValues.nextElement() ).trim();
+			loadedClassNames.add(className);
+		}
+
+		for(String className : loadedClassNames)
+		{
+			IJ.log("Read class name: " + className);
+
+			this.classLabels[j]=className;
+			addNewClass();
+			j++;
+		}
+
+		return true;
+	}
+	
+	
+	
+	
+	
 	
 	
 }

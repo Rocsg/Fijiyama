@@ -85,7 +85,6 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 	private ItkTransform transform;
 	private ArrayList<double[]> weights;
 	private ArrayList<double[]> scales;
-	private ArrayList<double[]> voxelSizes;
 	private int fontSize=12;
 
 	public void setTextInfoAtEachIterationOn() {
@@ -207,23 +206,11 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.setMetric(MetricType.CORRELATION);
 		OptimizerType opt=OptimizerType.GRADIENT_LINE_SEARCH;
 		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-		int dimMinPyramide=3;
-		int dimMinImage=Math.min(imgRef.getWidth()  , Math.min( imgRef.getHeight()  , imgRef.getStackSize() ) );
-		int levelMax=1;//1+(int)Math.floor(Math.log(dimMinImage/dimMinPyramide)/Math.log(2) );
-		int levelMin=1;
-
 		this.addStepToQueue( 2 ,   2    ,     0    ,   20 , 0.4   ,       Transformation3DType.TRANSLATION,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		true,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		//this.addStepToQueue( levelMin ,     levelMax/2    ,     1     ,    40  , 0.3   ,       Transformation3DType.SIMILARITY,    null,
-		//		opt  , ScalerType.SCALER_PHYSICAL, null ,
-		//false,         CenteringStrategy.MASS_CENTER,    samplStrat  );
-
-
 		this.register();
-		this.showRegistrationSummary();
-		
+		this.showRegistrationSummary();		
 		ImagePlus result=this.computeRegisteredImage();
 		freeMemory();
 		return result;
@@ -238,11 +225,8 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.setMetric(MetricType.MATTES);
 		OptimizerType opt=OptimizerType.AMOEBA ;
 		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-		int dimMinPyramide=3;
-		int dimMinImage=Math.min(imgRef.getWidth()  , Math.min( imgRef.getHeight()  , imgRef.getStackSize() ) );
 		int levelMax=3;//1+(int)Math.floor(Math.log(dimMinImage/dimMinPyramide)/Math.log(2) );
 		int levelMin=1;
-
 		this.addStepToQueue( levelMin ,     levelMax    ,     1     ,    40  , 0.3   ,       Transformation3DType.VERSOR,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
@@ -254,8 +238,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.transform=new ItkTransform(trans);
 
 		this.register();
-		this.showRegistrationSummary();
-		
+		this.showRegistrationSummary();	
 		freeMemory();
 		return this.transform;
 	}
@@ -350,8 +333,6 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.setMetric(MetricType.MATTES);
 		OptimizerType opt=OptimizerType.AMOEBA ;
 		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-		int dimMinPyramide=3;
-		int dimMinImage=Math.min(imgRef.getWidth()  , Math.min( imgRef.getHeight()  , imgRef.getStackSize() ) );
 
 		this.addStepToQueue( 2 ,     3    ,     1     ,    200  , 0.3   ,       Transformation3DType.TRANSLATION,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
@@ -491,18 +472,12 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		}
 
 		double learningRate=learning_rate;
-		double maxStep = 0.5;
 		double minStep = 0.001;
 		int numberOfIterations = iterations;
 		double relaxationFactor = 0.8;
 		double convergenceMinimumValue=1E-6;
 		int convergenceWindowSize=10;
-		double gradientConvergenceTolerance=1E-5;
-		double solutionAccuracy=1e-5;
-		int maximumLineIterations=100;
 		double stepLength=1;
-		double stepTolerance=1e-6;
-		double valueTolerance=1e-6;
 		VectorUInt32 numberOfSteps=ItkImagePlusInterface.intArrayToVectorUInt32(new int[] {4,4,4});//Lets check that, one day.
 		double simplexDelta=learning_rate;
 
@@ -602,6 +577,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.resamplerMov.setOutputSpacing(ItkImagePlusInterface.doubleArrayToVectorDouble(this.voxelSizeReference));
 		this.resamplerMov.setSize(ItkImagePlusInterface.intArrayToVectorUInt32(this.imageSizeReference));
 */
+//		this.transform=ItkTransform.getTransformForResampling(VitimageUtils.getVoxelSizes(this.ijImgRef),VitimageUtils.getVoxelSizes(this.ijImgMov));
 		
 		this.currentStep=0;
 		while(currentStep<nbStep) {
@@ -692,7 +668,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		//Update reference viewing image and the viewing slice, if needed
 		this.resampler=new ResampleImageFilter();
 		this.resampler.setDefaultPixelValue(0);
-		this.resampler.setTransform(new ItkTransform());
+		this.resampler.setTransform(ItkTransform.getTransformForResampling(this.voxelSizeReference, VitimageUtils.getVoxelSizes(this.ijImgMov)));
 		if(this.lookLikeOptimizerLooks) {
 			this.resampler.setOutputSpacing(vectVoxSizes);
 			this.resampler.setSize(ItkImagePlusInterface.intArrayToVectorUInt32(dimensions));
@@ -710,7 +686,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 				}
 			}
 		}
-		this.sliceViewRef=itkImageToImagePlusSlice(this.itkImgViewRef,(int)Math.ceil(this.viewSlice*1.0/(this.lookLikeOptimizerLooks ? shrinkFactor : 1)));
+		this.sliceViewRef=ItkImagePlusInterface.itkImageToImagePlusSlice(this.itkImgViewRef,(int)Math.ceil(this.viewSlice*1.0/(this.lookLikeOptimizerLooks ? shrinkFactor : 1)));
 		
 		//Update moving image
 		this.resampler=new ResampleImageFilter();
@@ -724,6 +700,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 			this.resampler.setSize(ItkImagePlusInterface.intArrayToVectorUInt32(this.imageSizeReference));			
 		}
 		if(this.transform!=null)this.resampler.setTransform(this.transform);
+		else this.resampler.setTransform(ItkTransform.getTransformForResampling(this.voxelSizeReference, VitimageUtils.getVoxelSizes(this.ijImgMov)));
 		this.itkImgViewMov=this.resampler.execute(this.itkImgMov);
 		if(this.lookLikeOptimizerLooks) {
 			for(int i=0;i<3;i++) {
@@ -735,7 +712,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		//	this.gaussFilter.setDirection(2);
 		//	this.itkImgViewMov=this.gaussFilter.execute(this.itkImgViewMov);
 		}
-		this.sliceViewMov=itkImageToImagePlusSlice(this.itkImgViewMov,(int)Math.ceil(this.viewSlice*1.0/(this.lookLikeOptimizerLooks ? shrinkFactor : 1)));
+		this.sliceViewMov=ItkImagePlusInterface.itkImageToImagePlusSlice(this.itkImgViewMov,(int)Math.ceil(this.viewSlice*1.0/(this.lookLikeOptimizerLooks ? shrinkFactor : 1)));
 
 		//Compose the images
 		//Comportement 1 : va surement clignoter.
@@ -771,6 +748,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.resampler.setDefaultPixelValue(0);
 		this.resampler.setOutputSpacing(ItkImagePlusInterface.doubleArrayToVectorDouble(this.voxelSizeReference));
 		this.resampler.setSize(ItkImagePlusInterface.intArrayToVectorUInt32(this.imageSizeReference));
+		this.resampler.setTransform(ItkTransform.getTransformForResampling(this.voxelSizeReference, this.voxelSizeReference));
 		this.itkSummaryRef=this.resampler.execute(this.itkImgViewRef);
 		this.itkSummaryMov=this.resampler.execute(this.itkImgViewMov);
 		if(movie3D) {
@@ -778,8 +756,8 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 			this.sliceSummaryRef=ItkImagePlusInterface.itkImageToImagePlus(this.itkSummaryRef);
 		}
 		else {
-			this.sliceSummaryMov=itkImageToImagePlusSlice(this.itkSummaryMov,this.viewSlice);
-			this.sliceSummaryRef=itkImageToImagePlusSlice(this.itkSummaryRef,this.viewSlice);
+			this.sliceSummaryMov=ItkImagePlusInterface.itkImageToImagePlusSlice(this.itkSummaryMov,this.viewSlice);
+			this.sliceSummaryRef=ItkImagePlusInterface.itkImageToImagePlusSlice(this.itkSummaryRef,this.viewSlice);
 		}
 		/*this.sliceSummaryRef.getProcessor().resetMinAndMax();
 		this.sliceSummaryMov.getProcessor().resetMinAndMax();

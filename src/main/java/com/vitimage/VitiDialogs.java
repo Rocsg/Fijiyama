@@ -253,14 +253,14 @@ public interface VitiDialogs {
 		rm.reset();
 		IJ.setTool("point");
 		boolean finished =false;
-		getYesNoUI("Identification of the four corners \nof the inoculation point with ROI points\nAre you ready  ?");
+		//getYesNoUI("Identification of the four corners \nof the inoculation point with ROI points\nAre you ready  ?");
 		do {
 			try {
 				java.util.concurrent.TimeUnit.MILLISECONDS.sleep(1000);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			if(rm.getCount()==nbWantedPoints && getYesNoUI("Confirm points ?"))finished=true;
+			if(rm.getCount()==nbWantedPoints)finished=true;
 			System.out.println("Waiting "+nbWantedPoints+". Current number="+rm.getCount());
 		}while (!finished);	
 		for(int indP=0;indP<nbWantedPoints;indP++){
@@ -286,8 +286,6 @@ public interface VitiDialogs {
 		imgMovBis.show();
 		imgMovBis.setTitle("Moving image");
 		imgRefBis.setTitle("Reference image");
-		Point3d []pRef=new Point3d[nbWantedPointsPerImage];
-		Point3d []pMov=new Point3d[nbWantedPointsPerImage];
 		RoiManager rm=RoiManager.getRoiManager();
 		rm.reset();
 		IJ.setTool("point");
@@ -301,10 +299,13 @@ public interface VitiDialogs {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			if(rm.getCount()==nbWantedPointsPerImage*2 && getYesNoUI("Confirm points ?"))finished=true;
+			if(rm.getCount()>=nbWantedPointsPerImage*2 && getYesNoUI("Confirm points ?"))finished=true;
 			System.out.println("Waiting "+(nbWantedPointsPerImage*2)+". Current number="+rm.getCount());
 		}while (!finished);	
-		for(int indP=0;indP<nbWantedPointsPerImage;indP++){
+		int nCouples=Math.max(nbWantedPointsPerImage, rm.getCount()/2);
+		Point3d []pRef=new Point3d[nCouples];
+		Point3d []pMov=new Point3d[nCouples];
+		for(int indP=0;indP<nCouples;indP++){
 			pRef[indP]=new Point3d(rm.getRoi(indP*2 ).getXBase() , rm.getRoi(indP * 2).getYBase() ,  rm.getRoi(indP * 2).getZPosition());
 			pMov[indP]=new Point3d(rm.getRoi(indP*2 +1 ).getXBase() , rm.getRoi(indP * 2 +1 ).getYBase() ,  rm.getRoi(indP * 2 +1 ).getZPosition());
 			if(realCoordinates) {

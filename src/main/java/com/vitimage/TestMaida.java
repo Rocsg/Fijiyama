@@ -5,13 +5,31 @@ import ij.ImageJ;
 import ij.ImagePlus;
 import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
+import trainableSegmentation.WekaSegmentation;
 
 public class TestMaida {
 
 	
+	public static void test() {
+		ImagePlus imgToSegment=new ImagePlus("/home/fernandr/Bureau/imgTest.tif");
+		WekaSegmentation weka= new WekaSegmentation(imgToSegment);
+		weka.loadClassifier("/home/fernandr/Bureau/classifier.model");
+		System.out.println("Classifieur chargé");
+		weka.loadNewImage(imgToSegment);
+		weka.applyClassifier(false);
+		ImagePlus binary=weka.getClassifiedImage();
+		System.out.println("binary chargée");
+		System.out.println(binary.getStackSize());
+		binary.show();
+		VitimageUtils.waitFor(10000);
+	}
+	
 	public static void main(String[]args) {
 		System.out.println("Lancement tests Maida");
 		ImageJ ij=new ImageJ();
+		test();
+		System.exit(0);
+		
 		ImagePlus imgReference=IJ.openImage("/home/fernandr/Bureau/Test/flip_flop/Echo_001_1.dcm");
 		ImagePlus imgMoving=IJ.openImage("/home/fernandr/Bureau/Test/flip_flop/Echo_001_2.dcm");
 		imgReference=Concatenator.run(new ImagePlus[] {imgReference,imgReference,imgReference,imgReference});

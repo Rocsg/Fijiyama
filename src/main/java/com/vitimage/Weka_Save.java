@@ -99,7 +99,6 @@ import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 
 import com.vitimage.VitiDialogs;
-import com.vitimage.Weka_Segmentation_With_Save_Examples;
 
 import weka.classifiers.AbstractClassifier;
 import weka.classifiers.Classifier;
@@ -305,7 +304,7 @@ public class Weka_Save implements PlugIn
 			img.show();
 		}
 		Weka_Save ws=new Weka_Save();
-		ws.run("3D");
+		ws.run("");//"3D"
 	}
 
 	
@@ -1447,6 +1446,7 @@ saveClassSetupButton.addActionListener(listener);
 
 		// instantiate segmentation backend
 		wekaSegmentation = new WekaSegmentation( isProcessing3D );
+		System.out.println("Starting weka. 3D mode="+isProcessing3D);
 		for(int i = 0; i < wekaSegmentation.getNumOfClasses() ; i++)
 		{
 			exampleList[i] = new java.awt.List(5);

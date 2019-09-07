@@ -11,12 +11,9 @@ import ij.process.ImageConverter;
 
 public class ScriptGenerateExample {
 	
-
-	public class ScriptGenerateExample {
-		public ScriptGenerateExample() {
-		}
-
-		
+/*
+ * 
+ 
 	public static void printCoordinatesOfTheSelection() {
 		getSelectionCoordinates(x, y);
 		//print('addExample(__,1,');
@@ -29,9 +26,9 @@ public class ScriptGenerateExample {
 
 	}
 
-	}
+	
 	public ScriptGenerateExample() {
 		// TODO Auto-generated constructor stub
 	}
-
+*/
 }

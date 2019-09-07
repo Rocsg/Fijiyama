@@ -153,7 +153,7 @@ public class J3DRegistrationStudio implements PlugIn {
 	
 	//Entry point at testing time
 	public static void main(String[] args) {
-		boolean testing=true;
+		boolean testing=false;
 		ImageJ ij=new ImageJ();
 		J3DRegistrationStudio j3D=new J3DRegistrationStudio();
 
@@ -240,7 +240,10 @@ public class J3DRegistrationStudio implements PlugIn {
 			Point3d []pRef=pointTab[0];
 			Point3d []pMov=pointTab[1];
 			ItkTransform trans=null;
-			if(type==0)trans=ItkTransform.estimateBestRigid3D(pMov,pRef);
+			if(type==0) {
+				trans=ItkTransform.estimateBestRigid3D(pMov,pRef);
+				System.out.println("\nTransformation rigide calculée : "+trans.drawableString());
+			}
 			else{
 				if(!voxelFixing)trans=ItkTransform.estimateBestSimilarity3D(pMov,pRef);
 				else {
@@ -448,7 +451,7 @@ public class J3DRegistrationStudio implements PlugIn {
 //        	varMin=VitiDialogs.getYesNoUI("Use the assistant for minimal variance determination ?") ? runAssistantMinimumVariance(): VitiDialogs.getDoubleUI("Set minimum block variance","Variance",0.05);
         	double sigma=0.8;
  //       	if(transType==Transformation3DType.DENSE)sigma=VitiDialogs.getYesNoUI("Use the assistant for spatial field smoothing factor determination ?") ? runAssistantSigma() : VitiDialogs.getDoubleUI("Set smoothing factor","smoothing",0.05);
-        	this.transResults.add(BlockMatchingRegistration.setupAndRunRoughBlockMatchingWithoutFineParameterization(imgRef, imgResult, imgMask, transType,metr,levelMax,levelMin,blockSize,neighSize,varMin,sigma,duration,displayRegistration,displayR2));
+        	this.transResults.add(BlockMatchingRegistration.setupAndRunRoughBlockMatchingWithoutFineParameterization(imgRef, imgResult, imgMask, transType,metr,levelMax,levelMin,blockSize,neighSize,varMin,sigma,duration,displayRegistration,displayR2,100, false));
         	if(transType==Transformation3DType.DENSE)thereIsDenseField=true;
         }
         if(method==1) {
@@ -584,6 +587,7 @@ public class J3DRegistrationStudio implements PlugIn {
 		for(ItkTransform t : this.transResults)tr.addTransform(t);
 		
 		this.currentGlobalTransform=tr;
+		System.out.println("Current transform="+tr.simplify().drawableString());
 		this.imgResult=this.currentGlobalTransform.transformImage(this.imgRef, this.imgMov);
 	}
 	

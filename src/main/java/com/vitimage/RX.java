@@ -48,13 +48,15 @@ public class RX extends Acquisition{
 	 */
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
+//		String []subjects= {"B001_PAL","B031_NP","B032_NP","B041_DS","B042_DS","B051_CT"};
 		String subject="B001_PAL";
-		String day="J218";
+		String day="J70";
 		System.out.println("Test procedure start...");
 		RX rx=new RX("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day+"/Source_data/RX",Capillary.HAS_NO_CAPILLARY,SupervisionLevel.GET_INFORMED,subject+"_"+day+"_RX");
 		rx.start();//
+		rx.freeMemory();
+		rx=null;
 	}
-
 
 	
 	
@@ -67,6 +69,7 @@ public class RX extends Acquisition{
 		this.title=title;
 	}
 
+	
 	public static RX RXFactory(String sourcePath,Capillary cap,SupervisionLevel sup,String dataPath) {
 		RX rx=new RX(sourcePath,cap,sup,"factory");
 		rx.start();

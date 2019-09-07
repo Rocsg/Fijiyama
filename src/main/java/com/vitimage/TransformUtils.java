@@ -720,6 +720,22 @@ public interface TransformUtils {
 
 	    return angle;
 	}
+	
+	public static double diffTeta(double teta1,double teta2) {
+		//120   130  -> -10
+		//130   120  -> 10
+		//30    330  -> 30  -30  -> 60 
+		//330    30  -> -30  30  -> -60 
+		if(Math.abs(teta1-teta2)>180) {
+			if(teta1>teta2)return(teta1-360-teta2);
+			if(teta2>teta1)return(teta1-(teta2-360));
+		}
+		else {
+			return teta1-teta2;
+		}
+		return 0;
+	}
+
 
 	class VolumeComparator implements java.util.Comparator {
 		   public int compare(Object o1, Object o2) {
@@ -787,11 +803,13 @@ public interface TransformUtils {
 	
 	
 	public static Point3d convertPointToRealSpace(Point3d p,ImagePlus img) {
-		return new Point3d(p.x*img.getCalibration().pixelWidth , p.y*img.getCalibration().pixelHeight , p.z*img.getCalibration().pixelDepth);
+		double alpha=0;//for itk
+		return new Point3d((p.x+alpha)*img.getCalibration().pixelWidth , (p.y+alpha)*img.getCalibration().pixelHeight , (p.z+alpha)*img.getCalibration().pixelDepth);
 	}
 
 	public static Point3d convertPointToImageSpace(Point3d p,ImagePlus img) {
-		return new Point3d(p.x/img.getCalibration().pixelWidth, p.y/img.getCalibration().pixelHeight, p.z/img.getCalibration().pixelDepth);
+		double alpha=0;//for itk
+		return new Point3d(p.x/img.getCalibration().pixelWidth-alpha, p.y/img.getCalibration().pixelHeight-alpha, p.z/img.getCalibration().pixelDepth-alpha);
 	}
 	
 
@@ -832,6 +850,11 @@ public interface TransformUtils {
 		return(vectNom+" = [ "+vect[0]+" , "+vect[1]+" , "+vect[2]+" ]");
 	}
 
+	public static String stringVector(int []vect,String vectNom){
+		return(vectNom+" = [ "+vect[0]+" , "+vect[1]+" , "+vect[2]+" ]");
+	}
+
+	
 	public static double[]transformToArray(Transform transGlobal){
 	 	double[]ret=new double[]{transGlobal.get(0,0) ,transGlobal.get(0,1) ,transGlobal.get(0,2) ,transGlobal.get(0,3) ,
 	 							 transGlobal.get(1,0) ,transGlobal.get(1,1) ,transGlobal.get(1,2) ,transGlobal.get(1,3) ,
