@@ -770,7 +770,27 @@ public interface TransformUtils {
 		return(v1.x*v2.x+v1.y*v2.y+v1.z*v2.z);
 	}
 
+	public static double [] sumVector(double[]v,double []v2){
+		double[] ret=new double[3];
+		ret[0]=v[0]+v2[0];
+		ret[1]=v[1]+v2[1];
+		ret[2]=v[2]+v2[2];
+		return ret;
+	}
+
+	public static double [] sumVector(double[]v,double []v2,double[]v3){
+		return sumVector(v,sumVector(v2,v3));
+	}
+
 	
+	public static double [] multiplyVector(double[]v,double []v2){
+		double[] ret=new double[3];
+		ret[0]=v[0]*v2[0];
+		ret[1]=v[1]*v2[1];
+		ret[2]=v[2]*v2[2];
+		return ret;
+	}
+
 	public static double [] multiplyVector(double[]v,double factor){
 		double[] ret=new double[3];
 		ret[0]=v[0]*factor;

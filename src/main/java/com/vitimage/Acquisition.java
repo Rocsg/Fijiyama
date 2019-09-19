@@ -68,7 +68,6 @@ public abstract class Acquisition implements VitimageUtils{
 	protected String acquisitionPosition;
 	protected String acquisitionOrientation;
 	protected String dataPath="-";
-	public final static String slash=File.separator;
 	protected String acquisitionTime;
 	protected ImagePlus mask;
 	public ComputingType computingType;
@@ -383,7 +382,7 @@ public abstract class Acquisition implements VitimageUtils{
 	}
 	
 	public static double[] caracterizeBackgroundOfImage(ImagePlus img) {
-		int samplSize=Math.min(10+20,img.getWidth()/10);
+		int samplSize=Math.min(15,img.getWidth()/10);
 		int x0=samplSize;
 		int y0=samplSize;
 		int x1=img.getWidth()-samplSize;
@@ -405,7 +404,7 @@ public abstract class Acquisition implements VitimageUtils{
 				System.out.println("Warning : noise computation  There should be an object in the supposed background\nthat can lead to misestimate background values. Detected at slice "+samplSize/2+"at "+
 							(i==0 ?"Up-left corner" : i==1 ? "Down-left corner" : i==2 ? "Up-right corner" : "Down-right corner")+
 							". Mean values of squares="+globStats[0]+". Outlier value="+vals[i][0]+" you should inspect the image and run again.");
-				img.show();
+				//img.show();
 			}
 		}
 		return new double[] {globStats[0],globStats[1]};

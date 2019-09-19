@@ -26,9 +26,11 @@ import ij.plugin.ChannelSplitter;
 import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
 import ij.plugin.GaussianBlur3D;
+import ij.plugin.ImageCalculator;
 import ij.plugin.RGBStackMerge;
 import ij.process.ByteProcessor;
 import ij.process.StackConverter;
+import math3d.JacobiDouble;
 import math3d.Point3d;
 import vib.FastMatrix;
 
@@ -59,6 +61,27 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 				ItkImagePlusInterface.doubleArrayToVectorDouble( new double[] { coefs[3] , coefs[7] , coefs[11] } ), ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {0,0,0} ) );
 		return new ItkTransform(aff);
 	}
+	
+	public static ItkTransform itkTransformFromDICOMVectors(double[]vx,double[]vy,double[]vz,double[]t) {
+		double []vzz=TransformUtils.vectorialProduct(new double[] {  vx[0] , vy[0] , vz[0]}, new double[] {-vx[1] ,- vy[1] , -vz[1] });
+//		return itkTransformFromCoefs(new double[] { vx[0] , -vx[1] , -vx[2] , t[0] ,          vy[0] , -vy[1] , -vy[2] , t[1] ,        vzz[0] , vzz[1] , vzz[2] , t[2]   });
+		return itkTransformFromCoefs(new double[] { vx[0] , vy[0] , vz[0] , t[0] ,          -vx[1] ,- vy[1] , -vz[1] , -t[1] ,        vzz[0] , vzz[1] , vzz[0] , -t[2]   });
+	}
+
+	public static ItkTransform itkTransformFromDICOMVectorsAXIAL(double[]vx,double[]vy,double[]vz,double[]t) {
+		double []vzz=TransformUtils.vectorialProduct(new double[] {  vx[0] , vy[0] , vz[0]}, new double[] {-vx[1] ,- vy[1] , -vz[1] });
+//		return itkTransformFromCoefs(new double[] { vx[0] , -vx[1] , -vx[2] , t[0] ,          vy[0] , -vy[1] , -vy[2] , t[1] ,        vzz[0] , vzz[1] , vzz[2] , t[2]   });
+		return itkTransformFromCoefs(new double[] { vx[0] , vy[0] , vz[0] , t[0] +40.63,          -vx[1] ,- vy[1] , -vz[1] , -t[1]+50.7 ,        vzz[0] , vzz[1] , vzz[2] , -t[2] +213.5  });
+	}
+	
+	
+	public static ItkTransform itkTransformFromDICOMVectorsNOAXIAL(double[]vx,double[]vy,double[]vz,double[]t) {
+		double []vzz=TransformUtils.vectorialProduct(new double[] {  vx[0] , vy[0] , vz[0]}, new double[] {-vx[1] ,- vy[1] , -vz[1] });
+//		return itkTransformFromCoefs(new double[] { vx[0] , -vx[1] , -vx[2] , t[0] ,          vy[0] , -vy[1] , -vy[2] , t[1] ,        vzz[0] , vzz[1] , vzz[2] , t[2]   });
+		return itkTransformFromCoefs(new double[] { vx[0] , vy[0] , vz[0] , t[0] ,          -vx[1] ,- vy[1] , -vz[1] , -t[1] ,        vzz[0] , vzz[1] , vzz[2] , -t[2]   });
+	}
+	
+
 	
 	
 	public static ItkTransform ijTransformToItkTransform(imagescience.transform.Transform tr) {
@@ -91,6 +114,77 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 
 	public static ItkTransform estimateBestAffine3D(Point3d[]setRef,Point3d[]setMov) {
 		return fastMatrixToItkTransform(FastMatrix.bestLinear( setMov, setRef));
+	}
+	
+	
+	public static ItkTransform getPoseIndicatorMatrix(ImagePlus mask,boolean computeInertiaMatrix) {
+		System.out.println("Calcul de la matrice d'indication de la pose de l objet");
+		double[]voxs=VitimageUtils.getVoxelSizes(mask);
+		int[]dims=VitimageUtils.getDimensions(mask);
+		byte[][] data=new byte[mask.getStackSize()][];
+		double[]massCenter=new double[] {0,0,0};		
+		int X=mask.getWidth();
+		int Y=mask.getHeight();
+		int Z=mask.getStackSize();
+		System.out.println("Dimensions image (espace reeel) = ( "+dims[0]*voxs[0]+" , "+dims[1]*voxs[1]+" , "+dims[2]*voxs[2]+" )");
+
+		
+		//Calcul du centre de masse
+		int hits=0;
+		for(int z=0;z<Z;z++) {
+			data[z]=(byte []) mask.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<X;x++) {
+				for(int y=0;y<Y;y++) {
+					if((int)(data[z][y*X+x] & 0xff) >0) {
+						massCenter[0]+=x*voxs[0];
+						massCenter[1]+=y*voxs[1];
+						massCenter[2]+=z*voxs[2];
+						hits++;
+					}
+				}
+			}
+		}
+		for(int i=0;i<3;i++)massCenter[i]/=(1.0*hits);
+		System.out.println("L objet occupe "+hits+" voxels parmi "+(X*Y*Z)+ " ce qui fait "+(hits*100.0/(1.0*X*Y*Z))+" % de l image");
+		System.out.println("Centre de masse de l objet = ( "+dims[0]*voxs[0]+" , "+dims[1]*voxs[1]+" , "+dims[2]*voxs[2]+" )");
+		ItkTransform tr;
+		if(!computeInertiaMatrix) {
+			tr=array16ElementsToItkTransform(new double[] {1,0,0,massCenter[0]-dims[0]*voxs[0]*0.5,0,1,0,massCenter[1]-dims[1]*voxs[1]*0.5,0,0,1,massCenter[2]-dims[2]*voxs[2]*0.5,0,0,0,1});
+			return tr;
+		}
+		
+		//Calcul de la matrice d inertie
+		double Sxx, Sxy, Sxz, Syx, Syy, Syz, Szx, Szy, Szz,xr,yr,zr;
+		Sxx = Sxy = Sxz = Syx = Syy = Syz = Szx = Szy = Szz = 0;
+		for(int z=0;z<Z;z++) {
+			data[z]=(byte []) mask.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<X;x++) {
+				for(int y=0;y<Y;y++) {
+					if((int)(data[z][y*X+x] & 0xff) >0) {
+						xr=(x*voxs[0]-massCenter[0]);
+						yr=(y*voxs[1]-massCenter[1]);
+						zr=(z*voxs[2]-massCenter[2]);
+						Sxx+=yr*yr+zr*zr;
+						Syy+=xr*xr+zr*zr;
+						Szz+=xr*xr+yr*yr;
+						Sxy+=xr*yr;
+						Sxz+=xr*zr;
+						Syz+=yr*zr;
+					}
+				}
+			}
+		}
+		double [][]mat=new double[][] {new double[] {Sxx,Sxy,Sxz,0} , new double[] {Sxy,Syy,Syz,0} , new double[] {Sxz,Syz,Szz,0 }, new double[] {0,0,0,1} };
+		JacobiDouble jacobi = new JacobiDouble(mat);
+		double[][] eigenVectors = jacobi.getEigenVectors();
+		double[] eigenValues = jacobi.getEigenValues();
+		System.out.println("Resultat du calcul de jacobi : ");
+		for(int i=0;i<4;i++) System.out.println("Lambda "+i+" = "+eigenValues[i]+" Vecteur "+i+" = "+TransformUtils.stringVectorN(eigenVectors[i], ""));
+		
+		//Classer les vecteurs. Vraisemblablement,la plus faible valeur de lambda correspond à l'axe Z. On identifie ensuite l'axe X
+		
+		tr=fastMatrixToItkTransform(new FastMatrix(eigenVectors));
+		return tr;
 	}
 	
 	
@@ -159,6 +253,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 
 	
 	
+	
 	public ImagePlus transformImage(ImagePlus imgRef, ImagePlus imgMov) {
 		if(imgMov.getType()==4) {
 			ImagePlus[] channels = ChannelSplitter.split(imgMov);
@@ -178,6 +273,65 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		resampler.setTransform(this);
 		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
 	}	
+	
+	
+	
+	public ImagePlus transformImageSegmentationByte(ImagePlus imgRef, ImagePlus imgMov,int min, int max) {
+//		System.out.println("Transformation d'une image de segmentation");
+		//Pour toutes les intensités possibles
+		ImagePlus[]threshTab=new ImagePlus[max-min+1];
+		ImagePlus mov8=new Duplicator().run(imgMov);
+		mov8.setDisplayRange(0, 255);
+		IJ.run(mov8,"8-bit","");
+		for(int thr=min;thr<=max;thr++) {
+			//Faire un threshold 
+	//		System.out.println("Seuillage valeur "+thr+" entre "+min+" et "+max);
+			threshTab[thr-min]=VitimageUtils.thresholdByteImage(mov8, thr, thr+1);
+			//Passer en 32 bit
+			
+			IJ.run(threshTab[thr-min],"32-bit","");			
+			//Resampler l image
+			int val=Math.min(  10    ,    Math.min(   threshTab[thr-min].getWidth()/20    ,   threshTab[thr-min].getHeight()/20  ));
+			int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(threshTab[thr-min],val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(threshTab[thr-min],threshTab[thr-min].getWidth()-val-1,threshTab[thr-min].getHeight()-val-1,0,val)*0.5    );
+			ResampleImageFilter resampler=new ResampleImageFilter();
+			resampler.setDefaultPixelValue(valMean);
+			resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(imgRef));
+			resampler.setTransform(this);
+			threshTab[thr-min]=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(threshTab[thr-min])));
+		}
+
+		//Pour chaque pixel
+			//donner la valeur du plus probable
+
+		ImagePlus ret=new Duplicator().run(imgRef);
+		VitimageUtils.adjustImageCalibration(ret, imgRef);
+		IJ.run(ret,"8-bit","");
+		float valMax=0;
+		float val=0;
+		int indMax=0;
+		float[][][] in=new float[max-min+1][ret.getStackSize()][];
+		byte[][] out=new byte[ret.getStackSize()][];
+		int X=ret.getWidth();
+		int Y=ret.getHeight();
+		int Z=ret.getStackSize();
+		for(int z=0;z<Z;z++) {
+			for(int thr=min;thr<=max;thr++)in[thr-min][z]=(float []) threshTab[thr-min].getStack().getProcessor(z+1).getPixels();
+			out[z]=(byte []) ret.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<X;x++) {
+				for(int y=0;y<Y;y++) {
+					valMax=-1;
+					indMax=-1;
+					for(int thr=min;thr<=max;thr++) {
+						val=(float)(in[thr-min][z][y*X+x]);
+						if(val>valMax) {valMax=val;indMax=thr;}
+					}
+					out[z][y*X+x]=(  ((byte) (indMax & 0xff)) );
+				}			 
+			}
+		}
+		return ret;
+	}
+
 
 /*	public ItkTransform getTransformImageReech(ImagePlus imgRef, ImagePlus imgMov) {
 		double[]voxSRef=VitimageUtils.getVoxelSizes(imgRef);

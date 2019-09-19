@@ -16,6 +16,7 @@ import java.io.Writer;
 import java.nio.file.Path;
 import java.sql.Date;
 import java.util.ArrayList;
+import java.util.Random;
 
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
@@ -35,6 +36,7 @@ import com.vitimage.VitimageUtils.ComputingType;
 import com.vitimage.VitimageUtils.SupervisionLevel;
 
 import Hough_Package.Hough_Circle;
+import distance.Correlation;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -49,12 +51,15 @@ import ij.plugin.ChannelSplitter;
 import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
 import ij.plugin.FolderOpener;
+import ij.plugin.HyperStackConverter;
 import ij.plugin.ImageCalculator;
 import ij.plugin.RGBStackMerge;
 import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
 import ij.process.ByteProcessor;
 import ij.process.FloatPolygon;
+import inra.ijpb.morphology.Morphology;
+import inra.ijpb.morphology.Strel3D;
 import math3d.Point3d;
 import mcib3d.image3d.ImageHandler;
 import mcib3d.image3d.distanceMap3d.EDT;
@@ -63,7 +68,6 @@ import trainableSegmentation.Trainable_Segmentation;
 
 public class TestRomain {
 
-	
 	
 	public static void main(String[]args) {
 		ImageJ ij=new ImageJ();
@@ -86,18 +90,147 @@ public class TestRomain {
 		//importOnlyGe3dForVerif();
 		//testRandom();
 		//testCon();
-		makeAllPhoto();
+//		testCorr();
+		//chiasse5();
+//		chiasse7();
+		//testBM();
+		//makeAllPhoto();
+//		inspectAllPhoto();
+		//publishResults();
 		//testHoughGameTransform();
 		//makeTrainingHybride();
 		//		testBalanceDesBlancs();
-		//testDefineDepth();
-		VitimageUtils.waitFor(1000000);
+		//inspectRXTof();
+		pequenaJala();
+		VitimageUtils.waitFor(100000000);
 		System.exit(0);
 
 	}
 
+	public static void pequenaJala() {
+		String []specimen= {"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		String dir="/home/fernandr/Bureau/Test/Bias/";
+		String tmp;
+		for(int i=0;i<12;i++) {
+			System.out.println("Traitement "+specimen[i]);
+			String spec=specimen[i];
+			ImagePlus imgRefHigh=IJ.openImage(
+					"/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH/Computed_data/1_Registration/Stacks2/imgRef_RXForMRItif.tif");
+			ImagePlus imgMovHigh=IJ.openImage(
+					"/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH/Computed_data/1_Registration/Stacks2/imgMov_MRI_registeredAuto.tif");
+			imgMovHigh.setTitle("RES_0");
+			imgRefHigh.setTitle("REF");
+			ImagePlus imgRef=VitimageUtils.Sub222(imgRefHigh);
+			ImagePlus imgMov=VitimageUtils.Sub222(imgMovHigh);
+			tmp=spec+"REF.tif";imgRefHigh.setTitle(tmp);IJ.saveAsTiff(imgRefHigh,dir+tmp);
+			tmp=spec+"RES_0.tif";imgMovHigh.setTitle(tmp);IJ.saveAsTiff(imgMovHigh,dir+tmp);
+			int sigma=45;
+			int nit=7;
+			for(int config=0;config<3;config++) {
+				
+				int levelMax=3-config/2;
+				int levelMin=3-(config+1)/2;
+				System.out.println("Sigma="+sigma+" nit="+nit+" levelMin="+levelMin+" levelMax="+levelMax);
+				int viewSlice=120;
+				int nbIterations=nit;//14
+				int neighXY=2;	int neighZ=0;
+				int bSXY=7;		int bSZ=7;
+				int strideXY=2;		int strideZ=3;
+				ItkTransform transRet=null;
+				BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transformation3DType.DENSE,MetricType.SQUARED_CORRELATION,
+							0,sigma,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
+		//		bmRegistration.flagSingleView=true;
+				bmRegistration.displayRegistration=false;
+				bmRegistration.displayR2=false;
+				transRet=bmRegistration.runMultiThreaded(null);
+				//bmRegistration.closeLastImages();
+				bmRegistration.freeMemory();
+				ImagePlus res=transRet.transformImage(imgRefHigh, imgMovHigh);
+				res.setDisplayRange(0, 255);
+				IJ.run(res,"8-bit","");
+				tmp=spec+"RES_MAX_"+levelMax+"_MIN_"+levelMin+".tif";res.setTitle(tmp);IJ.saveAsTiff(res,dir+tmp);
+			}
+		}
+	}
 	
 	
+
+
+	public static void chiasse7() {
+		String []specimen= {"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		for(int i=0;i<12;i++) {
+			System.out.println("Traitement "+specimen[i]);
+			ImagePlus imgMask=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Source_data/RX/Computed_data/0_Stacks/mask.tif");
+			VitimageUtils.adjustImageCalibration(imgMask, new double[] {0.6,0.6,0.6},"mm");
+			IJ.saveAsTiff(imgMask,"/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Source_data/RX/Computed_data/0_Stacks/mask.tif");
+			imgMask.close();
+			System.out.print("1");
+
+			ImagePlus imgRX=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Source_data/RX/Computed_data/0_Stacks/RX.tif");
+			VitimageUtils.adjustImageCalibration(imgRX, new double[] {0.6,0.6,0.6},"mm");
+			IJ.saveAsTiff(imgRX,"/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Source_data/RX/Computed_data/0_Stacks/RX.tif");
+			imgRX.close();
+			System.out.print("2");
+
+			ImagePlus imgHyp=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Source_data/RX/Computed_data/3_HyperImage/hyperImage.tif");
+			VitimageUtils.adjustImageCalibration(imgHyp, new double[] {0.6,0.6,0.6},"mm");
+			IJ.saveAsTiff(imgHyp,"/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Source_data/RX/Computed_data/3_HyperImage/hyperImage.tif");
+			imgHyp.close();
+			System.out.print("3");
+		
+		
+		}
+	}
+	
+	
+	public static void chiasse4() {
+		ImagePlus test=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/For_Cedric/2_After_Segmentation/CEP022_APO3_after_step_2_segmentation.tif");		
+		IJ.run(test,"8-bit","");
+		ImagePlus[]result=VitimageUtils.meanAndVarOnlyValidValuesByte(test,5);
+		result[0].show();
+		result[1].show();
+	}
+	
+	
+	public static void chiasse3() {
+		ImagePlus test=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/For_Cedric/2_After_Segmentation/CEP022_APO3_after_step_2_segmentation.tif");
+		test.show();
+		int nExp=4;
+		int[]tabDiamXY=new int[] {5,6,7,8}; 
+		int[]tabZup=new int[] {1,1,1,1,2,2,2,2,2,2,2,2};
+		int[]tabZdown=new int[] {2,2,2,2,1,3,1,3,1,3,1,3};
+		boolean[]tabBool=new boolean[] {true,true,true,true,false,false,false,false,false,false,false,false};
+		ImagePlus res1;
+		for(int i=0;i<nExp;i++) {
+			System.out.println("");
+			System.out.println("Traitements jeu de parametres "+i+" : "+"-"+tabDiamXY[i]+"--"+tabZup[i]+"-"+tabZdown[i]+"--"+tabBool[i]);
+			System.out.println();
+			res1=VitimageUtils.normalizationSliceRGB(test,tabDiamXY[i],tabDiamXY[i],tabZup[i],tabZdown[i],tabBool[i]);
+			res1.setTitle(""+tabDiamXY[i]+"-"+tabDiamXY[i]+"--"+tabZup[i]+"-"+tabZdown[i]+"--"+tabBool[i]+"_RECTVERS.tif");
+			IJ.saveAsTiff(res1,"/home/fernandr/Bureau/Test/TestEqualization/"+res1.getTitle());
+		}
+
+	}
+
+	public static void chiasse2() {
+		String []specimen= {"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		for(int i=0;i<1;i++) {//specimen.length	
+			System.out.println("\n\n\nTraitement specimen "+specimen[i]+" ");
+			String pathToData="/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i];
+			String slash="/";
+			ImagePlus segWood=IJ.openImage(pathToData+slash+"Computed_data"+slash+"2_Segmentation"+slash+"seg_low_wood_radius_4.tif");
+		 // create structuring element (cube of radius 'radius')
+			Strel3D str=inra.ijpb.morphology.strel.CuboidStrel.fromRadiusList(2,2, 1);
+			ImagePlus img =new ImagePlus("",Morphology.closing(segWood.getImageStack(),str));
+			str=inra.ijpb.morphology.strel.SquareStrel.fromRadius(2);
+			img =new ImagePlus("",Morphology.erosion(segWood.getImageStack(),str));
+			segWood.show();
+			img.show();
+			VitimageUtils.waitFor(100000);
+		}
+		
+		
+	}
 	
 
 	
@@ -138,10 +271,68 @@ public class TestRomain {
 	}
 
 	
+	public static void inspectAllPhoto() {
+		int stepEnd=3;//
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3" ,"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		for(int i=0;i<specimen.length;i++) {//	
+			System.out.println("\n\n\nTraitement specimen "+specimen[i]+" jusqu a step "+stepEnd);
+			String pathToData="/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i];
+			ImagePlus p2=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Computed_data/1_Registration/Stacks/img_low_after_step_1.tif");
+			ImagePlus p=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Computed_data/2_Segmentation/wood_only_rgb_radius_4_pruned.tif");
+			//IJ.run(p,"8-bit","");
+			//IJ.run(p2,"8-bit","");
+			//p=VitimageUtils.compositeOf(p, p2);
+			p.show();
+			p.setTitle("ppp.tif"+specimen[i]);
+			boolean flag=false;
+			int incr=0;
+			while(!flag) {
+				if(WindowManager.getImage("ppp.tif"+specimen[i])==null)flag=true;
+				VitimageUtils.waitFor(1000);
+				System.out.println(incr++);
+			}
+			p.close();
+		}		
+	}
+	
+	public static void publishResults() {
+		int publishedStep=3;
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3" ,"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		for(int i=0;i<specimen.length;i++) {
+			System.out.println(i);
+			if(publishedStep==1) {			
+				String outputDir="/home/fernandr/Bureau/Traitements/Cep5D/For_Cedric/1_After_PVC_Alignement/";
+				String inputData="/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Computed_data/1_Registration/Stacks/img_low_after_step_1.tif";
+				ImagePlus img=IJ.openImage(inputData);
+				img.setTitle(specimen[i]+"_after_step_1_pvc_alignement.tif");
+				IJ.saveAsTiff(img, outputDir+specimen[i]+"_after_step_1_pvc_alignement.tif");
+			}
+			if(publishedStep==2) {			
+				String outputDir="/home/fernandr/Bureau/Traitements/Cep5D/For_Cedric/2_After_Segmentation/";
+				File f=new File(outputDir);
+				f.mkdir();
+				String inputData="/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Computed_data/2_Segmentation/wood_only_rgb_radius_4_pruned.tif";
+				ImagePlus img=IJ.openImage(inputData);
+				img.setTitle(specimen[i]+"_after_step_2_segmentation.tif");
+				IJ.saveAsTiff(img, outputDir+specimen[i]+"_after_step_2_segmentation.tif");
+			}
+			if(publishedStep==3) {			
+				String outputDir="/home/fernandr/Bureau/Traitements/Cep5D/For_Cedric/3_After_Equalization/";
+				File f=new File(outputDir);
+				f.mkdir();
+				String inputData="/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Computed_data/2_Segmentation/wood_only_rgb_equalized.tif";
+				ImagePlus img=IJ.openImage(inputData);
+				img.setTitle(specimen[i]+"_after_step_3_equalization.tif");
+				IJ.saveAsTiff(img, outputDir+specimen[i]+"_after_step_3_equalization.tif");
+			}
+		}
+	}
+	
 	public static void makeAllPhoto() {
-		int stepEnd=3;
-		String []specimen= {"CEP015_RES2","CEP014_RES1","CEP016_RES3","CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
-		for(int i=0;i<specimen.length;i++) {	
+		int stepEnd=7;//
+
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3" ,"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		for(int i=0;i<12;i++) {//specimen.length	
 			System.out.println("\n\n\nTraitement specimen "+specimen[i]+" jusqu a step "+stepEnd);
 			String pathToData="/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i];
 			Photo_Slicing_Seq photo=new Photo_Slicing_Seq(pathToData,Capillary.HAS_NO_CAPILLARY,SupervisionLevel.AUTONOMOUS,specimen[i],ComputingType.COMPUTE_ALL);
@@ -229,39 +420,7 @@ public class TestRomain {
 		}		
 	}
 	
-	public static void testDefineDepth() {
-		int nSlices=60;
-		int nDepthDef=11;
-		int []depthUp=new int[nSlices];
-		int []depthDown=new int[nSlices];
-		boolean []virtuals=new boolean[nSlices];
 
-		int[]sliDef=new int[nDepthDef];
-		int[]depthDef=new int[nDepthDef];
-		sliDef= new int[]{1,6,12,16,21,25,33,38,44,52,60};
-		depthDef= new int[]{520,488,446,420,382,360,300,262,222,165,106};
-		double thickMoy=(depthDef[0]-depthDef[nDepthDef-1])*1.0/(sliDef[nDepthDef-1]-sliDef[0]);
-
-		for(int pt=0;pt<nDepthDef-1;pt++) {
-			int curSlice=sliDef[pt]-1;
-			int curDepth=depthDef[pt];
-			int nextSlice=sliDef[pt+1]-1;
-			int nextDepth=depthDef[pt+1];
-			double thickBetween=(curDepth-nextDepth)*1.0/(nextSlice-curSlice);
-			for(int sl=curSlice;sl<nextSlice;sl++) {
-				depthUp[sl]=(int)Math.round(  curDepth- thickBetween*(sl-curSlice));
-			}
-		}
-		depthUp[nSlices-1]=depthDef[nDepthDef-1];
-		for(int pt=1;pt<nSlices;pt++)depthDown[pt-1]=depthUp[pt]+1;
-		depthDown[nSlices-1]=depthUp[nSlices-1]-(int)Math.round(thickMoy);			
-
-	
-		for(int i=0;i<nSlices;i++) {
-			System.out.println("Slice "+i+" up="+depthUp[i]+" down="+depthDown[i]+" , thickness="+(depthUp[i]-depthDown[i]));
-		}
-	}
-	
 	public static void produceStackTestForPhoto() {
 		String rep="/home/fernandr/Bureau/Test/TestPhotoStack/";
 		ImagePlus imgRef=IJ.openImage(rep+"modele_pour_generer_stack_sub.tif");
@@ -445,12 +604,19 @@ mri.start();
 	}
 	
 	
-	public static void chiasseAeffacerJusteApres() {
-		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B099_PCH/Source_data/J0/Computed_data/0_Registration/imgRegistration_acq_2_step_afterIPalignment.tif");
-		ImagePlus imgMov=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B099_PCH/Source_data/J0/Computed_data/0_Registration/imgRegistration_acq_2_step_afterIPalignment.tif");
-		ItkTransform tr=ItkTransform.itkTransformFromCoefs(new double[] {1,0,0,0.124,0,1,0,0,0,0,1,0});
-		imgMov=tr.transformImage(imgRef, imgMov);
-		tr=BlockMatchingRegistration.setupAndRunStandardBlockMatchingWithoutFineParameterization(imgRef,imgMov,null,true,false,true);
+	public static void testBM() {
+//		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B099_PCH/Source_data/J0/Computed_data/0_Registration/imgRegistration_acq_2_step_afterIPalignment.tif");		
+//		ImagePlus imgMov=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B099_PCH/Source_data/J0/Computed_data/0_Registration/imgRegistration_acq_2_step_afterIPalignment.tif");
+		String dir="/home/fernandr/Bureau/Traitements/Cep5D/CEP020_APO1/Source_data/MRI_CLINICAL/Computed_data/3_HyperImage/";
+		ImagePlus imgRef=IJ.openImage(dir+"stack_0.tif");		
+		ImagePlus imgMov=IJ.openImage(dir+"stack_1.tif");	
+		IJ.run(imgRef, "Scale...", "x=0.5 y=0.5 z=0.5 width="+imgRef.getWidth()+" height="+imgRef.getHeight()+" depth="+imgRef.getStackSize()+" interpolation=Bilinear average process create");
+		imgRef=IJ.getImage();
+		IJ.run(imgMov, "Scale...", "x=0.5 y=0.5 z=0.5 width="+imgRef.getWidth()+" height="+imgRef.getHeight()+" depth="+imgRef.getStackSize()+" interpolation=Bilinear average process create");
+		imgMov=IJ.getImage();
+		ItkTransform tr=BlockMatchingRegistration.blockMatchingRegistrationCepMRIData(imgRef,imgMov,null,true,true,true,true,10);
+		tr=tr.flattenDenseField(imgRef);
+		tr.writeAsDenseField("/home/fernandr/Bureau/Test/Field.tif", imgRef);
 	}
 	
 	/*
@@ -1313,6 +1479,224 @@ mri.start();
 	
 	
 	
+	
+	
+	public static void testCorr() {
+		int nTest=50000;
+		int nCoefs=20;
+		int coef1=3;
+		int cofTmp;
+		double[]vecta=vectRand(10,1,100,100,20);
+		double[]vectb=vectRand(5,3,100,100,20);
+		double [][]tabVals=new double[nCoefs][nTest];
+		double []means=new double[nCoefs];
+		double []stds=new double[nCoefs];
+		double[]result;
+		for(int nc=0;nc<nCoefs;nc++) {
+			cofTmp=coef1+5*nc;
+			for(int nt=0;nt<nTest;nt++) {
+				vecta=vectRand(10,1,cofTmp,cofTmp,2);
+				vectb=vectRand(5,3,cofTmp,cofTmp,2);
+				tabVals[nc][nt]=correlationCoefficient(vecta, vectb);
+				if((nc+nt)==0) {
+					System.out.println("Une verif");
+					System.out.println(TransformUtils.stringVectorN(vecta,"vecta"));
+					System.out.println(TransformUtils.stringVectorN(vectb,"vectb"));
+					System.out.println("corr="+tabVals[nc][nt]);
+				}
+			}
+			result=VitimageUtils.statistics1D(tabVals[nc]);
+			means[nc]=result[0];
+			stds[nc]=result[1];
+			System.out.println("Avec nb="+cofTmp+" : mean="+means[nc]+"  ,  std="+stds[nc]);
+		}		
+	}
+
+	public static double correlationCoefficient(double X[], double Y[]) { 
+		//System.out.println("En effet, X.length="+X.length);
+		//System.out.println("En effet, Y.length="+Y.length);
+		double epsilon=10E-20;
+		if(X.length !=Y.length )IJ.log("In correlationCoefficient in BlockMatching, blocks length does not match");
+		int n=X.length;
+		double sum_X = 0, sum_Y = 0, sum_XY = 0; 
+		double squareSum_X = 0, squareSum_Y = 0; 	
+		for (int i = 0; i < n; i++) { 
+			sum_X = sum_X + X[i]; 		
+			sum_Y = sum_Y + Y[i]; 
+			sum_XY = sum_XY + X[i] * Y[i]; 
+			squareSum_X = squareSum_X + X[i] * X[i]; 
+			squareSum_Y = squareSum_Y + Y[i] * Y[i]; 
+		} 
+		if(squareSum_X<epsilon || squareSum_Y<epsilon )return 0;
+		// use formula for calculating correlation  
+		// coefficient. 
+		return (  (n * sum_XY - sum_X * sum_Y)/ (Math.sqrt((n * squareSum_X - sum_X * sum_X) * (n * squareSum_Y - sum_Y * sum_Y)))); 
+	} 
+	
+	public static double[]vectRand(int a, int b, int N,int n,double sigma){
+		Random rand=new Random();
+		double[]vect=new double[n];
+		for(int i=0;i<n;i++) {
+			vect[i]=VitimageUtils.dou(a*i*1.0/N+b+rand.nextDouble()*sigma);
+		}
+		return vect;
+	}
+	
+	
+	
+	
+	public static int[][]getTestTabRXPhoto(){
+		return new int[][]{
+			{0,0,0,0},
+			{4,4,4,4},
+			{5,5,5,5},
+			{10,10,10,10},
+			{11,11,11,11},
+			{16,16,16,15},
+			{15,16,17,18},
+			{21,22,23,23},
+			{22,23,24,25},
+			{27,28,29,30},
+			{27,28,27,27},
+			{30,30,30,30},
+			{31,30,30,30},
+			{38,38,39,39},
+			{39,39,39,39},
+			{41,40,39,39},
+			{42,42,41,41},
+			{47,47,47,47},
+			{48,47,47,47},
+			{54,54,53,52},
+			{54,53,52,52},
+			{59,59,58,57},
+			{59,59,58,58},
+			{64,63,62,61},
+			{65,65,64,64},
+			{70,70,70,70},
+			{71,71,70,70},
+			{77,77,76,76},
+			{78,78,77,77},
+			{83,82,81,80},
+			{84,83,83,82},
+			{91,90,89,88},
+			{91,90,89,88},
+			{96,95,94,93},
+			{96,95,94,93},
+			{101,101,101,101},
+			{102,101,101,101},
+			{107,108,107,106},
+			{107,107,107,108},
+			{112,112,111,110},
+			{113,112,112,112},
+			{118,117,117,118},
+			{118,118,118,117},
+			{121,121,121,122},
+			{124,124,124,123},
+			{127,128,128,127},
+			{127,128,127,127},
+			{132,133,133,133},
+			{133,134,134,134},
+			{140,141,140,140},
+			{140,140,140,140},
+			{148,149,148,148},
+			{148,148,148,148},
+			{159,158,157,156},
+			{161,160,160,161},
+			{163,163,162,162},
+			{165,165,165,165},
+			{168,169,170,171},
+			{171,172,172,172},
+			{174,175,174,174},
+			{177,178,178,179},
+			{180,180,180,180},
+			{181,180,181,181},
+			{187,188,188,189},
+			{188,188,189,189},
+			{190,190,190,190},
+			{191,190,189,189},
+			{199,200,200,200},
+			{199,200,200,199},
+			{204,204,203,203},
+			{204,204,204,204},
+			{211,211,212,213},
+			{211,211,211,210},
+			{217,218,217,218},
+			{217,217,217,216},
+			{221,222,221,221},
+			{221,222,221,221},
+			{226,226,227,227},
+			{225,225,225,224},
+			{231,232,233,234},
+			{232,233,234,234},
+			{237,237,236,235},
+			{239,240,240,239},
+			{245,246,247,247},
+			{246,247,247,247},
+			{250,249,250,250},
+			{252,253,254,255},
+			{256,256,255,256},
+			{257,257,256,255},
+			{261,260,259,258},
+			{262,261,260,260},
+			{267,266,265,265},
+			{268,267,266,265},
+			{272,271,270,269},
+			{273,272,271,270},
+			{278,277,276,277},
+			{281,282,282,283},
+			{284,285,286,287},
+			{286,285,284,283},
+			{286,286,286,287},
+			{287,286,285,284},
+			{292,293,293,294},
+			{293,294,294,293},
+			{299,300,300,299},
+			{298,297,296,295},
+			{303,302,301,300},
+			{304,303,303,302},
+			{310,309,308,307},
+			{313,314,313,314},
+			{316,315,314,314},
+			{317,318,318,317},
+			{324,324,323,324},
+			{325,326,327,327},
+			{330,330,331,331},
+			{330,330,331,331},
+			{334,334,334,333},
+			{337,338,337,337},
+			{342,343,344,344},
+			{342,343,343,344},
+			{349,350,350,350},
+			{348,348,348,348},
+			{353,353,354,355},
+			{355,356,355,355},
+			{361,362,363,362},
+			{362,361,361,362},
+			{367,367,367,367},
+			{367,367,366,366},
+			{372,373,372,372},
+			{374,373,372,372},
+			{380,381,380,380},
+			{380,380,380,380},
+			{386,387,387,387},
+			{387,388,389,389},
+			{390,391,390,390},
+			{393,394,394,394},
+			{397,398,397,397},
+			{400,401,400,400},
+			{403,402,401,401},
+			{406,405,404,403},
+			{411,411,410,410},
+			{411,411,411,411},
+			{419,420,419,419},
+			{419,419,419,419},
+			{425,426,426,426},
+			{425,426,427,427},
+			{430,430,430,429},
+			{433,434,434,434},
+			{437,437,436,435}
+		};
+	}
 	
 	
 	

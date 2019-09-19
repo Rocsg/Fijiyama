@@ -36,7 +36,7 @@ import ij.plugin.Duplicator;
 import ij.plugin.ImageCalculator;
 import math3d.Point3d;
 
-public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
+public class Cep4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	public enum VineType{
 		GRAFTED_VINE,
 		VINE,
@@ -48,10 +48,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	public String title="--";
 	public String sourcePath="--";
 	public String dataPath="--";
-	public boolean T2AndT1SameGeometry=true;
-	public SupervisionLevel supervisionLevel=SupervisionLevel.GET_INFORMED;
-	public VineType vineType=VineType.CUTTING;
-	public final int dayAfterExperience;
+	public VineType vineType=VineType.VINE;
 	protected ArrayList<Acquisition> acquisition;//Observations goes there
 	protected ArrayList<Geometry> geometry;
 	protected ArrayList<Misalignment> misalignment;
@@ -59,11 +56,10 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	protected ArrayList<Capillary> capillary;
 	private int[] referenceImageSize;
 	private double[] referenceVoxelSize;
-	protected AcquisitionType acquisitionStandardReference=AcquisitionType.MRI_T1_SEQ;
+	protected AcquisitionType acquisitionStandardReference=AcquisitionType.RX;
 	protected ImagePlus normalizedHyperImage;
 	private ImagePlus mask;
 	ImagePlus imageForRegistration;
-	private int timeSerieDay=0;
 	private String projectName="VITIMAGE";
 	private String unit="mm";
 	private int hyperSize=0;
@@ -73,12 +69,11 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		String subject="B099_PCH";
-		String day="J0";
-		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day,
-								subject+"_"+day,ComputingType.COMPUTE_ALL);			
-		viti.start(Vitimage4D.UNTIL_END);
-		viti.normalizedHyperImage.show();
+		String subject="CEP011_AS1";
+		Cep4D cep = new Cep4D(VineType.VINE,0,"/home/fernandr/Bureau/Traitements/Cep5D/"+subject+"/Source_data/",
+								subject,ComputingType.COMPUTE_ALL);			
+		cep.start(Cep4D.UNTIL_END);
+		cep.normalizedHyperImage.show();
 	}
 
 
@@ -97,7 +92,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		System.out.println("");
 		System.out.println("");
 		System.out.println("#######################################################################################################################");
-		System.out.println("######## Starting new vitimage4D ");
+		System.out.println("######## Starting new Cep4D ");
 		String str=""+this.sourcePath+"";
 		System.out.println("######## "+str+"");
 		System.out.println("#######################################################################################################################");		
@@ -115,47 +110,16 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 				return false;
 			};break;
 		case 0: // rien --> exit
-			if(this.computingType!=ComputingType.EVERYTHING_AFTER_MAPS) {
-				if(this.supervisionLevel != SupervisionLevel.AUTONOMOUS)IJ.log("No data in this directory");
-				return false;
-			};break;			
-		case 1://data are read. Time to compute individual calculus for each acquisition
-			for (Acquisition acq : this.acquisition) {System.out.println("\nVitimage4D, step1 start a new acquisition");acq.start();}
-			this.setImageForRegistration();
-			this.writeImageForRegistration();
-			this.writeParametersToHardDisk();
-			if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS) {writeStep(a+1);	return false;}
+				IJ.log("No data in this directory");
+				return false;		
+		case 1://data are read. Time to compute individual calculus for RX and MRI
+			for (int i=0;i<2;i++) {System.out.println("\nCep4D, step1 start a new acquisition");this.acquisition.get(i).start();}
 			break;
-		case 2: //individual computations are done. Time to register acquisitions
-			System.out.println("\nVitimage4D, step2, start major misalignements");
-			this.handleMajorMisalignments();
-			this.writeTransforms();
+		case 2: //individual computations are done. Time to do photo
+			System.out.println("\nCep4D, step2, make photo");
+			this.acquisition.get(2).start();
 			break;
 		case 3: //individual computations are done. Time to register acquisitions
-			System.out.println("\nVitimage4D, step3, centrage des axes");
-			this.centerAxes();
-			this.writeTransforms();
-			break;
-		case 4: //individual computations are done. Time to register acquisitions
-			System.out.println("\nVitimage4D, step4, detection des points d inoculation");
-			if(vineType==VineType.CUTTING) detectInoculationPoints();
-			this.writeTransforms();
-			break;
-		case 5: //individual computations are done. Time to register acquisitions
-			System.out.println("\nVitimage4D, step5, recalage fin");
-			automaticFineRegistration();
-			this.writeTransforms();
-			break;
-		case 6: //data are registered. Time to share data (i.e. masks of non-computable data...)
-			//this.computeMask();
-			//this.writeMask();
-			break;
-		case 7: //Data are shared. Time to compute hyperimage
-			System.out.println("\nVitimage4D, step7, compute normalized hyperimage");
-			this.computeNormalizedHyperImage();
-			writeHyperImage();
-			break;
-		case 8:
 			System.out.println("Vitimage 4D, Computation finished for "+this.getTitle());
 			for (Acquisition acq : this.acquisition) {
 				long lThis=this.getHyperImageModificationTime();
@@ -214,17 +178,16 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	public void readProcessedImages(int step){
 		if(step <1) IJ.log("Error : read process images, but step is lower than 1");
 //		if(step>=2) {for (Acquisition acq : this.acquisition)acq.start();readImageForRegistration();}
-		if(step>3)readTransforms();
-		if(step>=4) readMask();
-		if(step>=5) readHyperImage();
+//		if(step>3)readTransforms();
+		//		if(step>=4) readMask();
+		//if(step>=5) readHyperImage();
 	}
 	
 	
-	public Vitimage4D(VineType vineType, int dayAfterExperience,String sourcePath,String title,ComputingType computingType) {
+	public Cep4D(VineType vineType, int dayAfterExperience,String sourcePath,String title,ComputingType computingType) {
 		this.computingType=computingType;
 		this.title=title;
 		this.sourcePath=sourcePath;
-		this.dayAfterExperience=dayAfterExperience;
 		this.vineType=vineType;
 		acquisition=new ArrayList<Acquisition>();//Observations goes there
 		geometry=new ArrayList<Geometry>();
@@ -244,8 +207,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		//Acquisitions auto-detect
 		//Detect T1 sequence
 		//Gather the path to source data
-		System.out.println("Looking for a Vitimage4D hosted in "+this.sourcePath);
-
+		System.out.println("Looking for a Cep4D hosted in "+this.sourcePath);
 		//Explore the path, look for STEPS_DONE.tag and DATA_PARAMETERS.tag
 		File fStep=new File(this.sourcePath+slash+"STEPS_DONE.tag");
 		File fParam=new File(this.sourcePath+slash+"DATA_PARAMETERS.tag");
@@ -284,56 +246,31 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	}
 		
 	public void readAcquisitions() {
-		File dataSourceDir = new File(this.sourcePath,"Source_data");
-		//Lire le contenu, et chercher des dossiers RX MRI_T1_SEQ MRI_T2_SEQ
-		File t1SourceDir=new File(this.sourcePath+slash+"Source_data"+slash+"MRI_T1_SEQ");
-		if(t1SourceDir.exists()) {
-			//A ajouter : extraire des données la geometrie generale
-			this.addAcquisition(AcquisitionType.MRI_T1_SEQ,this.sourcePath+slash+"Source_data"+slash+"MRI_T1_SEQ",
-					Geometry.REFERENCE,
-					Misalignment.LIGHT_RIGID,Capillary.HAS_CAPILLARY,this.supervisionLevel);
-		}
-		
-		
-		File t2SourceDir=new File(this.sourcePath+slash+"Source_data"+slash+"MRI_T2_SEQ");
-		if(t2SourceDir.exists()) {
-			//A ajouter : extraire des données la geometrie generale
-			this.addAcquisition(AcquisitionType.MRI_T2_SEQ,this.sourcePath+slash+"Source_data"+slash+"MRI_T2_SEQ",
-					Geometry.QUASI_REFERENCE,
-					Misalignment.LIGHT_RIGID,Capillary.HAS_CAPILLARY,this.supervisionLevel);
-		}
-
-		File geSourceDir=new File(this.sourcePath+slash+"Source_data"+slash+"MRI_GE3D");
-		if(geSourceDir.exists()) {
-			//A ajouter : extraire des données la geometrie generale
-			this.addAcquisition(AcquisitionType.MRI_GE3D,this.sourcePath+slash+"Source_data"+slash+"MRI_GE3D",
-					Geometry.QUASI_REFERENCE,
-					Misalignment.LIGHT_RIGID,Capillary.HAS_CAPILLARY,this.supervisionLevel);
-		}
-		
 		File rxSourceDir=new File(this.sourcePath+slash+"Source_data"+slash+"RX");
 		if(rxSourceDir.exists()) {
-			//A ajouter : extraire des données la geometrie generale
-			this.addAcquisition(AcquisitionType.RX,this.sourcePath+slash+"Source_data"+slash+"RX",
-					Geometry.QUASI_REFERENCE,
-					Misalignment.LIGHT_RIGID,Capillary.HAS_NO_CAPILLARY,this.supervisionLevel);
+			this.addAcquisition(AcquisitionType.RX,this.sourcePath+slash+"Source_data"+slash+"RX",Geometry.REFERENCE,
+					Misalignment.LIGHT_RIGID,Capillary.HAS_NO_CAPILLARY,SupervisionLevel.AUTONOMOUS);
+		}
+
+		File irmSourceDir=new File(this.sourcePath+slash+"Source_data"+slash+"IRM");
+		if(irmSourceDir.exists()) {
+			this.addAcquisition(AcquisitionType.MRI_CLINICAL,this.sourcePath+slash+"Source_data"+slash+"MRI_CLINICAL",Geometry.UNKNOWN,
+					Misalignment.LIGHT_RIGID,Capillary.HAS_CAPILLARY,SupervisionLevel.AUTONOMOUS);
+		}
+
+		File photoSourceDir = new File(this.sourcePath,"Source_data"+slash+"PHOTO");
+		if(photoSourceDir.exists()) {
+			this.addAcquisition(AcquisitionType.PHOTOGRAPH,this.sourcePath+slash+"Source_data"+slash+"PHOTOGRAPH",Geometry.UNKNOWN,
+					Misalignment.LIGHT_RIGID,Capillary.HAS_NO_CAPILLARY,SupervisionLevel.AUTONOMOUS);
 		}
 		System.out.println("Number of acquisitions detected : "+acquisition.size());
-			
 	}
 	
 	public void addAcquisition(Acquisition.AcquisitionType acq, String path,Geometry geom,Misalignment mis,Capillary cap,SupervisionLevel sup){
 		switch(acq) {
-		case MRI_T1_SEQ: this.acquisition.add(new MRI_T1_Seq(path,cap,sup,this.title+"_T1",this.computingType));this.hyperSize+=3;break;
-		case MRI_T2_SEQ: this.acquisition.add(new MRI_T2_Seq(path,cap,sup,this.title+"_T2",this.computingType));this.hyperSize+=3;break;
-		case MRI_GE3D: this.acquisition.add(new MRI_Ge3D(path,cap,sup,this.title+"_GE3D",this.computingType));this.hyperSize+=1;break;
-		case MRI_DIFF_SEQ: VitiDialogs.notYet("FlipFlop");break;
-		case MRI_FLIPFLOP_SEQ: VitiDialogs.notYet("FlipFlop");break;
-		case MRI_SE_SEQ: VitiDialogs.notYet("FlipFlop");break;
-		case RX: this.acquisition.add(new RX(path,cap,this.title+"_RX",VineType.CUTTING));this.hyperSize+=1;break;
-		case HISTOLOGY: VitiDialogs.notYet("FlipFlop");break;
-		case PHOTOGRAPH: VitiDialogs.notYet("FlipFlop");break;
-		case TERAHERTZ: VitiDialogs.notYet("FlipFlop");break;
+		case MRI_CLINICAL: this.acquisition.add(new MRI_Clinical(path,cap,sup,this.title+"_MRI",this.computingType));this.hyperSize+=4;break;
+		case RX: this.acquisition.add(new RX(path,cap,sup,this.title+"_RX",VineType.VINE));this.hyperSize+=1;break;
+		case PHOTOGRAPH: this.acquisition.add(new Photo_Slicing_Seq(path,cap,SupervisionLevel.AUTONOMOUS,this.title+"_RX", ComputingType.COMPUTE_ALL));this.hyperSize+=1;break;
 		}
 		this.geometry.add(geom);
 		this.misalignment.add(mis);
@@ -353,50 +290,11 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 
 
 	public void readParametersFromHardDisk() {
-		File fParam=new File(this.sourcePath,"DATA_PARAMETERS.tag");
-		String[]strFile=null;
-		try {
-			 String str= Files.lines(Paths.get(fParam.getAbsolutePath()) ).collect(Collectors.joining("\n"));
-			 strFile=str.split("\n");
-       } catch (IOException ex) {        ex.printStackTrace();   }
-		for(int i=1;i<strFile.length ; i++) {
-			strFile[i]=strFile[i].split("=")[1];
-		}
-		this.sourcePath=strFile[2];
-		this.dataPath=strFile[3];
-		this.setTitle(strFile[4]);
-		this.timeSerieDay=Integer.valueOf(strFile[5]);
-		this.projectName=strFile[6];
-		this.vineType=VitimageUtils.stringToVineType(strFile[7]);
-		this.setDimensions(Integer.valueOf(strFile[9]) , Integer.valueOf(strFile[10]) , Integer.valueOf(strFile[11]) );
-		this.unit=strFile[12];
-		this.setVoxelSizes(Double.valueOf(strFile[13]), Double.valueOf(strFile[14]), Double.valueOf(strFile[15]));
-		this.hyperSize=Integer.valueOf(strFile[16]);
+		
 	}
 	
 	public void writeParametersToHardDisk() {
-		File fParam=new File(this.sourcePath,"DATA_PARAMETERS.tag");
-		try {
-			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fParam)));
-			out.write("############# DATA PARAMETERS TAG FILE ###########\n");
-			out.write("DayOfWritingTagFile="+(new Date()) +"\n");
-			out.write("LocalSourcePath="+this.sourcePath+"\n");
-			out.write("LocalDataPath="+this.dataPath+"\n");
-			out.write("Title="+this.getTitle()+"\n");
-			out.write("TimeSerieDay="+this.timeSerieDay+"\n");
-			out.write("Project="+this.projectName +"\n");
-			out.write("VineType="+ this.vineType+"\n");
-			out.write("NumberOfAcquisitions="+this.acquisition.size()+"\n");
-			out.write("DimX(pix)="+this.dimX() +"\n");
-			out.write("DimY(pix)="+this.dimY() +"\n");
-			out.write("DimZ(pix)="+this.dimZ()+"\n" );
-			out.write("Unit="+this.unit +"\n");
-			out.write("VoxSX="+this.voxSX() +"\n");
-			out.write("VoxSY="+this.voxSY() +"\n");
-			out.write("VoxSZ="+this.voxSZ() +"\n");
-			out.write("HyperSize="+this.hyperSize +"\n");
-			out.close();
-		} catch (Exception e) {IJ.error("Unable to write transformation to file: "+fParam.getAbsolutePath()+"error: "+e);}	
+
 	}
 	
 	
@@ -409,22 +307,13 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	}
 
 	public void setImageForRegistration() {
-		this.imageForRegistration=new Duplicator().run(this.acquisition.get(0).getImageForRegistration());
-		this.setDimensions(this.imageForRegistration.getWidth(), this.imageForRegistration.getHeight(), this.imageForRegistration.getStackSize());
-		this.setVoxelSizes(this.imageForRegistration.getCalibration().pixelWidth, this.imageForRegistration.getCalibration().pixelHeight, this.imageForRegistration.getCalibration().pixelDepth);
 	}
 	
 
 	public void readImageForRegistration() {
-		this.imageForRegistration=IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"imageForRegistration.tif");
-		this.setDimensions(this.imageForRegistration.getWidth(), this.imageForRegistration.getHeight(), this.imageForRegistration.getStackSize());
-		this.setVoxelSizes(this.imageForRegistration.getCalibration().pixelWidth, this.imageForRegistration.getCalibration().pixelHeight, this.imageForRegistration.getCalibration().pixelDepth);
 	}
 	
 	public void writeImageForRegistration() {
-		File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"0_Registration");
-		dir.mkdirs();
-		IJ.saveAsTiff(this.imageForRegistration,this.sourcePath+slash+ "Computed_data"+slash+"0_Registration"+slash+"imageForRegistration.tif");
 	}
 
 	public long getHyperImageModificationTime() {
@@ -506,168 +395,12 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		return this.acquisition.get(i);
 	}
 	
+
+	public void centerMassCenters() {
+		
 	
-	public void handleMajorMisalignments() {
-		System.out.println("");
-		System.out.println("########## Handling major misalignments for vitimage 4D "+title);
-		for(int i=0;i<acquisition.size();i++) {
-			System.out.println("-- Acquisition "+i);
-			if(geometry.get(i)==Geometry.REFERENCE) continue;
-			if(geometry.get(i)==Geometry.UNKNOWN) {}
-			switch(geometry.get(i)){
-			case REFERENCE: 	
-				break;
-			case UNKNOWN: 
-				VitiDialogs.notYet("Geometry.UNKNOWN");
-				break;
-			case MIRROR_X:
-				VitiDialogs.notYet("Geometry.MIRROR_X");
-				break;
-			case MIRROR_Y:
-				VitiDialogs.notYet("Geometry.MIRROR_Y");
-				break;
-			case MIRROR_Z:
-				VitiDialogs.notYet("Geometry.MIRROR_Z");
-				break;
-			case SWITCH_XY:
-				VitiDialogs.notYet("Geometry.SWITCH_XY");
-				break;
-			case SWITCH_XZ:
-				VitiDialogs.notYet("Geometry.SWITCH_XZ");
-				break;
-			case SWITCH_YZ:
-				VitiDialogs.notYet("Geometry.SWITCH_YZ");
-				break;
-			}			
-		}
 	}
 	
-	public void centerAxes() {
-		System.out.println("");
-		System.out.println("########## Centering axes for vitimage 4D "+title);
-		double refCenterX=acquisition.get(0).dimX()*acquisition.get(0).voxSX()/2.0;
-		double refCenterY=acquisition.get(0).dimY()*acquisition.get(0).voxSY()/2.0;
-		double refCenterZ=acquisition.get(0).dimZ()*acquisition.get(0).voxSZ()/2.0;
-		for(int i=0;i<acquisition.size();i++) {
-			System.out.println("-- Acquisition "+i);
-			Acquisition acq=acquisition.get(i);
-			acq.imageForRegistration.setTitle("i="+i+" before all");
-			if(T2AndT1SameGeometry && this.acquisition.get(i).acquisitionType == AcquisitionType.MRI_T2_SEQ) {
-				this.transformation.set(i,this.transformation.get(0));
-				transformation.set(i,transformation.get(i).simplify());
-				continue;
-			}			
-			Point3d[]pInit=new Point3d[3];
-			Point3d[]pFin=new Point3d[3];
-			pFin=VitimageUtils.detectAxis(acq,15);//in the order : center of object along its axis , center + daxis , center + dvect Orthogonal to axis 				
-			pInit[0]=new Point3d(refCenterX, refCenterY     , refCenterZ     );//origine
-			pInit[1]=new Point3d(refCenterX, refCenterY     , 1 + refCenterZ );//origine + dZ
-			pInit[2]=new Point3d(refCenterX, 1 + refCenterY , refCenterZ     );//origine + dY
-			System.out.println("Image local basis 0 / 0Z / 0Y : \n"+pFin[0]+"\n"+pFin[1]+"\n"+pFin[2]+"");
-			ItkTransform trAdd=ItkTransform.estimateBestRigid3D(pFin, pInit);
-			transformation.get(i).addTransform(trAdd);
-			transformation.set(i,transformation.get(i).simplify());
-		}
-		writeRegisteringTransforms("afterAxisAlignment");
-		writeRegisteringImages("afterAxisAlignment");
-	}
-	
-	public void detectInoculationPoints(){
-		//VitimageUtils.soundAlert("Inoculation");
-		//VitimageUtils.waitFor(5000);
-		System.out.println("");
-		System.out.println("########## Detect inoculation points for vitimage 4D "+title);
-		double refCenterX=acquisition.get(0).dimX()*acquisition.get(0).voxSX()/2.0;
-		double refCenterY=acquisition.get(0).dimY()*acquisition.get(0).voxSY()/2.0;
-		double refCenterZ=acquisition.get(0).dimZ()*acquisition.get(0).voxSZ()/2.0;
-		for(int i=0;i<acquisition.size();i++) {
-			Acquisition acq=acquisition.get(i);
-			System.out.println("Processing data number "+i+" , "+acq.acquisitionType);
-			Point3d[]pFin;
-			if(T2AndT1SameGeometry && this.acquisition.get(i).acquisitionType == AcquisitionType.MRI_T2_SEQ) {
-				this.transformation.set(i,new ItkTransform(this.transformation.get(0)));
-				transformation.set(i,transformation.get(i).simplify());
-				continue;
-			}			
-			
-			ImagePlus tempImgDetect=this.transformation.get(i).transformImage( 
-					this.acquisition.get(0).getImageForRegistration() ,
-					this.acquisition.get(i).getImageForRegistration());
-			ImagePlus tempImgOutline=this.transformation.get(i).transformImage( 
-					this.acquisition.get(0).getImageForRegistration() , 
-					this.acquisition.get(i).getImageForRegistration());
-			tempImgOutline=	VitimageUtils.smoothContourOfPlant(tempImgOutline,tempImgOutline.getStackSize()/2);
-			System.out.println("Inoculation for "+acq.getTitle());
-			tempImgDetect.show();
-			tempImgOutline.show();
-			pFin=VitimageUtils.detectInoculationPointGuidedByAutomaticComputedOutline(tempImgDetect,tempImgOutline);
-			tempImgDetect.hide();
-			tempImgOutline.hide();
-			
-			//Compute and store the inoculation Point, in the coordinates of the original image
-			Point3d inoculationPoint=ItkImagePlusInterface.vectorDoubleToPoint3d(
-					acq.getTransform().transformPoint(ItkImagePlusInterface.doubleArrayToVectorDouble(
-							new double[] {pFin[3].x,pFin[3].y,pFin[3].z})));
-			acq.setInoculationPoint(inoculationPoint);
-
-			
-			//Compute the transformation that align the inoculation point to the Y+, with the axis already aligned
-			Point3d[]pInit=new Point3d[3];
-			pInit[0]=new Point3d( refCenterX  , refCenterY     , refCenterZ      );
-			pInit[1]=new Point3d( refCenterX  , refCenterY     , refCenterZ + 1  );
-			pInit[2]=new Point3d( refCenterX  , refCenterY + 1 , refCenterZ      );
-
-			Point3d[] pFinTrans=new Point3d[] { pFin[0] , pFin[1] , pFin[2] };
-			ItkTransform trAdd=ItkTransform.estimateBestRigid3D(pFinTrans,pInit);
-			transformation.get(i).addTransform(trAdd);
-			transformation.set(i,transformation.get(i).simplify());
-			//acq.setImageForRegistration();				
-		}
-		writeRegisteringTransforms("afterIPalignment");
-		writeRegisteringImages("afterIPalignment");	
-	}
-	
-	public void automaticFineRegistrationITK() {
-		ImagePlus imgRef= this.transformation.get(0).transformImage(
-				this.acquisition.get(0).imageForRegistration,
-				this.acquisition.get(0).imageForRegistration);
-		imgRef.getProcessor().resetMinAndMax();
-		imgRef=VitimageUtils.removeCapillaryFromRandomMriImage(imgRef); 
-		imgRef=VitimageUtils.convertFloatToShortWithoutDynamicChanges(imgRef);
-		for (int i=0;i<this.acquisition.size();i++) {
-			if(i==0)continue;
-			if(T2AndT1SameGeometry && this.acquisition.get(i).acquisitionType == AcquisitionType.MRI_T2_SEQ)this.transformation.set(i,new ItkTransform(this.transformation.get(0)));
-
-			ItkRegistrationManager manager=new ItkRegistrationManager();
-
-			//Preparation of moving image
-			ImagePlus imgMov=null;
-			if(this.acquisition.get(i).capillary == Capillary.HAS_CAPILLARY) {
-				imgMov= this.transformation.get(i).transformImage(
-					this.acquisition.get(0).imageForRegistration,
-					VitimageUtils.removeCapillaryFromRandomMriImage(this.acquisition.get(i).imageForRegistration));
-				imgMov=VitimageUtils.convertFloatToShortWithoutDynamicChanges(imgMov);
-			}
-			else{
-				imgMov= this.transformation.get(i).transformImage(			
-					this.acquisition.get(0).imageForRegistration,
-					this.acquisition.get(i).imageForRegistration);
-			}
-			imgMov.getProcessor().resetMinAndMax();
-
-			System.out.println("Automatic registration intermodal");
-			System.out.println("Ref="+this.acquisition.get(0).getTitle());
-			System.out.println("Mov="+this.acquisition.get(i).getTitle());
-			imgRef.getProcessor().resetMinAndMax();
-			imgMov.getProcessor().resetMinAndMax();
-				this.transformation.get(i).addTransform(manager.runScenarioInterModal(
-							new ItkTransform(),imgRef,imgMov, (this.acquisition.get(i).acquisitionType == AcquisitionType.MRI_T2_SEQ) ));
-			this.transformation.set(i,this.transformation.get(i).simplify());
-		}
-		this.transformation.set(0,this.transformation.get(0).simplify());
-		writeRegisteringImages("afterItkRegistration");	
-		writeRegisteringTransforms("afterItkRegistration");
-	}
 	
 	///NEW VERSION
 	//USAGE OF A BLOCK MATCHING MODEL
@@ -681,7 +414,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		//		for (int i=this.acquisition.size()-1;i>0;i--) {
 		for (int i=0;i<this.acquisition.size();i++) {
 			if(i==0)continue;
-			if(T2AndT1SameGeometry && this.acquisition.get(i).acquisitionType == AcquisitionType.MRI_T2_SEQ)this.transformation.set(i,new ItkTransform(this.transformation.get(0)));
+			if(this.acquisition.get(i).acquisitionType == AcquisitionType.MRI_T2_SEQ)this.transformation.set(i,new ItkTransform(this.transformation.get(0)));
 
 			
 			//Preparation of moving image

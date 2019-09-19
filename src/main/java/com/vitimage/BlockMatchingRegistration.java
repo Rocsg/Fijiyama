@@ -102,6 +102,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	public double zoomFactor=1;
 	public int viewWidth;
 	public int viewHeight;
+	public double lastValueCorr=0;
+	public double lastValueBlocksCorr=0;
 	public ImagePlus mask=null;
 	private boolean flagSingleView=false;
 	private String info="";
@@ -364,7 +366,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 
 	
-	public static ItkTransform testSetupAndRunStandardBlockMatchingWithoutFineParameterizationPhoto2D(ImagePlus imgRef,ImagePlus imgMov,ImagePlus mask,ItkTransform trInit,boolean doCoarser,boolean doThinner,String info) {
+	public static Object[] testSetupAndRunStandardBlockMatchingWithoutFineParameterizationPhoto2D(ImagePlus imgRef,ImagePlus imgMov,ImagePlus mask,ItkTransform trInit,boolean doCoarser,boolean doThinner,String info) {
 		double sigmaSmoothingInPixels=0.0;
 		int levelMinRig=doThinner ? 0 : 0;
 		int levelMaxRig=doCoarser ? 1 : 1;
@@ -382,14 +384,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				viewSlice,mask,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
 		bmRegistration.info=info;
 		bmRegistration.displayRegistration=false;
-		bmRegistration.flagSingleView=true;
+		bmRegistration.flagSingleView=false;
 		bmRegistration.minBlockVariance=4;
+		bmRegistration.consoleOutputActivated=false;
 		transRet=bmRegistration.runMultiThreaded(trInit);
-		bmRegistration.computeSummaries();
-		bmRegistration.temporarySummariesSave();
 		bmRegistration.closeLastImages();
 		bmRegistration.freeMemory();
-		return transRet;
+		return (new Object[] {transRet,new Double(bmRegistration.lastValueBlocksCorr)});
 	}
 	
 
@@ -414,6 +415,132 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 	
 	
+
+	public static ItkTransform registerRXOnSlices(ImagePlus imgSlice,ImagePlus imgRX,ItkTransform transRX,int slice,boolean accurate) {
+		int levelMin=accurate ? 1 : 2;	
+		int levelMax=3;
+		int viewSlice=slice;
+		int nbIterations=8;//14
+		int neighXY=2;	int neighZ=2;
+		int bSXY=9;		int bSZ=0;
+		int strideXY=3;		int strideZ=1;
+		ItkTransform transRet=null;
+		BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgSlice,imgRX,Transformation3DType.VERSOR,MetricType.SQUARED_CORRELATION,
+					0,0,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
+		bmRegistration.flagSingleView=true;
+		bmRegistration.displayRegistration=false;
+		bmRegistration.displayR2=false;
+		transRet=bmRegistration.runMultiThreaded(transRX);
+		bmRegistration.closeLastImages();
+		bmRegistration.freeMemory();
+		return transRet;
+	}
+	
+
+	public static ItkTransform registerMRIonRX(ImagePlus imgRef,ImagePlus imgMov,ItkTransform transMov,int slice,ImagePlus mask) {
+		int levelMinRig=3;		int levelMax=4;int levelMinDen=2;
+		int viewSlice=slice;
+		int nbIterations=10;//14
+		int neighXY=2;	int neighZ=2;
+		int bSXY=5;		int bSZ=5;
+		int strideXY=3;		int strideZ=3;
+		ItkTransform transRet=null;
+		BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transformation3DType.VERSOR,MetricType.SQUARED_CORRELATION,
+					0,0,levelMinRig,levelMax,nbIterations,viewSlice,mask,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
+		bmRegistration.flagSingleView=true;
+		bmRegistration.displayRegistration=false;
+		bmRegistration.displayR2=false;
+		transRet=bmRegistration.runMultiThreaded(transMov);
+		bmRegistration.closeLastImages();
+		bmRegistration.freeMemory();
+//	    bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transformation3DType.DENSE,MetricType.SQUARED_CORRELATION,
+		//		0,50,levelMinDen,levelMax,nbIterations,viewSlice,null,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
+					//		bmRegistration.flagSingleView=true;
+					//bmRegistration.displayRegistration=true;
+					//bmRegistration.displayR2=false;
+		//transRet=bmRegistration.runMultiThreaded(transRet);
+		//bmRegistration.closeLastImages();
+		//bmRegistration.freeMemory();
+		return transRet;
+	}
+
+	
+	public static ItkTransform blockMatchingRegistrationCepMRIData(ImagePlus imgRef,ImagePlus imgMov,ImagePlus mask,boolean doRigidPart,boolean doDensePart,boolean doCoarserRigid,boolean doCoarserDense,double sigma) {
+		double sigmaSmoothingInPixels=0.0;
+		double denseFieldSigmaInMM=sigma;
+		int levelMinRig=1;
+		int levelMaxRig=doCoarserRigid ? 3 : 1;
+		int levelMinDen=1;
+		int levelMaxDen=doCoarserDense ? 2 : 1;
+		int viewSlice=60;//imgRef.getStackSize()/2;
+		int nbIterations=7;//14
+		int nbIterationsRig=10;//14
+		int neighXY=2;
+		int neighZ=2;
+		int bSXY=9;
+		int bSZ=9;
+		int strideXY=3;
+		int strideZ=1;
+		ItkTransform transRet=null;
+		if(doRigidPart) {
+			BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transformation3DType.VERSOR,MetricType.SQUARED_CORRELATION,
+					sigmaSmoothingInPixels,denseFieldSigmaInMM,levelMinRig,levelMaxRig,nbIterationsRig,
+					viewSlice,mask,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
+			bmRegistration.flagSingleView=true;
+			transRet=bmRegistration.runMultiThreaded(null);
+			if( !doDensePart) {
+				bmRegistration.computeSummaries();
+				bmRegistration.temporarySummariesSave();
+				bmRegistration.closeLastImages();
+				bmRegistration.freeMemory();
+				return transRet;
+			}
+			else {
+				bmRegistration.transformationType=Transformation3DType.DENSE;
+				bmRegistration.levelMin=levelMinDen;
+				bmRegistration.levelMax=levelMaxDen;
+				bmRegistration.nbLevels=bmRegistration.levelMax-bmRegistration.levelMin+1;
+				bmRegistration.subScaleFactors=bmRegistration.subSamplingFactorsAtSuccessiveLevels(bmRegistration.levelMin,bmRegistration.levelMax,false,2);
+				bmRegistration.successiveStepFactors=bmRegistration.successiveStepFactorsAtSuccessiveLevels(bmRegistration.levelMin,bmRegistration.levelMax,false,2);
+				bmRegistration.successiveDimensions=bmRegistration.imageDimsAtSuccessiveLevels(new int[] {imgRef.getWidth(),imgRef.getHeight(),imgRef.getStackSize()},bmRegistration.subScaleFactors,bmRegistration.noSubScaleZ);
+				bmRegistration.successiveVoxSizes=bmRegistration.imageVoxSizesAtSuccessiveLevels(VitimageUtils.getVoxelSizes(imgRef),bmRegistration.subScaleFactors);
+				bmRegistration.successiveSmoothingSigma=bmRegistration.sigmaFactorsAtSuccessiveLevels(VitimageUtils.getVoxelSizes(imgRef),bmRegistration.subScaleFactors,bmRegistration.smoothingSigmaInPixels); 
+				bmRegistration.successiveDenseFieldSigma=bmRegistration.sigmaDenseFieldAtSuccessiveLevels(bmRegistration.subScaleFactors,bmRegistration.denseFieldSigma);
+				bmRegistration.flagSingleView=true;
+
+				transRet=bmRegistration.runMultiThreaded(transRet);
+				transRet=transRet.flattenDenseField(imgRef);
+				bmRegistration.computeSummaries();
+				bmRegistration.temporarySummariesSave();
+				bmRegistration.closeLastImages();
+				bmRegistration.freeMemory();
+				return transRet;
+			}
+		}
+		
+		else {
+			if(doDensePart) {			
+				BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transformation3DType.DENSE,MetricType.SQUARED_CORRELATION,
+													sigmaSmoothingInPixels,denseFieldSigmaInMM,levelMinDen,levelMaxDen,nbIterations,
+													viewSlice,mask,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
+				bmRegistration.flagSingleView=true;
+
+				transRet=bmRegistration.runMultiThreaded(null);
+				transRet=transRet.flattenDenseField(imgRef);
+				bmRegistration.computeSummaries();
+				bmRegistration.temporarySummariesSave();
+				bmRegistration.closeLastImages();
+				bmRegistration.freeMemory();
+				return transRet;
+			}
+			else {
+				return null;
+			}
+		}
+	}
+	
+	
+	
 	
 	
 	
@@ -426,7 +553,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		int levelMaxDen=1;
 		int viewSlice=imgRef.getStackSize()/2;
 		int nbIterations=5;//14
-		int nbIterationsRig=5;//14
+		int nbIterationsRig=14;//14
 		int neighXY=3;
 		int neighZ=1;
 		int bSXY=9;
@@ -493,7 +620,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		if(! f.exists())return;
 		IJ.saveAsTiff(this.gridSummary, "/mnt/DD_COMMON/Data_VITIMAGE/Temp/Recalage_memories/BM"+lo+"imageGrid.tif");
 		IJ.saveAsTiff(this.summary, "/mnt/DD_COMMON/Data_VITIMAGE/Temp/Recalage_memories/BM"+lo+"imageSummary.tif");
-		if(displayRegistration)this.summary.hide();
+		if(displayRegistration) {this.summary.hide();this.gridSummary.hide();}
 	}
 	
 	
@@ -543,7 +670,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		this.blocksStrideX=strideXY;
 		this.blocksStrideY=strideXY;
 		this.blocksStrideZ=strideZ;
-		if(dims[0]<512)this.zoomFactor=(int)Math.round(1200/dims[0]);
+		if(dims[0]<512)this.zoomFactor=(int)Math.round(800/dims[0]);
 		this.viewHeight=(int)(this.imgRef.getHeight()*zoomFactor);
 		this.viewWidth=(int)(this.imgRef.getWidth()*zoomFactor);
 	}
@@ -765,7 +892,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				for(int bl=0;bl<lastRemoval;bl++)blocksRefTmp[bl][0]=-1;
 				meanVar=0;
 				for(int i=lastRemoval;i<blocksRefTmp.length;i++)meanVar+=blocksRefTmp[i][0];
-				System.out.println("Tri par variance : elimination des blocs de 0 à  "+lastRemoval+" / "+blocksRefTmp.length);
+				handleOutput("Tri par variance : elimination des blocs de 0 à  "+lastRemoval+" / "+blocksRefTmp.length);
 				
 			
 				
@@ -809,6 +936,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				}
 				AtomicInteger atomNumThread=new AtomicInteger(0);
 				AtomicInteger curProcessedBlock=new AtomicInteger(0);
+				AtomicInteger flagAlert=new AtomicInteger(0);
 				final int nbTotalBlock=blocksRef.length;
 				final Thread[] threads = VitimageUtils.newThreadArray(nbProc);    
 				for (int ithread = 0; ithread < nbProc; ithread++) {  
@@ -854,7 +982,18 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 												(yPlus*voxSY*(subVoxel?stepFactor:1)) *  (yPlus*voxSY*(subVoxel?stepFactor:1)) +
 												(zPlus*voxSZ*(subVoxel?stepFactor:1)) *  (zPlus*voxSZ*(subVoxel?stepFactor:1))     );
 											
-										if(Math.abs(score)>10E10)handleOutput("THREAD ALERT");
+										if(Math.abs(score)>10E10) {
+											final int flagA=flagAlert.getAndIncrement();
+											if(flagA<1) {
+												handleOutput("THREAD ALERT");
+												handleOutput("SCORE > 10E20 between ("+x0+","+y0+","+z0+") and ("+(x0+xPlus*stepFactor)+","+(y0+yPlus*stepFactor)+","+(z0+zPlus*stepFactor)+")");
+												System.out.println("En effet, corr="+correlationCoefficient(valsFixedBlock, valsMovingBlock));
+												handleOutput(TransformUtils.stringVectorN(valsFixedBlock, "Vals fixed"));
+												handleOutput(TransformUtils.stringVectorN(valsMovingBlock, "Vals moving"));
+												System.exit(0);//
+												//VitimageUtils.waitFor(10000);
+											}
+										}
 										//keep the best one
 										if( (score>scoreMax) || ((score==scoreMax) && (distance < distMax)) ) {
 											xMax=xPlus;yMax=yPlus;zMax=zPlus;scoreMax=score;distMax=distance;}
@@ -877,7 +1016,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 								nbKeep++;
 							}
 						}
-						if(numThread==0)System.out.println("Tri par score > "+minBS+" , before="+nbProc*correspondancesThread.length+" and after="+nbProc*nbKeep);
+						if(numThread==0)handleOutput("Tri par score > "+minBS+" , before="+nbProc*correspondancesThread.length+" and after="+nbProc*nbKeep);
 					
 						correspondances[numThread]=correspondancesThread2;	
 							
@@ -895,7 +1034,9 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				
 				
 				
-				Point3d[][]correspondancePoints=getCorrespondanceListAsTrimmedPointArray(listCorrespondances,this.successiveVoxSizes[lev],this.percentageBlocksSelectedByScore);///////CHANGER ICI UN JOUR SIGMA
+				Object[]ret=getCorrespondanceListAsTrimmedPointArray(listCorrespondances,this.successiveVoxSizes[lev],this.percentageBlocksSelectedByScore);///////CHANGER ICI UN JOUR SIGMA
+				Point3d[][]correspondancePoints=(Point3d[][])ret[0];
+				this.lastValueBlocksCorr=(Double)ret[1];
 				Object [] obj=getCorrespondanceListAsImagePlus(imgRef,listCorrespondances,curVoxSizes);
 				this.correspondancesSummary=(ImagePlus) obj[0];
 				this.sliceIntCorr=1+(int) obj[1];
@@ -931,6 +1072,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				}
 				if(displayR2) {
 					globalR2Values[incrIter]=getGlobalRsquareWithActualTransform();
+					this.lastValueCorr=globalR2Values[incrIter];
 					handleOutput("Global R^2 after iteration="+globalR2Values[incrIter++]);
 				}
 				this.updateViews(lev,iter);
@@ -943,8 +1085,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 		
 		if(displayR2) {
-			System.out.println("Successive R2 values :");
-			for(int i=0;i<incrIter;i++)System.out.println(" -> "+globalR2Values[i]);
+			handleOutput("Successive R2 values :");
+			for(int i=0;i<incrIter;i++)handleOutput(" -> "+globalR2Values[i]);
 		}
 		return new ItkTransform(this.currentTransform);
 	}
@@ -984,7 +1126,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 	
 				
-	Point3d[][] getCorrespondanceListAsTrimmedPointArray(ArrayList<double[][]>list,double[]voxSizes,int percentageKeep){
+	Object[] getCorrespondanceListAsTrimmedPointArray(ArrayList<double[][]>list,double[]voxSizes,int percentageKeep){
 		int n=list.size();
 		int  ind=0;
 		for(int i=0;i<n;i++)if(list.get(i)[2][1]<0)n--;
@@ -1008,7 +1150,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 	
 	
-	Point3d[][]trimPoint3dTabBasedOnScores(Point3d[][] tabIn,int percentageKeep){
+	Object[] trimPoint3dTabBasedOnScores(Point3d[][] tabIn,int percentageKeep){
 		double meanVar=0;
 		for(int i=0;i<tabIn[0].length;i++)meanVar+=tabIn[2][i].x;
 		double meanBef=meanVar/tabIn[0].length;
@@ -1032,7 +1174,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			meanVar+=ret[2][i].x;
 		}
 		handleOutput("   Mean correspondance score before / after : "+VitimageUtils.dou(meanBef)+" / "+VitimageUtils.dou(meanVar/(ret[0].length)));
-		return ret;
+		return new Object[] {ret,meanVar/(ret[0].length)};
 	}
 	
 	
@@ -1047,7 +1189,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			IJ.run(tempImg,"32-bit","");
 			tempImg.getProcessor().set(0);
 			this.sliceCorr=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(tempImg),this.sliceIntCorr);
-			this.sliceFuse=VitimageUtils.compositeRGBDouble(this.sliceRef,this.sliceMov,this.sliceCorr,1,1,1,"Registration is running. Red=Reference, Green=moving, Blue=score");
+			this.sliceFuse=VitimageUtils.compositeRGBDouble(this.sliceRef,this.sliceMov,this.sliceCorr,1,1,1,"Registration is running. Red=Reference, Green=moving, Gray=score");
 			this.sliceFuse.show();
 			this.sliceFuse.getWindow().setSize(this.viewWidth,this.viewHeight);
 			this.sliceFuse.getCanvas().fitToWindow();
@@ -1122,7 +1264,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			IJ.selectWindow("Correspondances points");
 			IJ.run("Fire","");
 			if(flagSingleView)IJ.selectWindow("Registration is running. Red=Reference, Green=moving, Gray=score. Level=0 Iter=0"+" "+this.info);
-			else IJ.selectWindow("Registration is running. Red=Reference, Green=moving"+" "+this.info);
+			else IJ.selectWindow("Registration is running. Red=Reference, Green=moving. Level=0 Iter=0"+" "+this.info);
 //			this.sliceFuse.setActivated();
 			
 			if(false && this.transformationType==Transformation3DType.DENSE) {
@@ -1263,12 +1405,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 	
 	
-	double correlationCoefficient(double X[], double Y[]) { 
+	public double correlationCoefficient(double X[], double Y[]) { 
 		//System.out.println("En effet, X.length="+X.length);
 		//System.out.println("En effet, Y.length="+Y.length);
 		double epsilon=10E-20;
 		if(X.length !=Y.length )IJ.log("In correlationCoefficient in BlockMatching, blocks length does not match");
 		int n=X.length;
+		boolean flag=false;
 		double sum_X = 0, sum_Y = 0, sum_XY = 0; 
 		double squareSum_X = 0, squareSum_Y = 0; 	
 		for (int i = 0; i < n; i++) { 
@@ -1281,7 +1424,10 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		if(squareSum_X<epsilon || squareSum_Y<epsilon )return 0;
 		// use formula for calculating correlation  
 		// coefficient. 
-		return (  (n * sum_XY - sum_X * sum_Y)/ (Math.sqrt((n * squareSum_X - sum_X * sum_X) * (n * squareSum_Y - sum_Y * sum_Y)))); 
+		double result=(n * sum_XY - sum_X * sum_Y)/ (Math.sqrt((n * squareSum_X - sum_X * sum_X) * (n * squareSum_Y - sum_Y * sum_Y)));
+		if(Math.abs((n * squareSum_X - sum_X * sum_X))<10E-10)return 0; //cas Infinity
+		if(Math.abs((n * squareSum_Y - sum_Y * sum_Y))<10E-10)return 0; //cas Infinity
+		return result;
 	} 
 	
 	

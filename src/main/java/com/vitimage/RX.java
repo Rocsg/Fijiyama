@@ -14,6 +14,7 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import com.vitimage.Cep4D.VineType;
 import com.vitimage.ItkImagePlusInterface.MetricType;
 import com.vitimage.ItkImagePlusInterface.OptimizerType;
 import com.vitimage.ItkImagePlusInterface.Transformation3DType;
@@ -35,7 +36,7 @@ import ij.process.StackProcessor;
 public class RX extends Acquisition{
 	private static String []StandardMetadataLookup= {};
 	private double standardVoxSize;
-	public static final double sliceThicknessForRegistration=0.25;
+	public static final double sliceThicknessForRegistration=0.6;
 	private ImagePlus imageFullSize;
 	private double voxSXFull;
 	private double voxSYFull;
@@ -43,19 +44,23 @@ public class RX extends Acquisition{
 	private int dimXFull;
 	private int dimYFull;
 	private int dimZFull;
+	public VineType vineType=VineType.VINE;
+
 	/**
 	 * Test sequences
 	 */
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
-//		String []subjects= {"B001_PAL","B031_NP","B032_NP","B041_DS","B042_DS","B051_CT"};
-		String subject="B001_PAL";
-		String day="J70";
-		System.out.println("Test procedure start...");
-		RX rx=new RX("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day+"/Source_data/RX",Capillary.HAS_NO_CAPILLARY,SupervisionLevel.GET_INFORMED,subject+"_"+day+"_RX");
-		rx.start();//
-		rx.freeMemory();
-		rx=null;
+		String []specimen= {"CEP017_S1","CEP011_AS1","CEP012_AS2","CEP013_AS3" ,"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		for(String spec : specimen) {
+			File f=new File("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/RX/STEPS_DONE.tag");
+			//f.delete();
+			System.out.println("Test procedure start...");
+			RX rx=new RX("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/RX",Capillary.HAS_NO_CAPILLARY,SupervisionLevel.GET_INFORMED,spec,VineType.VINE);
+			rx.start();//
+			rx.freeMemory();
+			rx=null;
+		}
 	}
 
 	
@@ -64,17 +69,12 @@ public class RX extends Acquisition{
 	 * Constructors, factory and top level functions
 	 */
 
-	public RX(String sourcePath,Capillary cap,SupervisionLevel sup,String title) {
+	public RX(String sourcePath,Capillary cap,SupervisionLevel sup,String title,VineType vinetype) {
 		super(AcquisitionType.RX, sourcePath,cap,sup);
+		this.vineType=vineType;
 		this.title=title;
 	}
 
-	
-	public static RX RXFactory(String sourcePath,Capillary cap,SupervisionLevel sup,String dataPath) {
-		RX rx=new RX(sourcePath,cap,sup,"factory");
-		rx.start();
-		return rx;
-	}
 
 	public void start() {
 		this.printStartMessage();
@@ -116,32 +116,6 @@ public class RX extends Acquisition{
 		mask=null;
 		imageFullSize=null;
 		System.gc();		
-	}
-	
-	public void writeStep(int st) {
-		File f = new File(this.getSourcePath(),"STEPS_DONE.tag");
-		try {
-			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(f)));
-			out.write("Step="+(st)+"\n");
-			out.write("# Last execution time : "+(new Date())+"\n");
-			out.close();
-		} catch (Exception e) {IJ.error("Unable to write transformation to file: "+f.getAbsolutePath()+"error: "+e);}
-	}
-	
-	public int readStep() {
-		String strFile="";
-		String line;
-		File f = new File(this.getSourcePath(),"STEPS_DONE.tag");
-		try {
-			BufferedReader in=new BufferedReader(new FileReader(this.getSourcePath()+slash+"STEPS_DONE.tag"));
-			while ((line = in.readLine()) != null) {
-				strFile+=line+"\n";
-			}
-        } catch (IOException ex) { ex.printStackTrace();  strFile="None\nNone";        }	
-		String[]strLines=strFile.split("\n");
-		String st=strLines[0].split("=")[1];
-		int a=Integer.valueOf(st);
-		return(a);		
 	}
 
 	
@@ -190,8 +164,8 @@ public class RX extends Acquisition{
 			writeParametersToHardDisk();
 			System.out.println("Writing stacks");
 			writeStackedSourceData();
-			this.computeMask();
-			writeMask();
+			//this.computeMask();
+			//writeMask();
 			writeStep(1);
 		}
 	}
@@ -262,19 +236,35 @@ public class RX extends Acquisition{
 		} catch (Exception e) {IJ.error("Unable to write transformation to file: "+fParam.getAbsolutePath()+"error: "+e);}	
 	}
 	
-	public double parseVoxSizeFromXML(String path){
+
+	
+	
+	
+	public double parseVoxSizeFromXML(String path,boolean feelSafeAboutOfficialSize){
 		String str="";
 		try {
 			File f=new File(path);
 			str= Files.lines(Paths.get(f.getAbsolutePath()) ).collect(Collectors.joining("\n"));
 		}  catch (IOException ex) {        ex.printStackTrace();   }
 		String[]lines=str.split("\n");
-		String voxStr=lines[0].split(" ")[1];
-		double voxSX=Double.parseDouble(voxStr.split("x")[0]);
-		double voxSY=Double.parseDouble(voxStr.split("x")[1]);
-		double voxSZ=Double.parseDouble(voxStr.split("x")[2]);
-		System.out.println("Read : voxel size init=[ "+voxSX+" x "+voxSY+" x "+voxSZ+" ]");
-		return voxSX;
+		if(feelSafeAboutOfficialSize) {
+			System.out.println("Procedure when not feeling safe about provided size");
+			String[] voxStr=lines[5].split("\\\"");
+			double voxSX=Double.parseDouble(voxStr[1]);
+			double voxSY=Double.parseDouble(voxStr[3]);
+			double voxSZ=Double.parseDouble(voxStr[5]);
+			System.out.println("Read : voxel size init=[ "+voxSX+" x "+voxSY+" x "+voxSZ+" ]");
+			return voxSX;
+		}
+		else{
+			System.out.println("Procedure when feeling safe about provided size");
+			String voxStr=lines[0].split(" ")[1];
+			double voxSX=Double.parseDouble(voxStr.split("x")[0]);
+			double voxSY=Double.parseDouble(voxStr.split("x")[1]);
+			double voxSZ=Double.parseDouble(voxStr.split("x")[2]);
+			System.out.println("Read : voxel size init=[ "+voxSX+" x "+voxSY+" x "+voxSZ+" ]");
+			return voxSX;
+		}
 	}
 	
 	
@@ -292,56 +282,49 @@ public class RX extends Acquisition{
 				 String str= Files.lines(Paths.get(pathlink.getAbsolutePath()) ).collect(Collectors.joining("\n"));
 				 String strFile=str.split("=")[1];
 				 f=new File(strFile+slash+"SlicesY");
-				 voxS=parseVoxSizeFromXML(strFile+slash+"unireconstruction.xml");
+				 voxS=parseVoxSizeFromXML(strFile+slash+"unireconstruction.xml",true);
 				 } catch (IOException ex) {        ex.printStackTrace();   }
 		}
 		
 		if(! f.exists()) {IJ.showMessage("Source path not found : "+f.getAbsolutePath());return;}
 		this.standardVoxSize=voxS;
-		String strMainPath=f.getAbsolutePath();
-		String[] strSlices=f.list();
-		strSlices=VitimageUtils.stringArraySort(strSlices);
-		int nbTr=strSlices.length;
-		
-		//Extraire les parametres généraux depuis une des coupes	
-		ImagePlus imgPar=IJ.openImage(strMainPath+slash+strSlices[0]);
-		System.out.println("Parameters auto detection from : XML file");
-		
-		
-		System.out.println("Appel à setParams");
-		System.out.println("Ok.");
-	
-			
+
 		//Importer la sequence
+		String strMainPath=f.getAbsolutePath();	
 		String str=strMainPath;
 		System.out.println("Importation de la sequence");
 		System.out.println("path="+str);
 		sourceData=new ImagePlus[2];
 		sourceData[1] = FolderOpener.open(str, "");
-
+		
+		if(sourceData[1]==null)System.out.println("NULL IMPORT ! De : "+str);
 		//Lire / appliquer les parametres
 		VitimageUtils.adjustImageCalibration(sourceData[1], new double[] {standardVoxSize, standardVoxSize,standardVoxSize},"mm");
-
-		System.out.println("Mirror along X axis");
-		VitimageUtils.imageChecking(sourceData[1]);
-		new StackProcessor(sourceData[1].getStack()).flipHorizontal();
-		VitimageUtils.imageChecking(sourceData[1]);
+		System.out.println(TransformUtils.stringVector(VitimageUtils.getDimensions(sourceData[1]), "Dims="));
+		System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(sourceData[1]), "VoxS="));
+		//VitimageUtils.imageChecking(sourceData[1]);
+//		VitimageUtils.imageChecking(sourceData[1]);
 		//La subsampler pour produire la deuxieme image source		
 		double factorZ=standardVoxSize/sliceThicknessForRegistration;
 		System.out.println("Reduction d'un facteur : "+factorZ);
-		double nSlicesFinal=(int)Math.ceil(sourceData[1].getStackSize()*factorZ);
-		System.out.println("Final number of slices : "+nSlicesFinal);
-		IJ.run(sourceData[1], "Scale...", "x=1.0 y=1.0 z="+factorZ+" width="+sourceData[1].getWidth()+" height="+sourceData[1].getHeight()+" depth="+nSlicesFinal+" interpolation=Bilinear average process create");
+		int zEnd=(int)Math.round(sourceData[1].getStackSize()*factorZ);
+		int xEnd=(int)Math.round(sourceData[1].getWidth()*factorZ);
+		int yEnd=(int)Math.round(sourceData[1].getHeight()*factorZ);
+		System.out.println("Final number of slices : "+zEnd);
+		IJ.run(sourceData[1], "Scale...", "x="+factorZ+" y="+factorZ+" z="+factorZ+" width="+xEnd+" height="+yEnd+" depth="+zEnd+" interpolation=Bilinear average process create");
 		this.sourceData[0]=IJ.getImage();
+		VitimageUtils.adjustImageCalibration(this.sourceData[0],new double[] {sliceThicknessForRegistration,sliceThicknessForRegistration,sliceThicknessForRegistration},"mm");
 		this.sourceData[0].hide();
+		sourceData[0]=VitimageUtils.switchAxis(sourceData[0],2 );
+		sourceData[0]=VitimageUtils.switchAxis(sourceData[0],1 );
+		IJ.run(sourceData[0], "Flip Horizontally", "stack");
 		this.setDimensions(sourceData[0].getWidth(),sourceData[0].getHeight(),sourceData[0].getStackSize());
 		this.setVoxelSizes(sourceData[0].getCalibration().pixelWidth, sourceData[0].getCalibration().pixelHeight , sourceData[0].getCalibration().pixelDepth);
 		this.setFullDimensions(sourceData[1].getWidth(),sourceData[1].getHeight(),sourceData[1].getStackSize());
 		this.setFullVoxelSizes(sourceData[1].getCalibration().pixelWidth, sourceData[1].getCalibration().pixelHeight , sourceData[1].getCalibration().pixelDepth);
 		System.out.println("Voxel size for registration ="+this.voxSX()+" , " +this.voxSY()+" , " +this.voxSZ());
 		System.out.println("Voxel size of initial image="+this.voxSXFull()+" , " +this.voxSYFull()+" , " +this.voxSZFull());
-		VitimageUtils.imageCheckingFast(this.sourceData[0],"RX SourceData[0]");
-		VitimageUtils.imageCheckingFast(this.sourceData[1],"RX SourceData[1]");
+
 	}
 
 	
@@ -359,8 +342,10 @@ public class RX extends Acquisition{
 			sourceData=new ImagePlus[1];
 			sourceData[0]=IJ.openImage(strPath+slash+"RX.tif");
 			setImageForRegistration();	
+			
 		}
 	}
+	
 	
 	public void writeStackedSourceData() {
 		boolean memoryEconomy=true;
@@ -401,16 +386,9 @@ public class RX extends Acquisition{
 	}
 	
 	public void computeMask() {
-		System.out.println("Mask computation : gaussian filtering, and 3D connected component research (~1 mn)...");
-		ImagePlus img=new Duplicator().run(sourceData[0]);
-		System.out.println("Gaussian filtering");
-		img=VitimageUtils.gaussianFiltering(img,2*this.voxSX(),2*this.voxSY(),2*this.voxSX());
-		System.out.println("Connected components extraction");
-		double val=(this.capillary==Capillary.HAS_CAPILLARY ? this.getCapillaryValue(img) : this.defaultNormalisationValues()[0]);
-		ImagePlus imgConObject=VitimageUtils.connexe(img,val/15, 65500,0,10E10,6,1,true);//Here 65500 for the scotch stuff
-		IJ.run(imgConObject,"8-bit","");
-		this.mask = imgConObject;
-		VitimageUtils.imageCheckingFast(this.mask,"RX mask");
+		ImagePlus img2=VitimageUtils.maskForRemovingThinStructuresInIsotropicImage(sourceData[0],6000,4);
+		img2=VitimageUtils.connexe(img2,1,256, 1,10E8, 6,1, false);
+		this.mask=VitimageUtils.thresholdShortImage(img2,1,10E8);
 	}
 	
 	public ImagePlus computeNormalizedHyperImage() {
@@ -422,23 +400,31 @@ public class RX extends Acquisition{
 		int Z=this.dimZ();
 		int index;
 		computedData=new ImagePlus[1];
-		computedData[0]=VitimageUtils.convertShortToFloatWithoutDynamicChanges(sourceData[0]);
-		
-		float[][][]tabComputed=new float[1][Z][];
-		for(int z=0;z<Z;z++) {
-			tabComputed[0][z]=(float[])this.computedData[0].getStack().getProcessor(z+1).getPixels();
-		}
-		for(int z=0;z<Z;z++) {
-			for(int y=0;y<Y;y++) {
-				for(int x=0;x<X;x++) {
-					index=y*X+x;
-					for(int i=0;i<computedData.length;i++)tabComputed[i][z][index]/=this.computedValuesNormalisationFactor[i];
+		if(this.vineType!=VineType.VINE) {
+			computedData[0]=VitimageUtils.convertShortToFloatWithoutDynamicChanges(sourceData[0]);		
+			float[][][]tabComputed=new float[1][Z][];
+			for(int z=0;z<Z;z++) {
+				tabComputed[0][z]=(float[])this.computedData[0].getStack().getProcessor(z+1).getPixels();
+			}
+			for(int z=0;z<Z;z++) {
+				for(int y=0;y<Y;y++) {
+					for(int x=0;x<X;x++) {
+						index=y*X+x;
+						for(int i=0;i<computedData.length;i++)tabComputed[i][z][index]/=this.computedValuesNormalisationFactor[i];
+					}
 				}
 			}
+			this.normalizedHyperImage=Concatenator.run(computedData);
+			this.normalizedHyperImage.getProcessor().setMinAndMax(0,1);
+			return this.normalizedHyperImage;
 		}
-		this.normalizedHyperImage=Concatenator.run(computedData);
-		this.normalizedHyperImage.getProcessor().setMinAndMax(0,1);
-		return this.normalizedHyperImage;
+		else {
+			this.normalizedHyperImage=VitimageUtils.makeOperationOnOneImage(this.mask,VitimageUtils.OP_DIV, 255, false);
+			this.normalizedHyperImage=VitimageUtils.makeOperationBetweenTwoImages(this.mask,this.sourceData[0],VitimageUtils.OP_MULT,true);
+			this.normalizedHyperImage.setDisplayRange(0, 65535);
+			IJ.run(this.normalizedHyperImage,"8-bit","");
+			return this.normalizedHyperImage;
+		}
 	}
 
 	public double[]defaultNormalisationValues(){
@@ -484,6 +470,32 @@ public class RX extends Acquisition{
 		return this.voxSZFull;
 	}
 
+	
+	public void writeStep(int st) {
+		File f = new File(this.getSourcePath(),"STEPS_DONE.tag");
+		try {
+			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(f)));
+			out.write("Step="+(st)+"\n");
+			out.write("# Last execution time : "+(new Date())+"\n");
+			out.close();
+		} catch (Exception e) {IJ.error("Unable to write transformation to file: "+f.getAbsolutePath()+"error: "+e);}
+	}
+	
+	public int readStep() {
+		String strFile="";
+		String line;
+		File f = new File(this.getSourcePath(),"STEPS_DONE.tag");
+		try {
+			BufferedReader in=new BufferedReader(new FileReader(this.getSourcePath()+slash+"STEPS_DONE.tag"));
+			while ((line = in.readLine()) != null) {
+				strFile+=line+"\n";
+			}
+        } catch (IOException ex) { ex.printStackTrace();  strFile="None\nNone";        }	
+		String[]strLines=strFile.split("\n");
+		String st=strLines[0].split("=")[1];
+		int a=Integer.valueOf(st);
+		return(a);		
+	}
 
 }
 	

@@ -43,7 +43,8 @@ public class MostRepresentedFilter {
 
 
 	
-	public static ImagePlus mostRepresentedFilteringWithRadius(ImagePlus imgIn,boolean [][]lookup,double[][]distances) {
+	public static ImagePlus mostRepresentedFilteringWithRadius(ImagePlus imgIn,double radius,double[][]distances) {
+		boolean[][]lookup=buildLookup(radius);
 		ImagePlus imgOut=imgIn.duplicate();
 		int dimX=imgIn.getWidth();
 		int dimY=imgIn.getHeight();
@@ -118,38 +119,6 @@ public class MostRepresentedFilter {
 		System.out.println();			
 	}
 	
-	
-	public static int mostRepresentedValue(int []vals, double []distances) {
-		int[]hits=new int[MAX_NB_CLASSES];
-		double[]distMin=new double[MAX_NB_CLASSES];
-		for(int i=0;i<distMin.length;i++)distMin[i]=HIGH_DISTANCE;
-
-		for(int i=0;i<vals.length;i++) {
-			if(vals[i]<0)continue;
-			hits[vals[i]]++;
-			if(distances[i]<distMin[vals[i]])distMin[vals[i]]=distances[i];
-		}
-		
-		
-		
-		//recherche du maximum represente le moins distant
-		int valMax=0;
-		int indMax=-1;
-		double distMinOfMax=HIGH_DISTANCE;
-		for(int i= 0;i<MAX_NB_CLASSES;i++) {
-			if( (hits[i]>valMax)) {
-				valMax=hits[i];
-				indMax=i;
-				distMinOfMax=distMin[i];
-			}
-			else if( (hits[i]==valMax) && (distMin[i]<distMinOfMax)) {
-				valMax=hits[i];
-				indMax=i;
-				distMinOfMax=distMin[i];
-			}
-		}
-		return indMax;
-	}
 	
 	
 	
