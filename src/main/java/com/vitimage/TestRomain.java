@@ -101,12 +101,157 @@ public class TestRomain {
 		//makeTrainingHybride();
 		//		testBalanceDesBlancs();
 		//inspectRXTof();
-		pequenaJala();
+		//viewMRI();
+		//computeFieldBiasBasedOnMultipleCorrespondances();
+		chiachiachia();
+		
+//		computeFieldBiasBasedOnMultipleCorrespondances();//takeInputCorrespondanceForBiasEstimation();
+//		computeImageForClinicalMRIBiasEstimation();
+		//pequenaJala();
 		VitimageUtils.waitFor(100000000);
 		System.exit(0);
 
 	}
+	public static void chiachiachia4() {
+		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/hyperimage.tif");
+		img.show();
+		VitimageUtils.waitFor(2000);
+		img.setSlice(50);
+		VitimageUtils.waitFor(2000);
+		img.setSlice(500);
+		VitimageUtils.waitFor(2000);
+	}
 
+	public static void chiachiachia() {
+		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/CEP011_AS1/Source_data/PHOTOGRAPH/Computed_data/0_Stacks/Stack_low_res.tif");
+		img.show();
+		ImagePlus []hyperTab=new ImagePlus[4];
+		for(int i=0;i<4;i++)hyperTab[i]=VitimageUtils.imageCopy(img);
+		ImagePlus rgbHyper=Concatenator.run(hyperTab);
+		IJ.run(rgbHyper,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+(img.getStackSize())+" frames=4");// display=Grayscale
+		rgbHyper.show();
+	}
+	
+	public static void chia() {
+		String spec="CEP011_AS1";
+		System.out.println("Here1");
+		ImagePlus mri=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/mri_"+spec+".tif");
+		ImagePlus rx=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/rx_"+spec+".tif");
+		System.out.println("Here2");
+		ItkTransform trans=ItkTransform.readAsDenseField("/home/fernandr/Bureau/test.tif");
+		System.out.println("Here3");
+		ImagePlus rxTrans=trans.transformImage(rx, rx);
+		System.out.println("Here4");
+		ImagePlus compAvant=VitimageUtils.compositeOf(rx,mri,"Avant");
+		ImagePlus compApres=VitimageUtils.compositeOf(rxTrans,mri,"Apres");
+		System.out.println("Here5");
+		compAvant.show();
+		compApres.show();
+		
+		
+	}
+	
+	
+	public static void computeFieldBiasBasedOnMultipleCorrespondances() {
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		int nSpec=6;
+		ImagePlus imgRef1=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/rx_"+specimen[0]+".tif");
+		ImagePlus imgRef=VitimageUtils.Sub222(imgRef1);
+		Point3d[][]pts=new Point3d[nSpec][];
+		int total=0;
+		for(int i=0;i<nSpec;i++) {
+			String spec=specimen[i];
+			pts[i]=VitimageUtils.readPoint3dArrayInFile("/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/points_"+spec+".txt");
+			total+=pts[i].length/2;
+		}//		
+		Point3d [][]correspondancePoints=new Point3d[2][total];
+		int incr=0;
+		for(int i=0;i<nSpec;i++) {
+			for(int j=0;j<pts[i].length/2;j++) {
+				correspondancePoints[0][incr]=pts[i][2*j];//IRM
+				correspondancePoints[1][incr++]=pts[i][2*j+1];//RX
+			}
+		}
+		System.out.println("En effet, incr="+incr+" et total="+total);
+		ItkTransform trans=new ItkTransform(new DisplacementFieldTransform(ItkTransform.computeDenseFieldFromSparseCorrespondancePoints(correspondancePoints, imgRef, 10, false)));
+		System.out.println("Here8");
+		trans.writeAsDenseField("/home/fernandr/Bureau/test.tif", imgRef);
+		System.out.println("Here9");
+		trans.showAsGrid3D(imgRef1, 10,"pouet",20);
+		trans.showAsGrid3D(imgRef, 5,"pouet",20);
+	}
+	
+	
+	
+	
+	public static void takeInputCorrespondanceForBiasEstimation() {
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		int nSpec=12;
+		ImagePlus imgRef;
+		Point3d[]pts;
+		for(int i=0;i<nSpec;i++) {
+			System.out.println("Traitement "+specimen[i]);
+			String spec=specimen[i];
+			String repSpec="/home/fernandr/Bureau/Traitements/Cep5D/"+spec;
+			System.out.println("Load");
+			ImagePlus mri=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/mri_"+spec+".tif");
+			ImagePlus rx=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/rx_"+spec+".tif");
+			ImagePlus composite=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/rx_"+spec+".tif");
+			pts=VitiDialogs.waitForPointsUIUntilClickOnSlice1(mri,rx,composite,true);
+			VitimageUtils.writePoint3dArrayInFile(pts,"/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/points_"+spec+".txt");			
+		}//		ItkTransform.computeDenseFieldFromSparseCorrespondancePoints(correspondancePoints, imgRef, sigma, zeroPaddingOutside)
+	}
+	
+	
+	public static void computeImageForClinicalMRIBiasEstimation() {
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		for(int i=0;i<12;i++) {
+			System.out.println("Traitement "+specimen[i]);
+			String spec=specimen[i];
+			String repSpec="/home/fernandr/Bureau/Traitements/Cep5D/"+spec;
+			System.out.println("Load");
+			ItkTransform transMRIfromMachine=new ItkTransform((ItkTransform.readTransformFromFile(repSpec+"/Source_data/MRI_CLINICAL/Computed_data/1_Transformations/transformation_0.txt")).getInverse());
+			transMRIfromMachine.addTransform(ItkTransform.itkTransformFromCoefs(new double[] {1,0,0,-175,0,1,0,-175,0,0,1,-153.6}));
+			ItkTransform transRXtoMRI= new ItkTransform((ItkTransform.readTransformFromFile(repSpec+"/Source_data/PHOTOGRAPH/Computed_data/1_Registration/Transforms2/trans_MRI_AUTO.txt")).getInverse());
+			transRXtoMRI.addTransform(transMRIfromMachine);
+			ImagePlus imgRX=IJ.openImage(repSpec+"/Source_data/PHOTOGRAPH/Computed_data/1_Registration/Stacks2/imgRef_RXForMRItif.tif");
+			ImagePlus imgMRI=IJ.openImage(repSpec+"/Source_data/MRI_CLINICAL/Computed_data/3_HyperImage/stack_0.tif");
+
+			ImagePlus imgRef=IJ.createImage("", 512, 512, 768, 8);
+			VitimageUtils.adjustImageCalibration(imgRef, imgMRI);
+			System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(imgMRI),""));
+			System.out.println("Trans 1");
+			imgRX=transRXtoMRI.transformImage(imgRef, imgRX);
+			imgMRI=transMRIfromMachine.transformImage(imgRef,imgMRI);
+			ImagePlus comp=VitimageUtils.compositeOf(imgRX, imgMRI);
+			comp.setTitle(spec);
+			IJ.saveAsTiff(imgMRI, "/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/mri_"+spec+".tif");
+			IJ.saveAsTiff(imgRX, "/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/rx_"+spec+".tif");
+			IJ.saveAsTiff(comp, "/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/composite_"+spec+".tif");
+		}
+	}
+	
+	public static void viewMRI() {
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		String dir="/home/fernandr/Bureau/Test/Bias/";
+		String tmp;
+		for(int i=0;i<12;i++) {
+			System.out.println("Traitement "+specimen[i]);
+			String spec=specimen[i];
+			ImagePlus imgRef=IJ.openImage(
+					"/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH/Computed_data/1_Registration/Stacks2/imgRef_RXForMRItif.tif");
+			ImagePlus imgMov=IJ.openImage(
+					"/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH/Computed_data/1_Registration/Stacks2/imgMov_MRI_registeredAuto.tif");
+	
+			imgRef.setDisplayRange(0,255);
+			imgMov.setDisplayRange(0,i==3 ? 70 : 180);
+			IJ.run(imgMov,"8-bit","");
+			ImagePlus res=VitimageUtils.compositeNoAdjustOf(imgRef,imgMov);
+		    VitimageUtils.showImageUntilItIsClosed(res,spec);
+		}			
+	}
+	
+	
 	public static void pequenaJala() {
 		String []specimen= {"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
 		String dir="/home/fernandr/Bureau/Test/Bias/";

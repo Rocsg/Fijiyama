@@ -512,6 +512,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		int [][]vectPoints=new int[nPt][3];
 		double [][]vectVals=new double[nPt][3];
 		for(int i=0;i<vectPoints.length;i++) {
+			System.out.println(i);
 			vectPoints[i][0]=(int)Math.round(correspondancePoints[0][i].x/voxSizes[0]);
 			vectPoints[i][1]=(int)Math.round(correspondancePoints[0][i].y/voxSizes[1]);
 			vectPoints[i][2]=(int)Math.round(correspondancePoints[0][i].z/voxSizes[2]);
@@ -520,7 +521,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			vectVals[i][2]=correspondancePoints[1][i].z-correspondancePoints[0][i].z;
 		}
 		
-
+		System.out.println("Here1");
 		//Construire l'image des poids, et l'image des valeurs suivant X, Y et Z
 		ImagePlus imgWeights=IJ.createImage("tempW", dimensions[0], dimensions[1], dimensions[2], 32);
 		ImagePlus imgFieldX=IJ.createImage("tempX", dimensions[0], dimensions[1], dimensions[2], 32);
@@ -531,12 +532,14 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		VitimageUtils.adjustImageCalibration(imgFieldY, imgRef);
 		VitimageUtils.adjustImageCalibration(imgFieldZ, imgRef);
 		
+		System.out.println("Here2");
 		//Y inserer les informations necessaires
 		imgWeights.getProcessor().set(0);
 		imgFieldX.getProcessor().set(0);
 		imgFieldY.getProcessor().set(0);
 		imgFieldZ.getProcessor().set(0);
 		
+		System.out.println("Here3");
 		for(int i=0;i<nPt;i++) {
 			if(   (vectPoints[i][2]+1>0 && vectPoints[i][2]+1<=dimensions[2]) &&
 					(vectPoints[i][0]>=0 && vectPoints[i][0]<dimensions[0]) &&
@@ -548,6 +551,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			}
 		}
 		
+		System.out.println("Here4");
 		imgWeights=VitimageUtils.gaussianFilteringIJ(imgWeights, sigma,sigma , (zeroPaddingOutside ? 1 : 5)*sigma);
 		imgFieldX=VitimageUtils.gaussianFilteringIJ(imgFieldX, sigma,sigma , (zeroPaddingOutside ? 1 : 5)*sigma);
 		imgFieldY=VitimageUtils.gaussianFilteringIJ(imgFieldY, sigma,sigma , (zeroPaddingOutside ? 1 : 5)*sigma);
@@ -555,6 +559,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		
 		
 		
+		System.out.println("Here5");
 		
 		//puis diviser les valeurs suivants X,Y et Z par les poids lissés. Si les poids sont < epsilon, mettre 0
 		for(int z=0;z<dimensions[2];z++) {
@@ -575,7 +580,8 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 				}
 			}			
 		}
-		
+		System.out.println("Here6");
+
 		if(zeroPaddingOutside) {
 			//Creer un nouveau vecteur de modifs
 			ArrayList<Point3d> pts0=new ArrayList<Point3d>();
@@ -624,7 +630,8 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			}
 			return computeDenseFieldFromSparseCorrespondancePoints(newCorr,imgRef,sigma,false);
 		}
-		
+		System.out.println("Here7");
+
 		
 		//Construire le champ vectoriel associe et le rendre
 	  	return ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(new ImagePlus [] {imgFieldX,imgFieldY,imgFieldZ});

@@ -246,6 +246,48 @@ public interface VitiDialogs {
 		return tabRet;
 	}
 
+
+	public static Point3d[] waitForPointsUIUntilClickOnSlice1(ImagePlus rx,ImagePlus mri,ImagePlus img2,boolean realCoordinates){
+		ImagePlus img=new Duplicator().run(img2);
+		img.setTitle("waitForPointsUI");
+		img.show();
+		rx.show();
+		mri.show();
+		VitimageUtils.adjustImageCalibration(img, img2);
+		double[][]tabRet=new double[50000][3];
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		IJ.setTool("point");
+		boolean finished =false;
+		//getYesNoUI("Identification of the four corners \nof the inoculation point with ROI points\nAre you ready  ?");
+		do {
+			try {
+				java.util.concurrent.TimeUnit.MILLISECONDS.sleep(2000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			if(rm.getCount()>0 && rm.getRoi(rm.getCount()-1).getZPosition()==1)finished=true;
+			System.out.println("Waiting. Number of points : "+rm.getCount());
+		}while (!finished);	
+		for(int indP=0;indP<rm.getCount()-1;indP++){
+			tabRet[indP][0]=rm.getRoi(indP).getXBase();
+			tabRet[indP][1]=rm.getRoi(indP).getYBase();
+			tabRet[indP][2]=rm.getRoi(indP).getZPosition();
+			if(realCoordinates) {
+				tabRet[indP][0]=(tabRet[indP][0])*(img.getCalibration().pixelWidth);
+				tabRet[indP][1]=(tabRet[indP][1])*(img.getCalibration().pixelHeight);
+				tabRet[indP][2]=(tabRet[indP][2])*(img.getCalibration().pixelDepth);
+			}	
+			System.out.println("Point retenu numéro "+indP+" : {"+tabRet[indP][0]+","+tabRet[indP][1]+","+tabRet[indP][2]+"}");
+		}
+		Point3d []ptRet=new Point3d[rm.getCount()-1];
+		for(int i=0;i<rm.getCount()-1;i++)ptRet[i]=new Point3d(tabRet[i][0],tabRet[i][1],tabRet[i][2]);
+		img.hide();
+		rx.hide();
+		mri.hide();
+		return ptRet;
+	}
+	
 	
 	public static double[][] waitForPointsUI(int nbWantedPoints,ImagePlus img,boolean realCoordinates){
 		double[][]tabRet=new double[nbWantedPoints][3];

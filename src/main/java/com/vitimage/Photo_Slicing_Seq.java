@@ -1001,10 +1001,11 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 		
 		ImagePlus imgMov=IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_0.tif");
 		
-		ItkTransform firstMRItransform=VitimageUtils.manualRegistrationIn3D(imgRef,imgMov);
-		firstMRItransform.writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_MRI_MAN.txt");
+		//ItkTransform firstMRItransform=VitimageUtils.manualRegistrationIn3D(imgRef,imgMov);
+		//firstMRItransform.writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_MRI_MAN.txt");
 		//ItkTransform firstMRItransform=ItkTransform.readTransformFromFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_MRI_MAN.txt");
-		ImagePlus res=firstMRItransform.transformImage(imgRef, imgMov);
+		ItkTransform transMRI=ItkTransform.readTransformFromFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_MRI_MAN.txt");
+		ImagePlus res=transMRI.transformImage(imgRef, imgMov);
 		IJ.saveAsTiff(res, this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"imgMov_MRI_registeredMan.tif");
 	}
 	
@@ -1015,7 +1016,7 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 		//This will have its "MRI shape"
 		ImagePlus imgRef=IJ.openImage(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"imgRef_RXForMRItif.tif");
 		ItkTransform transMRI=ItkTransform.readTransformFromFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_MRI_MAN.txt");
-		ImagePlus imgMov=IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_1.tif");
+		ImagePlus imgMov=IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_0.tif");
 		ImagePlus imgCir=VitimageUtils.makeOperationOnOneImage(imgRef, VitimageUtils.OP_MULT, 0, true);
 		int[]dims=VitimageUtils.getDimensions(imgCir);
 		imgCir=VitimageUtils.drawCircleInImage(imgCir, 125, dims[0]/2, dims[1]/2, dims[2]/2);
@@ -1048,14 +1049,18 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 		int []dims=VitimageUtils.getDimensions(sourceData[1]);int Z=dims[2];
 		double[]voxsThick=VitimageUtils.getVoxelSizes(sourceData[1]);
 		int[]depthSlices=computeDepthApproximation();
-		ImagePlus []regs=new ImagePlus[6];
-		ImagePlus [][]slices=new ImagePlus[6][Z];
+		ImagePlus []regs=new ImagePlus[9];
+		ImagePlus [][]slices=new ImagePlus[9][Z];
 		ImagePlus imgPhotoThin=IJ.openImage(
 				this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"img_SL_1_start_iter_"+iterRef+".tif");
 		ImagePlus imgPhotoThick=IJ.openImage(
 				this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"img_SL_thick_start_iter_"+iterRef+".tif");
 		regs[0]=IJ.openImage(
 				this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"img_SL_thick_start_iter_"+iterRef+".tif");
+		ImagePlus []tempTab=VitimageUtils.decomposeRGBImage(regs[0]);
+		regs[6]=tempTab[0];
+		regs[7]=tempTab[1];
+		regs[8]=tempTab[2];
 		IJ.run(regs[0],"8-bit","");
 
 		
@@ -1094,12 +1099,15 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 		IJ.saveAsTiff(regs[3],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_3_low_mri_t2.tif");
 		IJ.saveAsTiff(regs[4],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_4_low_mri_m0.tif");
 		IJ.saveAsTiff(regs[5],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_5_low_mri_diff.tif");
+		IJ.saveAsTiff(regs[6],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_6_low_photo_Red.tif");
+		IJ.saveAsTiff(regs[7],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_7_low_photo_Green.tif");
+		IJ.saveAsTiff(regs[8],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_8_low_photo_Blue.tif");
 		IJ.saveAsTiff(imgPhotoThick,this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_6_low_photo_rgb.tif");
 
 		System.out.print("Build hyperimage");
 		ImagePlus hyperimage=Concatenator.run(regs);
 		
-		IJ.run(hyperimage,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+Z+" frames=6 display=Grayscale");
+		IJ.run(hyperimage,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+Z+" frames=9 display=Grayscale");
 		IJ.saveAsTiff(hyperimage,this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"hyperimage.tif");
 		
 		

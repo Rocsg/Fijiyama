@@ -437,10 +437,12 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	}
 	
 
-	public static ItkTransform registerMRIonRX(ImagePlus imgRef,ImagePlus imgMov,ItkTransform transMov,int slice,ImagePlus mask) {
-		int levelMinRig=3;		int levelMax=4;int levelMinDen=2;
+	public static ItkTransform registerMRIonRX(ImagePlus imgRefH,ImagePlus imgMovH,ItkTransform transMov,int slice,ImagePlus mask) {
+		ImagePlus imgRef=VitimageUtils.Sub222(imgRefH);
+		ImagePlus imgMov=VitimageUtils.Sub222(imgMovH);
+		int levelMinRig=2;		int levelMax=3;int levelMinDen=2;
 		int viewSlice=slice;
-		int nbIterations=10;//14
+		int nbIterations=13;//14
 		int neighXY=2;	int neighZ=2;
 		int bSXY=5;		int bSZ=5;
 		int strideXY=3;		int strideZ=3;
@@ -1194,7 +1196,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			this.sliceFuse.getWindow().setSize(this.viewWidth,this.viewHeight);
 			this.sliceFuse.getCanvas().fitToWindow();
 			
-			
+	
 		}
 		else {
 			sliceCorr=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(this.correspondancesSummary),this.sliceIntCorr);

@@ -12,11 +12,13 @@ import ij.gui.GenericDialog;
 import ij.gui.ImageWindow;
 import ij.gui.PointRoi;
 import ij.gui.Roi;
+import ij.gui.ScrollbarWithLabel;
 import ij.gui.StackWindow;
 
 import ij.io.DirectoryChooser;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
+import ij.plugin.Concatenator;
 import ij.plugin.PlugIn;
 import ij.plugin.frame.Recorder;
 import ij.process.ImageConverter;
@@ -38,6 +40,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Composite;
 import java.awt.Dimension;
+import java.awt.Event;
 import java.awt.FileDialog;
 import java.awt.Frame;
 import java.awt.Graphics;
@@ -47,6 +50,7 @@ import java.awt.Insets;
 import java.awt.Panel;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.Scrollbar;
 import java.awt.TextField;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -145,6 +149,11 @@ import weka.gui.visualize.ThresholdVisualizePanel;
  */
 public class Weka_Save implements PlugIn
 {
+	public double magnif=0;
+	public boolean isHyper=false;
+	public ImagePlus hyperImage=null;
+	ImagePlus[]hyperTab;
+	ImagePlus rgbImage;
 	/** plugin's name */
 	public static final String PLUGIN_NAME = "Trainable Weka Segmentation";
 	/** plugin's current version */
@@ -180,6 +189,8 @@ public class Weka_Save implements PlugIn
 	/** train classifier button */
 	private JButton saveClassSetupButton = null;
 	/** train classifier button */
+	private JButton toggleHyperButton = null;
+
 	private JButton loadExamplesButton = null;
 	/** train classifier button */
 	private JButton saveExamplesButton = null;
@@ -333,6 +344,9 @@ public class Weka_Save implements PlugIn
 		addExampleButton = new JButton[WekaSegmentation.MAX_NUM_CLASSES];
 
 		roiOverlay = new RoiListOverlay[WekaSegmentation.MAX_NUM_CLASSES];
+		toggleHyperButton = new JButton("To RGB photo");
+		toggleHyperButton.setToolTipText("Switch between photographic view and hyperimage view");
+		toggleHyperButton.setEnabled(true);
 		loadExamplesButton = new JButton("Load examples");
 		loadExamplesButton.setToolTipText("Load examples from a .MROI file");
 		saveExamplesButton = new JButton("Save examples");
@@ -451,6 +465,10 @@ public class Weka_Save implements PlugIn
 					{
 						loadExamples();						
 					}
+					else if(e.getSource() == toggleHyperButton)
+					{
+						toggleHyperView();						
+					}
 					else if(e.getSource() == saveExamplesButton)
 					{
 						saveExamples();						
@@ -556,6 +574,10 @@ public class Weka_Save implements PlugIn
 			});
 		}
 	};
+	private int lastCurrentSlice;
+	private int lastCurrentFrame;
+	private boolean isRGB=false;
+	public ImagePlus rgbHyper;
 
 	/**
 	 * Custom canvas to deal with zooming an panning
@@ -642,11 +664,11 @@ public class Weka_Save implements PlugIn
 		private JPanel labelsJPanel = new JPanel();
 		/** Panel with class radio buttons and lists */
 		private JPanel annotationsPanel = new JPanel();
-		
 		/** buttons panel (left side of the GUI) */
 		private JPanel buttonsPanel = new JPanel();
 		/** training panel (included in the left side of the GUI) */
 		private JPanel trainingJPanel = new JPanel();
+		private JPanel viewJPanel = new JPanel();
 		/** training panel (included in the left side of the GUI) */
 		private JPanel manageJPanel = new JPanel();
 		/** options panel (included in the left side of the GUI) */
@@ -668,7 +690,9 @@ public class Weka_Save implements PlugIn
 		
 		/** boolean flag set to true when training is complete */
 		private boolean trainingComplete = false;
-
+		ScrollbarWithLabel ttSelector;
+		Scrollbar slicesliceSelector;
+		ScrollbarWithLabel ZZselector;
 		/**
 		 * Construct the plugin window
 		 * 
@@ -677,7 +701,9 @@ public class Weka_Save implements PlugIn
 		CustomWindow(ImagePlus imp)
 		{
 			super(imp, new CustomCanvas(imp));
-			
+			ttSelector=this.tSelector;
+			slicesliceSelector=this.sliceSelector;
+			ZZselector=this.zSelector;
 			final CustomCanvas canvas = (CustomCanvas) getCanvas();
 
 			// Check image dimensions to avoid a GUI larger than the
@@ -768,14 +794,14 @@ public class Weka_Save implements PlugIn
 			for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)
 				addExampleButton[i].addActionListener(listener);
 
-
-loadExamplesButton.addActionListener(listener);
-saveExamplesButton.addActionListener(listener);
-debugButton.addActionListener(listener);
-
-manageColorsButton.addActionListener(listener);
-loadClassSetupButton.addActionListener(listener);
-saveClassSetupButton.addActionListener(listener);
+			toggleHyperButton.addActionListener(listener);
+			loadExamplesButton.addActionListener(listener);
+			saveExamplesButton.addActionListener(listener);
+			debugButton.addActionListener(listener);
+			
+			manageColorsButton.addActionListener(listener);
+			loadClassSetupButton.addActionListener(listener);
+			saveClassSetupButton.addActionListener(listener);
 			trainButton.addActionListener(listener);
 			overlayButton.addActionListener(listener);
 			resultButton.addActionListener(listener);
@@ -802,8 +828,9 @@ saveClassSetupButton.addActionListener(listener);
 					public void adjustmentValueChanged(final AdjustmentEvent e) {
 						exec.submit(new Runnable() {
 							public void run() {							
-								if(e.getSource() == sliceSelector)
+								if(e.getSource() == sliceSelector )
 								{
+									System.out.println("EVENT : "+e.toString());
 									displayImage.killRoi();
 									drawExamples();
 									updateExampleLists();
@@ -820,6 +847,55 @@ saveClassSetupButton.addActionListener(listener);
 					}
 				});
 
+				// add especial listener if the training image is a hyperimage
+				if(null != tSelector)
+				{
+					isHyper=true;
+					hyperImage=VitimageUtils.imageCopy(displayImage);
+					hyperTab=VitimageUtils.stacksFromHyperstack(hyperImage,9);
+					trainingImage=VitimageUtils.compositeRGBByte(hyperTab[2],hyperTab[3],hyperTab[4],1,1,1);
+					this.getWekaSegmentation().setTrainingImage(trainingImage);
+					rgbImage=VitimageUtils.compositeRGBByte(hyperTab[6],hyperTab[7],hyperTab[8],1,1,1);
+					for(int i=0;i<9;i++)hyperTab[i]=VitimageUtils.imageCopy(rgbImage);
+					rgbHyper = Concatenator.run(hyperTab);
+					IJ.run(rgbHyper,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+(rgbImage.getStackSize())+" frames=9");
+
+							
+					// set slice selector to the correct number
+					tSelector.setValue( 1 );
+					// add adjustment listener to the scroll bar
+					tSelector.addAdjustmentListener(new AdjustmentListener() 
+					{
+
+						public void adjustmentValueChanged(final AdjustmentEvent e) {
+							exec.submit(new Runnable() {
+								public void run() {							
+									if(e.getSource() == tSelector)
+									{
+										System.out.println("Entering listner of tSelector");
+										System.out.println("Infos : Cursli="+displayImage.getCurrentSlice()+" , sli="+displayImage.getCurrentSlice()+" t="+displayImage.getFrame());
+										displayImage.setSlice((displayImage.getFrame()-1)*trainingImage.getStackSize()+sliceSelector.getValue());
+										displayImage.killRoi();
+										drawExamples();
+										updateExampleLists();
+										if(showColorOverlay)
+										{
+											updateResultOverlay();
+											displayImage.updateAndDraw();
+										}
+//										AdjustmentEvent ae=new AdjustmentEvent(sliceSelector, AdjustmentEvent.ADJUSTMENT_VALUE_CHANGED,AdjustmentEvent.UNIT_INCREMENT,sliceSelector.getValue()+1);
+	//									AdjustmentEvent ae2=new AdjustmentEvent(sliceSelector, AdjustmentEvent.ADJUSTMENT_VALUE_CHANGED,AdjustmentEvent.UNIT_DECREMENT,sliceSelector.getValue()-1);
+									}
+
+								}
+							});
+
+						}
+					}
+					);
+				}
+				
+				
 				// mouse wheel listener to update the rois while scrolling
 				addMouseWheelListener(new MouseWheelListener() {
 
@@ -830,6 +906,7 @@ saveClassSetupButton.addActionListener(listener);
 							public void run() 
 							{
 								//IJ.log("moving scroll");
+								displayImage.setSlice((displayImage.getFrame()-1)*trainingImage.getStackSize()+sliceSelector.getValue());
 								displayImage.killRoi();
 								drawExamples();
 								updateExampleLists();
@@ -920,8 +997,6 @@ saveClassSetupButton.addActionListener(listener);
 
 			trainingJPanel.add(trainButton, trainingConstraints);
 			trainingConstraints.gridy++;
-			trainingJPanel.add(overlayButton, trainingConstraints);
-			trainingConstraints.gridy++;
 			trainingJPanel.add(resultButton, trainingConstraints);
 			trainingConstraints.gridy++;
 			trainingJPanel.add(probabilityButton, trainingConstraints);
@@ -930,6 +1005,22 @@ saveClassSetupButton.addActionListener(listener);
 			trainingConstraints.gridy++;
 
 
+			// View panel (left side of the GUI)
+			viewJPanel.setBorder(BorderFactory.createTitledBorder("View"));
+			GridBagLayout viewLayout = new GridBagLayout();
+			GridBagConstraints viewConstraints = new GridBagConstraints();
+			viewConstraints.anchor = GridBagConstraints.NORTHWEST;
+			viewConstraints.fill = GridBagConstraints.HORIZONTAL;
+			viewConstraints.gridwidth = 1;
+			viewConstraints.gridheight = 1;
+			viewConstraints.gridx = 0;
+			viewConstraints.gridy = 0;
+			viewConstraints.insets = new Insets(5, 5, 6, 6);
+			viewJPanel.setLayout(viewLayout);
+			viewJPanel.add(overlayButton, viewConstraints);
+			viewConstraints.gridy++;
+			viewJPanel.add(toggleHyperButton, trainingConstraints);
+			viewConstraints.gridy++;
 			
 			
 			// Training panel (left side of the GUI)
@@ -1006,6 +1097,8 @@ saveClassSetupButton.addActionListener(listener);
 			buttonsConstraints.gridy++;
 			buttonsPanel.add(trainingJPanel, buttonsConstraints);
 			buttonsConstraints.gridy++;
+			buttonsPanel.add(viewJPanel, buttonsConstraints);
+			buttonsConstraints.gridy++;
 			buttonsPanel.add(optionsJPanel, buttonsConstraints);
 			buttonsConstraints.gridy++;
 			buttonsConstraints.insets = new Insets(5, 5, 6, 6);
@@ -1034,11 +1127,16 @@ saveClassSetupButton.addActionListener(listener);
 			allConstraints.gridy++;
 			allConstraints.weightx = 0;
 			allConstraints.weighty = 0;
-			if(null != sliceSelector)
+			if(null != sliceSelector) {
 				all.add(sliceSelector, allConstraints);
-			allConstraints.gridy--;
-
+				allConstraints.gridy++;
+			}			
+			if(null != tSelector) {
+				all.add(tSelector, allConstraints);
+			}
 			allConstraints.gridx++;
+			allConstraints.gridy--;
+			allConstraints.gridy--;
 			allConstraints.anchor = GridBagConstraints.NORTHEAST;
 			allConstraints.weightx = 0;
 			allConstraints.weighty = 0;
@@ -1089,7 +1187,7 @@ saveClassSetupButton.addActionListener(listener);
 
 					saveExamplesButton.removeActionListener(listener);
 					loadExamplesButton.removeActionListener(listener);
-					
+					toggleHyperButton.removeActionListener(listener);
 					
 					
 					debugButton.removeActionListener(listener);
@@ -1098,6 +1196,7 @@ saveClassSetupButton.addActionListener(listener);
 					saveClassSetupButton.removeActionListener(listener);
 					trainButton.removeActionListener(listener);
 					overlayButton.removeActionListener(listener);
+					toggleHyperButton.removeActionListener(listener);
 					resultButton.removeActionListener(listener);
 					probabilityButton.removeActionListener(listener);
 					plotButton.removeActionListener(listener);
@@ -1136,6 +1235,8 @@ saveClassSetupButton.addActionListener(listener);
 			return wekaSegmentation;
 		}
 		
+		
+		/*(isHyper ? && (displayImage.getFrame()!=1))*/
 		/**
 		 * Get current label lookup table (used to color the results)
 		 * @return current overlay LUT
@@ -1150,8 +1251,8 @@ saveClassSetupButton.addActionListener(listener);
 		 */
 		protected void drawExamples()
 		{
-			final int currentSlice = displayImage.getCurrentSlice();
-
+			int currentSlice = (isHyper) ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
+			System.out.println("Cursli="+currentSlice+" , sli="+displayImage.getCurrentSlice()+" t="+displayImage.getFrame());
 			for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)
 			{
 				roiOverlay[i].setColor(colors[i]);
@@ -1172,7 +1273,7 @@ saveClassSetupButton.addActionListener(listener);
 		 */
 		protected void updateExampleLists()
 		{
-			final int currentSlice = displayImage.getCurrentSlice();
+			int currentSlice =(isHyper)  ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
 
 			for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)
 			{
@@ -1205,6 +1306,8 @@ saveClassSetupButton.addActionListener(listener);
 		 */
 		public void setSliceSelectorEnabled(boolean b)
 		{
+			if(null != tSelector)
+				tSelector.setEnabled(b);
 			if(null != sliceSelector)
 				sliceSelector.setEnabled(b);
 		}
@@ -1283,7 +1386,10 @@ saveClassSetupButton.addActionListener(listener);
 
 			saveExamplesButton.setEnabled(s);
 			loadExamplesButton.setEnabled(s);
+			toggleHyperButton.setEnabled(s);
 
+			
+			
 
 			debugButton.setEnabled(true);
 			manageColorsButton.setEnabled(s);
@@ -1291,6 +1397,7 @@ saveClassSetupButton.addActionListener(listener);
 			saveClassSetupButton.setEnabled(s);
 
 			trainButton.setEnabled(s);
+			toggleHyperButton.setEnabled(s);
 			overlayButton.setEnabled(s);
 			resultButton.setEnabled(s);
 			probabilityButton.setEnabled(s);
@@ -1351,7 +1458,7 @@ saveClassSetupButton.addActionListener(listener);
 
 				// Check if there are samples in any slice
 				boolean examplesEmpty = true;
-				for( int n = 1; n <= displayImage.getImageStackSize(); n++ )
+				for( int n = 1; n <= trainingImage.getImageStackSize(); n++ )
 					for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i ++)
 						if( wekaSegmentation.getExamples( i, n ).size() > 0)
 						{
@@ -1361,6 +1468,7 @@ saveClassSetupButton.addActionListener(listener);
 				boolean loadedTrainingData = null != wekaSegmentation.getLoadedTrainingData();
 				saveExamplesButton.setEnabled(!examplesEmpty);
 				loadExamplesButton.setEnabled(true);
+				toggleHyperButton.setEnabled(isHyper);
 
 				saveDataButton.setEnabled(!examplesEmpty || loadedTrainingData);
 
@@ -1508,8 +1616,7 @@ saveClassSetupButton.addActionListener(listener);
 
 		// IJ.log("Adding trace to list " + i);
 		
-		final int n = displayImage.getCurrentSlice();
-	
+		final int n = (isHyper)  ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
 		displayImage.killRoi();
 		wekaSegmentation.addExample(i, r, n);
 		traceCounter[i]++;
@@ -1538,10 +1645,10 @@ saveClassSetupButton.addActionListener(listener);
 	 */
 	public void updateResultOverlay()
 	{
-		ImageProcessor overlay = classifiedImage.getImageStack().getProcessor(displayImage.getCurrentSlice()).duplicate();
 
-		//IJ.log("updating overlay with result from slice " + displayImage.getCurrentSlice());
-				
+		int currentSlice = (isHyper)  ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
+
+		ImageProcessor overlay = classifiedImage.getImageStack().getProcessor(currentSlice).duplicate();
 		overlay = overlay.convertToByte(false);
 		overlay.setColorModel(overlayLUT);
 		win.resultOverlay.setImage(overlay);
@@ -1564,8 +1671,10 @@ saveClassSetupButton.addActionListener(listener);
 		{
 			if (j == i)
 			{
+				int currentSlice = (isHyper)  ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
+
 				final Roi newRoi = 
-					wekaSegmentation.getExamples(i, displayImage.getCurrentSlice())
+					wekaSegmentation.getExamples(i, currentSlice)
 							.get(exampleList[i].getSelectedIndex());
 				// Set selected trace as current ROI
 				newRoi.setImage(displayImage);
@@ -1591,10 +1700,12 @@ saveClassSetupButton.addActionListener(listener);
 			{
 				//delete item from ROI
 				int index = exampleList[i].getSelectedIndex();
+				int currentSlice = (isHyper)  ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
 
 				// kill Roi from displayed image
+				
 				if(displayImage.getRoi().equals( 
-						wekaSegmentation.getExamples(i, displayImage.getCurrentSlice()).get(index) ))
+						wekaSegmentation.getExamples(i, currentSlice).get(index) ))
 					displayImage.killRoi();
 
 				// delete item from the list of ROIs of that class and slice
@@ -1630,7 +1741,7 @@ saveClassSetupButton.addActionListener(listener);
 			final Thread oldTask = trainingTask;
 			// Disable rest of buttons until the training has finished
 			win.updateButtonsEnabling();
-
+			System.out.println("DEBUG : training size="+trainingImage.getStackSize());
 			// Set train button text to STOP
 			trainButton.setText("STOP");							
 
@@ -3458,6 +3569,7 @@ saveClassSetupButton.addActionListener(listener);
 			final int width = win.getTrainingImage().getWidth();
 			final int height = win.getTrainingImage().getHeight();
 			final int depth = win.getTrainingImage().getNSlices();
+			System.out.println("Depth="+depth);
 			final ImageStack labelStack;
 			if( numClasses < 256)
 				labelStack = ImageStack.create( width, height, depth, 8 );
@@ -3498,7 +3610,84 @@ saveClassSetupButton.addActionListener(listener);
 
 
 
+	private void toggleHyperView() {
+		System.out.println("\n\nENTERING TOGGLE WITH "+(isRGB ? "RGB" : "HYPER"));
+		System.out.println("Save="+this.lastCurrentSlice+" ,"+this.lastCurrentFrame);
+		System.out.println("Here 11 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
+		System.out.println("At start, sli="+displayImage.getCurrentSlice()+" et frame="+displayImage.getFrame());
+		this.lastCurrentSlice = isHyper ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
+		this.lastCurrentFrame = isHyper ? displayImage.getFrame() : -1;
+		if (!isRGB) {
+			System.out.println("To RGB");
+			System.out.println("Save="+this.lastCurrentSlice+" ,"+this.lastCurrentFrame);
+			toggleHyperButton.setText("To hyperimage");
+			System.out.println("Here 21 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
+			switchViewToRGB();
+			displayImage.updateAndDraw();
+			this.isRGB=true;
+			System.out.println("Here 31 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
+		}
+		else {
+			System.out.println("To Hyperimage");
+			System.out.println("Save="+this.lastCurrentSlice+" ,"+this.lastCurrentFrame);
+			toggleHyperButton.setText("To RGB photo");
+			System.out.println("Here 22 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
+			switchViewToHyperimage();
+			displayImage.updateAndDraw();
+			this.isRGB=false;
+			System.out.println("Here 32 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
+		}
+		System.out.println("Save="+this.lastCurrentSlice+" ,"+this.lastCurrentFrame);
+		win.repaint();
+		IJ.run("Out [-]");
+		IJ.run("Out [-]");
+		IJ.run("Out [-]");
+		IJ.run("In [+]");
+		IJ.run("In [+]");
+		IJ.run("In [+]");
+		System.out.println("Here 4 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
+		if(isHyper && !isRGB) {
+			System.out.println("Bascule vers hyp, go to "+(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize()));
+			displayImage.setT(this.lastCurrentFrame);
+			win.getDisplayImage().setSlice(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize());
+			displayImage.setSlice(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize());
+			//win.showSlice(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize());
+			win.ZZselector.setValue(this.lastCurrentSlice);
+		}
+		else{
+			System.out.println("Bascule vers rgb : go to "+this.lastCurrentSlice);
+			displayImage.setT(this.lastCurrentFrame);
+			win.getDisplayImage().setSlice(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize());
+			displayImage.setSlice(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize());
+			//win.showSlice(this.lastCurrentSlice);
+			win.ZZselector.setValue(this.lastCurrentSlice);
+		}
+		win.updateSliceSelector();
+		System.out.println("Here 5 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
+		System.out.println("Here 81 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
+		System.out.println("Here 82 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
+		System.out.println("Here 9 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
+		displayImage.killRoi();
+		win.drawExamples();
+		win.updateExampleLists();
+		if(showColorOverlay)
+		{
+			updateResultOverlay();
+			displayImage.updateAndDraw();
+		}
+		System.out.println("ENDING TOGGLE. Save="+this.lastCurrentSlice+" ,"+this.lastCurrentFrame);
+	}
 	
+	private void switchViewToRGB() {
+		displayImage=VitimageUtils.imageCopy(rgbHyper);
+		win.setImagePlus(displayImage);
+	}
+	
+	
+	private void switchViewToHyperimage() {
+		displayImage=VitimageUtils.imageCopy(hyperImage);
+		win.setImagePlus(displayImage);
+	}
 	
 	private void saveExamples() {
 		saveExamplesInFile(convertExamplesToSlicePointRoi());
@@ -3584,6 +3773,7 @@ saveClassSetupButton.addActionListener(listener);
 	
 			//Pour chaque slice, récuperer la liste des roi, l'assembler en une seule pointroi
 			for(int sli=1;sli<=this.trainingImage.getStackSize();sli++) {
+System.out.println("Taille train="+this.trainingImage.getStackSize());
 				List<Roi>list=this.wekaSegmentation.getExamples(cl, sli);
 				tabRoi[cl][sli-1]=this.convertRoiListToUniquePointRoi(list);
 			}
@@ -3593,6 +3783,7 @@ saveClassSetupButton.addActionListener(listener);
 	
 	
 	public void removeAllExamples() {
+		System.out.println("Taille2 train="+this.trainingImage.getStackSize());
 		for(int sl=1;sl<=this.trainingImage.getStackSize();sl++) {
 			for(int cl=0;cl<this.numOfClasses;cl++) {
 				int nbEx=this.wekaSegmentation.getExamples(cl,sl).size();

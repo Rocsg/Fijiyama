@@ -4,14 +4,21 @@ import ij.process.FloatProcessor;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Rectangle;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.stream.Collectors;
 
 import org.itk.simple.DiscreteGaussianImageFilter;
 import org.itk.simple.DisplacementFieldTransform;
@@ -195,6 +202,53 @@ case 1  = [ 86.96999999999997 , 183.57999999999998 , 241.13 , 120.76999999999998
 		return date;
 	}
 
+	public static double[][] readDoubleArrayFromFile(String file,int nbDimsPerLine) {
+		File fParam=new File(file);
+		int nData;
+		double[][]vals;
+		String[]strFile=null;
+		String[]strLine=null;
+		try {
+			 String str= Files.lines(Paths.get(fParam.getAbsolutePath()) ).collect(Collectors.joining("\n"));
+			 strFile=str.split("\n");
+        } catch (IOException ex) {        ex.printStackTrace();   }
+		nData=Integer.parseInt(strFile[0]);
+		vals=new double[nData][nbDimsPerLine];
+		for(int i=1;i<=nData ; i++) {
+			strLine=strFile[i].split(" ");
+			for(int j=0;j<nbDimsPerLine;j++) {
+				vals[i-1][j]=Double.parseDouble(strLine[j]);
+			}
+		}
+		return vals;
+	}
+		
+	public static void writeDoubleArrayInFile(double [][]tab,String file) {
+		int nData=tab.length;
+		int nDims=tab[0].length;
+		try {
+			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
+			out.write(""+tab.length+"\n");
+			for(int i=0;i<nData;i++) {
+				for(int j=0;j<nDims-1;j++) {
+					out.write(""+tab[i][j]+" ");
+				}
+				out.write(""+tab[i][nDims-1]+"\n");
+			}
+			out.close();
+		} catch (Exception e) {IJ.error("Unable to write data to file: "+file+"error: "+e);}	
+	}
+	
+	
+	public static void writePoint3dArrayInFile(Point3d[]tab,String file) {
+		writeDoubleArrayInFile(VitimageUtils.convertPoint3dArrayToDoubleArray(tab),file);
+	}
+	
+	public static Point3d[] readPoint3dArrayInFile(String file) {
+		return VitimageUtils.convertDoubleArrayToPoint3dArray(VitimageUtils.readDoubleArrayFromFile(file,3));
+	}
+	
+	
 	public static String writableArray(double[]array) {
 		String ret="";
 		for(int i=0;i<array.length-1;i++)ret+=array[i]+" ";
@@ -2051,6 +2105,17 @@ case 1  = [ 86.96999999999997 , 183.57999999999998 , 241.13 , 120.76999999999998
 	}
 	
 	
+	public static ImagePlus imageCopy(ImagePlus imgRef) {
+		ImagePlus ret=new Duplicator().run(imgRef);
+		VitimageUtils.adjustImageCalibration(ret, imgRef);
+		return ret;
+	}
+	
+	
+	public static ImagePlus[]decomposeRGBImage(ImagePlus imgRGB){
+		return ChannelSplitter.split(imgRGB);
+	}
+	
 	public static ImagePlus compositeRGBByte(ImagePlus img1Source,ImagePlus img2Source,ImagePlus img3Source,double coefR,double coefG,double coefB){
 		ImagePlus img1=new Duplicator().run(img1Source);
 		ImagePlus img2=new Duplicator().run(img2Source);
@@ -2182,6 +2247,18 @@ case 1  = [ 86.96999999999997 , 183.57999999999998 , 241.13 , 120.76999999999998
 	}
 	
 	
+	public static void showImageUntilItIsClosed(ImagePlus img,String texte) {
+		img.setTitle(texte);
+		img.show();
+		img.setSlice(img.getStackSize()/2);
+		while(WindowManager.getImage(texte)!=null) {
+			VitimageUtils.waitFor(1000);
+		}
+		return ;
+	}
+
+	
+	
     public static ItkTransform manualRegistrationIn3D(ImagePlus imRef,ImagePlus imMov) {
     	ImagePlus imgRef=new Duplicator().run(imRef);
     	VitimageUtils.adjustImageCalibration(imgRef,imRef);
@@ -2239,6 +2316,16 @@ case 1  = [ 86.96999999999997 , 183.57999999999998 , 241.13 , 120.76999999999998
 	public static Point3d[]convertDoubleArrayToPoint3dArray(double[][]tab){
 		Point3d[]tabPt=new Point3d[tab.length];
 		for(int i=0;i<tab.length;i++)tabPt[i]=new Point3d(tab[i][0],tab[i][1],tab[i][2]);
+		return tabPt;		
+	}
+
+	public static double[][]convertPoint3dArrayToDoubleArray(Point3d[]tab){
+		double[][]tabPt=new double[tab.length][3];
+		for(int i=0;i<tab.length;i++){
+			tabPt[i][0]=tab[i].x;
+			tabPt[i][1]=tab[i].y;
+			tabPt[i][2]=tab[i].z;
+		}
 		return tabPt;		
 	}
 	
@@ -3532,6 +3619,7 @@ case 1  = [ 86.96999999999997 , 183.57999999999998 , 241.13 , 120.76999999999998
 		for(int i=0;i<nb;i++) {
 			IJ.run(hyper,"Make Substack...","slices=1-"+(hyper.getStackSize()/nb)+" frames="+(i+1)+"-"+(i+1)+"");
 			ret[i]=IJ.getImage();
+			ret[i].setTitle("Splitting hyperstack, frame "+i);
 			ret[i].hide();
 			VitimageUtils.adjustImageCalibration(ret[i],hyper);
 		}
