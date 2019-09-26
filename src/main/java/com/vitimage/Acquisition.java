@@ -22,7 +22,7 @@ public abstract class Acquisition implements VitimageUtils{
 	
 	
 	public static void main(String[]args) {
-
+		System.out.println("Compil ok");
 	}
 	
 	/**

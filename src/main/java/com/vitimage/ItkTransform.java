@@ -37,6 +37,7 @@ import vib.FastMatrix;
 public class ItkTransform extends Transform implements ItkImagePlusInterface{
 
 	public static int runTestSequence() {
+		
 		int nbFailed=0;
 		//test bestRigid, bestAffine, bestSimilityde
 		//test transform ij to ITK, then apply to image
@@ -46,6 +47,16 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return nbFailed;
 	}
 	
+	
+	public static void main(String[]args) {
+		System.out.println("File ITK transform compiled");
+		System.out.println("File ITK transform compiled");
+		System.out.println("File ITK transform compiled");
+		ItkTransform tr=new ItkTransform();
+		System.out.println("File ITK transform executed");
+		System.out.println("File ITK transform executed");
+		System.out.println("File ITK transform executed");
+	}
 	
 	public ItkTransform(){
 		super();
@@ -512,7 +523,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		int [][]vectPoints=new int[nPt][3];
 		double [][]vectVals=new double[nPt][3];
 		for(int i=0;i<vectPoints.length;i++) {
-			System.out.println(i);
 			vectPoints[i][0]=(int)Math.round(correspondancePoints[0][i].x/voxSizes[0]);
 			vectPoints[i][1]=(int)Math.round(correspondancePoints[0][i].y/voxSizes[1]);
 			vectPoints[i][2]=(int)Math.round(correspondancePoints[0][i].z/voxSizes[2]);
@@ -521,7 +531,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			vectVals[i][2]=correspondancePoints[1][i].z-correspondancePoints[0][i].z;
 		}
 		
-		System.out.println("Here1");
 		//Construire l'image des poids, et l'image des valeurs suivant X, Y et Z
 		ImagePlus imgWeights=IJ.createImage("tempW", dimensions[0], dimensions[1], dimensions[2], 32);
 		ImagePlus imgFieldX=IJ.createImage("tempX", dimensions[0], dimensions[1], dimensions[2], 32);
@@ -532,14 +541,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		VitimageUtils.adjustImageCalibration(imgFieldY, imgRef);
 		VitimageUtils.adjustImageCalibration(imgFieldZ, imgRef);
 		
-		System.out.println("Here2");
 		//Y inserer les informations necessaires
 		imgWeights.getProcessor().set(0);
 		imgFieldX.getProcessor().set(0);
 		imgFieldY.getProcessor().set(0);
 		imgFieldZ.getProcessor().set(0);
 		
-		System.out.println("Here3");
 		for(int i=0;i<nPt;i++) {
 			if(   (vectPoints[i][2]+1>0 && vectPoints[i][2]+1<=dimensions[2]) &&
 					(vectPoints[i][0]>=0 && vectPoints[i][0]<dimensions[0]) &&
@@ -551,7 +558,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			}
 		}
 		
-		System.out.println("Here4");
 		imgWeights=VitimageUtils.gaussianFilteringIJ(imgWeights, sigma,sigma , (zeroPaddingOutside ? 1 : 5)*sigma);
 		imgFieldX=VitimageUtils.gaussianFilteringIJ(imgFieldX, sigma,sigma , (zeroPaddingOutside ? 1 : 5)*sigma);
 		imgFieldY=VitimageUtils.gaussianFilteringIJ(imgFieldY, sigma,sigma , (zeroPaddingOutside ? 1 : 5)*sigma);
@@ -559,7 +565,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		
 		
 		
-		System.out.println("Here5");
 		
 		//puis diviser les valeurs suivants X,Y et Z par les poids lissés. Si les poids sont < epsilon, mettre 0
 		for(int z=0;z<dimensions[2];z++) {
@@ -580,7 +585,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 				}
 			}			
 		}
-		System.out.println("Here6");
 
 		if(zeroPaddingOutside) {
 			//Creer un nouveau vecteur de modifs
@@ -630,13 +634,20 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			}
 			return computeDenseFieldFromSparseCorrespondancePoints(newCorr,imgRef,sigma,false);
 		}
-		System.out.println("Here7");
 
 		
 		//Construire le champ vectoriel associe et le rendre
 	  	return ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(new ImagePlus [] {imgFieldX,imgFieldY,imgFieldZ});
 
 	}
+	
+	
+	public static ItkTransform smoothDeformationTransform(ItkTransform tr,double sigmaX,double sigmaY,double sigmaZ) {
+		ImagePlus[]imgs=ItkImagePlusInterface.convertItkTransformToImagePlusArray(tr);
+		for(int i=0;i<3;i++)imgs[i]=VitimageUtils.gaussianFiltering(imgs[i], sigmaX, sigmaY, sigmaZ);
+		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(imgs)));
+	}
+	
 	
 	public ImagePlus viewAsGrid3D(ImagePlus imgRef,int pixelSpacing) {
 		ImagePlus grid=VitimageUtils.getBinaryGrid(imgRef, pixelSpacing);
@@ -660,14 +671,39 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 	
 	
-	public void showAsGrid3D(ImagePlus imgRef,int pixelSpacing,String title,int slice) {
-		ImagePlus grid=VitimageUtils.getBinaryGrid(imgRef, pixelSpacing);
-		ImagePlus temp=this.transformImage(imgRef,grid);
-		temp.setTitle(title);
-		temp.show();
-		temp.getWindow().setSize(512, 512);
-		temp.getCanvas().fitToWindow();
-		temp.setSlice(slice);
+	public void showAsGrid3D(ImagePlus imgRef2,int pixelSpacing,String title,int slice) {
+		ImagePlus imgRef=VitimageUtils.imageCopy(imgRef2);
+		IJ.run(imgRef,"8-bit","");
+		ImagePlus gridXY=VitimageUtils.getBinaryGrid(imgRef, pixelSpacing);
+		ImagePlus tempXY=this.transformImage(imgRef,gridXY);
+		tempXY.setTitle(title+"-XY plane");
+		tempXY.show();
+		tempXY.getWindow().setSize(512, 512);
+		tempXY.getCanvas().fitToWindow();
+		tempXY.setSlice(slice);
+
+		ImagePlus imgRefXZ=VitimageUtils.switchAxis(imgRef, 2);
+		ImagePlus gridXZ=VitimageUtils.getBinaryGrid(imgRefXZ, pixelSpacing);
+		gridXZ=VitimageUtils.switchAxis(gridXZ, 2);
+		ImagePlus tempXZ=this.transformImage(imgRef,gridXZ);
+		tempXZ=VitimageUtils.switchAxis(tempXZ, 2);
+		tempXZ.show();
+		tempXZ.setTitle(title+"-XZ plane");
+		tempXZ.getWindow().setSize(512, 512);
+		tempXZ.getCanvas().fitToWindow();
+		tempXZ.setSlice(slice);
+
+		ImagePlus imgRefYZ=VitimageUtils.switchAxis(imgRef, 1);
+		ImagePlus gridYZ=VitimageUtils.getBinaryGrid(imgRefYZ, pixelSpacing);
+		gridYZ=VitimageUtils.switchAxis(gridYZ, 1);
+		ImagePlus tempYZ=this.transformImage(imgRef,gridYZ);
+		tempYZ=VitimageUtils.switchAxis(tempYZ, 1);
+		tempYZ.show();
+		tempYZ.setTitle(title+"-YZ plane");
+		tempYZ.getWindow().setSize(512, 512);
+		tempYZ.getCanvas().fitToWindow();
+		tempYZ.setSlice(slice);
+
 	}
 
 	
@@ -764,7 +800,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	
 	public ItkTransform flattenDenseField(ImagePlus imgRef) {
-		System.out.println("Flattening dense field transform");
+		System.out.println("Flattening dense field transform on a base of "+TransformUtils.stringVector(VitimageUtils.getDimensions(imgRef), ""));
 		//Recuperer les dimensions
 		int dimX=imgRef.getWidth();
 		int dimY=imgRef.getHeight();
@@ -785,7 +821,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		VectorDouble coords=new VectorDouble(3);
 		VectorDouble coordsTrans=new VectorDouble(3);
 		for(int k=0;k<dimZ;k++) {
-			if (dimZ<100 || (k%5)==0) System.out.print(" "+((k*100)/dimZ)+" %");
+			if (( (dimZ<100) && (k%10==0) ) || (dimZ<300 && (k%30==0)) || (k%60)==0) System.out.print(" "+((k*100)/dimZ)+" %");
 			float[]tabX=(float[])ret[0].getStack().getProcessor(k+1).getPixels();
 			float[]tabY=(float[])ret[1].getStack().getProcessor(k+1).getPixels();
 			float[]tabZ=(float[])ret[2].getStack().getProcessor(k+1).getPixels();

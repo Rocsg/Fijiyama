@@ -12,15 +12,11 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Date;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import com.vitimage.ItkImagePlusInterface.MetricType;
+import com.vitimage.ItkImagePlusInterface.Transformation3DType;
 import com.vitimage.Vitimage4D.VineType;
-import com.vitimage.VitimageUtils.AcquisitionType;
-import com.vitimage.VitimageUtils.Capillary;
-import com.vitimage.VitimageUtils.ComputingType;
-import com.vitimage.VitimageUtils.SupervisionLevel;
-
 import Hough_Package.Hough_Circle;
 import ij.IJ;
 import ij.ImageJ;
@@ -31,9 +27,6 @@ import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
 import ij.plugin.FolderOpener;
 import ij.plugin.ImageCalculator;
-import ij.process.FloatProcessor;
-import ij.process.StackProcessor;
-import math3d.Point3d;
 import inra.ijpb.morphology.Morphology;
 import inra.ijpb.morphology.Strel3D;
 
@@ -83,9 +76,9 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 	}
 	
 	public static void main (String[]args) {
-		ImageJ ij=new ImageJ();
-		System.out.println("Sequence de test de Photo_slicing");//
-		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3" ,"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		ImageJ ij=new ImageJ();//
+		System.out.println("Sequence de test de Photo_slicing");//"CEP012_AS2","CEP013_AS3","CEP011_AS1","CEP015_RES2","CEP014_RES1",,"CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"
+		String []specimen= {"CEP016_RES3"};
 		for(String spec : specimen) {
 			Photo_Slicing_Seq photo=new Photo_Slicing_Seq("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH",Capillary.HAS_NO_CAPILLARY,
 					SupervisionLevel.AUTONOMOUS,spec,ComputingType.COMPUTE_ALL);
@@ -93,6 +86,7 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 			photo.freeMemory();
 			System.gc();
 		}
+		System.out.println("FINI PHOTOS !");
 		return;
 	}
 	
@@ -168,6 +162,10 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 			computeDataForExpertise();
 			break;
 
+		case 13:
+			System.out.println(this.title+" step 12 : compute high res data for expertise");			
+			extendRegistrationToHigherResolutions();
+			break;
 		
 		case 20:
 			if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS) return false;
@@ -862,10 +860,10 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 			int ZT=imgSlice.getStackSize();
 			tabSlicesRX=new ImagePlus[ZT];
 			VitimageUtils.adjustImageCalibration(imgRX, new double[] {0.6,0.6,0.6},"mm");
-
+			System.exit(0);
 			
 			//Recaler la pile RX, dans le domaine thin et produire l'image debug composite
-			if(true ){
+			if(false ){
 				transRX=BlockMatchingRegistration.registerRXOnSlices(imgSlice,imgRX,transRX,93,false);
 				transRX.writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_RX_iter_"+it+".txt");
 				transRX.writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_RX_last.txt");
@@ -992,6 +990,12 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 		ImagePlus imgRX=IJ.openImage(this.sourcePath+slash+".."+slash+"RX"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"hyperImage.tif");
 		ItkTransform transRX=ItkTransform.readTransformFromFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_RX_iter_1.txt");
 		ImagePlus rxModel=VitimageUtils.switchAxis(imgRX, 2);
+		System.out.println(this.title);
+		if(this.title.equals("CEP016_RES3")) {
+			System.out.println("Warning: special attention for "+this.title);
+			VitimageUtils.soundAlert("Beep");
+			rxModel=VitimageUtils.uncropImageByte(rxModel, 0, 0, 0, rxModel.getWidth()+300, rxModel.getHeight(),rxModel.getStackSize());
+		}
 		ImagePlus imgRef=transRX.transformImage(rxModel, imgRX);
 		imgRef.setDisplayRange(0,255);
 		IJ.run(imgRef,"8-bit","");
@@ -1012,31 +1016,64 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 	
 	/*----------------------- STEP 11 -----------------------------------------------*/
 	public void automaticMRIregistration() {
+		//PHASE 1 : Recalage rigide
 		//Build reference RX image
 		//This will have its "MRI shape"
+		boolean doRigid=false;
 		ImagePlus imgRef=IJ.openImage(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"imgRef_RXForMRItif.tif");
 		ItkTransform transMRI=ItkTransform.readTransformFromFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_MRI_MAN.txt");
 		ImagePlus imgMov=IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_0.tif");
+		ImagePlus imgMov2=VitimageUtils.makeOperationBetweenTwoImages(
+				IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_0.tif"),
+				IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_1.tif"),VitimageUtils.OP_MEAN,false);
 		ImagePlus imgCir=VitimageUtils.makeOperationOnOneImage(imgRef, VitimageUtils.OP_MULT, 0, true);
 		int[]dims=VitimageUtils.getDimensions(imgCir);
 		imgCir=VitimageUtils.drawCircleInImage(imgCir, 125, dims[0]/2, dims[1]/2, dims[2]/2);
 		imgCir=VitimageUtils.thresholdByteImage(imgCir, 100,256);
-		transMRI=BlockMatchingRegistration.registerMRIonRX(imgRef,imgMov,transMRI,180,imgCir);
-		
-		
+		ImagePlus res=null;
+		if(doRigid) {
+		transMRI=BlockMatchingRegistration.registerMRIonRX(imgRef,imgMov2,transMRI,180,imgCir);
 		transMRI.writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_MRI_AUTO.txt");
-		ImagePlus res=transMRI.transformImage(imgRef, imgMov);
+		}
+		else	transMRI=ItkTransform.readTransformFromFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_MRI_AUTO.txt");
+		res=transMRI.transformImage(imgRef, imgMov);
 		res.setDisplayRange(0, 255);
 		IJ.run(res,"8-bit","");
-		IJ.saveAsTiff(res, this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"imgMov_MRI_registeredAuto.tif");
-//		System.exit(0);
+		if(doRigid) IJ.saveAsTiff(res, this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"imgMov_MRI_registeredAuto.tif");
+
+
+		//Phase 2 : Recalage dense
+		
+		//Amener IRM dans geometrie RX, en passant par field
+		//--> vers maching O field O from machine O to RX 
+		ItkTransform field=ItkTransform.readAsDenseField("/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/champ_0_SIG10.tif");
+		ItkTransform transMRIToRXWithField=new ItkTransform((ItkTransform.readTransformFromFile(
+				this.sourcePath+slash+".."+slash+"MRI_CLINICAL/Computed_data/1_Transformations/transformation_0.txt")).getInverse());
+		transMRIToRXWithField.addTransform(ItkTransform.itkTransformFromCoefs(new double[] {1,0,0,-175,0,1,0,-175,0,0,1,-153.6}));
+		transMRIToRXWithField.addTransform(field);
+		transMRIToRXWithField.addTransform(ItkTransform.itkTransformFromCoefs(new double[] {1,0,0,-175,0,1,0,-175,0,0,1,-153.6} ).getInverse( ));
+		transMRIToRXWithField.addTransform(new ItkTransform(ItkTransform.readTransformFromFile(
+				this.sourcePath+slash+".."+slash+"MRI_CLINICAL/Computed_data/1_Transformations/transformation_0.txt")));
+		transMRIToRXWithField.addTransform(transMRI);
+
+	
+		transMRIToRXWithField=registerMRandRXFinal(imgRef,imgMov,transMRIToRXWithField);
+		transMRIToRXWithField=transMRIToRXWithField.flattenDenseField(VitimageUtils.Sub222(imgRef));
+		transMRIToRXWithField.writeAsDenseField(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_MRI_AUTO_DENSE_MERGE.tif",VitimageUtils.Sub222(imgRef));
+		res=transMRIToRXWithField.transformImage(imgRef, imgMov);
+		res.setDisplayRange(0, 255);
+		IJ.run(res,"8-bit","");
+		IJ.saveAsTiff(res, this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"imgMov_MRI_registeredAutoDenseMerge.tif");
+
 	}
 	
-
+	
 	
 	
 	/*----------------------- STEP 12 -----------------------------------------------*/
 	public void computeDataForExpertise() {
+		boolean doThick=true;
+		boolean doThin=true;
 		System.out.println("Parameters loading");
 		//Donnees necessaires : 
 		//Img slice final low res
@@ -1045,77 +1082,172 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 		//##########################################################################""
 		//A) Construire hyperimage niveaux de gris, photo-RX-T1-T2-M0-Diff
 		//##########################################################################""
-		int iterRef=1;
-		int []dims=VitimageUtils.getDimensions(sourceData[1]);int Z=dims[2];
+		int iterRef=0;
+		int []dimsThick=VitimageUtils.getDimensions(sourceData[1]);int Z=dimsThick[2];
 		double[]voxsThick=VitimageUtils.getVoxelSizes(sourceData[1]);
 		int[]depthSlices=computeDepthApproximation();
-		ImagePlus []regs=new ImagePlus[9];
-		ImagePlus [][]slices=new ImagePlus[9][Z];
+		ImagePlus []regsThick=new ImagePlus[9];
+		ImagePlus []regsThin=new ImagePlus[9];
+		ImagePlus [][]slicesThick=new ImagePlus[9][Z];
 		ImagePlus imgPhotoThin=IJ.openImage(
-				this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"img_SL_1_start_iter_"+iterRef+".tif");
+				this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"img_SL_0_start_iter_"+iterRef+".tif");
+		regsThin[0]=IJ.openImage(
+				this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"img_SL_0_start_iter_"+iterRef+".tif");
 		ImagePlus imgPhotoThick=IJ.openImage(
 				this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"img_SL_thick_start_iter_"+iterRef+".tif");
-		regs[0]=IJ.openImage(
+		regsThick[0]=IJ.openImage(
 				this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks2"+slash+"img_SL_thick_start_iter_"+iterRef+".tif");
-		ImagePlus []tempTab=VitimageUtils.decomposeRGBImage(regs[0]);
-		regs[6]=tempTab[0];
-		regs[7]=tempTab[1];
-		regs[8]=tempTab[2];
-		IJ.run(regs[0],"8-bit","");
+		ImagePlus []tempTab=VitimageUtils.decomposeRGBImage(regsThin[0]);
+		regsThin[6]=tempTab[0];
+		regsThin[7]=tempTab[1];
+		regsThin[8]=tempTab[2];
+		tempTab=VitimageUtils.decomposeRGBImage(regsThick[0]);
+		regsThick[6]=tempTab[0];
+		regsThick[7]=tempTab[1];
+		regsThick[8]=tempTab[2];
+		IJ.run(regsThin[0],"8-bit","");
+		IJ.run(regsThick[0],"8-bit","");
+		double[]voxsThin=VitimageUtils.getVoxelSizes(imgPhotoThin);
+		int []dimsThin=VitimageUtils.getDimensions(imgPhotoThin);int Zthin=dimsThin[2];
+		ImagePlus [][]slicesThin=new ImagePlus[9][Zthin];
 
 		
 		//     Lire RX dans geometrie de photo thick
 		System.out.println("RX reading");
 		ImagePlus imgRX=IJ.openImage(this.sourcePath+slash+".."+slash+"RX"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"hyperImage.tif");
 		ItkTransform transRX=ItkTransform.readTransformFromFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_RX_last.txt");
-		regs[1]=transRX.transformImage(imgPhotoThin, imgRX);
+		regsThin[1]=transRX.transformImage(imgPhotoThin, imgRX);
 
 		//     Lire IRM T1 dans geometrie de photo thick
-		System.out.println("MRI transformation");
-		ItkTransform transMRI=ItkTransform.readTransformFromFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_MRI_AUTO.txt");
-		regs[2]=transMRI.transformImage(imgPhotoThin, VitimageUtils.drawRectangleInImage(IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_0.tif"),0,0,115,34,0));
-		regs[3]=transMRI.transformImage(imgPhotoThin, VitimageUtils.drawRectangleInImage(IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_1.tif"),0,0,115,34,0));
-		regs[4]=transMRI.transformImage(imgPhotoThin, VitimageUtils.drawRectangleInImage(IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_2.tif"),0,0,115,34,0));
-		regs[5]=transMRI.transformImage(imgPhotoThin, VitimageUtils.drawRectangleInImage(IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_3.tif"),0,0,115,34,0));
+		System.out.println("MRI transformation, phase 1");
+		ItkTransform transMRI=null;
+		transMRI=ItkTransform.readTransformFromFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms2"+slash+"trans_MRI_AUTO_DENSE_MERGE.tif");
+		regsThin[2]=transMRI.transformImage(imgPhotoThin, VitimageUtils.drawRectangleInImage(IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_0.tif"),0,0,115,34,0));
+		regsThin[3]=transMRI.transformImage(imgPhotoThin, VitimageUtils.drawRectangleInImage(IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_1.tif"),0,0,115,34,0));
+		regsThin[4]=transMRI.transformImage(imgPhotoThin, VitimageUtils.drawRectangleInImage(IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_2.tif"),0,0,115,34,0));
+		regsThin[5]=transMRI.transformImage(imgPhotoThin, VitimageUtils.drawRectangleInImage(IJ.openImage(this.sourcePath+slash+".."+slash+"MRI_CLINICAL"+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_3.tif"),0,0,115,34,0));
 
-		//     Selectionner les slices correspondantes aux photos
-		System.out.println("MRI slice selection");
-		for(int mod=0;mod<6;mod++) {
-			System.out.print(" "+mod);
-			if(mod>=1) {
+
+		if(doThick) {
+			//     Selectionner les slices correspondantes aux photos
+			System.out.println("MRI slice selection thick");
+			for(int mod=0;mod<6;mod++) {
+				System.out.print(" "+mod);
 				for(int z=0;z<Z;z++) {
-					regs[mod].setSlice(depthSlices[z]+1);
-					slices[mod][z]=regs[mod].crop();
+					System.out.println("z="+z+"/"+Z+" <- "+depthSlices[z]+"/"+Zthin);
+					regsThin[mod].setSlice(depthSlices[z]+1);
+					
+					slicesThick[mod][z]=VitimageUtils.imageCopy(regsThin[mod].crop());
 				}
-				regs[mod]=Concatenator.run(slices[mod]);
+				regsThick[mod]=Concatenator.run(slicesThick[mod]);
+				VitimageUtils.adjustImageCalibration(regsThick[mod],voxsThick,"mm");
 			}
-			VitimageUtils.adjustImageCalibration(regs[mod],voxsThick,"mm");
+			System.out.print("Save mods");
+			IJ.saveAsTiff(regsThick[0],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_0_low_photo_bnw.tif");
+			IJ.saveAsTiff(regsThick[1],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_1_low_rx.tif");
+			IJ.saveAsTiff(regsThick[2],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_2_low_mri_t1.tif");
+			IJ.saveAsTiff(regsThick[3],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_3_low_mri_t2.tif");
+			IJ.saveAsTiff(regsThick[4],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_4_low_mri_m0.tif");
+			IJ.saveAsTiff(regsThick[5],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_5_low_mri_diff.tif");
+			IJ.saveAsTiff(regsThick[6],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_6_low_photo_Red.tif");
+			IJ.saveAsTiff(regsThick[7],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_7_low_photo_Green.tif");
+			IJ.saveAsTiff(regsThick[8],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_8_low_photo_Blue.tif");
+			IJ.saveAsTiff(imgPhotoThick,this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_9_low_photo_rgb.tif");
+			
+			regsThick[0]=VitimageUtils.writeTextOnImage(this.title+" PHOTO - Lum", regsThick[0],15,0);
+			regsThick[1]=VitimageUtils.writeTextOnImage(this.title+" RX", regsThick[1],15,0);
+			regsThick[2]=VitimageUtils.writeTextOnImage(this.title+" MRI-T1", regsThick[2],15,0);
+			regsThick[3]=VitimageUtils.writeTextOnImage(this.title+" MRI-T2", regsThick[3],15,0);
+			regsThick[4]=VitimageUtils.writeTextOnImage(this.title+" MRI-DP", regsThick[4],15,0);
+			regsThick[5]=VitimageUtils.writeTextOnImage(this.title+" MRI-DIFF", regsThick[5],15,0);
+			regsThick[6]=VitimageUtils.writeTextOnImage(this.title+" PHOTO - R", regsThick[6],15,0);
+			regsThick[7]=VitimageUtils.writeTextOnImage(this.title+" PHOTO - G", regsThick[7],15,0);
+			regsThick[8]=VitimageUtils.writeTextOnImage(this.title+" PHOTO - B", regsThick[8],15,0);
+	
+			System.out.print("Build hyperimage");
+			ImagePlus hyperimage=Concatenator.run(regsThick);
+			
+			IJ.run(hyperimage,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+Z+" frames=9 display=Grayscale");
+			IJ.saveAsTiff(hyperimage,this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"hyperimage.tif");
+		}	
+		if(doThin) {
+			//     Selectionner les slices correspondantes aux photos
+			System.out.println("RGB duplicate slices");
+			int[]modsToDo=new int[] {0,6,7,8};
+			for(int mod : modsToDo) {
+				System.out.print(" "+mod);
+				regsThin[mod].show();
+				int[]isSet=new int[Zthin];//set to 0
+				for(int z=0;z<Z;z++) {
+					System.out.print("Traitement z="+z+"/"+Z+" ");
+					regsThin[mod].setSlice(depthSlices[z]+1);
+					for(int zz=(Math.max(0,depthSlices[z]-(z%2==0 ? 0 : 2)));zz<(Math.min(Zthin,depthSlices[z]+(z%2==0 ? 3 : 1)) ) ;zz++) {
+						 System.out.print(" -> "+zz);
+						 slicesThin[mod][zz]=VitimageUtils.imageCopy(regsThin[mod].crop());
+						 isSet[zz]=1;
+					}
+					System.out.println();
+				}
+				for(int zz=0;zz<Zthin;zz++)if(isSet[zz]<1) {
+					System.out.println("slice vide ="+zz+" va etre remplacee par "+(zz-1));
+					slicesThin[mod][zz]=VitimageUtils.imageCopy(slicesThin[mod][zz-1]);
+				}
+				regsThin[mod]=Concatenator.run(slicesThin[mod]);
+				
+				VitimageUtils.adjustImageCalibration(regsThin[mod],voxsThin,"mm");
+
+				System.out.println("View regsThin "+mod);
+				regsThin[mod].show();
+
+			}
+			System.out.print("Save mods");
+			IJ.saveAsTiff(regsThin[0],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_0_THIN_low_photo_bnw.tif");
+			IJ.saveAsTiff(regsThin[1],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_1_THIN_low_rx.tif");
+			IJ.saveAsTiff(regsThin[2],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_2_THIN_low_mri_t1.tif");
+			IJ.saveAsTiff(regsThin[3],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_3_THIN_low_mri_t2.tif");
+			IJ.saveAsTiff(regsThin[4],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_4_THIN_low_mri_m0.tif");
+			IJ.saveAsTiff(regsThin[5],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_5_THIN_low_mri_diff.tif");
+			IJ.saveAsTiff(regsThin[6],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_6_THIN_low_photo_Red.tif");
+			IJ.saveAsTiff(regsThin[7],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_7_THIN_low_photo_Green.tif");
+			IJ.saveAsTiff(regsThin[8],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_8_THIN_low_photo_Blue.tif");
+			imgPhotoThin=VitimageUtils.compositeRGBByte(regsThin[6],regsThin[7],regsThin[8], 1, 1, 1);
+			IJ.saveAsTiff(imgPhotoThin,this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_9_THIN_low_photo_rgb.tif");
+			System.out.println("Here1");
+			regsThin[0]=VitimageUtils.writeTextOnImage(this.title+" PHOTO - Lum", regsThin[0],15,0);
+			regsThin[1]=VitimageUtils.writeTextOnImage(this.title+" RX", regsThin[1],15,0);
+			regsThin[2]=VitimageUtils.writeTextOnImage(this.title+" MRI-T1", regsThin[2],15,0);
+			regsThin[3]=VitimageUtils.writeTextOnImage(this.title+" MRI-T2", regsThin[3],15,0);
+			regsThin[4]=VitimageUtils.writeTextOnImage(this.title+" MRI-DP", regsThin[4],15,0);
+			regsThin[5]=VitimageUtils.writeTextOnImage(this.title+" MRI-DIFF", regsThin[5],15,0);
+			regsThin[6]=VitimageUtils.writeTextOnImage(this.title+" PHOTO - R", regsThin[6],15,0);
+			regsThin[7]=VitimageUtils.writeTextOnImage(this.title+" PHOTO - G", regsThin[7],15,0);
+			regsThin[8]=VitimageUtils.writeTextOnImage(this.title+" PHOTO - B", regsThin[8],15,0);
+			System.out.println("Here2");
+	
+			System.out.print("Build hyperimage");
+			ImagePlus hyperimage=Concatenator.run(regsThin);
+			System.out.println("Here3");
+			
+			IJ.run(hyperimage,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+Zthin+" frames=9 display=Grayscale");
+			IJ.saveAsTiff(hyperimage,this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"hyperimage_THIN.tif");
+			System.out.println("Here4");
+
+			
+			
+		
 		}
+		System.exit(0);
+	}
 
-		System.out.print("Save mods");
-		IJ.saveAsTiff(regs[0],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_0_low_photo_bnw.tif");
-		IJ.saveAsTiff(regs[1],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_1_low_rx.tif");
-		IJ.saveAsTiff(regs[2],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_2_low_mri_t1.tif");
-		IJ.saveAsTiff(regs[3],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_3_low_mri_t2.tif");
-		IJ.saveAsTiff(regs[4],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_4_low_mri_m0.tif");
-		IJ.saveAsTiff(regs[5],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_5_low_mri_diff.tif");
-		IJ.saveAsTiff(regs[6],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_6_low_photo_Red.tif");
-		IJ.saveAsTiff(regs[7],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_7_low_photo_Green.tif");
-		IJ.saveAsTiff(regs[8],this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_8_low_photo_Blue.tif");
-		IJ.saveAsTiff(imgPhotoThick,this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"Mod_6_low_photo_rgb.tif");
-
-		System.out.print("Build hyperimage");
-		ImagePlus hyperimage=Concatenator.run(regs);
-		
-		IJ.run(hyperimage,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+Z+" frames=9 display=Grayscale");
-		IJ.saveAsTiff(hyperimage,this.sourcePath+slash+"Computed_data"+slash+"3_Hyperimage"+slash+"hyperimage.tif");
-		
-		
+	/*----------------------- STEP 13 -----------------------------------------------*/
+	public void extendRegistrationToHigherResolutions() {
+		int []dims=VitimageUtils.getDimensions(sourceData[1]);int Z=dims[2];
 		//##########################################################################""
 		//B) Construire photo med res RGB
 		//##########################################################################""
 		System.out.println("PARTIE B : construction photo med res RGB");
 		ImagePlus []tabSlices=new ImagePlus[Z];
+		int iterRef=0;
 		for(int z=0;z<Z;z++) {
 			if(z%10==0)System.out.println("z="+z);
 			sourceData[0].setSlice(z+1);
@@ -1155,19 +1287,6 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 			VitimageUtils.waitFor(1000);
 		}
 */
-		
-	}
-
-	public void extendRegistrationToHigherResolutions() {
-		
-		
-		
-		
-		
-		
-		
-		
-		
 	}
 
 	
@@ -1176,263 +1295,6 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 	
 	
 	
-	
-	
-	
-	
-	/*
-	
-	public void firstRoughRegistration() {
-		int zFinal=this.dimZ();
-		System.out.println("Step 2 : first rough registration");
-		///Sur le masque fond, mesurer les hauteurs, les comparer à la hauteur attendue, ce qui donne le delta Y
-		//Integrer les eventuelles rotations en construisant une premiere transfo pour chaque slice
-		ImagePlus maskIn=IJ.openImage(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"maskOutFond.tif");
-		double[][]centers=VitimageUtils.getCentersOfSlicesFromMask(maskIn);
-		this.tabTransInit=new ItkTransform[zFinal];
-		this.currentGlobalTransform=new ItkTransform[zFinal];
-		ImagePlus[]tabSlices=new ImagePlus[this.dimZ()];
-		ImagePlus[]tabSlicesMask=new ImagePlus[this.dimZ()];
-		for(int i=0;i<zFinal;i++) {
-			System.out.println("Calcul transfo initiale slice "+i);
-			double[]tabTmp=new double[] {center[0],centers[i][1],centers[i][2]};//le centre de rotation ne doit pas dépendre du centre de la zone exploitable suivant X
-			tabTransInit[i].writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms"+slash+"trans_step_1_"+i+".txt");
-			this.currentGlobalTransform[i]=tabTransInit[i];
-			System.out.println("There");
-			this.sourceData[1].setSlice(i+1);
-			tabSlices[i]= this.sourceData[1].crop();
-			tabSlices[i]=tabTransInit[i].transformImage(tabSlices[i],tabSlices[i]);
-			this.maskForAutoRegistration.setSlice(i+1);
-			tabSlicesMask[i]= this.maskForAutoRegistration.crop();
-			tabSlicesMask[i]=tabTransInit[i].transformImage(tabSlicesMask[i],tabSlicesMask[i]);
-		}
-		ImagePlus imgRes=Concatenator.run(tabSlices);
-		ImagePlus imgResMask=Concatenator.run(tabSlicesMask);
-		VitimageUtils.adjustImageCalibration(imgRes, this.sourceData[1]);
-		IJ.saveAsTiff(imgRes, this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks"+slash+"Stack_low_after_step_1.tif");
-		VitimageUtils.adjustImageCalibration(imgResMask, this.sourceData[1]);
-		IJ.saveAsTiff(imgResMask, this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks"+slash+"Mask_low_after_step_1.tif");
-	}	
-
-	
-	public void secondFineIterativeRegistrationWithOneReference() {
-		int sliceRef=0;
-		System.out.println("Here we go !");
-		int nIterations=50;
-
-	
-		
-		
-		
-		
-		///INITIALISATION
-		int zFinal=this.dimZ();
-		ImagePlus[]tabSlices=new ImagePlus[zFinal];
-		ImagePlus[]tabSlicesMask=new ImagePlus[zFinal];
-		
-		ImagePlus[]tabSlicesRGB=new ImagePlus[zFinal];
-		ItkTransform[]tabTransInd=new ItkTransform[zFinal];
-		ItkTransform[]tabTransGlob=new ItkTransform[zFinal];
-		System.out.println("");
-		System.out.println("Lecture transfos");
-		for(int i=0;i<zFinal;i++) {
-			tabTransGlob[i]=this.currentGlobalTransform[i];
-		}
-
-		for(int i=0;i<100;i++)System.out.println("\n");
-		System.out.println("\n-------------------\n ITERATION one-pass\n-----------------\n\n");
-		//Application transformation calculée à l'étape precedente
-		for(int i=0;i<zFinal;i++) {
-			System.out.println("Lecture slices et prepa recalage "+i);
-			this.sourceData[1].setSlice(i+1);
-			tabSlicesRGB[i] = this.sourceData[1].crop();
-			System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(sourceData[1]),"vox init"));
-			System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(tabSlicesRGB[i]),"vox RGB slice"));
-			tabSlicesRGB[i]=tabTransGlob[i].transformImage(tabSlicesRGB[i],tabSlicesRGB[i]);
-			System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(tabSlicesRGB[i]),"vox RGB slice 2"));
-			tabSlices[i]=new Duplicator().run(tabSlicesRGB[i]);
-			System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(tabSlices[i]), "Vox i"));
-			VitimageUtils.adjustImageCalibration(this.sourceData[1], tabSlices[i]);
-			System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(this.sourceData[1]), "->ref i"));
-			this.sourceData[1].show();
-			System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(tabSlices[i]), "->Vox i"));
-			IJ.run(tabSlices[i],"8-bit","");
-		
-			this.maskForAutoRegistration.setSlice(i+1);
-			tabSlicesMask[i] = this.maskForAutoRegistration.crop();
-			tabSlicesMask[i]=VitimageUtils.thresholdByteImage(tabTransGlob[i].transformImage(tabSlicesMask[i],tabSlicesMask[i]),128,256);
-		}
-		ImagePlus imgRes=Concatenator.run(tabSlicesRGB);
-		VitimageUtils.adjustImageCalibration(imgRes, this.sourceData[1]);
-		IJ.saveAsTiff(imgRes, this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks"+slash+"Stack_low_before_step_2_iter_0.tif");
-			
-		
-			//Recalage des chaque image sur la sliceReference et amendement des transformation en fonction des nouveaux calculs
-		tabTransInd[0]=new ItkTransform();
-		ItkTransform trToTmpRef=new ItkTransform();
-		for(int i=0;i<zFinal;i++) {
-			int tmpRef=((i-1)/20)*20;
-			System.out.println("\nRecalage de "+i+" sur "+(tmpRef));
-			tabTransInd[i]=((ItkTransform)BlockMatchingRegistration.testSetupAndRunStandardBlockMatchingWithoutFineParameterizationPhoto2D(tabSlices[tmpRef],tabSlices[i],tabSlicesMask[tmpRef], null, true,true,"Pass=one-pass slice="+i+"->"+tmpRef)[0]).simplify();
-			tabTransInd[i].writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms"+slash+"trans_step_2_ind_iter_0_"+i+".txt");
-			//System.out.println("calcul de tabTransInd["+i+"]");
-			//System.out.println("tabGlob["+i+"].addTransform(trToTmpRef)");
-			//System.out.println("tabGlob["+i+"].addTransform(tabTransInd["+i+"])");
-			tabTransGlob[i].addTransform(trToTmpRef);
-			tabTransGlob[i].addTransform(tabTransInd[i]);
-			tabTransGlob[i]=tabTransGlob[i].simplify();
-			if(i%20==0) {
-				//System.out.println("trToTmpRef.addTransform(tabTransInd["+i+"])");
-				trToTmpRef.addTransform(tabTransInd[i]);
-			}
-		}
-		
-		
-		//Enregistrement des nouvelles transformations
-		for(int i=0;i<zFinal;i++) {
-			System.out.println("Saving registered slice"+i);
-			this.sourceData[1].setSlice(i+1);
-			tabSlicesRGB[i] = this.sourceData[1].crop();
-			tabSlicesRGB[i]=tabTransGlob[i].transformImage(tabSlicesRGB[i],tabSlicesRGB[i]);
-			tabTransGlob[i].writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms"+slash+"trans_step_2_iter_0_"+i+".txt");
-			tabTransGlob[i].writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms"+slash+"trans_step_2_"+i+".txt");
-		}
-
-			
-		
-		//Application finale transformation calculée à l'étape precedente
-		for(int i=0;i<zFinal;i++) {
-			System.out.println("Lecture slices et prepa recalage "+i);
-			this.sourceData[1].setSlice(i+1);
-			tabSlicesRGB[i] = this.sourceData[1].crop();
-			tabSlicesRGB[i]=tabTransGlob[i].transformImage(tabSlicesRGB[i],tabSlicesRGB[i]);
-		}
-		imgRes=Concatenator.run(tabSlicesRGB);
-		VitimageUtils.adjustImageCalibration(imgRes, this.sourceData[1]);
-		IJ.saveAsTiff(imgRes, this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks"+slash+"Stack_low_after_step_2.tif");
-	}
-
-	
-	
-	public void secondFineIterativeRegistration() {
-		System.out.println("Here we go !");
-		int nIterations=50;
-
-		///INITIALISATION
-
-		int zFinal=this.dimZ();
-		ImagePlus[]tabSlices=new ImagePlus[zFinal];
-		ImagePlus[]tabSlicesMask=new ImagePlus[zFinal];
-		
-		ImagePlus[]tabSlicesRGB=new ImagePlus[zFinal];
-		ItkTransform[]tabTransInd=new ItkTransform[zFinal];
-		ItkTransform[]tabTransGlob=new ItkTransform[zFinal];
-		System.out.println("");
-		System.out.println("Lecture transfos");
-		for(int i=0;i<zFinal;i++) {
-			tabTransGlob[i]=this.currentGlobalTransform[i];
-		}
-
-		for(int iter=0;iter<nIterations;iter++) {
-			for(int i=0;i<100;i++)System.out.println("\n");
-			System.out.println("\n-------------------\n ITERATION "+iter+"\n-----------------\n\n");
-			//Application transformation calculée à l'étape precedente
-			for(int i=0;i<zFinal;i++) {
-				System.out.println("Lecture slices et prepa recalage "+i);
-				this.sourceData[1].setSlice(i+1);
-				tabSlicesRGB[i] = this.sourceData[1].crop();
-				System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(sourceData[1]),"vox init"));
-				System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(tabSlicesRGB[i]),"vox RGB slice"));
-				tabSlicesRGB[i]=tabTransGlob[i].transformImage(tabSlicesRGB[i],tabSlicesRGB[i]);
-				System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(tabSlicesRGB[i]),"vox RGB slice 2"));
-				tabSlices[i]=new Duplicator().run(tabSlicesRGB[i]);
-				System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(tabSlices[i]), "Vox i"));
-				VitimageUtils.adjustImageCalibration(this.sourceData[1], tabSlices[i]);
-				System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(this.sourceData[1]), "->ref i"));
-				this.sourceData[1].show();
-				System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(tabSlices[i]), "->Vox i"));
-				IJ.run(tabSlices[i],"8-bit","");
-			
-				this.maskForAutoRegistration.setSlice(i+1);
-				tabSlicesMask[i] = this.maskForAutoRegistration.crop();
-				tabSlicesMask[i]=VitimageUtils.thresholdByteImage(tabTransGlob[i].transformImage(tabSlicesMask[i],tabSlicesMask[i]),128,256);
-			}
-			ImagePlus imgRes=Concatenator.run(tabSlicesRGB);
-			VitimageUtils.adjustImageCalibration(imgRes, this.sourceData[1]);
-			IJ.saveAsTiff(imgRes, this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks"+slash+"Stack_low_before_step_2_iter_"+iter+".tif");
-			
-		
-			//Recalage des images déja recalées, deux par deux, et amendement des transformation en fonction des nouveaux calculs
-			for(int i=1;i<zFinal;i++) {
-				System.out.println("Recalage de "+i+" sur "+(i-1));
-				tabTransInd[i]=((ItkTransform)BlockMatchingRegistration.testSetupAndRunStandardBlockMatchingWithoutFineParameterizationPhoto2D(tabSlices[i-1],tabSlices[i],tabSlicesMask[i-1], null, true,true,"Pass="+iter+" slice="+i)[0]).simplify();
-				tabSlicesMask[i-1].hide();
-				tabTransInd[i].writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms"+slash+"trans_step_2_ind_iter_"+iter+"_"+i+".txt");
-				for(int j=i;j<zFinal;j++)tabTransGlob[j].addTransform(tabTransInd[i]);
-				tabTransGlob[i]=tabTransGlob[i].simplify();
-			}
-			
-			//Enregistrement des nouvelles transformations
-			for(int i=0;i<zFinal;i++) {
-				System.out.println("Saving registered slice"+i);
-				this.sourceData[1].setSlice(i+1);
-				tabSlicesRGB[i] = this.sourceData[1].crop();
-				tabSlicesRGB[i]=tabTransGlob[i].transformImage(tabSlicesRGB[i],tabSlicesRGB[i]);
-				tabTransGlob[i].writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms"+slash+"trans_step_2_iter_"+iter+"_"+i+".txt");
-				tabTransGlob[i].writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Transforms"+slash+"trans_step_2_"+i+".txt");
-			}
-
-			
-		}
-		
-		//Application finale transformation calculée à l'étape precedente
-		for(int i=0;i<zFinal;i++) {
-			System.out.println("Lecture slices et prepa recalage "+i);
-			this.sourceData[1].setSlice(i+1);
-			tabSlicesRGB[i] = this.sourceData[1].crop();
-			tabSlicesRGB[i]=tabTransGlob[i].transformImage(tabSlicesRGB[i],tabSlicesRGB[i]);
-		}
-		ImagePlus imgRes=Concatenator.run(tabSlicesRGB);
-		VitimageUtils.adjustImageCalibration(imgRes, this.sourceData[1]);
-		IJ.saveAsTiff(imgRes, this.sourcePath+slash+"Computed_data"+slash+"1_Registration"+slash+"Stacks"+slash+"Stack_low_after_step_2.tif");
-	}
-
-
-	
-	
-	public void computePVCcenters() {
-		//Segmenter le PVC
-		ImagePlus imgPVC=VitimageUtils.makeWekaSegmentation(this.imageForRegistration,"/home/fernandr/Bureau/Test/TestPhotoStack/classifierPVC.model");
-		
-		//Dans chaque slice, detecter les trois barres, et leur centre. Estimer une premiere transformation rigide à partir de ça
-		Point3d[][]coordsTubes=new Point3d[imgPVC.getStackSize()][3];
-		ImagePlus imgPVCBin=VitimageUtils.thresholdFloatImage(imgPVC,0.5, 1);
-		ImagePlus[]imgTubes=new ImagePlus[3];
-		for(int tub=0;tub<3;tub++) {
-			imgTubes[tub]=VitimageUtils.connexe(imgPVCBin,0.5,1.001,threshLowPVC[tub+1]*VitimageUtils.getVoxelVolume(imgPVC), threshHighPVC[tub+1]*VitimageUtils.getVoxelVolume(imgPVC), 4, 1, true);
-			imgTubes[tub]=VitimageUtils.thresholdShortImage(imgTubes[tub], 1,10E10);
-		}
-		
-		for(int z=0;z<imgPVC.getStackSize();z++){
-			for(int tub=0;tub<3;tub++)coordsTubes[z][tub]=VitimageUtils.coordinatesOfObjectInSlice(imgTubes[tub],z,true);
-		}
-		
-	}
-		
-	public void computeFirstAlignement() {
-
-		
-		//ItkTransform []trs=new ItkTransform[imgPVC.getStackSize()];
-		///trs[0]=new ItkTransform();
-		
-	//	for(int z=1;z<imgPVC.getStackSize();z++){
-			///ItkTransform tr=ItkTransform.estimateBestRigid3D(coordsTubes[z-1], coordsTubes[z]);
-			
-		///}
-		
-	}
-	
-	*/
 	
 	
 
@@ -1496,6 +1358,35 @@ public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusIn
 		// TODO Auto-generated method stub
 		
 	}
+	
+	
+	
+	
+	public ItkTransform registerMRandRXFinal(ImagePlus imgRX,ImagePlus imgMRI,ItkTransform trInit) {
+		ImagePlus imgRef=VitimageUtils.Sub222(imgRX);
+		ImagePlus imgMov=VitimageUtils.Sub222(imgMRI);
 
+		double sigma=12;
+		int levelMax=1;
+		int levelMin=1;
+		imgRef.show();
+		int viewSlice=252;
+		int nbIterations=6;
+		int neighXY=1;	int neighZ=1;
+		int bSXY=6;		int bSZ=1;
+		int strideXY=2;		int strideZ=2;
+		ItkTransform transRet=null;
+		BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transformation3DType.DENSE,MetricType.SQUARED_CORRELATION,
+					0,sigma,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
+		bmRegistration.displayRegistration=true;
+		bmRegistration.displayR2=false;
+		bmRegistration.minBlockVariance=15;
+		bmRegistration.minBlockScore=0.15;
+		transRet=bmRegistration.runMultiThreaded(trInit);
+		bmRegistration.closeLastImages();
+		bmRegistration.freeMemory();
+		return transRet;
+	}
 
+		
 }

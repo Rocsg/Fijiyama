@@ -10,7 +10,7 @@ public class MostRepresentedFilter {
 	
 	public static void main (String[]args) {
 		ImageJ ij=new ImageJ();
-		System.out.println(mostRepresentedValue(
+		/*System.out.println(mostRepresentedValue(
 				new int[] {10,11,12,12,14,11,15,16,13,18,19},
 				new double[] {0,0,1,1,0,0,0,0,1,0,0}
 				));
@@ -39,6 +39,7 @@ public class MostRepresentedFilter {
 		imgIn.show();
 		imgOut.show();
 		imgOut.setTitle(imgIn.getTitle()+"_filtered");
+		*/
 	}
 
 
@@ -72,7 +73,7 @@ public class MostRepresentedFilter {
 							}
 						}
 					}
-					valsOut[dimX*(y)+(x)]=((byte)(mostRepresentedValue(vals, dist)  & 0xff));
+					valsOut[dimX*(y)+(x)]=((byte)(VitimageUtils.mostRepresentedValue(vals, dist,256)  & 0xff));
 				}			
 			}
 		}

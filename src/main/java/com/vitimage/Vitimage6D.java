@@ -30,7 +30,7 @@ public class Vitimage6D {
 
 			ImageJ imageJ=new ImageJ();
 			Vitimage5D viti = new Vitimage5D(VineType.CUTTING,vitiPath,vitiNames[i],computationType);
-			viti.start();
+			viti.start(2);
 			
 			//			viti.getNormalizedHyperImage().show();
 			VitimageUtils.waitFor(10000);

@@ -51,7 +51,7 @@ public class Vitimage4DGe3d  extends Vitimage4D implements VitiDialogs,Transform
 		String day="J0";
 		Vitimage4DGe3d viti = new Vitimage4DGe3d(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day,
 								subject+"_"+day,ComputingType.COMPUTE_ALL);			
-		viti.start();
+		viti.start(2);
 		viti.normalizedHyperImage.show();
 	}
 	

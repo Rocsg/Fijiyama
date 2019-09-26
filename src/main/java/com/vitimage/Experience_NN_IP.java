@@ -301,11 +301,11 @@ public class Experience_NN_IP {
 				img=IJ.openImage(sourceRep+spec+"_"+day+".tif");
 				img=identity.transformImage(imgRef, img);
 				if(res==0) {
-					img=VitimageUtils.cropImage(img,dimsEnd[0]/6,dimsEnd[1]/6,dimsEnd[2]/6,2*dimsEnd[0]/3,2*dimsEnd[1]/3,2*dimsEnd[2]/3);
+					img=VitimageUtils.cropImageShort(img,dimsEnd[0]/6,dimsEnd[1]/6,dimsEnd[2]/6,2*dimsEnd[0]/3,2*dimsEnd[1]/3,2*dimsEnd[2]/3);
 					IJ.saveAsTiff(img,outRep+spec+"_"+day+".tif");
 				}
 				else {
-					img=VitimageUtils.cropImage(img,dimsEnd[0]/4,dimsEnd[1]/4,dimsEnd[2]/4,2*dimsEnd[0]/4,2*dimsEnd[1]/4,2*dimsEnd[2]/4);
+					img=VitimageUtils.cropImageShort(img,dimsEnd[0]/4,dimsEnd[1]/4,dimsEnd[2]/4,2*dimsEnd[0]/4,2*dimsEnd[1]/4,2*dimsEnd[2]/4);
 					IJ.saveAsTiff(img,outRep+spec+"_"+day+"_res1.tif");
 				}
 			}

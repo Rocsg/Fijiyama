@@ -13,8 +13,8 @@ import java.nio.file.Paths;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import com.vitimage.Vitimage4D.VineType;
 
-import com.vitimage.Cep4D.VineType;
 import com.vitimage.ItkImagePlusInterface.MetricType;
 import com.vitimage.ItkImagePlusInterface.OptimizerType;
 import com.vitimage.ItkImagePlusInterface.Transformation3DType;
@@ -56,7 +56,8 @@ public class RX extends Acquisition{
 			File f=new File("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/RX/STEPS_DONE.tag");
 			//f.delete();
 			System.out.println("Test procedure start...");
-			RX rx=new RX("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/RX",Capillary.HAS_NO_CAPILLARY,SupervisionLevel.GET_INFORMED,spec,VineType.VINE);
+			RX rx=new RX("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/RX", Capillary.HAS_NO_CAPILLARY, SupervisionLevel.AUTONOMOUS, spec, null);
+			//,Capillary.HAS_NO_CAPILLARY,SupervisionLevel.GET_INFORMED,spec,VineType.VINE);
 			rx.start();//
 			rx.freeMemory();
 			rx=null;
@@ -69,7 +70,7 @@ public class RX extends Acquisition{
 	 * Constructors, factory and top level functions
 	 */
 
-	public RX(String sourcePath,Capillary cap,SupervisionLevel sup,String title,VineType vinetype) {
+	public RX(String sourcePath,Capillary cap,SupervisionLevel sup,String title,com.vitimage.Vitimage4D.VineType cutting) {
 		super(AcquisitionType.RX, sourcePath,cap,sup);
 		this.vineType=vineType;
 		this.title=title;

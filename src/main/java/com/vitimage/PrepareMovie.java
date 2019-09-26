@@ -14,7 +14,7 @@ import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 import org.itk.simple.DisplacementFieldTransform;
 import org.itk.simple.Transform;
-import org.python.core.packagecache.SysPackageManager;
+//import org.python.core.packagecache.SysPackageManager;
 
 import com.vitimage.ItkImagePlusInterface.MetricType;
 import com.vitimage.ItkImagePlusInterface.Transformation3DType;

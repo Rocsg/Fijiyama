@@ -330,7 +330,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		case MRI_DIFF_SEQ: VitiDialogs.notYet("FlipFlop");break;
 		case MRI_FLIPFLOP_SEQ: VitiDialogs.notYet("FlipFlop");break;
 		case MRI_SE_SEQ: VitiDialogs.notYet("FlipFlop");break;
-		case RX: this.acquisition.add(new RX(path,cap,this.title+"_RX",VineType.CUTTING));this.hyperSize+=1;break;
+		case RX: this.acquisition.add(new RX(path,cap,SupervisionLevel.AUTONOMOUS,this.title+"_RX",VineType.CUTTING));this.hyperSize+=1;break;
 		case HISTOLOGY: VitiDialogs.notYet("FlipFlop");break;
 		case PHOTOGRAPH: VitiDialogs.notYet("FlipFlop");break;
 		case TERAHERTZ: VitiDialogs.notYet("FlipFlop");break;

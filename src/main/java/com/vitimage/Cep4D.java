@@ -24,6 +24,7 @@ import com.vitimage.ItkImagePlusInterface.OptimizerType;
 import com.vitimage.ItkImagePlusInterface.Transformation3DType;
 import com.vitimage.TransformUtils.Geometry;
 import com.vitimage.TransformUtils.Misalignment;
+import com.vitimage.Vitimage4D.VineType;
 import com.vitimage.VitimageUtils.Capillary;
 import com.vitimage.VitimageUtils.ComputingType;
 import com.vitimage.VitimageUtils.SupervisionLevel;
@@ -37,11 +38,6 @@ import ij.plugin.ImageCalculator;
 import math3d.Point3d;
 
 public class Cep4D implements VitiDialogs,TransformUtils,VitimageUtils{
-	public enum VineType{
-		GRAFTED_VINE,
-		VINE,
-		CUTTING
-	}
 	public static final int UNTIL_END=1000;
 	public final static String slash=File.separator;
 	public ComputingType computingType;
@@ -269,7 +265,7 @@ public class Cep4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	public void addAcquisition(Acquisition.AcquisitionType acq, String path,Geometry geom,Misalignment mis,Capillary cap,SupervisionLevel sup){
 		switch(acq) {
 		case MRI_CLINICAL: this.acquisition.add(new MRI_Clinical(path,cap,sup,this.title+"_MRI",this.computingType));this.hyperSize+=4;break;
-		case RX: this.acquisition.add(new RX(path,cap,sup,this.title+"_RX",VineType.VINE));this.hyperSize+=1;break;
+		case RX: this.acquisition.add(new RX(path, cap, sup, this.title+"_RX", VineType.VINE));this.hyperSize+=1;break;
 		case PHOTOGRAPH: this.acquisition.add(new Photo_Slicing_Seq(path,cap,SupervisionLevel.AUTONOMOUS,this.title+"_RX", ComputingType.COMPUTE_ALL));this.hyperSize+=1;break;
 		}
 		this.geometry.add(geom);

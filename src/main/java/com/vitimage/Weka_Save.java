@@ -2,6 +2,7 @@ package com.vitimage;
 
 import fiji.util.gui.GenericDialogPlus;
 import fiji.util.gui.OverlayedImageCanvas;
+import hr.irb.fastRandomForest.FastRandomForest;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -86,6 +87,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Random;
 import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -102,6 +104,8 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 
+import org.bushe.swing.event.annotation.UseTheClassOfTheAnnotatedMethodsParameter;
+
 import com.vitimage.VitiDialogs;
 
 import weka.classifiers.AbstractClassifier;
@@ -109,6 +113,7 @@ import weka.classifiers.Classifier;
 import weka.classifiers.evaluation.EvaluationUtils;
 import weka.classifiers.evaluation.Prediction;
 import weka.classifiers.evaluation.ThresholdCurve;
+import weka.classifiers.trees.RandomForest;
 import weka.core.Instances;
 import weka.core.OptionHandler;
 import weka.core.SerializationHelper;
@@ -149,6 +154,7 @@ import weka.gui.visualize.ThresholdVisualizePanel;
  */
 public class Weka_Save implements PlugIn
 {
+	public boolean useM0Channel=true;
 	public double magnif=0;
 	public boolean isHyper=false;
 	public ImagePlus hyperImage=null;
@@ -158,11 +164,11 @@ public class Weka_Save implements PlugIn
 	public static final String PLUGIN_NAME = "Trainable Weka Segmentation";
 	/** plugin's current version */
 	public static final String PLUGIN_VERSION = "v" +
-		Weka_Save.class.getPackage().getImplementationVersion();
-	
+			Weka_Save.class.getPackage().getImplementationVersion();
+
 	/** reference to the segmentation backend */
 	private WekaSegmentation wekaSegmentation = null;
-	
+
 	/** image to display on the GUI */
 	private ImagePlus displayImage = null;
 	/** image to be used in the training */
@@ -190,6 +196,11 @@ public class Weka_Save implements PlugIn
 	private JButton saveClassSetupButton = null;
 	/** train classifier button */
 	private JButton toggleHyperButton = null;
+	private JButton toggleTrainingButton = null;
+	private JButton togglePhotoButton = null;
+	private JButton switchBlueCanalButton = null;
+
+	
 
 	private JButton loadExamplesButton = null;
 	/** train classifier button */
@@ -223,7 +234,7 @@ public class Weka_Save implements PlugIn
 
 	/** array of roi list overlays to paint the transparent rois of each class */
 	private RoiListOverlay [] roiOverlay = null;
-	
+
 	/** available colors for available classes */
 	private Color[] colors = new Color[]{Color.red, Color.green, Color.blue,
 			Color.cyan, Color.magenta};
@@ -235,7 +246,7 @@ public class Weka_Save implements PlugIn
 	private java.awt.List[] exampleList = null;
 	/** array of buttons for adding each trace class */
 	private JButton [] addExampleButton = null;
-	
+
 	// Macro recording constants (corresponding to  
 	// static method names to be called)
 	/** name of the macro method to add the current trace to a class */
@@ -304,7 +315,7 @@ public class Weka_Save implements PlugIn
 	 * Basic constructor for graphical user interface use
 	 */
 
-	
+
 
 	public static void main(String[]args) {
 		boolean testing=false;
@@ -318,11 +329,10 @@ public class Weka_Save implements PlugIn
 		ws.run("");//"3D"
 	}
 
-	
-	
-	
-	public Weka_Save()
-	{
+
+
+
+	public Weka_Save(){
 		// Create overlay LUT
 		final byte[] red = new byte[ 256 ];
 		final byte[] green = new byte[ 256 ];
@@ -344,9 +354,18 @@ public class Weka_Save implements PlugIn
 		addExampleButton = new JButton[WekaSegmentation.MAX_NUM_CLASSES];
 
 		roiOverlay = new RoiListOverlay[WekaSegmentation.MAX_NUM_CLASSES];
-		toggleHyperButton = new JButton("To RGB photo");
-		toggleHyperButton.setToolTipText("Switch between photographic view and hyperimage view");
-		toggleHyperButton.setEnabled(true);
+		switchBlueCanalButton = new JButton("Train on T1-T2-RX");
+		switchBlueCanalButton.setToolTipText("Switch training between T1-T2-RX and T1-T2-M0");
+		switchBlueCanalButton.setEnabled(true);
+		toggleHyperButton = new JButton("View hyperimage");
+		toggleHyperButton.setToolTipText("Switch between views");
+		toggleHyperButton.setEnabled(false);
+		toggleTrainingButton = new JButton("View training img");
+		toggleTrainingButton.setToolTipText("Switch between views");
+		toggleTrainingButton.setEnabled(true);
+		togglePhotoButton = new JButton("View photo");
+		togglePhotoButton.setToolTipText("Switch between views");
+		togglePhotoButton.setEnabled(true);
 		loadExamplesButton = new JButton("Load examples");
 		loadExamplesButton.setToolTipText("Load examples from a .MROI file");
 		saveExamplesButton = new JButton("Save examples");
@@ -360,7 +379,7 @@ public class Weka_Save implements PlugIn
 		loadClassSetupButton.setToolTipText("Load a setup of class with associated names and colours");
 		saveClassSetupButton = new JButton("Save setup");
 		saveClassSetupButton.setToolTipText("Save a setup of class with associated names and colours to a .MCLASS file");
-		
+
 		trainButton = new JButton("Train classifier");
 		trainButton.setToolTipText("Start training the classifier");
 
@@ -379,7 +398,7 @@ public class Weka_Save implements PlugIn
 		plotButton = new JButton("Plot result");
 		plotButton.setToolTipText("Plot result based on different metrics");
 		plotButton.setEnabled(false);
-		
+
 		applyButton = new JButton ("Apply classifier");
 		applyButton.setToolTipText("Apply current classifier to a single image or stack");
 		applyButton.setEnabled(false);
@@ -411,97 +430,50 @@ public class Weka_Save implements PlugIn
 
 		showColorOverlay = false;
 	}
-
+	
+	
 	/** Thread that runs the training. We store it to be able to
 	 * to interrupt it from the GUI */
 	private Thread trainingTask = null;
-		
+
 	/**
 	 * Button listener
 	 */
 	private ActionListener listener = new ActionListener() {
-		
 
 
-		
-	
+
+
+
 		public void actionPerformed(final ActionEvent e) {
 
 
 			final String command = e.getActionCommand();
-			
+
 			// listen to the buttons on separate threads not to block
 			// the event dispatch thread
 			exec.submit(new Runnable() {
 
-												
+
 				public void run()
 
 				{
-					if(e.getSource() == trainButton)
-					{
-						runStopTraining(command);						
-					}
-
-					if(e.getSource() == loadClassSetupButton)
-					{
-						loadClassSetup();					
-					}
-					
-					if(e.getSource() == manageColorsButton)
-					{
-						manageColors();					
-					}
-					if(e.getSource() == debugButton)
-					{
-						debugInfo();					
-					}
-					if(e.getSource() == saveClassSetupButton)
-					{
-						saveClassSetup();					
-					}
-					
-					else if(e.getSource() == loadExamplesButton)
-					{
-						loadExamples();						
-					}
-					else if(e.getSource() == toggleHyperButton)
-					{
-						toggleHyperView();						
-					}
-					else if(e.getSource() == saveExamplesButton)
-					{
-						saveExamples();						
-					}
-					
-
-					else if(e.getSource() == overlayButton){
-						// Macro recording
-						String[] arg = new String[] {};
-						record(TOGGLE_OVERLAY, arg);
-						win.toggleOverlay();
-					}
-					else if(e.getSource() == resultButton){
-						// Macro recording
-						String[] arg = new String[] {};
-						record(GET_RESULT, arg);
-						showClassificationImage();
-					}
-					else if(e.getSource() == probabilityButton){
-						// Macro recording
-						String[] arg = new String[] {};
-						record(GET_PROBABILITY, arg);
-						showProbabilityImage();
-					}
-					else if(e.getSource() == plotButton){
-						// Macro recording
-						String[] arg = new String[] {};
-						record(PLOT_RESULT, arg);
-						plotResult();
-					}
-					else if(e.getSource() == applyButton){
-						applyClassifierToTestData();
-					}
+					if(e.getSource() == trainButton)runStopTraining(command);	
+					else if(e.getSource() == loadClassSetupButton)loadClassSetup();			
+					else if(e.getSource() == manageColorsButton)manageColors();	
+					else if(e.getSource() == debugButton)debugInfo();	
+					else if(e.getSource() == saveClassSetupButton)saveClassSetup();	
+					else if(e.getSource() == loadExamplesButton) loadExamples();
+					else if(e.getSource() == toggleHyperButton)toggleHyperView(0);	
+					else if(e.getSource() == toggleTrainingButton)toggleHyperView(1);	
+					else if(e.getSource() == togglePhotoButton)toggleHyperView(2);	
+					else if(e.getSource() == switchBlueCanalButton)switchBlueCanal();			
+					else if(e.getSource() == saveExamplesButton)saveExamples();			
+					else if(e.getSource() == overlayButton)toggleOverlay();
+					else if(e.getSource() == resultButton)showClassificationImage();
+					else if(e.getSource() == probabilityButton)showProbabilityImage();
+					else if(e.getSource() == plotButton)plotResult();
+					else if(e.getSource() == applyButton)applyClassifierToTestData();
 					else if(e.getSource() == loadClassifierButton){
 						loadClassifier();
 						win.updateButtonsEnabling();
@@ -511,25 +483,14 @@ public class Weka_Save implements PlugIn
 						saveClassifier();
 						win.updateButtonsEnabling();
 					}
-					else if(e.getSource() == loadDataButton){
-						loadTrainingData();
-					}
-					else if(e.getSource() == saveDataButton){
-						saveTrainingData();
-					}
-					else if(e.getSource() == addClassButton){
-						addNewClass();
-					}
+					else if(e.getSource() == loadDataButton)loadTrainingData();
+					else if(e.getSource() == saveDataButton)saveTrainingData();
+					else if(e.getSource() == addClassButton)addNewClass();
 					else if(e.getSource() == settingsButton){
 						showSettingsDialog();
 						win.updateButtonsEnabling();
 					}
-					else if(e.getSource() == wekaButton){
-						// Macro recording
-						String[] arg = new String[] {};
-						record(LAUNCH_WEKA, arg);
-						launchWeka();
-					}
+					else if(e.getSource() == wekaButton)launchWeka();
 					else{
 						for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)
 						{
@@ -549,11 +510,12 @@ public class Weka_Save implements PlugIn
 
 				}
 
-				
+
+
 			});
 		}
 	};
-	
+
 	/**
 	 * Item listener for the trace lists
 	 */
@@ -578,6 +540,11 @@ public class Weka_Save implements PlugIn
 	private int lastCurrentFrame;
 	private boolean isRGB=false;
 	public ImagePlus rgbHyper;
+	public ImagePlus[] tabI;
+	public ImagePlus trainingHyper;
+	public int currentView=0;
+	public ImagePlus trainingImageRX;
+	public ImagePlus trainingImageM0;
 
 	/**
 	 * Custom canvas to deal with zooming an panning
@@ -656,10 +623,10 @@ public class Weka_Save implements PlugIn
 		private GridBagLayout boxAnnotation = new GridBagLayout();
 		/** constraints for annotation panel */
 		private GridBagConstraints annotationsConstraints = new GridBagConstraints();
-		
+
 		/** scroll panel for the label/annotation panel */
 		private JScrollPane scrollPanel = null;
-		
+
 		/** panel containing the annotations panel (right side of the GUI) */
 		private JPanel labelsJPanel = new JPanel();
 		/** Panel with class radio buttons and lists */
@@ -676,7 +643,7 @@ public class Weka_Save implements PlugIn
 		/** main GUI panel (containing the buttons panel on the left,
 		 *  the image in the center and the annotations panel on the right */
 		private Panel all = new Panel();
-		
+
 		/** 50% alpha composite */
 		private final Composite transparency050 = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.50f );
 		/** 25% alpha composite */
@@ -687,12 +654,13 @@ public class Weka_Save implements PlugIn
 		private Composite overlayAlpha = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, overlayOpacity / 100f);
 		/** current segmentation result overlay */
 		private ImageOverlay resultOverlay;
-		
+
 		/** boolean flag set to true when training is complete */
 		private boolean trainingComplete = false;
 		ScrollbarWithLabel ttSelector;
 		Scrollbar slicesliceSelector;
 		ScrollbarWithLabel ZZselector;
+		
 		/**
 		 * Construct the plugin window
 		 * 
@@ -714,31 +682,31 @@ public class Weka_Save implements PlugIn
 
 			// Zoom in if image is too small
 			while( ( ic.getWidth() < screenWidth/2 ||
-				ic.getHeight() < screenHeight/2 ) &&
-				ic.getMagnification() < 32.0 )
+					ic.getHeight() < screenHeight/2 ) &&
+					ic.getMagnification() < 32.0 )
 			{
-			    final int canvasWidth = ic.getWidth();
-			    ic.zoomIn( 0, 0 );
-			    // check if canvas size changed (otherwise stop zooming)
-			    if( canvasWidth == ic.getWidth() )
-			    {
-				ic.zoomOut(0, 0);
-				break;
-			    }
+				final int canvasWidth = ic.getWidth();
+				ic.zoomIn( 0, 0 );
+				// check if canvas size changed (otherwise stop zooming)
+				if( canvasWidth == ic.getWidth() )
+				{
+					ic.zoomOut(0, 0);
+					break;
+				}
 			}
 			// Zoom out if canvas is too large
 			while( ( ic.getWidth() > 0.75 * screenWidth ||
-				ic.getHeight() > 0.75 * screenHeight ) &&
-				ic.getMagnification() > 1/72.0 )
+					ic.getHeight() > 0.75 * screenHeight ) &&
+					ic.getMagnification() > 1/72.0 )
 			{
-			    final int canvasWidth = ic.getWidth();
-			    ic.zoomOut( 0, 0 );
-			    // check if canvas size changed (otherwise stop zooming)
-			    if( canvasWidth == ic.getWidth() )
-			    {
-				ic.zoomIn(0, 0);
-				break;
-			    }
+				final int canvasWidth = ic.getWidth();
+				ic.zoomOut( 0, 0 );
+				// check if canvas size changed (otherwise stop zooming)
+				if( canvasWidth == ic.getWidth() )
+				{
+					ic.zoomIn(0, 0);
+					break;
+				}
 			}
 			// add roi list overlays (one per class)
 			for(int i = 0; i < WekaSegmentation.MAX_NUM_CLASSES; i++)
@@ -775,7 +743,7 @@ public class Weka_Save implements PlugIn
 				exampleList[i].addItemListener(itemListener);
 				addExampleButton[i] = new JButton("Add to " + wekaSegmentation.getClassLabel(i));
 				addExampleButton[i].setToolTipText("Add markings of label '" + wekaSegmentation.getClassLabel(i) + "'");
-				
+
 				annotationsConstraints.insets = new Insets(5, 5, 6, 6);
 
 				annotationsPanel.add( addExampleButton[i], annotationsConstraints );
@@ -791,14 +759,17 @@ public class Weka_Save implements PlugIn
 			addExampleButton[0].setSelected(true);
 
 			// Add listeners
-			for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)
-				addExampleButton[i].addActionListener(listener);
+			for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)addExampleButton[i].addActionListener(listener);
 
+			
+			switchBlueCanalButton.addActionListener(listener);
 			toggleHyperButton.addActionListener(listener);
+			toggleTrainingButton.addActionListener(listener);
+			togglePhotoButton.addActionListener(listener);
 			loadExamplesButton.addActionListener(listener);
 			saveExamplesButton.addActionListener(listener);
 			debugButton.addActionListener(listener);
-			
+
 			manageColorsButton.addActionListener(listener);
 			loadClassSetupButton.addActionListener(listener);
 			saveClassSetupButton.addActionListener(listener);
@@ -815,7 +786,7 @@ public class Weka_Save implements PlugIn
 			addClassButton.addActionListener(listener);
 			settingsButton.addActionListener(listener);
 			wekaButton.addActionListener(listener);
-			
+
 			// add especial listener if the training image is a stack
 			if(null != sliceSelector)
 			{
@@ -845,22 +816,37 @@ public class Weka_Save implements PlugIn
 						});
 
 					}
-				});
+				} );
 
 				// add especial listener if the training image is a hyperimage
 				if(null != tSelector)
 				{
+					System.out.println("Running hyperimage extension...");
+					System.out.println("Parameters handling...");
 					isHyper=true;
+					tabI=new ImagePlus[9];
 					hyperImage=VitimageUtils.imageCopy(displayImage);
-					hyperTab=VitimageUtils.stacksFromHyperstack(hyperImage,9);
-					trainingImage=VitimageUtils.compositeRGBByte(hyperTab[2],hyperTab[3],hyperTab[4],1,1,1);
-					this.getWekaSegmentation().setTrainingImage(trainingImage);
+					hyperTab=VitimageUtils.stacksFromHyperstackFast(hyperImage,9);
+					System.out.println("Building training images...");
+					trainingImageRX=VitimageUtils.compositeRGBByte(hyperTab[2],hyperTab[3],hyperTab[1],1,1,1);
+					trainingImageM0=VitimageUtils.compositeRGBByte(hyperTab[2],hyperTab[3],hyperTab[4],1,1,1);
+					trainingImageRX=VitimageUtils.writeTextOnImage("                                                      Training image T1-T2-RX", trainingImageRX, 9, 0);
+					trainingImageM0=VitimageUtils.writeTextOnImage("                                                      Training image T1-T2-M0", trainingImageM0, 9, 0);
+					
+					System.out.println("Building display image 1...");
 					rgbImage=VitimageUtils.compositeRGBByte(hyperTab[6],hyperTab[7],hyperTab[8],1,1,1);
-					for(int i=0;i<9;i++)hyperTab[i]=VitimageUtils.imageCopy(rgbImage);
-					rgbHyper = Concatenator.run(hyperTab);
+					for(int i=0;i<9;i++)tabI[i]=VitimageUtils.imageCopy(rgbImage);
+					rgbHyper = Concatenator.run(tabI);
 					IJ.run(rgbHyper,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+(rgbImage.getStackSize())+" frames=9");
 
-							
+					System.out.println("Building display image 2...");
+					trainingImage=useM0Channel ? VitimageUtils.imageCopy(trainingImageM0) : VitimageUtils.imageCopy(trainingImageRX);
+					this.getWekaSegmentation().setTrainingImage(trainingImage);
+					for(int i=0;i<9;i++)tabI[i]=VitimageUtils.imageCopy(trainingImage);
+					trainingHyper = Concatenator.run(tabI);
+					IJ.run(trainingHyper,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+(rgbImage.getStackSize())+" frames=9");
+
+					System.out.println("Ok.");
 					// set slice selector to the correct number
 					tSelector.setValue( 1 );
 					// add adjustment listener to the scroll bar
@@ -872,8 +858,6 @@ public class Weka_Save implements PlugIn
 								public void run() {							
 									if(e.getSource() == tSelector)
 									{
-										System.out.println("Entering listner of tSelector");
-										System.out.println("Infos : Cursli="+displayImage.getCurrentSlice()+" , sli="+displayImage.getCurrentSlice()+" t="+displayImage.getFrame());
 										displayImage.setSlice((displayImage.getFrame()-1)*trainingImage.getStackSize()+sliceSelector.getValue());
 										displayImage.killRoi();
 										drawExamples();
@@ -883,8 +867,8 @@ public class Weka_Save implements PlugIn
 											updateResultOverlay();
 											displayImage.updateAndDraw();
 										}
-//										AdjustmentEvent ae=new AdjustmentEvent(sliceSelector, AdjustmentEvent.ADJUSTMENT_VALUE_CHANGED,AdjustmentEvent.UNIT_INCREMENT,sliceSelector.getValue()+1);
-	//									AdjustmentEvent ae2=new AdjustmentEvent(sliceSelector, AdjustmentEvent.ADJUSTMENT_VALUE_CHANGED,AdjustmentEvent.UNIT_DECREMENT,sliceSelector.getValue()-1);
+										//										AdjustmentEvent ae=new AdjustmentEvent(sliceSelector, AdjustmentEvent.ADJUSTMENT_VALUE_CHANGED,AdjustmentEvent.UNIT_INCREMENT,sliceSelector.getValue()+1);
+										//									AdjustmentEvent ae2=new AdjustmentEvent(sliceSelector, AdjustmentEvent.ADJUSTMENT_VALUE_CHANGED,AdjustmentEvent.UNIT_DECREMENT,sliceSelector.getValue()-1);
 									}
 
 								}
@@ -892,10 +876,10 @@ public class Weka_Save implements PlugIn
 
 						}
 					}
-					);
+							);
 				}
-				
-				
+
+
 				// mouse wheel listener to update the rois while scrolling
 				addMouseWheelListener(new MouseWheelListener() {
 
@@ -933,6 +917,10 @@ public class Weka_Save implements PlugIn
 						exec.submit(new Runnable() {
 							public void run() 
 							{
+								System.out.println("Evenement key released="+e.getKeyChar());
+								if(e.getKeyChar()=='2' && currentView!=2)toggleHyperView(2);
+								if(e.getKeyChar()=='1' && currentView!=1)toggleHyperView(1);
+								if(e.getKeyChar()=='0' && currentView!=0)toggleHyperView(0);
 								if(e.getKeyCode() == KeyEvent.VK_LEFT ||
 										e.getKeyCode() == KeyEvent.VK_RIGHT ||
 										e.getKeyCode() == KeyEvent.VK_LESS ||
@@ -961,9 +949,9 @@ public class Weka_Save implements PlugIn
 				// add key listener to the window and the canvas
 				addKeyListener(keyListener);
 				canvas.addKeyListener(keyListener);
-			
+
 			}
-			
+
 			// Labels panel (includes annotations panel)			
 			GridBagLayout labelsLayout = new GridBagLayout();
 			GridBagConstraints labelsConstraints = new GridBagConstraints();
@@ -975,13 +963,13 @@ public class Weka_Save implements PlugIn
 			labelsConstraints.gridx = 0;
 			labelsConstraints.gridy = 0;
 			labelsJPanel.add( annotationsPanel, labelsConstraints );
-			
+
 			// Scroll panel for the label panel
 			scrollPanel = new JScrollPane( labelsJPanel );
 			scrollPanel.setHorizontalScrollBarPolicy( JScrollPane.HORIZONTAL_SCROLLBAR_NEVER );
 			scrollPanel.setMinimumSize( labelsJPanel.getPreferredSize() );
-			
-			
+
+
 			// Training panel (left side of the GUI)
 			trainingJPanel.setBorder(BorderFactory.createTitledBorder("Training"));
 			GridBagLayout trainingLayout = new GridBagLayout();
@@ -1017,12 +1005,20 @@ public class Weka_Save implements PlugIn
 			viewConstraints.gridy = 0;
 			viewConstraints.insets = new Insets(5, 5, 6, 6);
 			viewJPanel.setLayout(viewLayout);
+			viewJPanel.add(switchBlueCanalButton, viewConstraints);
+			viewConstraints.gridy++;
 			viewJPanel.add(overlayButton, viewConstraints);
 			viewConstraints.gridy++;
-			viewJPanel.add(toggleHyperButton, trainingConstraints);
+			viewJPanel.add(toggleHyperButton, viewConstraints);
 			viewConstraints.gridy++;
+			viewJPanel.add(toggleTrainingButton, viewConstraints);
+			viewConstraints.gridy++;
+			viewJPanel.add(togglePhotoButton, viewConstraints);
+			viewConstraints.gridy++;
+
 			
-			
+
+
 			// Training panel (left side of the GUI)
 			manageJPanel.setBorder(BorderFactory.createTitledBorder("Manage setups"));
 			GridBagLayout manageLayout = new GridBagLayout();
@@ -1036,7 +1032,7 @@ public class Weka_Save implements PlugIn
 			manageConstraints.insets = new Insets(5, 5, 6, 6);
 			manageJPanel.setLayout(manageLayout);
 
-//			manageJPanel.add(debugButton, manageConstraints);
+			//			manageJPanel.add(debugButton, manageConstraints);
 			//			manageConstraints.gridy++;
 			manageJPanel.add(manageColorsButton, manageConstraints);
 			manageConstraints.gridy++;
@@ -1050,7 +1046,7 @@ public class Weka_Save implements PlugIn
 			manageConstraints.gridy++;
 
 
-			
+
 
 
 			// Options panel
@@ -1123,7 +1119,7 @@ public class Weka_Save implements PlugIn
 			allConstraints.weighty = 1;
 			allConstraints.gridheight = 1;
 			all.add(canvas, allConstraints);
-			
+
 			allConstraints.gridy++;
 			allConstraints.weightx = 0;
 			allConstraints.weighty = 0;
@@ -1151,77 +1147,17 @@ public class Weka_Save implements PlugIn
 			winc.weighty = 1;
 			setLayout(wingb);
 			add(all, winc);
+
+			
+			
+			
 			
 			// Fix minimum size to the preferred size at this point
 			pack();
 			setMinimumSize( getPreferredSize() );
 
-
-			// Propagate all listeners
-			for (Component p : new Component[]{all, buttonsPanel}) {
-				for (KeyListener kl : getKeyListeners()) {
-					p.addKeyListener(kl);
-				}
-			}
-
-			addWindowListener(new WindowAdapter() {
-				public void windowClosing(WindowEvent e) {
-				    	super.windowClosing( e );
-					// cleanup
-				    	if( null != trainingImage )
-				    	{
-				    	    // display training image
-				    	    if( null == trainingImage.getWindow() )
-				    		trainingImage.show();
-				    	    trainingImage.getWindow().setVisible( true );
-				    	}
-					// Stop any thread from the segmentator
-					if(null != trainingTask)
-						trainingTask.interrupt();
-					wekaSegmentation.shutDownNow();
-					exec.shutdownNow();	
-					
-					for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)
-						addExampleButton[i].removeActionListener(listener);
-
-
-					saveExamplesButton.removeActionListener(listener);
-					loadExamplesButton.removeActionListener(listener);
-					toggleHyperButton.removeActionListener(listener);
-					
-					
-					debugButton.removeActionListener(listener);
-					manageColorsButton.removeActionListener(listener);
-					loadClassSetupButton.removeActionListener(listener);
-					saveClassSetupButton.removeActionListener(listener);
-					trainButton.removeActionListener(listener);
-					overlayButton.removeActionListener(listener);
-					toggleHyperButton.removeActionListener(listener);
-					resultButton.removeActionListener(listener);
-					probabilityButton.removeActionListener(listener);
-					plotButton.removeActionListener(listener);
-					applyButton.removeActionListener(listener);
-					loadClassifierButton.removeActionListener(listener);
-					saveClassifierButton.removeActionListener(listener);
-					loadDataButton.removeActionListener(listener);
-					saveDataButton.removeActionListener(listener);
-					addClassButton.removeActionListener(listener);
-					settingsButton.removeActionListener(listener);
-					wekaButton.removeActionListener(listener);
-
-					// Set number of classes back to 2
-					wekaSegmentation.setNumOfClasses(2);					
-				}
-			});
-
-			canvas.addComponentListener(new ComponentAdapter() {
-				public void componentResized(ComponentEvent ce) {
-					Rectangle r = canvas.getBounds();
-					canvas.setDstDimensions(r.width, r.height);
-				}
-			});			
-			
 		}
+
 
 		/**
 		 * Get the Weka segmentation object. This tricks allows to 
@@ -1234,9 +1170,8 @@ public class Weka_Save implements PlugIn
 		{
 			return wekaSegmentation;
 		}
-		
-		
-		/*(isHyper ? && (displayImage.getFrame()!=1))*/
+
+
 		/**
 		 * Get current label lookup table (used to color the results)
 		 * @return current overlay LUT
@@ -1245,6 +1180,19 @@ public class Weka_Save implements PlugIn
 		{
 			return overlayLUT;
 		}
+
+		
+		/*
+		
+		Bugs :
+			Quand je bascule de T1T2RX à T1T2M0, tous les training examples s effacent
+			La touche 0 ne marche pas, ça ne fait rien
+			Quand je sauve les settings, ça ne sauve pas les filtres utilisés, pire, l'arbre s est retrouve avec des mauvais reglages.
+			*/
+		
+		
+		
+		
 		
 		/**
 		 * Draw the painted traces on the display image
@@ -1252,7 +1200,7 @@ public class Weka_Save implements PlugIn
 		protected void drawExamples()
 		{
 			int currentSlice = (isHyper) ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
-			System.out.println("Cursli="+currentSlice+" , sli="+displayImage.getCurrentSlice()+" t="+displayImage.getFrame());
+			//System.out.println("Cursli="+currentSlice+" , sli="+displayImage.getCurrentSlice()+" t="+displayImage.getFrame());
 			for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)
 			{
 				roiOverlay[i].setColor(colors[i]);
@@ -1264,10 +1212,10 @@ public class Weka_Save implements PlugIn
 				}
 				roiOverlay[i].setRoi(rois);
 			}
-			
+
 			displayImage.updateAndDraw();
 		}
-		
+
 		/**
 		 * Update the example lists in the GUI
 		 */
@@ -1281,14 +1229,14 @@ public class Weka_Save implements PlugIn
 				for(int j=0; j<wekaSegmentation.getExamples(i, currentSlice).size(); j++)
 					exampleList[i].add("trace " + j + " (Z=" + currentSlice+")");
 			}
-			
+
 		}
-		
+
 		protected boolean isToogleEnabled()
 		{
 			return showColorOverlay;
 		}
-		
+
 		/**
 		 * Get the displayed image. This method can be used to
 		 * extract the ROIs from the current image.
@@ -1299,7 +1247,7 @@ public class Weka_Save implements PlugIn
 		{
 			return this.getImagePlus();
 		}
-		
+
 		/**
 		 * Set the slice selector enable option
 		 * @param b true/false to enable/disable the slice selector
@@ -1354,7 +1302,7 @@ public class Weka_Save implements PlugIn
 			addExampleButton[classNum].addActionListener(listener);
 
 			numOfClasses++;
-			
+
 			// recalculate minimum size of scroll panel
 			scrollPanel.setMinimumSize( labelsJPanel.getPreferredSize() );
 
@@ -1374,7 +1322,7 @@ public class Weka_Save implements PlugIn
 			imp.setWindow(this);
 			repaint();
 		}
-		
+
 		/**
 		 * Enable / disable buttons
 		 * @param s enabling flag
@@ -1387,9 +1335,12 @@ public class Weka_Save implements PlugIn
 			saveExamplesButton.setEnabled(s);
 			loadExamplesButton.setEnabled(s);
 			toggleHyperButton.setEnabled(s);
+			toggleTrainingButton.setEnabled(s);
+			togglePhotoButton.setEnabled(s);			
+			switchBlueCanalButton.setEnabled(s);
 
-			
-			
+
+
 
 			debugButton.setEnabled(true);
 			manageColorsButton.setEnabled(s);
@@ -1397,7 +1348,6 @@ public class Weka_Save implements PlugIn
 			saveClassSetupButton.setEnabled(s);
 
 			trainButton.setEnabled(s);
-			toggleHyperButton.setEnabled(s);
 			overlayButton.setEnabled(s);
 			resultButton.setEnabled(s);
 			probabilityButton.setEnabled(s);
@@ -1417,7 +1367,7 @@ public class Weka_Save implements PlugIn
 			}
 			setSliceSelectorEnabled(s);
 		}
-		
+
 		/**
 		 * Update buttons enabling depending on the current status of the plugin
 		 */
@@ -1441,7 +1391,7 @@ public class Weka_Save implements PlugIn
 				applyButton.setEnabled( win.trainingComplete );
 
 				final boolean resultExists = null != classifiedImage &&
-											 null != classifiedImage.getProcessor();
+						null != classifiedImage.getProcessor();
 
 				saveClassifierButton.setEnabled( win.trainingComplete );
 				overlayButton.setEnabled(resultExists);
@@ -1468,7 +1418,10 @@ public class Weka_Save implements PlugIn
 				boolean loadedTrainingData = null != wekaSegmentation.getLoadedTrainingData();
 				saveExamplesButton.setEnabled(!examplesEmpty);
 				loadExamplesButton.setEnabled(true);
-				toggleHyperButton.setEnabled(isHyper);
+				toggleHyperButton.setEnabled(isHyper && currentView!= 0);
+				toggleTrainingButton.setEnabled(isHyper && currentView!=1);
+				togglePhotoButton.setEnabled(isHyper && currentView !=2);			
+				switchBlueCanalButton.setEnabled(isHyper);
 
 				saveDataButton.setEnabled(!examplesEmpty || loadedTrainingData);
 
@@ -1485,17 +1438,10 @@ public class Weka_Save implements PlugIn
 		/**
 		 * Toggle between overlay and original image with markings
 		 */
-		void toggleOverlay()
-		{
+		public void toggleOverlay()		{
 			showColorOverlay = !showColorOverlay;
-			//IJ.log("toggle overlay to: " + showColorOverlay);
-			if (showColorOverlay && null != classifiedImage)
-			{
-				updateResultOverlay();
-			}
-			else
-				resultOverlay.setImage(null);
-
+			if (showColorOverlay && null != classifiedImage)updateResultOverlay();
+			else resultOverlay.setImage(null);
 			displayImage.updateAndDraw();
 		}
 
@@ -1507,7 +1453,7 @@ public class Weka_Save implements PlugIn
 		{
 			updateClassifiedImage(classifiedImage);	
 		}
-		
+
 		/**
 		 * Update the buttons to add classes with current information
 		 */
@@ -1554,6 +1500,16 @@ public class Weka_Save implements PlugIn
 
 		// instantiate segmentation backend
 		wekaSegmentation = new WekaSegmentation( isProcessing3D );
+		FastRandomForest rf = new FastRandomForest();
+		rf.setNumTrees(600);
+		rf.setNumFeatures(6);
+		rf.setSeed( (new Random()).nextInt() );
+		rf.setNumThreads( Prefs.getThreads() );
+		wekaSegmentation.setClassifier(rf);
+		
+				
+				
+		
 		System.out.println("Starting weka. 3D mode="+isProcessing3D);
 		for(int i = 0; i < wekaSegmentation.getNumOfClasses() ; i++)
 		{
@@ -1581,9 +1537,9 @@ public class Weka_Save implements PlugIn
 					"is larger than 1024 pixels.\n" +
 					"Feature stack creation and classifier training " +
 					"might take some time depending on your computer.\n");
-		
+
 		wekaSegmentation.setTrainingImage(trainingImage);
-		
+
 		// The display image is a copy of the training image (single image or stack)
 		displayImage = trainingImage.duplicate();
 		displayImage.setSlice( trainingImage.getCurrentSlice() );
@@ -1597,8 +1553,25 @@ public class Weka_Save implements PlugIn
 					public void run() {
 						win = new CustomWindow(displayImage);
 						win.pack();
+						
 					}
 				});
+		if(false) {
+		wekaSegmentation.setEnabledFeatures(new boolean[]{
+		true, 	/* Gaussian_blur */
+		false, 	/* Hessian */
+		false, 	/* Derivatives */
+		false, 	/* Laplacian */
+		false,	/* Structure */
+		false,	/* Edges */
+		false,	/* Difference of Gaussian */
+		false,	/* Minimum */
+		false,	/* Maximum */
+		true,	/* Mean */
+		false,	/* Median */
+		true	/* Variance */
+});
+		}
 	}
 
 	/**
@@ -1615,7 +1588,7 @@ public class Weka_Save implements PlugIn
 			return;
 
 		// IJ.log("Adding trace to list " + i);
-		
+
 		final int n = (isHyper)  ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
 		displayImage.killRoi();
 		wekaSegmentation.addExample(i, r, n);
@@ -1624,8 +1597,8 @@ public class Weka_Save implements PlugIn
 		win.updateExampleLists();
 		// Record
 		String[] arg = new String[] {
-			Integer.toString(i), 
-			Integer.toString(n)	};
+				Integer.toString(i), 
+				Integer.toString(n)	};
 		record(ADD_TRACE, arg);
 	}
 
@@ -1639,7 +1612,7 @@ public class Weka_Save implements PlugIn
 	{
 		this.classifiedImage = classifiedImage;
 	}
-	
+
 	/**
 	 * Update the result image overlay with the corresponding slice
 	 */
@@ -1653,7 +1626,7 @@ public class Weka_Save implements PlugIn
 		overlay.setColorModel(overlayLUT);
 		win.resultOverlay.setImage(overlay);
 	}
-	
+
 	/**
 	 * Select a list and deselect the others
 	 * 
@@ -1663,7 +1636,7 @@ public class Weka_Save implements PlugIn
 	void listSelected(final ItemEvent e, final int i)
 	{
 		// find the right slice of the corresponding ROI
-		
+
 		win.drawExamples();
 		displayImage.setColor(Color.YELLOW);
 
@@ -1674,8 +1647,8 @@ public class Weka_Save implements PlugIn
 				int currentSlice = (isHyper)  ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
 
 				final Roi newRoi = 
-					wekaSegmentation.getExamples(i, currentSlice)
-							.get(exampleList[i].getSelectedIndex());
+						wekaSegmentation.getExamples(i, currentSlice)
+						.get(exampleList[i].getSelectedIndex());
 				// Set selected trace as current ROI
 				newRoi.setImage(displayImage);
 				displayImage.setRoi(newRoi);
@@ -1694,14 +1667,13 @@ public class Weka_Save implements PlugIn
 	 */
 	void deleteSelected(final ActionEvent e)
 	{
-
+		System.out.println("Entree dans delete selected");
 		for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)
 			if (e.getSource() == exampleList[i])
 			{
 				//delete item from ROI
 				int index = exampleList[i].getSelectedIndex();
 				int currentSlice = (isHyper)  ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
-
 				// kill Roi from displayed image
 				
 				if(displayImage.getRoi().equals( 
@@ -1709,16 +1681,9 @@ public class Weka_Save implements PlugIn
 					displayImage.killRoi();
 
 				// delete item from the list of ROIs of that class and slice
-				wekaSegmentation.deleteExample(i, displayImage.getCurrentSlice(), index);
+				wekaSegmentation.deleteExample(i, currentSlice, index);
 				//delete item from GUI list
 				exampleList[i].remove(index);
-				
-				// Record
-				String[] arg = new String[] {
-						Integer.toString(i),
-						Integer.toString( displayImage.getCurrentSlice() ),
-						Integer.toString(index)};
-				record(DELETE_TRACE, arg);
 			}
 
 		win.drawExamples();
@@ -1747,7 +1712,7 @@ public class Weka_Save implements PlugIn
 
 			// Thread to run the training
 			Thread newTask = new Thread() {								 
-				
+
 				public void run()
 				{
 					// Wait for the old task to finish
@@ -1759,7 +1724,7 @@ public class Weka_Save implements PlugIn
 						} 
 						catch (InterruptedException ie)	{ /*IJ.log("interrupted");*/ }
 					}
-				       
+
 					try{
 						// Macro recording
 						String[] arg = new String[] {};
@@ -1777,7 +1742,7 @@ public class Weka_Save implements PlugIn
 							wekaSegmentation.applyClassifier(false);
 							classifiedImage = wekaSegmentation.getClassifiedImage();
 							if(showColorOverlay)
-								win.toggleOverlay();
+							win.toggleOverlay();
 							win.toggleOverlay();
 							win.trainingComplete = true;
 						}
@@ -1786,7 +1751,7 @@ public class Weka_Save implements PlugIn
 							IJ.log("The traning did not finish.");
 							win.trainingComplete = false;
 						}
-						
+
 					}
 					catch(Exception e)
 					{
@@ -1806,9 +1771,9 @@ public class Weka_Save implements PlugIn
 						trainingTask = null;
 					}
 				}
-				
+
 			};
-			
+
 			//IJ.log("*** Set task to new TASK (" + newTask + ") ***");
 			trainingTask = newTask;
 			newTask.start();							
@@ -1821,7 +1786,7 @@ public class Weka_Save implements PlugIn
 				IJ.log("Training was stopped by the user!");
 				win.setButtonsEnabled( false );
 				trainButton.setText("Train classifier");
-				
+
 				if(null != trainingTask)
 				{
 					trainingTask.interrupt();
@@ -1832,7 +1797,7 @@ public class Weka_Save implements PlugIn
 				}
 				else
 					IJ.log("Error: interrupting training failed becaused the thread is null!");
-				
+
 				wekaSegmentation.shutDownNow();
 				win.updateButtonsEnabling();
 			}catch(Exception ex){
@@ -1840,7 +1805,7 @@ public class Weka_Save implements PlugIn
 			}
 		}
 	}
-	
+
 	/**
 	 * Display the whole image after classification
 	 */
@@ -1855,15 +1820,15 @@ public class Weka_Save implements PlugIn
 			win.updateButtonsEnabling();
 		}
 		final ImagePlus resultImage = classifiedImage.duplicate();
-		
+
 		resultImage.setTitle( "Classified image" );
-		
+
 		convertTo8bitNoScaling( resultImage );
-					
+
 		resultImage.getProcessor().setColorModel( overlayLUT );
 		resultImage.getImageStack().setColorModel( overlayLUT );
 		resultImage.updateAndDraw();
-		
+
 		resultImage.show();
 	}
 
@@ -1875,17 +1840,17 @@ public class Weka_Save implements PlugIn
 	static void convertTo8bitNoScaling( ImagePlus image )
 	{
 		boolean aux = ImageConverter.getDoScaling();
-		
+
 		ImageConverter.setDoScaling( false );
-		
+
 		if( image.getImageStackSize() > 1)			
 			(new StackConverter( image )).convertToGray8();
 		else
 			(new ImageConverter( image )).convertToGray8();
-		
+
 		ImageConverter.setDoScaling( aux );
 	}
-	
+
 	/**
 	 * Display the current probability maps
 	 */
@@ -1915,7 +1880,7 @@ public class Weka_Save implements PlugIn
 		IJ.showStatus("Done.");
 		IJ.log("Done");
 	}
-	
+
 	/**
 	 * Plot the current result
 	 */
@@ -1929,16 +1894,16 @@ public class Weka_Save implements PlugIn
 			data = wekaSegmentation.getTraceTrainingData();
 		else
 			data = wekaSegmentation.getLoadedTrainingData();
-		
+
 		if(null == data)
 		{
 			IJ.error( "Error in plot result", 
 					"No data available yet to plot results: you need to trace\n"
-					+ "some training samples or load data from file." );
+							+ "some training samples or load data from file." );
 			win.updateButtonsEnabling();
 			return;
 		}
-		
+
 		displayGraphs(data, wekaSegmentation.getClassifier());
 		win.updateButtonsEnabling();
 		IJ.showStatus("Done.");
@@ -1985,7 +1950,7 @@ public class Weka_Save implements PlugIn
 		jf.getContentPane().add(vmc, BorderLayout.CENTER);
 		jf.setVisible(true);
 	}
-	
+
 	/**
 	 * Apply classifier to test data. As it is implemented right now, 
 	 * it will use one thread per input image and slice. 
@@ -2093,9 +2058,9 @@ public class Weka_Save implements PlugIn
 			private final String  storeDir;
 
 			public ImageProcessingThread(int numThread, int numThreads,
-			                             File[] imageFiles,
-			                             boolean storeResults, boolean showResults,
-			                             String storeDir) {
+					File[] imageFiles,
+					boolean storeResults, boolean showResults,
+					String storeDir) {
 				this.numThread     = numThread;
 				this.numThreads    = numThreads;
 				this.imageFiles    = imageFiles;
@@ -2110,7 +2075,7 @@ public class Weka_Save implements PlugIn
 					File file = imageFiles[i];
 
 					ImagePlus testImage = IJ.openImage(file.getPath());
-					
+
 					if( null == testImage )
 					{
 						IJ.log( "Error: " + file.getPath() + " is not a valid image file.");
@@ -2172,12 +2137,12 @@ public class Weka_Save implements PlugIn
 			threads[i] = new ImageProcessingThread(i, numThreads, imageFiles, storeResults, showResults, storeDir);
 			// Record
 			String[] arg = new String[] {
-				imageFiles[i].getParent(),
-				imageFiles[i].getName(),
-				"showResults=" + showResults,
-				"storeResults=" + storeResults,
-				"probabilityMaps="+ probabilityMaps,
-				storeDir	};
+					imageFiles[i].getParent(),
+					imageFiles[i].getName(),
+					"showResults=" + showResults,
+					"storeResults=" + storeResults,
+					"probabilityMaps="+ probabilityMaps,
+					storeDir	};
 			record(APPLY_CLASSIFIER, arg);
 			threads[i].start();
 		}
@@ -2238,7 +2203,7 @@ public class Weka_Save implements PlugIn
 
 		// Set the flag of training complete to true
 		win.trainingComplete = true;
-		
+
 		// update GUI
 		win.updateAddClassButtons();
 
@@ -2275,7 +2240,7 @@ public class Weka_Save implements PlugIn
 		// Record
 		String[] arg = new String[] { sd.getDirectory() + sd.getFileName() };
 		record(SAVE_CLASSIFIER, arg);
-		
+
 		if( !wekaSegmentation.saveClassifier(sd.getDirectory() + sd.getFileName()) )
 		{
 			IJ.error("Error while writing classifier into a file");
@@ -2355,11 +2320,11 @@ public class Weka_Save implements PlugIn
 		OpenDialog od = new OpenDialog("Choose data file", OpenDialog.getLastDirectory(), "data.arff");
 		if (od.getFileName()==null)
 			return;
-		
+
 		// Macro recording
 		String[] arg = new String[] { od.getDirectory() + od.getFileName() };
 		record(LOAD_DATA, arg);
-		
+
 		win.setButtonsEnabled(false);
 		IJ.log("Loading data from " + od.getDirectory() + od.getFileName() + "...");
 		wekaSegmentation.loadTrainingData(od.getDirectory() + od.getFileName());
@@ -2378,12 +2343,12 @@ public class Weka_Save implements PlugIn
 		// Macro recording
 		String[] arg = new String[] { sd.getDirectory() + sd.getFileName() };
 		record(SAVE_DATA, arg);
-		
+
 		win.setButtonsEnabled(false);
-		
+
 		if( !wekaSegmentation.saveData(sd.getDirectory() + sd.getFileName()) )
 			IJ.showMessage("There is no data to save");
-		
+
 		win.updateButtonsEnabling();
 	}
 
@@ -2423,7 +2388,7 @@ public class Weka_Save implements PlugIn
 		win.addClass();
 
 		repaintWindow();
-		
+
 		// Macro recording
 		String[] arg = new String[] { inputName };
 		record(CREATE_CLASS, arg);
@@ -2464,7 +2429,7 @@ public class Weka_Save implements PlugIn
 		win.addClass();
 
 		repaintWindow();
-		
+
 		// Macro recording
 		String[] arg = new String[] { inputName };
 		record(CREATE_CLASS, arg);
@@ -2554,17 +2519,17 @@ public class Weka_Save implements PlugIn
 		PropertyPanel m_CEPanel = new PropertyPanel(m_ClassifierEditor);
 		m_ClassifierEditor.setClassType(Classifier.class);
 		m_ClassifierEditor.setValue(wekaSegmentation.getClassifier());
-					
+
 		// add classifier editor panel
 		gd.addComponent( m_CEPanel,  GridBagConstraints.HORIZONTAL , 1 );
-		
+
 		Object c = (Object)m_ClassifierEditor.getValue();
-	    String originalOptions = "";
-	    String originalClassifierName = c.getClass().getName();
-	    if (c instanceof OptionHandler) 
-	    {
-	    	originalOptions = Utils.joinOptions(((OptionHandler)c).getOptions());
-	    }		
+		String originalOptions = "";
+		String originalClassifierName = c.getClass().getName();
+		if (c instanceof OptionHandler) 
+		{
+			originalOptions = Utils.joinOptions(((OptionHandler)c).getOptions());
+		}		
 
 		gd.addMessage("Class names:");
 		for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)
@@ -2654,42 +2619,42 @@ public class Weka_Save implements PlugIn
 			wekaSegmentation.setMinimumSigma(0f);
 			wekaSegmentation.setMaximumSigma(16f);
 		}
-				
+
 		// Set classifier and options
 		c = (Object)m_ClassifierEditor.getValue();
-	    String options = "";
-	    final String[] optionsArray = ((OptionHandler)c).getOptions();
-	    if (c instanceof OptionHandler) 
-	    {
-	      options = Utils.joinOptions( optionsArray );
-	    }
-	    //System.out.println("Classifier after choosing: " + c.getClass().getName() + " " + options);
-	    if( !originalClassifierName.equals( c.getClass().getName() )
-	    		|| !originalOptions.equals( options ) )
-	    {
-	    	AbstractClassifier cls;
-	    	try{
-	    		cls = (AbstractClassifier) (c.getClass().newInstance());
-	    		cls.setOptions( optionsArray );
-	    	}
-	    	catch(Exception ex)
-	    	{
-	    		ex.printStackTrace();
-	    		return false;
-	    	}
-	    	
-	    	// Assign new classifier
-	    	wekaSegmentation.setClassifier( cls );
-	    	
-	    	// Set the training flag to false  
-	    	win.trainingComplete = false;
-	    	
-	    	// Macro recording
+		String options = "";
+		final String[] optionsArray = ((OptionHandler)c).getOptions();
+		if (c instanceof OptionHandler) 
+		{
+			options = Utils.joinOptions( optionsArray );
+		}
+		//System.out.println("Classifier after choosing: " + c.getClass().getName() + " " + options);
+		if( !originalClassifierName.equals( c.getClass().getName() )
+				|| !originalOptions.equals( options ) )
+		{
+			AbstractClassifier cls;
+			try{
+				cls = (AbstractClassifier) (c.getClass().newInstance());
+				cls.setOptions( optionsArray );
+			}
+			catch(Exception ex)
+			{
+				ex.printStackTrace();
+				return false;
+			}
+
+			// Assign new classifier
+			wekaSegmentation.setClassifier( cls );
+
+			// Set the training flag to false  
+			win.trainingComplete = false;
+
+			// Macro recording
 			record(SET_CLASSIFIER, new String[] { c.getClass().getName(), options} );
-	    		    	
-	    	IJ.log("Current classifier: " + c.getClass().getName() + " " + options);
-	    }
-				
+
+			IJ.log("Current classifier: " + c.getClass().getName() + " " + options);
+		}
+
 		boolean classNameChanged = false;
 		for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)
 		{
@@ -2720,7 +2685,7 @@ public class Weka_Save implements PlugIn
 			// Macro recording
 			record( SET_BALANCE, new String[] { Boolean.toString( balanceClasses )});
 		}
-		
+
 		// Update result overlay alpha
 		final int newOpacity = (int) gd.getNextNumber();
 		if( newOpacity != win.overlayOpacity )
@@ -2731,7 +2696,7 @@ public class Weka_Save implements PlugIn
 
 			// Macro recording
 			record(SET_OPACITY, new String[] { Integer.toString( win.overlayOpacity )});
-			
+
 			if( showColorOverlay )
 				displayImage.updateAndDraw();
 		}
@@ -2818,10 +2783,10 @@ public class Weka_Save implements PlugIn
 			if(null == dir || null == fileWithExt)
 				return;
 			final FeatureStackArray featureStackArray
-								= wekaSegmentation.getFeatureStackArray();
+			= wekaSegmentation.getFeatureStackArray();
 			for(int i=0; i<featureStackArray.getSize(); i++)
 				wekaSegmentation.saveFeatureStack( i+1, dir, fileWithExt );
-			
+
 			// macro recording
 			record( SAVE_FEATURE_STACK, new String[]{ dir, fileWithExt } );
 		}
@@ -2850,7 +2815,7 @@ public class Weka_Save implements PlugIn
 		if(Recorder.record)
 			Recorder.recordString(command);
 	}
-	
+
 	/**
 	 * Add the current ROI to a specific class and slice. 
 	 * 
@@ -2964,7 +2929,7 @@ public class Weka_Save implements PlugIn
 			resultImage.setTitle("Classified image");
 
 			convertTo8bitNoScaling( resultImage );
-			
+
 			resultImage.getProcessor().setColorModel( win.getOverlayLUT() );
 			resultImage.getImageStack().setColorModel( win.getOverlayLUT() );
 			resultImage.updateAndDraw();
@@ -3155,14 +3120,14 @@ public class Weka_Save implements PlugIn
 
 			// Set the flag of training complete to true
 			win.trainingComplete = true;
-			
+
 			// update GUI
 			win.updateAddClassButtons();
 
 			IJ.log("Loaded " + newClassifierPathName);
 		}
 	}
-	
+
 	/**
 	 * Save current classifier into a file
 	 * 
@@ -3202,7 +3167,7 @@ public class Weka_Save implements PlugIn
 			win.updateButtonsEnabling();
 		}
 	}
-	
+
 	/**
 	 * Save training data into an ARFF file
 	 * 
@@ -3275,7 +3240,7 @@ public class Weka_Save implements PlugIn
 			wekaSegmentation.setMembraneThickness(newThickness);
 		}
 	}
-	
+
 	/**
 	 * Set a new membrane patch size for current feature stack
 	 * 
@@ -3295,7 +3260,7 @@ public class Weka_Save implements PlugIn
 			wekaSegmentation.setMembranePatchSize( newPatchSize );
 		}
 	}
-	
+
 	/**
 	 * Set a new minimum radius for the feature filters
 	 * 
@@ -3323,7 +3288,7 @@ public class Weka_Save implements PlugIn
 			}
 		}
 	}
-	
+
 	/**
 	 * Set a new maximum radius for the feature filters
 	 * 
@@ -3377,7 +3342,7 @@ public class Weka_Save implements PlugIn
 			wekaSegmentation.setClassBalance( flag );
 		}
 	}
-	
+
 	/**
 	 * Set classifier for current segmentation
 	 * 
@@ -3438,7 +3403,7 @@ public class Weka_Save implements PlugIn
 			}
 		}
 	}
-	
+
 	/**
 	 * Change a class name
 	 * 
@@ -3459,7 +3424,7 @@ public class Weka_Save implements PlugIn
 			win.pack();
 		}
 	}
-	
+
 	/**
 	 * Enable/disable a single feature of the feature stack(s)
 	 * 
@@ -3485,12 +3450,12 @@ public class Weka_Save implements PlugIn
 				final String availableFeature = isProcessing3D ?
 						FeatureStack3D.availableFeatures[i] :
 							FeatureStack.availableFeatures[i];
-                if ( availableFeature.equals(featureName) && featureValue != enabledFeatures[i])
-                {
-                    enabledFeatures[i] = featureValue;
-                    forceUpdate = true;
-                }
-            }
+						if ( availableFeature.equals(featureName) && featureValue != enabledFeatures[i])
+						{
+							enabledFeatures[i] = featureValue;
+							forceUpdate = true;
+						}
+			}
 			wekaSegmentation.setEnabledFeatures(enabledFeatures);
 
 			if(forceUpdate)
@@ -3500,7 +3465,7 @@ public class Weka_Save implements PlugIn
 			}
 		}
 	}	
-	
+
 	/**
 	 * Set overlay opacity
 	 * @param newOpacity string containing the new opacity value (integer 0-100)
@@ -3516,7 +3481,7 @@ public class Weka_Save implements PlugIn
 			win.resultOverlay.setComposite(alpha);
 		}
 	}	
-	
+
 	/**
 	 * Disables features which rely on missing third party libraries.
 	 * @param gd settings dialog
@@ -3525,7 +3490,7 @@ public class Weka_Save implements PlugIn
 	{
 		if (!isImageScienceAvailable()) {
 			IJ.log("Warning: ImageScience library unavailable. " +
-				"Some training features will be disabled.");
+					"Some training features will be disabled.");
 			@SuppressWarnings("unchecked")
 			final Vector<Checkbox> v = gd.getCheckboxes();
 			for (int i = 0; i < v.size(); i++) {
@@ -3584,19 +3549,19 @@ public class Weka_Save implements PlugIn
 				labelImage.setSlice( i+1 );
 				for( int j=0; j<numClasses; j++ )
 				{
-					 List<Roi> rois = wekaSegmentation.getExamples( j, i+1 );
-					 for( final Roi r : rois )
-					 {
-						 final ImageProcessor ip = labelImage.getProcessor();
-						 ip.setValue( j+1 );
-						 if( r.isLine() )
-						 {
-							 ip.setLineWidth( Math.round( r.getStrokeWidth() ) );
-							 ip.draw( r );
-						 }
-						 else
-							 ip.fill( r );
-					 }
+					List<Roi> rois = wekaSegmentation.getExamples( j, i+1 );
+					for( final Roi r : rois )
+					{
+						final ImageProcessor ip = labelImage.getProcessor();
+						ip.setValue( j+1 );
+						if( r.isLine() )
+						{
+							ip.setLineWidth( Math.round( r.getStrokeWidth() ) );
+							ip.draw( r );
+						}
+						else
+							ip.fill( r );
+					}
 				}
 			}
 			labelImage.setSlice( 1 );
@@ -3605,39 +3570,55 @@ public class Weka_Save implements PlugIn
 		}
 		return null;
 	}
-	
-	
 
 
-
-	private void toggleHyperView() {
-		System.out.println("\n\nENTERING TOGGLE WITH "+(isRGB ? "RGB" : "HYPER"));
-		System.out.println("Save="+this.lastCurrentSlice+" ,"+this.lastCurrentFrame);
-		System.out.println("Here 11 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
-		System.out.println("At start, sli="+displayImage.getCurrentSlice()+" et frame="+displayImage.getFrame());
-		this.lastCurrentSlice = isHyper ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
-		this.lastCurrentFrame = isHyper ? displayImage.getFrame() : -1;
-		if (!isRGB) {
-			System.out.println("To RGB");
-			System.out.println("Save="+this.lastCurrentSlice+" ,"+this.lastCurrentFrame);
-			toggleHyperButton.setText("To hyperimage");
-			System.out.println("Here 21 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
-			switchViewToRGB();
-			displayImage.updateAndDraw();
-			this.isRGB=true;
-			System.out.println("Here 31 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
+	private void switchBlueCanal() {
+		useM0Channel=!useM0Channel;
+		if(useM0Channel) {
+			wekaSegmentation.setTrainingImage(VitimageUtils.imageCopy(trainingImageM0));
+			trainingImage=VitimageUtils.imageCopy(trainingImageM0);
 		}
 		else {
+			wekaSegmentation.setTrainingImage(VitimageUtils.imageCopy(trainingImageRX));
+			trainingImage=VitimageUtils.imageCopy(trainingImageRX);
+		}
+
+		for(int i=0;i<9;i++)tabI[i]=VitimageUtils.imageCopy(trainingImage);
+		trainingHyper = Concatenator.run(tabI);
+		IJ.run(trainingHyper,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+(rgbImage.getStackSize())+" frames=9");
+		switchBlueCanalButton.setText(useM0Channel ? "Train on T1-T2-RX" : "Train on T1-T2-M0");
+		toggleHyperView(1);
+	}
+
+
+
+	private void toggleHyperView(int newView) {
+		this.lastCurrentSlice = isHyper ? (displayImage.getCurrentSlice()- (displayImage.getFrame()-1)*trainingImage.getStackSize() ) : displayImage.getCurrentSlice();
+		this.lastCurrentFrame = isHyper ? displayImage.getFrame() : -1;
+		if (newView==2) {
+			System.out.println("To photo");
+			switchViewToPhoto();
+			displayImage.updateAndDraw();
+			toggleHyperButton.setEnabled(true);
+			togglePhotoButton.setEnabled(false);
+			toggleTrainingButton.setEnabled(true);
+		}
+		else if (newView==0) {
 			System.out.println("To Hyperimage");
-			System.out.println("Save="+this.lastCurrentSlice+" ,"+this.lastCurrentFrame);
-			toggleHyperButton.setText("To RGB photo");
-			System.out.println("Here 22 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
 			switchViewToHyperimage();
 			displayImage.updateAndDraw();
-			this.isRGB=false;
-			System.out.println("Here 32 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
+			toggleHyperButton.setEnabled(false);
+			togglePhotoButton.setEnabled(true);
+			toggleTrainingButton.setEnabled(true);
 		}
-		System.out.println("Save="+this.lastCurrentSlice+" ,"+this.lastCurrentFrame);
+		else if (newView==1) {
+			System.out.println("To Training");
+			switchViewToTraining();
+			displayImage.updateAndDraw();
+			toggleHyperButton.setEnabled(true);
+			togglePhotoButton.setEnabled(true);
+			toggleTrainingButton.setEnabled(false);
+		}
 		win.repaint();
 		IJ.run("Out [-]");
 		IJ.run("Out [-]");
@@ -3645,64 +3626,49 @@ public class Weka_Save implements PlugIn
 		IJ.run("In [+]");
 		IJ.run("In [+]");
 		IJ.run("In [+]");
-		System.out.println("Here 4 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
-		if(isHyper && !isRGB) {
-			System.out.println("Bascule vers hyp, go to "+(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize()));
-			displayImage.setT(this.lastCurrentFrame);
-			win.getDisplayImage().setSlice(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize());
-			displayImage.setSlice(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize());
-			//win.showSlice(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize());
-			win.ZZselector.setValue(this.lastCurrentSlice);
-		}
-		else{
-			System.out.println("Bascule vers rgb : go to "+this.lastCurrentSlice);
-			displayImage.setT(this.lastCurrentFrame);
-			win.getDisplayImage().setSlice(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize());
-			displayImage.setSlice(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize());
-			//win.showSlice(this.lastCurrentSlice);
-			win.ZZselector.setValue(this.lastCurrentSlice);
-		}
+		displayImage.setT(this.lastCurrentFrame);
+		win.getDisplayImage().setSlice(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize());
+		displayImage.setSlice(this.lastCurrentSlice+(this.lastCurrentFrame-1)*this.trainingImage.getStackSize());
+		win.ZZselector.setValue(this.lastCurrentSlice);
 		win.updateSliceSelector();
-		System.out.println("Here 5 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
-		System.out.println("Here 81 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
-		System.out.println("Here 82 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
-		System.out.println("Here 9 : "+displayImage.getCurrentSlice()+" , "+displayImage.getFrame());
 		displayImage.killRoi();
 		win.drawExamples();
 		win.updateExampleLists();
-		if(showColorOverlay)
-		{
+		if(showColorOverlay){
 			updateResultOverlay();
 			displayImage.updateAndDraw();
 		}
-		System.out.println("ENDING TOGGLE. Save="+this.lastCurrentSlice+" ,"+this.lastCurrentFrame);
 	}
-	
-	private void switchViewToRGB() {
+
+	private void switchViewToPhoto() {
 		displayImage=VitimageUtils.imageCopy(rgbHyper);
 		win.setImagePlus(displayImage);
 	}
-	
-	
+
+	private void switchViewToTraining() {
+		displayImage=VitimageUtils.imageCopy(trainingHyper);
+		win.setImagePlus(displayImage);
+	}
+
 	private void switchViewToHyperimage() {
 		displayImage=VitimageUtils.imageCopy(hyperImage);
 		win.setImagePlus(displayImage);
 	}
-	
+
 	private void saveExamples() {
 		saveExamplesInFile(convertExamplesToSlicePointRoi());
 		System.out.println("Examples saved.");
 	}
-	
+
 	private void loadExamples() {
 		loadExamplesFromFile();
 		System.out.println("Examples loaded.");
 	}
-	
-	
+
+
 	public void saveExamplesInFile(PointRoi[][]prTab) {		
 		VitiDialogs.getYesNoUI("Warning : this routine will build a lot of Roi files, on for each slice represented."+ 
-						"You should consider store them in a separate directory. Also, the 'no' and the 'cancel' answer are just here for the sake of politeness.");	
+				"You should consider store them in a separate directory. Also, the 'no' and the 'cancel' answer are just here for the sake of politeness.");	
 		SaveDialog sd = new SaveDialog("Choose save file", "examples",".MROI");
 		if (sd.getFileName()==null)
 			return;
@@ -3711,11 +3677,11 @@ public class Weka_Save implements PlugIn
 		String fullPath=new File(dirName,fullName).getAbsolutePath();
 		String fullPathNoExt=fullPath.substring(0, fullPath.lastIndexOf('.'));
 		System.out.println("Saving ROI collection in "+fullPath);
-		
-	
+
+
 		System.out.println(fullPathNoExt);
 		System.out.println("Nombre de classes annoncees : "+prTab.length);
-		
+
 		for(int cl=0;cl<prTab.length;cl++) {
 			System.out.println("Classe "+cl+" , nombre de z : "+prTab[cl].length);
 			for(int z=1;z<=prTab[cl].length;z++) {
@@ -3749,8 +3715,8 @@ public class Weka_Save implements PlugIn
 		writer.close();	
 		return;
 	}
-	
-	
+
+
 	public PointRoi convertRoiListToUniquePointRoi(List<Roi>list) {
 		PointRoi prOut=new PointRoi();
 		for(Roi r : list) {
@@ -3761,27 +3727,27 @@ public class Weka_Save implements PlugIn
 		}
 		return prOut;
 	}
-	
-	
+
+
 	public PointRoi [][] convertExamplesToSlicePointRoi() {
 		System.out.println("Conversion des examples");
 		int nClasses=this.numOfClasses;
 		PointRoi[][]tabRoi=new PointRoi[nClasses][this.trainingImage.getStackSize()];
-	
+
 		//Pour chaque classe
 		for(int cl=0;cl<nClasses;cl++) {
-	
+
 			//Pour chaque slice, récuperer la liste des roi, l'assembler en une seule pointroi
 			for(int sli=1;sli<=this.trainingImage.getStackSize();sli++) {
-System.out.println("Taille train="+this.trainingImage.getStackSize());
+				System.out.println("Taille train="+this.trainingImage.getStackSize());
 				List<Roi>list=this.wekaSegmentation.getExamples(cl, sli);
 				tabRoi[cl][sli-1]=this.convertRoiListToUniquePointRoi(list);
 			}
 		}
 		return tabRoi;
 	}
-	
-	
+
+
 	public void removeAllExamples() {
 		System.out.println("Taille2 train="+this.trainingImage.getStackSize());
 		for(int sl=1;sl<=this.trainingImage.getStackSize();sl++) {
@@ -3791,8 +3757,8 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 			}
 		}
 	}
-			
-	
+
+
 	public void loadExamplesFromFile(){
 		removeAllExamples();
 		System.out.println("Add examples from file : start");
@@ -3809,7 +3775,7 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 		if(!f.exists())return;
 		int nClasses=0;
 		int nSlices=0;
-		
+
 		try{
 			InputStream flux=new FileInputStream(mroiFile); 
 			InputStreamReader read=new InputStreamReader(flux);
@@ -3822,7 +3788,7 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 				buff.close();
 				return;
 			}
-			
+
 			for(int i=0;i<nClasses;i++) {
 				if(this.numOfClasses<i+1)this.addNewClass(buff.readLine());
 				else Weka_Save.changeClassName(""+i+"",buff.readLine() );
@@ -3855,17 +3821,17 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 					}
 					buff.close(); 
 					this.addExampleFromLoadedFile(cl,prTab[cl][z-1],z);
-		//			this.wekaSegmentation.addExample(cl, prTab[cl][z-1], z);
+					//			this.wekaSegmentation.addExample(cl, prTab[cl][z-1], z);
 				}		
 				catch (Exception e){}
 			}
 		}		
 		return;
 	}
-	
 
-	
-	
+
+
+
 	private void addExampleFromLoadedFile(int cl,PointRoi r,int slice){
 		displayImage.killRoi();
 		wekaSegmentation.addExample(cl, r, slice);
@@ -3873,8 +3839,8 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 		win.drawExamples();
 		win.updateExampleLists();
 	}
-		
-	
+
+
 	private void loadClassSetup() {
 		System.out.println("Action loadClassSetup");
 		OpenDialog od=new OpenDialog("Choose a setup file for your classes","","setup.MCLASS");
@@ -3889,6 +3855,9 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 			InputStream flux=new FileInputStream(new File(dirName,fullName)); 
 			InputStreamReader read=new InputStreamReader(flux);
 			BufferedReader buff=new BufferedReader(read);
+
+			//Lecture des classes et couleurs
+			buff.readLine();//"##### ################## CLASSES #############"
 			int nClas=Integer.parseInt(buff.readLine());
 			System.out.println("Nombre de classes lues="+nClas);
 			if(nClas<numOfClasses) {
@@ -3896,7 +3865,7 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 				buff.close();
 				return;
 			}
-			
+
 			for(int i=0;i<nClas;i++) {
 				if(this.numOfClasses<i+1)this.addNewClass(buff.readLine());
 				else Weka_Save.changeClassName(""+i+"",buff.readLine() );
@@ -3914,6 +3883,17 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 				}
 				exampleList[i].setForeground(colors[i]);
 			}
+			
+			//Lecture des settings
+			boolean[]tab=new boolean[12];
+			buff.readLine();//"################# SETTINGS #############");
+			for(int i=0;i<12;i++)tab[i]=(buff.readLine().split(" ")[1]).equals("true");
+			wekaSegmentation.setMinimumSigma((float)(Double.parseDouble( (buff.readLine().split(" ")[1]  )  )  ));
+			wekaSegmentation.setMaximumSigma((float)(Double.parseDouble( (buff.readLine().split(" ")[1]  )  )  ));
+			FastRandomForest rf=new FastRandomForest();
+			rf.setNumFeatures(Integer.parseInt( (buff.readLine().split(" ")[1] ) ) );
+			rf.setNumTrees(Integer.parseInt( (buff.readLine().split(" ")[1] ) ) );
+			wekaSegmentation.setClassifier(rf);
 			buff.close(); 
 		}		
 		catch (Exception e){e.printStackTrace();}
@@ -3921,15 +3901,15 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 		win.drawExamples();
 		win.updateExampleLists();
 		repaintWindow();
-	    existingUserColormap=true;
-	    Weka_Save.toggleOverlay();
-	    Weka_Save.toggleOverlay();
-	    System.out.println("Load setup : action finished");
+		existingUserColormap=true;
+		Weka_Save.toggleOverlay();
+		Weka_Save.toggleOverlay();
+		System.out.println("Load setup : action finished");
 		return;
 	}
-	
-	
-	
+
+
+
 	private void saveClassSetup() {
 		System.out.println("Action saveClassSetup");
 		SaveDialog sd = new SaveDialog("Choose a place to save the setup file", "setup",".MCLASS");
@@ -3941,6 +3921,9 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 		PrintWriter writer=null;
 		try {
 			writer = new PrintWriter(fullPath, "UTF-8");
+
+			//Ecriture des classes et de leurs couleurs respectives
+			writer.println("################## CLASSES #############");
 			writer.println(this.numOfClasses);
 			for(int cl=0;cl<this.numOfClasses;cl++) {
 				System.out.println("Ecriture de la classe"+cl);
@@ -3956,16 +3939,36 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 					writer.println(-1-this.colorChoices[cl]);
 				}
 			}
+			
+			//Ecriture des settings
+			writer.println("################# SETTINGS #############");
+			boolean[]tabFeat=wekaSegmentation.getEnabledFeatures();
+			writer.println("Gaussian_blur "+tabFeat[0]);
+			writer.println("Hessian "+tabFeat[1]);
+			writer.println("Derivatives "+tabFeat[2]);
+			writer.println("Laplacian "+tabFeat[3]);
+			writer.println("Structure "+tabFeat[4]);
+			writer.println("Edges "+tabFeat[5]);
+			writer.println("Difference_of_gaussians "+tabFeat[6]);
+			writer.println("Minimum "+tabFeat[7]);
+			writer.println("Maximum "+tabFeat[8]);
+			writer.println("Mean "+tabFeat[9]);
+			writer.println("Median "+tabFeat[10]);
+			writer.println("Variance "+tabFeat[11]);
+			writer.println("Min_sigma "+ wekaSegmentation.getMinimumSigma()  );
+			writer.println("Max_sigma "+ wekaSegmentation.getMaximumSigma()  );
+			writer.println("Num_features_tree "+ wekaSegmentation.getNumRandomFeatures()  );
+			writer.println("Num_trees "+  wekaSegmentation.getNumOfTrees() );			
 			writer.close();	
 		} catch (FileNotFoundException | UnsupportedEncodingException e) {e.printStackTrace();}
 	}
-	
-	
+
+
 	private void manageColors() {
 		System.out.println("Action manageColors, avec userColormap"+this.existingUserColormap);
 		GenericDialog gd= new GenericDialog("Select colors");
 		for(int i=0;i<this.numOfClasses;i++) {
-//			System.out.println("phase 1 : traitement classe num"+i+" et booleen="+this.isCustomColor[i]);
+			//			System.out.println("phase 1 : traitement classe num"+i+" et booleen="+this.isCustomColor[i]);
 			String[]choices=new String[colorsStr.length+(this.isCustomColor[i]?1:0)];
 			for(int j=0;j<colorsStr.length;j++) {choices[!this.isCustomColor[i] ? j : j+1]=colorsStr[j];}
 			if(this.isCustomColor[i]) choices[0]="custom("+this.colors[i].getRed()+" , "+this.colors[i].getGreen()+" , "+this.colors[i].getBlue()+")";
@@ -3982,7 +3985,7 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 			}
 		}
 		gd.showDialog();
-	    if (gd.wasCanceled()) return;	  
+		if (gd.wasCanceled()) return;	  
 
 		for(int i=0;i<this.numOfClasses;i++) {
 			this.colorChoices[i]=gd.getNextChoiceIndex();
@@ -4011,15 +4014,15 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 		win.drawExamples();
 		win.updateExampleLists();
 		repaintWindow();
-	    existingUserColormap=true;
-	    System.out.println("Colormap : action finished");
-	    Weka_Save.toggleOverlay();
-	    Weka_Save.toggleOverlay();
-	    return;
+		existingUserColormap=true;
+		System.out.println("Colormap : action finished");
+		Weka_Save.toggleOverlay();
+		Weka_Save.toggleOverlay();
+		return;
 	}
-	
 
-	
+
+
 	public byte[] getColorsChannelValue(int ch) {
 		if(ch<0 || ch>2)return null;
 		else {
@@ -4027,10 +4030,10 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 			for(int i=0;i<this.numOfClasses;i++) {
 				tab[i]= (byte) (  (   (ch==0)  ? this.colors[i].getRed() : (ch==1)  ? this.colors[i].getGreen() : this.colors[i].getBlue() ) & 0xff); 
 			}
-		return tab;
+			return tab;
 		}
 	}
-	
+
 	public String lutToString() {
 		String ret="";
 		byte[] vals=this.overlayLUT.getBytes();
@@ -4039,13 +4042,13 @@ System.out.println("Taille train="+this.trainingImage.getStackSize());
 		}	
 		return ret;
 	}
-	
-	
+
+
 	public void debugInfo() {
 		System.out.println("\nAffichage d'informations pour le debug");
 		System.out.println(lutToString());
 	}
 
-	
+
 }// end of Weka_Segmentation class
 

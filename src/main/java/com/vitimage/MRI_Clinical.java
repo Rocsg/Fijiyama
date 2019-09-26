@@ -21,6 +21,9 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import com.vitimage.ItkImagePlusInterface.MetricType;
+import com.vitimage.ItkImagePlusInterface.Transformation3DType;
+
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -65,7 +68,7 @@ public class MRI_Clinical extends Acquisition implements Fit,ItkImagePlusInterfa
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3" ,"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		String []specimen= {"CEP022_APO3","CEP011_AS1","CEP012_AS2","CEP013_AS3" ,"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2"};
 		for(String spec : specimen) {
 			File f=new File("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/MRI_CLINICAL/STEPS_DONE.tag");
 			//f.delete();
@@ -322,14 +325,26 @@ public class MRI_Clinical extends Acquisition implements Fit,ItkImagePlusInterfa
 		tabSeqReg[0]=VitimageUtils.writeTextOnImage(this.titles[0], tabSeqReg[0],15,0);
 		IJ.saveAsTiff(tabSeqReg[0],this.sourcePath+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_0.tif");
 
-		
+		ItkTransform trDeCote=null;
 		for(int i=1;i<N_DATA;i++) {
 			System.out.println("Recalage sequence "+i+" sur sequence 0");
 			/////////////CALCUL TRANSFORMATION COMPOSEE	
 			ItkTransform trTemp=new ItkTransform(this.transformations[i].getInverse());
 			trTemp.addTransform(this.transformations[0]);
-			//System.out.println(trTemp.drawableString());
-			
+			trTemp.writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Transformations"+slash+"trans_rig"+i+".txt");
+			if(i==1) {
+				trTemp=registerT1T2(this.sourceData[0],this.sourceData[i],trTemp,i);
+				trTemp=trTemp.flattenDenseField(VitimageUtils.Sub222(this.sourceData[0]));
+				trTemp.writeAsDenseField(this.sourcePath+slash+"Computed_data"+slash+"1_Transformations"+slash+"trans_dense"+i+".tif", VitimageUtils.Sub222(this.sourceData[0]));
+			}
+			if(i==2) {
+				ImagePlus temp=VitimageUtils.makeOperationBetweenTwoImages(tabSeqReg[1],sourceData[0],VitimageUtils.OP_MEAN, false);
+				temp.setDisplayRange(0,255);
+				IJ.run(temp,"8-bit","");
+				trTemp=registerT1T2(temp,this.sourceData[i],trTemp,i);
+				trTemp=trTemp.flattenDenseField(VitimageUtils.Sub222(this.sourceData[0]));
+				trTemp.writeAsDenseField(this.sourcePath+slash+"Computed_data"+slash+"1_Transformations"+slash+"trans_dense"+i+".tif", VitimageUtils.Sub222(this.sourceData[0]));
+			}
 			/////////////TRANSFORMATIONS
 			tabSeqReg[i]=trTemp.transformImage(this.sourceData[0],this.sourceData[i]);
 			tabSeqReg[i].setDisplayRange(0, this.normalizationValues[i]);
@@ -542,7 +557,33 @@ public class MRI_Clinical extends Acquisition implements Fit,ItkImagePlusInterfa
 	}
 
 
+	
+	
+	public static ItkTransform registerT1T2(ImagePlus imgT1,ImagePlus imgT2,ItkTransform trInit,int mod) {
+		ImagePlus imgRef=VitimageUtils.Sub222(imgT1);
+		ImagePlus imgMov=VitimageUtils.Sub222(imgT2);
+		double sigma=12;
+		int levelMax=2;
+		int levelMin=2;
+		int viewSlice=78;
+		int nbIterations=mod==1 ? 5 : 3 ;
+		int neighXY=2;	int neighZ=2;
+		int bSXY=6;		int bSZ=6;
+		int strideXY=2;		int strideZ=2;
+		ItkTransform transRet=null;
+		BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transformation3DType.DENSE,MetricType.SQUARED_CORRELATION,
+					0,sigma,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
+		bmRegistration.displayRegistration=false;
+		bmRegistration.displayR2=false;
+		bmRegistration.minBlockVariance=20;
+		bmRegistration.minBlockScore=0.20;
+		transRet=bmRegistration.runMultiThreaded(trInit);
+//		bmRegistration.closeLastImages();
+		bmRegistration.freeMemory();
+		return transRet;
+	}
 
+		
 
 
 

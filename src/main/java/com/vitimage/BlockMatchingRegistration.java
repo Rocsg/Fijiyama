@@ -29,6 +29,7 @@ import math3d.Point3d;
 
 public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	boolean debug=false;
+	public boolean computeSummary=false;
 	int maxIter=1000;
 	public Point3d[][] correspondanceProvidedAtStart;
 	public double[]globalR2Values=new double[maxIter];
@@ -400,14 +401,16 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 	public void closeLastImages() {
 		if(this.displayRegistration) {
-			this.summary.close();
+			if(this.computeSummary) {
+				this.gridSummary.close();
+				this.correspondancesSummary.close();
+				this.summary.close();
+			}
 			this.sliceFuse.changes=false;
 			this.sliceFuse.close();
-			this.gridSummary.close();
-			this.correspondancesSummary.close();
 			this.sliceGrid.changes=false;
-			this.sliceCorr.changes=false;
 			this.sliceGrid.close();
+			this.sliceCorr.changes=false;
 			this.sliceCorr.close();
 		}
 	}
@@ -631,8 +634,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			int neighbourXY,int neighbourZ,int blockHalfSizeXY,int blockHalfSizeZ,int strideXY,int strideZ) {
 		if(imgRef.getWidth()<imgRef.getStackSize()*4)noSubScaleZ=false;
 		this.resampler=new ResampleImageFilter();
-		this.imgRef=new Duplicator().run(imgRef);
-		this.imgMov=new Duplicator().run(imgMov);
+		this.imgRef=VitimageUtils.imageCopy(imgRef);
+		this.imgMov=VitimageUtils.imageCopy(imgMov);
 		if(this.imgRef.getType() != 32)IJ.run(imgRef,"32-bit","");
 		if(this.imgMov.getType() != 32)IJ.run(imgMov,"32-bit","");
 		this.metricType=metricType;
@@ -675,6 +678,9 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		if(dims[0]<512)this.zoomFactor=(int)Math.round(800/dims[0]);
 		this.viewHeight=(int)(this.imgRef.getHeight()*zoomFactor);
 		this.viewWidth=(int)(this.imgRef.getWidth()*zoomFactor);
+		System.out.println("Min block variance="+this.minBlockVariance);
+		System.out.println("Min block score="+this.minBlockScore);
+
 	}
 
 	public void handleOutput(String s) {
@@ -1039,7 +1045,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				Object[]ret=getCorrespondanceListAsTrimmedPointArray(listCorrespondances,this.successiveVoxSizes[lev],this.percentageBlocksSelectedByScore);///////CHANGER ICI UN JOUR SIGMA
 				Point3d[][]correspondancePoints=(Point3d[][])ret[0];
 				this.lastValueBlocksCorr=(Double)ret[1];
-				Object [] obj=getCorrespondanceListAsImagePlus(imgRef,listCorrespondances,curVoxSizes);
+				Object [] obj=VitimageUtils.getCorrespondanceListAsImagePlus(imgRef,listCorrespondances,curVoxSizes,this.sliceInt);
 				this.correspondancesSummary=(ImagePlus) obj[0];
 				this.sliceIntCorr=1+(int) obj[1];
 				//if affine
@@ -1095,36 +1101,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 				
 	
-	
-	public Object[] getCorrespondanceListAsImagePlus(ImagePlus imgRef,ArrayList<double[][]>tabCorr,double[]curVoxSize) {
-		int [] dims=VitimageUtils.getDimensions(imgRef);		
-		int sliceIntCorr=0;
-		int distMin=1000000;
-		int zMoy=dims[2]/2;
-		ImagePlus ret=IJ.createImage("corr", dims[0], dims[1], dims[2], 32);
-		VitimageUtils.adjustImageCalibration(ret, imgRef);
-		double [] voxS=VitimageUtils.getVoxelSizes(imgRef);
-		float[][]dataRet=new float[dims[2]][];
-		for(int z=0;z<dims[2];z++) {
-			dataRet[z]=(float[])ret.getStack().getProcessor(z+1).getPixels();
-		}
 
-		for(int cor=0;cor<tabCorr.size();cor++) {
-			int x=(int)Math.round(tabCorr.get(cor)[0][0]/voxS[0]*curVoxSize[0]  );
-			int y=(int)Math.round(tabCorr.get(cor)[0][1]/voxS[1]*curVoxSize[1]  );
-			int z=(int)Math.round(tabCorr.get(cor)[0][2]/voxS[2]*curVoxSize[2]  );
-			if(Math.abs(zMoy-z) < distMin) {
-				distMin=Math.abs(zMoy-z);
-				sliceIntCorr=z;
-			}
-			int index=dims[0]*y+x;
-			float score=(float)tabCorr.get(cor)[2][0];
-			dataRet[z][index]=score;
-		}
-		return new Object[] {ret,sliceIntCorr};		
-	}
-	
-	
 	
 	
 				
@@ -1183,14 +1160,14 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 	
 	public void updateViewsSingle() {
-		this.sliceMov=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(this.imgRef,this.imgMov)),this.sliceInt);
+		this.sliceMov=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(this.imgRef,this.imgMov)),this.sliceInt);
 		if(sliceRef==null) {
 			System.out.print("Starting graphical following tool...");
-			this.sliceRef=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(this.imgRef),this.sliceInt);
+			this.sliceRef=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.imgRef),this.sliceInt);
 			ImagePlus tempImg=new Duplicator().run(imgRef);
 			IJ.run(tempImg,"32-bit","");
 			tempImg.getProcessor().set(0);
-			this.sliceCorr=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(tempImg),this.sliceIntCorr);
+			this.sliceCorr=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(tempImg),this.sliceIntCorr);
 			this.sliceFuse=VitimageUtils.compositeRGBDouble(this.sliceRef,this.sliceMov,this.sliceCorr,1,1,1,"Registration is running. Red=Reference, Green=moving, Gray=score");
 			this.sliceFuse.show();
 			this.sliceFuse.getWindow().setSize(this.viewWidth,this.viewHeight);
@@ -1199,7 +1176,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 		}
 		else {
-			sliceCorr=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(this.correspondancesSummary),this.sliceIntCorr);
+			sliceCorr=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.correspondancesSummary),this.sliceIntCorr);
 			this.sliceRef.show();
 			this.sliceMov.show();
 			this.sliceCorr.show();
@@ -1237,10 +1214,10 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		//if(this.flagSingleView) {
 		//	updateViewsSingle();return;
 		//}
-		this.sliceMov=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(this.imgRef,this.imgMov)),this.sliceInt);
+		this.sliceMov=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(this.imgRef,this.imgMov)),this.sliceInt);
 		if(sliceRef==null) {
 			System.out.print("Starting graphical following tool...");
-			this.sliceRef=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(this.imgRef),this.sliceInt);
+			this.sliceRef=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.imgRef),this.sliceInt);
 			if(flagSingleView)this.sliceFuse=VitimageUtils.compositeOf(this.sliceRef,this.sliceMov,"Registration is running. Red=Reference, Green=moving, Gray=score. Level=0 Iter=0 "+this.info);
 			else this.sliceFuse=VitimageUtils.compositeOf(this.sliceRef,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info);
 			this.sliceFuse.show();
@@ -1248,7 +1225,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			this.sliceFuse.getCanvas().fitToWindow();
 			
 			ImagePlus tempImg=VitimageUtils.getBinaryGrid(this.imgRef, 10);
-			this.sliceGrid=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(tempImg,tempImg)),this.sliceInt);
+			this.sliceGrid=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(tempImg,tempImg)),this.sliceInt);
 			this.sliceGrid.show();
 			this.sliceGrid.setTitle("Field visualization on a uniform 3D grid");
 			this.sliceGrid.getWindow().setSize(this.viewWidth,this.viewHeight);
@@ -1257,7 +1234,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			tempImg=new Duplicator().run(imgRef);
 			IJ.run(tempImg,"32-bit","");
 			tempImg.getProcessor().set(0);
-			this.sliceCorr=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(tempImg),this.sliceIntCorr);
+			this.sliceCorr=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(tempImg),this.sliceIntCorr);
 			this.sliceCorr.show();
 			this.sliceCorr.setTitle("Correspondances points");
 			this.sliceCorr.getWindow().setSize(this.viewWidth,this.viewHeight);
@@ -1286,24 +1263,32 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			if(this.flagSingleView)tempImg=VitimageUtils.compositeRGBDoubleJet(this.sliceRef,this.sliceMov,this.sliceCorr,"Registration is running. Red=Reference, Green=moving, Gray=score. Level="+level+" Iter="+iteration+" "+this.info,true,1);
 			else tempImg=VitimageUtils.compositeOf(this.sliceRef,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info);
 			IJ.run(tempImg, "Select All", "");
-			tempImg.copy();
-			this.sliceFuse.paste();
+			if(false) {
+				tempImg.copy();
+				this.sliceFuse.paste();
+			}
+			else VitimageUtils.actualizeData(tempImg,this.sliceFuse);
 			if(this.flagSingleView)this.sliceFuse.setTitle("Registration is running. Red=Reference, Green=moving, Gray=score. Level="+level+" Iter="+iteration+" "+this.info);
 			else this.sliceFuse.setTitle("Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info);
 			tempImg=VitimageUtils.getBinaryGrid(this.imgRef, 10);
-			tempImg=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(tempImg,tempImg)),this.sliceInt);
+			tempImg=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(tempImg,tempImg)),this.sliceInt);
 			IJ.run(tempImg, "Select All", "");
-			tempImg.copy();
-			this.sliceGrid.paste();
-
-			tempImg=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(this.correspondancesSummary),this.sliceIntCorr);
+			if(false) {
+				tempImg.copy();
+				this.sliceGrid.paste();
+			}
+			else VitimageUtils.actualizeData(tempImg,this.sliceGrid);
+			tempImg=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.correspondancesSummary),this.sliceIntCorr);
 			IJ.run(tempImg, "Select All", "");
-			tempImg.copy();
-			this.sliceCorr.paste();
+			if(false) {
+				tempImg.copy();
+				this.sliceCorr.paste();
+			}
+			else VitimageUtils.actualizeData(tempImg,this.sliceCorr);
 
 			if(false && this.transformationType==Transformation3DType.DENSE) {
 				tempImg=ItkTransform.getJacobian(this.currentTransform,this.imgRef);
-				tempImg=ItkImagePlusInterface.itkImageToImagePlusSlice(ItkImagePlusInterface.imagePlusToItkImage(tempImg),this.sliceInt);
+				tempImg=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(tempImg),this.sliceInt);
 				
 
 				IJ.run(tempImg, "Select All", "");
@@ -1315,11 +1300,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		}
 		
 		
-		this.summaryArray.add(this.sliceFuse.duplicate());
-		this.gridSummaryArray.add(this.sliceGrid.duplicate());
-		this.correspondancesSummaryArray.add(this.sliceCorr.duplicate());
-		if(false)this.jacobianSummaryArray.add(this.sliceJacobian.duplicate());
-		handleOutput("Added the slice number "+this.summaryArray.size());
+		if(this.computeSummary) {
+			this.summaryArray.add(this.sliceFuse.duplicate());
+			this.gridSummaryArray.add(this.sliceGrid.duplicate());
+			this.correspondancesSummaryArray.add(this.sliceCorr.duplicate());
+			if(false)this.jacobianSummaryArray.add(this.sliceJacobian.duplicate());
+			handleOutput("Added the slice number "+this.summaryArray.size());
+		}
 	}
 	
 	public double getGlobalRsquareWithActualTransform() {

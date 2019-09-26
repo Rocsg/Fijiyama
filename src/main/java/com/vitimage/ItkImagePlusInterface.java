@@ -277,7 +277,14 @@ public interface ItkImagePlusInterface {
 
 		return ret;
 	}
-		
+	
+    public static ImagePlus itkImageToImagePlusStack(Image img,int slice) {
+    	ImagePlus imgp=itkImageToImagePlus(img);
+		imgp.setSlice(slice);
+		return imgp;
+    }
+	
+	
 	public static ImagePlus itkImageToImagePlusSlice(Image img,int slice) {
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		if(slice>dimZ)slice=dimZ;
