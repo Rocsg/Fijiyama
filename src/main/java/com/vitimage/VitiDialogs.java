@@ -39,6 +39,36 @@ public interface VitiDialogs {
 	/** 
 	 * UI interfaces for the tools
 	 * */
+	public static ImagePlus chooseOneImageUI(String strGuess,String strImg1) {
+			ImagePlus imgRet;
+			String open="Image a choisir dans l explorateur";
+			int index1,index2;
+			int[] wList = WindowManager.getIDList();
+			String[] titles=(wList==null) ? new String[1] : new String[wList.length+1] ;
+			titles[0]=open;
+			if (wList!=null) {
+		        for (int i=0; i<wList.length; i++) {
+		        	ImagePlus imp = WindowManager.getImage(wList[i]);
+		            titles[i+1] = imp!=null?imp.getTitle():"";
+		        }
+	        }
+	        GenericDialog gd= new GenericDialog(strGuess);
+	        gd.addChoice(strImg1, titles,open);
+			gd.showDialog();
+	        if (gd.wasCanceled()) return null;
+	       	index1 = gd.getNextChoiceIndex()-1;
+
+	       	if(index1 < 0) {
+	       		OpenDialog od1=new OpenDialog("Select "+strImg1);
+	       		imgRet=IJ.openImage(od1.getPath());
+	       	}
+	       	else imgRet=WindowManager.getImage(wList[index1]);	      	   	    
+        	return imgRet;
+	}
+
+	/** 
+	 * UI interfaces for the tools
+	 * */
 	public static ImagePlus[] chooseTwoImagesUI(String strGuess,String strImg1, String strImg2) {
 			ImagePlus[]imgRet=new ImagePlus[2];
 			String open="* Je vais choisir une image dans l'explorateur de fichiers *";

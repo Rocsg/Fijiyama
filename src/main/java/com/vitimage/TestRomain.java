@@ -15,8 +15,12 @@ import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.nio.file.Path;
 import java.sql.Date;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
@@ -26,6 +30,8 @@ import org.itk.simple.ImageFileWriter;
 import org.itk.simple.InverseDisplacementFieldImageFilter;
 import org.itk.simple.ResampleImageFilter;
 import org.itk.simple.Transform;
+import org.itk.simple.VectorUInt32;
+import org.python.core.packagecache.SysPackageManager;
 
 import com.vitimage.ItkImagePlusInterface.MetricType;
 import com.vitimage.ItkImagePlusInterface.Transformation3DType;
@@ -64,8 +70,12 @@ import inra.ijpb.morphology.Strel3D;
 import math3d.Point3d;
 import mcib3d.image3d.ImageHandler;
 import mcib3d.image3d.distanceMap3d.EDT;
+import mcib3d.image3d.processing.CannyEdge3D;
+import mcib3d.image3d.processing.FastFilters3D;
+import mcib3d.image3d.processing.SymmetryFilter;
+import trainableSegmentation.FeatureStack;
+import trainableSegmentation.FeatureStackArray;
 import ij.measure.ResultsTable;
-import trainableSegmentation.Trainable_Segmentation;
 
 public class TestRomain {
 
@@ -105,12 +115,7 @@ public class TestRomain {
 		//viewMRI();
 
 	//	takeInputCorrespondanceForBiasEstimation();
-	//	computeFieldBiasBasedOnMultipleCorrespondances(0,true,false);
-		//chia(0,true,false);
-
-
 		//computeFieldBiasBasedOnMultipleCorrespondances(0,false,false);
-//		chia(0,false,false);
 		//testStrategyField();
 		/*
 		boolean fixCenter=true;
@@ -127,13 +132,177 @@ public class TestRomain {
 		//pequenaJala();
 //		testTransT1T2();
 //		testTransT1M0();
-		makeHybrideCepVertical();
+		//ImagePlus test=IJ.openImage("/home/fernandr/tmpImageRec.tif");test.setSlice(10);ImagePlus testSlice=test.crop();
+		//ImagePlus []testTab=VitimageUtils.decomposeRGBImage(testSlice);
+		/*FeatureStackArray fsa = buildFeatureStackArrayRGBSeparatedMultiThreaded(testTab,
+				new boolean[] {true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true},1,4);*/
+				//makeHybrideCepVertical();
 //		testTrans();
 //		//		charlotte();
-		System.out.println("FINI !");
+		
+		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/CEP_020_APO1/segmentation_APO1.tif");
+		ImagePlus imgSain=VitimageUtils.thresholdFloatImage(img, 0.9,1.1);
+		ImagePlus imgFull=VitimageUtils.thresholdFloatImage(img, 0.9,10);
+		imgSain.show();
+		imgSain.setTitle("Sain");
+		imgFull.show();
+		imgFull.setTitle("Full");
+
+		//makeHybrideCepVertical();
+		VitimageUtils.waitFor(100000000);
+		
+		
+		
+		
+		
+		//ImagePlus img2=transformParts12(img,values,25,25);
+//		ImagePlus imgT1Bef=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/HYBRID/T1BEFORE.tif");
+//		ImagePlus imgT1Aft=transformParts12(imgT1Bef,values,512,512);
+		ImagePlus imgN=evaluateIntensityBias();
+		IJ.saveAsTiff(imgN, "/home/fernandr/Bureau/test.tif");
+		imgN=IJ.openImage("/home/fernandr/Bureau/test.tif");
+		ImagePlus imgN2=correctionBizarre(imgN);
+		IJ.saveAsTiff(imgN2, "/home/fernandr/Bureau/test2.tif");
+		imgN.show();
+		imgN2.show();
+		//makeHybrideCepVertical();
+//		evaluateIntensityBias();
+		//		extractIRMnormalisationInfoForCep5D();
+		//makeHybrideCepVerticalTotal3D() ;
 		VitimageUtils.waitFor(100000000);
 		System.exit(0);
 	}
+
+	
+	public static ImagePlus correctionBizarre(ImagePlus img) {
+		double []factors=new double[2000];
+		double []valsSlice=new double[2000];
+		double valRef=107;
+		int[][]vals=new int[][] {{15 ,32,68,95,124,160,200,230,413,501,528,539,545},{40,44,60,70,80,90,100,107,107,88,83,80,76}};
+		for(int i=0;i<vals[0][0];i++)valsSlice[i]=vals[1][0];
+		for(int j=0;j<vals[0].length-1;j++) {
+			//System.out.println("VALEUR VRAIE : "+vals[0][j]+"--> "+vals[1][j]);
+			for(int J=vals[0][j];J<vals[0][j+1];J++) {
+				valsSlice[J]=vals[1][j+1] * (J-vals[0][j])*1.0/(vals[0][j+1]-vals[0][j]) +  vals[1][j] * (vals[0][j+1]-J)*1.0/(vals[0][j+1]-vals[0][j])    ;
+				//System.out.println("v           : "+J+"--> "+valsSlice[J]);
+			}
+		}
+		for(int i=vals[0][vals[0].length-1];i<2000;i++)valsSlice[i]=vals[1][vals[0].length-1];
+
+		for(int i=0;i<2000;i++) {
+			factors[i]=valRef*1.0/valsSlice[i];
+			//System.out.println("Final : "+i+" -> "+factors[i]);
+		}
+		if(img.getType()!=ImagePlus.GRAY8) {			System.out.println("bizarre : unsupported format : "+img.getType()+" format expected="+ImagePlus.GRAY8);return null;}
+		int valAvant;
+		int valApres;
+		int X=img.getWidth();
+		int Y=img.getHeight();
+		int Z=img.getStackSize();
+		ImagePlus ret=VitimageUtils.imageCopy(img);		
+		for(int z=0;z<Z;z++) {
+			System.out.println(z);
+			byte[] valsImg=(byte[])img.getStack().getProcessor(z+1).getPixels();
+			byte[] valsOut=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<X;x++) {
+				for(int y=0;y<Y;y++){
+					//valAvant=valsImg[X*(y)+(x)]  & 0xff;
+					//valApres=(int)(Math.round(factors[z]*valAvant ));
+					//System.out.println("Valeurs : avant="+valAvant+" et apres="+valApres);
+					valsOut[X*(y)+(x)]=(byte)( (int) (Math.round(   (factors[z])*( (int) ( valsImg[X*(y)+(x)]  & 0xff  ) ) ) ) );
+				}			
+			}
+			
+		}
+		System.out.println("FINI");
+		return ret;
+	}
+	
+	
+
+	public static ImagePlus evaluateIntensityBias() {
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		ImagePlus[]transMod=new ImagePlus[12];
+		for(int i=0;i<12;i++) {
+			System.out.println("Traitement "+specimen[i]);
+			String spec=specimen[i];
+			String repSpec="/home/fernandr/Bureau/Traitements/Cep5D/"+spec;
+			ImagePlus imgMRI=IJ.openImage(repSpec+"/Source_data/MRI_CLINICAL/Computed_data/3_HyperImage/stack_2.tif");
+			ItkTransform transMRIfromMachine=new ItkTransform((ItkTransform.readTransformFromFile(
+				repSpec+"/Source_data/MRI_CLINICAL/Computed_data/1_Transformations/transformation_2.txt")).getInverse());
+			transMRIfromMachine.addTransform(ItkTransform.itkTransformFromCoefs(new double[] {1,0,0,-175,0,1,0,-175,0,0,1,-153.6}));
+			int []dims=VitimageUtils.getDimensions(imgMRI);
+			transMod[i]=transMRIfromMachine.transformImage(VitimageUtils.uncropImageByte(VitimageUtils.switchAxis(imgMRI,2),100, 100, 100, dims[0]+200, dims[2]+200, dims[1]+200), imgMRI);
+		}
+		ImagePlus glob=makeCombination3by4(transMod);
+		glob.show();
+		return glob;
+	}
+	
+	
+	
+	
+	public static ImagePlus transformParts12(ImagePlus img,double []values,int xP,int yP) {
+		ImagePlus ret=VitimageUtils.imageCopy(img);
+		int[]dims=VitimageUtils.getDimensions(img);
+		int X=dims[0];
+		int Y=dims[1];
+		int Z=dims[2];
+		for(int z=0;z<Z;z++) {
+			short[] valsImg=(short [])img.getStack().getProcessor(z+1).getPixels();
+			short[] valsRet=(short [])ret.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<X;x++) {
+				for(int y=0;y<Y;y++) {
+					int index=X*y+x;
+					double val=values[4*(y/yP)+(x/xP)]/values[0];
+					valsRet[index] = (short)Math.round(   (1/val)*(  (  (short)valsImg[index])  & 0xffff) );
+					}
+				}			
+			}
+		return ret;
+	}
+
+	
+	
+	public static void verifMRIEqualization() {
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		String []modalities= {"Sequence_0.tif", "Sequence_1.tif","Sequence_2.tif"};
+		String []modalitiesAp= {"stack_0.tif", "stack_1.tif","stack_2.tif"};
+		ImagePlus [][]test=new ImagePlus[3][12];
+		ImagePlus [][]testAp=new ImagePlus[3][12];
+		ImagePlus []testFin=new ImagePlus[3];
+		ImagePlus []testFinAp=new ImagePlus[3];
+		for(int m=0;m<3;m++) {//modalities.length
+			for(int s=0;s<specimen.length;s++) {
+				String rep="/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[s]+"/Source_data/MRI_CLINICAL/Computed_data/0_Stacks/";
+				String repAp="/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[s]+"/Source_data/MRI_CLINICAL/Computed_data/3_HyperImage/";
+				System.out.println("Lecture de "+rep+modalities[m]);
+				test[m][s]=IJ.openImage(rep+modalities[m]);
+				System.out.println("Lecture de "+repAp+modalitiesAp[m]);
+				testAp[m][s]=IJ.openImage(repAp+modalitiesAp[m]);
+			}
+			testFin[m]=makeCombination3by4(test[m]);
+			testFin[m].setTitle(modalities[m]+" AVANT");
+			testFin[m].show();
+			testFinAp[m]=makeCombination3by4(testAp[m]);
+			testFinAp[m].setTitle(modalitiesAp[m]+" APRES");
+			testFinAp[m].show();
+		}
+	}
+				
+
+	
+	
+	public static ImagePlus makeCombination3by4(ImagePlus[]tab) {
+		StackCombiner sc=new StackCombiner();
+		ImageStack l1=sc.combineHorizontally(sc.combineHorizontally(sc.combineHorizontally(tab[0].getStack(),tab[1].getStack()),tab[2].getStack()),tab[3].getStack());
+		ImageStack l2=sc.combineHorizontally(sc.combineHorizontally(sc.combineHorizontally(tab[4].getStack(),tab[5].getStack()),tab[6].getStack()),tab[7].getStack());
+		ImageStack l3=sc.combineHorizontally(sc.combineHorizontally(sc.combineHorizontally(tab[8].getStack(),tab[9].getStack()),tab[10].getStack()),tab[11].getStack());
+		ImagePlus ret=new ImagePlus("",sc.combineVertically(l1, sc.combineVertically(l2, l3)));
+		VitimageUtils.adjustImageCalibration(ret,tab[0]);
+		return ret;
+	}
+	
 	
 	
 	public static ImagePlus makeCombination2by3(ImagePlus[]tab) {
@@ -149,6 +318,80 @@ public class TestRomain {
 		return makeCombination2by3(new ImagePlus[] {i1,i2,i3,i4,i5,i6});
 	}
 
+		
+
+	
+	
+	
+	
+	public static void extractIRMnormalisationInfoForCep5D() {
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		String []modalities= {"Sequence_0.tif", "Sequence_1.tif","Sequence_2.tif"};
+		ImagePlus[][]tabImg=new ImagePlus[modalities.length][specimen.length];
+		ImagePlus[]tabMod=new ImagePlus[modalities.length];
+		for(int m=0;m<modalities.length;m++) {
+			for(int s=0;s<specimen.length;s++) {
+				String rep="/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[s]+"/Source_data/MRI_CLINICAL/Computed_data/0_Stacks/";
+				ImagePlus img=IJ.openImage(rep+modalities[m]);
+				img.show();
+				double [][]pt= VitiDialogs.waitForPointsUI(1,img,false);
+				img.hide();
+				tabImg[m][s]=VitimageUtils.cropImageCapillary(img,(int)Math.round(pt[0][0]),(int)Math.round(pt[0][1]),(int)Math.round(pt[0][2]),12,12,12);
+			}
+			tabMod[m]=makeCombination3by4(tabImg[m]);
+			tabMod[m].show();
+		}
+		ImagePlus ret=Concatenator.run(tabMod);
+		IJ.run(ret,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices=25 frames="+modalities.length+" display=Grayscale");
+		ret.show();
+	}
+	
+	
+	
+	
+	public static void makeHybrideCepVerticalTotal3D() {
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		String []modalities= {"Mod_0_THIN_low_photo_bnw.tif", "Mod_1_THIN_low_rx.tif","Mod_2_THIN_low_mri_t1.tif","Mod_3_THIN_low_mri_t2.tif","Mod_4_THIN_low_mri_m0.tif","Mod_5_THIN_low_mri_diff.tif","Mod_6_THIN_low_photo_Red.tif","Mod_7_THIN_low_photo_Green.tif","Mod_8_THIN_low_photo_Blue.tif"};
+		int []slices=new int[] {5,10,15,20,25,30,35,40,45,50,60,70,80,90,100,110};
+		ImagePlus[][]tabMods=new ImagePlus[9][12];
+		ImagePlus[]tabFinal=new ImagePlus[9];
+		ImagePlus[]tabHigh=new ImagePlus[12];
+		ImagePlus highFinal;
+		for(int i=0;i<specimen.length;i++) {
+			System.out.println("Lecture "+specimen[i]);
+			String rep="/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Source_data/";
+			tabHigh[i]=IJ.openImage(rep+"PHOTOGRAPH/Computed_data/3_Hyperimage/photo_high.tif");
+			System.out.println("Ouverture image "+rep+"PHOTOGRAPH/Computed_data/3_Hyperimage/photo_high.tif");
+			tabHigh[i]=VitimageUtils.writeBlackTextOnImage(specimen[i]+" Photo high res ",tabHigh[i],30,0);
+
+			for(int j=0;j<modalities.length;j++) {
+				tabMods[j][i]=IJ.openImage(rep+"PHOTOGRAPH/Computed_data/3_Hyperimage/"+modalities[j]);
+				System.out.println("Ouverture image "+rep+"PHOTOGRAPH/Computed_data/3_Hyperimage/"+modalities[j]);
+				tabMods[j][i]=VitimageUtils.writeTextOnImage(specimen[i]+" "+modalities[j], tabMods[j][i],11,0);
+			}
+		}
+
+		System.out.println("Concatenation de chaque modalité");
+		for(int j=0;j<modalities.length;j++) {
+			tabFinal[j]=Concatenator.run(tabMods[j]);
+		}
+
+		System.out.println("Concatenation finale");
+		int Z=tabFinal[0].getStackSize();
+		highFinal=Concatenator.run(tabHigh);
+		ImagePlus retHoriz=Concatenator.run(tabFinal);
+		IJ.run(retHoriz,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+Z+" frames=9 display=Grayscale");
+		VitimageUtils.adjustImageCalibration(retHoriz,tabMods[0][0]);
+		VitimageUtils.adjustImageCalibration(highFinal,tabMods[0][0]);
+		retHoriz.show();
+		highFinal.show();
+	}
+	
+	
+	
+
+	
+	
 	
 	
 	
@@ -161,21 +404,41 @@ public class TestRomain {
 		ImagePlus[][][]tabSlices=new ImagePlus[12][9][slices.length];
 		ImagePlus[][]tabSlicesVert=new ImagePlus[9][slices.length*12];
 		ImagePlus[][]tabSlicesHoriz=new ImagePlus[9][slices.length*2 ];
+		ImagePlus[]tabHigh=new ImagePlus[12];
+		ImagePlus highFinal;
+		ImagePlus[][]tabHighSlices=new ImagePlus[12][slices.length];
+		ImagePlus[]tabHighSlicesVert=new ImagePlus[slices.length*12];
 		for(int i=0;i<specimen.length;i++) {
 			System.out.println("Lecture "+specimen[i]);
 			String rep="/home/fernandr/Bureau/Traitements/Cep5D/"+specimen[i]+"/Source_data/";
+			tabHigh[i]=IJ.openImage(rep+"/PHOTOGRAPH/Computed_data/3_Hyperimage/photo_high.tif");
+			for(int k=0;k<slices.length;k++) {
+				tabHigh[i].setSlice(slices[k]+1);
+				tabHighSlices[i][k]=tabHigh[i].crop();
+				tabHighSlices[i][k]=VitimageUtils.writeBlackTextOnImage(specimen[i]+" Photo high res z="+(slices[k]+1), tabHighSlices[i][k],20,0);
+				//tabHighSlices[i][k].show();
+				//VitimageUtils.waitFor(500);
+				
+			}
 			for(int j=0;j<modalities.length;j++) {
 				tabMods[i][j]=IJ.openImage(rep+"/PHOTOGRAPH/Computed_data/3_Hyperimage/"+modalities[j]);
 				for(int k=0;k<slices.length;k++) {
 					tabMods[i][j].setSlice(slices[k]+1);
 					tabSlices[i][j][k]=tabMods[i][j].crop();
-					tabSlices[i][j][k]=VitimageUtils.writeTextOnImage(specimen[i]+" "+modalities[j]+" z="+(slices[k]+1), tabSlices[i][j][k],11,0);
+					if(j<1 || j>4)tabSlices[i][j][k]=VitimageUtils.writeTextOnImage(specimen[i]+" Photo high res z="+(slices[k]+1), tabSlices[i][j][k],11,0);
 				}
 			}
 		}
 	
 		System.out.println("Construction verticale ");
 		//Construction vert
+		for(int slHyb=0;slHyb<12*slices.length;slHyb++) {
+			int slSpec=slHyb%12;
+			int slProf=slHyb/12;
+			tabHighSlicesVert[slHyb]=VitimageUtils.imageCopy(tabHighSlices[slSpec][slProf]);
+		}		
+		//highFinal=Concatenator.run(tabHighSlicesVert);			
+		//highFinal.show();
 		for(int mod=0;mod<9;mod++) {
 			System.out.print(" "+mod);
 			for(int slHyb=0;slHyb<12*slices.length;slHyb++) {
@@ -189,26 +452,16 @@ public class TestRomain {
 		ImagePlus retVert=Concatenator.run(tabFinal);
 		IJ.run(retVert,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+(12*slices.length)+" frames=9 display=Grayscale");
 		retVert.show();
+	}
 
-
-		System.out.println("Construction horizontale ");
-		//Construction horiz
-		for(int mod=0;mod<9;mod++) {
-			System.out.print(" "+mod);
-			for(int slHyb=0;slHyb<slices.length;slHyb++) {
-				tabSlicesHoriz[mod][slHyb*2]=makeCombination2by3(   
-					tabSlices[0][mod][slHyb], tabSlices[2][mod][slHyb] , tabSlices[4][mod][slHyb] , tabSlices[6][mod][slHyb] ,tabSlices[8][mod][slHyb], tabSlices[10][mod][slHyb]);
-				tabSlicesHoriz[mod][slHyb*2+1]=makeCombination2by3(   
-					tabSlices[1][mod][slHyb], tabSlices[3][mod][slHyb] , tabSlices[5][mod][slHyb] , tabSlices[7][mod][slHyb] ,tabSlices[9][mod][slHyb], tabSlices[11][mod][slHyb]);
-			}		
-			tabFinal[mod]=Concatenator.run(tabSlicesHoriz[mod]);			
-		}
-		System.out.println("\nHyperImage");
-		ImagePlus retHoriz=Concatenator.run(tabFinal);
-		IJ.run(retHoriz,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+(2*slices.length)+" frames=9 display=Grayscale");
-		retHoriz.show();
+	
+	public static void testT2M0() {
+		String rep="/home/fernandr/Bureau/Traitements/Cep5D/CEP013_AS3/Source_data/PHOTOGRAPH/Computed_data/3_Hyperimage/";
+		int chiffre=40;
+		VitimageUtils.compositeGridByte(IJ.openImage(rep+"Mod_1_low_rx.tif"),IJ.openImage(rep+"Mod_2_low_mri_t1.tif"),chiffre,chiffre,chiffre,"T1RX avant").show();		
 	}
 	
+
 	public static void tt() {
 		String rep="/home/fernandr/Bureau/Traitements/Cep5D/CEP013_AS3/Source_data/PHOTOGRAPH/Computed_data/3_Hyperimage/";
 		ImagePlus t1=IJ.openImage(rep+"Mod_1_low_rx.tif");
@@ -242,11 +495,6 @@ public class TestRomain {
 		*/
 	}
 	
-	public static void testT2M0() {
-		String rep="/home/fernandr/Bureau/Traitements/Cep5D/CEP013_AS3/Source_data/PHOTOGRAPH/Computed_data/3_Hyperimage/";
-		int chiffre=40;
-		VitimageUtils.compositeGridByte(IJ.openImage(rep+"Mod_1_low_rx.tif"),IJ.openImage(rep+"Mod_2_low_mri_t1.tif"),chiffre,chiffre,chiffre,"T1RX avant").show();		
-	}
 	
 	
 	
@@ -334,9 +582,6 @@ public class TestRomain {
 			
 	
 	
-	public static void charlotte() {
-		System.out.println(true);
-	}
 	
 	public static void chi() {
 		ItkTransform trans=ItkTransform.readAsDenseField("/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/champ_0_FIX.tif");

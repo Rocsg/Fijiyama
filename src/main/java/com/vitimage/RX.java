@@ -51,7 +51,7 @@ public class RX extends Acquisition{
 	 */
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
-		String []specimen= {"CEP017_S1","CEP011_AS1","CEP012_AS2","CEP013_AS3" ,"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		String []specimen= {"CEP017_S1"};//{"CEP011_AS1","CEP012_AS2","CEP013_AS3" ,"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};//
 		for(String spec : specimen) {
 			File f=new File("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/RX/STEPS_DONE.tag");
 			//f.delete();
@@ -248,7 +248,7 @@ public class RX extends Acquisition{
 			str= Files.lines(Paths.get(f.getAbsolutePath()) ).collect(Collectors.joining("\n"));
 		}  catch (IOException ex) {        ex.printStackTrace();   }
 		String[]lines=str.split("\n");
-		if(feelSafeAboutOfficialSize) {
+		if(! feelSafeAboutOfficialSize) {
 			System.out.println("Procedure when not feeling safe about provided size");
 			String[] voxStr=lines[5].split("\\\"");
 			double voxSX=Double.parseDouble(voxStr[1]);
@@ -277,18 +277,21 @@ public class RX extends Acquisition{
 		File directory = new File(this.sourcePath,"Source_data");
 		File f=null;
 		double voxS=0;
+		System.out.println("Here 1");
 		if(directory.exists())f=new File(this.sourcePath, "Source_data"+slash+"SlicesY");
 		else {
 			try {
 				 String str= Files.lines(Paths.get(pathlink.getAbsolutePath()) ).collect(Collectors.joining("\n"));
 				 String strFile=str.split("=")[1];
 				 f=new File(strFile+slash+"SlicesY");
-				 voxS=parseVoxSizeFromXML(strFile+slash+"unireconstruction.xml",true);
+				 System.out.println("Parsing voxel sizes from XML in file : "+strFile+slash+"unireconstruction.xml");
+				 voxS=parseVoxSizeFromXML(strFile+slash+"unireconstruction.xml",false);
 				 } catch (IOException ex) {        ex.printStackTrace();   }
 		}
 		
 		if(! f.exists()) {IJ.showMessage("Source path not found : "+f.getAbsolutePath());return;}
 		this.standardVoxSize=voxS;
+		System.out.println("Here 2");
 
 		//Importer la sequence
 		String strMainPath=f.getAbsolutePath();	

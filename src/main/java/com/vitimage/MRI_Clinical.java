@@ -41,8 +41,10 @@ import math3d.Point3d;
  */
 public class MRI_Clinical extends Acquisition implements Fit,ItkImagePlusInterface{
 	public static String[]lookupStr=new String[] {"3DT1", "3DT2", "AxDPdixon_F" , "AxDif_ADC1", "AxDPdixon_W","AxDPdixon_in", "AxDPdixon_opp" , };
-	public static int[]normalizationValues=new int[] {270,161,900,3500,900,900,900};
+	public static int[]normalizationValues=new int[] {240,151,750,3500,900,900,900};
 	public static int N_DATA=7;
+	public double[]valBG=new double[3];
+	public double[]valCap=new double[3];
 	private double field;
 	private String[] units;
 	private double[] Te;
@@ -68,7 +70,7 @@ public class MRI_Clinical extends Acquisition implements Fit,ItkImagePlusInterfa
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		String []specimen= {"CEP022_APO3","CEP011_AS1","CEP012_AS2","CEP013_AS3" ,"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2"};
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3" ,"CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
 		for(String spec : specimen) {
 			File f=new File("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/MRI_CLINICAL/STEPS_DONE.tag");
 			//f.delete();
@@ -312,18 +314,20 @@ public class MRI_Clinical extends Acquisition implements Fit,ItkImagePlusInterfa
 	
 	
 	public ImagePlus computeNormalizedHyperImage() {
-		System.out.println("En effet, il faut y voir clair.");		
+		boolean makeRegistration=false;
+		boolean makeNormalization=false;
 		File dir = new File(this.sourcePath+slash+"Computed_data"+slash+"3_HyperImage");
 		boolean isCreated = dir.mkdirs();
 		ImagePlus []tabSeqReg=new ImagePlus[N_DATA];
 		ImagePlus []tabSeqReg2=new ImagePlus[N_DATA];
 		tabSeqReg[0]=new Duplicator().run(this.sourceData[0]);
-		tabSeqReg[0].setDisplayRange(0, this.normalizationValues[0]);
+		if(makeNormalization)tabSeqReg[0].setDisplayRange(valBG[0], valCap[0]);
+		else tabSeqReg[0].setDisplayRange(0,this.normalizationValues[0]);
 		IJ.run(tabSeqReg[0],"8-bit","");
 		VitimageUtils.adjustImageCalibration(tabSeqReg[0],this.sourceData[0]);
 		tabSeqReg2[0]=VitimageUtils.writeTextOnImage("", tabSeqReg[0],15,0);
 		tabSeqReg[0]=VitimageUtils.writeTextOnImage(this.titles[0], tabSeqReg[0],15,0);
-		IJ.saveAsTiff(tabSeqReg[0],this.sourcePath+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_0.tif");
+		IJ.saveAsTiff(tabSeqReg2[0],this.sourcePath+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_0.tif");
 
 		ItkTransform trDeCote=null;
 		for(int i=1;i<N_DATA;i++) {
@@ -332,27 +336,43 @@ public class MRI_Clinical extends Acquisition implements Fit,ItkImagePlusInterfa
 			ItkTransform trTemp=new ItkTransform(this.transformations[i].getInverse());
 			trTemp.addTransform(this.transformations[0]);
 			trTemp.writeMatrixTransformToFile(this.sourcePath+slash+"Computed_data"+slash+"1_Transformations"+slash+"trans_rig"+i+".txt");
-			if(i==1) {
-				trTemp=registerT1T2(this.sourceData[0],this.sourceData[i],trTemp,i);
-				trTemp=trTemp.flattenDenseField(VitimageUtils.Sub222(this.sourceData[0]));
-				trTemp.writeAsDenseField(this.sourcePath+slash+"Computed_data"+slash+"1_Transformations"+slash+"trans_dense"+i+".tif", VitimageUtils.Sub222(this.sourceData[0]));
-			}
-			if(i==2) {
-				ImagePlus temp=VitimageUtils.makeOperationBetweenTwoImages(tabSeqReg[1],sourceData[0],VitimageUtils.OP_MEAN, false);
-				temp.setDisplayRange(0,255);
-				IJ.run(temp,"8-bit","");
-				trTemp=registerT1T2(temp,this.sourceData[i],trTemp,i);
-				trTemp=trTemp.flattenDenseField(VitimageUtils.Sub222(this.sourceData[0]));
-				trTemp.writeAsDenseField(this.sourcePath+slash+"Computed_data"+slash+"1_Transformations"+slash+"trans_dense"+i+".tif", VitimageUtils.Sub222(this.sourceData[0]));
-			}
+			if(i<3) {
+				tabSeqReg[i]=VitimageUtils.imageCopy(sourceData[i]);
+				if(makeNormalization)tabSeqReg[i].setDisplayRange(valBG[i], valCap[i]);
+				else tabSeqReg[i].setDisplayRange(0,this.normalizationValues[i]);
+				IJ.run(tabSeqReg[i],"8-bit","");			
+				if(i==1) {
+					if(makeRegistration) {
+						trTemp=registerT1T2(this.sourceData[0],this.sourceData[i],trTemp,i);
+						trTemp=trTemp.flattenDenseField(VitimageUtils.Sub222(this.sourceData[0]));
+						trTemp.writeAsDenseField(this.sourcePath+slash+"Computed_data"+slash+"1_Transformations"+slash+"trans_dense"+i+".tif", VitimageUtils.Sub222(this.sourceData[0]));
+					}
+					else trTemp=ItkTransform.readAsDenseField(this.sourcePath+slash+"Computed_data"+slash+"1_Transformations"+slash+"trans_dense"+i+".tif");
+				}
+				if(i==2) {
+					if(makeRegistration) {
+						ImagePlus temp=VitimageUtils.makeOperationBetweenTwoImages(tabSeqReg[1],tabSeqReg[0],VitimageUtils.OP_MEAN, false);
+						temp.setDisplayRange(0,255);
+						IJ.run(temp,"8-bit","");
+						trTemp=registerT1T2(temp,tabSeqReg[i],trTemp,i);
+						trTemp=trTemp.flattenDenseField(VitimageUtils.Sub222(this.sourceData[0]));
+						trTemp.writeAsDenseField(this.sourcePath+slash+"Computed_data"+slash+"1_Transformations"+slash+"trans_dense"+i+".tif", VitimageUtils.Sub222(this.sourceData[0]));
+					}
+					else {
+						trTemp=ItkTransform.readAsDenseField(this.sourcePath+slash+"Computed_data"+slash+"1_Transformations"+slash+"trans_dense"+i+".tif");
+					}
+				}
+			}	
 			/////////////TRANSFORMATIONS
 			tabSeqReg[i]=trTemp.transformImage(this.sourceData[0],this.sourceData[i]);
-			tabSeqReg[i].setDisplayRange(0, this.normalizationValues[i]);
+			if(i<3 && makeNormalization) tabSeqReg[i].setDisplayRange(valBG[i], valCap[i]);
+			else tabSeqReg[i].setDisplayRange(0,this.normalizationValues[i]);
+			
 			tabSeqReg[i].setSlice(100);			
 			IJ.run(tabSeqReg[i],"8-bit","");
 			tabSeqReg2[i]=VitimageUtils.writeTextOnImage("", tabSeqReg[i],15,0);
 			tabSeqReg[i]=VitimageUtils.writeTextOnImage(this.titles[i], tabSeqReg[i],15,0);
-			IJ.saveAsTiff(tabSeqReg[i],this.sourcePath+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_"+i+".tif");
+			IJ.saveAsTiff(tabSeqReg2[i],this.sourcePath+slash+"Computed_data"+slash+"3_HyperImage"+slash+"stack_"+i+".tif");
 		}
 		this.normalizedHyperImage=Concatenator.run(tabSeqReg);
 		
@@ -398,7 +418,7 @@ public class MRI_Clinical extends Acquisition implements Fit,ItkImagePlusInterfa
 		this.acquisitionPlace=strFile[9];
 		this.field=Double.parseDouble(strFile[10]);
 		for(int seq=0;seq<N_DATA;seq++) {
-			int start=11+seq*9;
+			int start=11+seq*9+Math.min(3, seq)*2;
 			this.titles[seq]=strFile[start+1];
 			this.dimsX[seq]=Integer.valueOf(strFile[start+2]);
 			this.dimsY[seq]=Integer.valueOf(strFile[start+3]);
@@ -406,7 +426,11 @@ public class MRI_Clinical extends Acquisition implements Fit,ItkImagePlusInterfa
 			this.units[seq]=strFile[start+5];
 			this.voxsX[seq]=Double.parseDouble(strFile[start+6]);
 			this.voxsY[seq]=Double.parseDouble(strFile[start+7]);
-			this.voxsZ[seq]=Double.parseDouble(strFile[start+8]);			
+			this.voxsZ[seq]=Double.parseDouble(strFile[start+8]);	
+			if(seq<3) {
+				this.valBG[seq]=Double.parseDouble(strFile[start+9]);
+				this.valCap[seq]=Double.parseDouble(strFile[start+10]);
+			}
 		}
 	}
 
@@ -435,6 +459,7 @@ public class MRI_Clinical extends Acquisition implements Fit,ItkImagePlusInterfa
 				out.write("VoxSX="+this.voxsX[seq] +"\n");
 				out.write("VoxSY="+this.voxsY[seq] +"\n");
 				out.write("VoxSZ="+this.voxsZ[seq] +"\n");
+				if(seq<3)out.write("BG="+valBG[seq]+"\nCap="+valCap[seq]);
 			}
 			out.close();
 		} catch (Exception e) {IJ.error("Unable to write transformation to file: "+fParam.getAbsolutePath()+"error: "+e);}	

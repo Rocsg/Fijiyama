@@ -3,6 +3,7 @@ package com.vitimage;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -48,13 +49,22 @@ import ij.plugin.filter.ThresholdToSelection;
 import ij.plugin.frame.RoiManager;
 import ij.process.ByteProcessor;
 import ij.process.FloatPolygon;
+import ij.process.ImageProcessor;
 import ij.process.StackConverter;
 import inra.ijpb.morphology.Morphology;
 import inra.ijpb.morphology.Strel3D;
 import math3d.Point3d;
+import mcib3d.image3d.ImageHandler;
+import mcib3d.image3d.processing.CannyEdge3D;
 import trainableSegmentation.WekaSegmentation;
 
 public interface VitimageUtils {
+	//Four constants from http://www.tomgibara.com/computer-vision/CannyEdgeDetector.java
+	public final static float GAUSSIAN_CUT_OFF = 0.005f;
+	public final static float MAGNITUDE_SCALE = 100F;
+	public final static float MAGNITUDE_LIMIT = 1000F;
+	public final static int MAGNITUDE_MAX = (int) (MAGNITUDE_SCALE * MAGNITUDE_LIMIT);
+
 	public static int OP_ADD=1;
 	public static int OP_MULT=2;
 	public static int OP_DIV=3;
@@ -139,6 +149,29 @@ public interface VitimageUtils {
 		return date;
 	}
 
+	
+	public static int[][] readIntArrayFromFile(String file,int nbDimsPerLine) {
+		File fParam=new File(file);
+		int nData;
+		int[][]vals;
+		String[]strFile=null;
+		String[]strLine=null;
+		try {
+			 String str= Files.lines(Paths.get(fParam.getAbsolutePath()) ).collect(Collectors.joining("\n"));
+			 strFile=str.split("\n");
+        } catch (IOException ex) {        ex.printStackTrace();   }
+		nData=Integer.parseInt(strFile[0]);
+		vals=new int[nData][nbDimsPerLine];
+		for(int i=1;i<=nData ; i++) {
+			strLine=strFile[i].split(" ");
+			for(int j=0;j<nbDimsPerLine;j++) {
+				vals[i-1][j]=Integer.parseInt(strLine[j]);			
+			}
+		}
+		return vals;
+	}
+
+	
 	public static double[][] readDoubleArrayFromFile(String file,int nbDimsPerLine) {
 		File fParam=new File(file);
 		int nData;
@@ -155,13 +188,24 @@ public interface VitimageUtils {
 			strLine=strFile[i].split(" ");
 			for(int j=0;j<nbDimsPerLine;j++) {
 				vals[i-1][j]=Double.parseDouble(strLine[j]);
+				
 			}
 		}
 		return vals;
 	}
 		
+	public static int getNbCores() {
+		return	Runtime.getRuntime().availableProcessors();
+	}
 	
-	
+	public static void writeStringInFile(String text,String file) {
+		if(file ==null)return;
+		try {
+			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
+			out.write(text);
+			out.close();
+		} catch (Exception e) {IJ.error("Unable to write data to file: "+file+"error: "+e);}			
+	}
 	
 	
 	public static void writeDoubleArrayInFile(double [][]tab,String file) {
@@ -181,6 +225,55 @@ public interface VitimageUtils {
 		} catch (Exception e) {IJ.error("Unable to write data to file: "+file+"error: "+e);}	
 	}
 	
+
+	
+	public static void writeIntArrayInFile(int [][]tab,String file) {
+		int nData=tab.length;
+		if(nData<1)return;
+		int nDims=tab[0].length;
+		try {
+			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
+			out.write(""+tab.length+"\n");
+			for(int i=0;i<nData;i++) {
+				for(int j=0;j<nDims-1;j++) {
+					out.write(""+tab[i][j]+" ");
+				}
+				out.write(""+tab[i][nDims-1]+"\n");
+			}
+			out.close();
+		} catch (Exception e) {IJ.error("Unable to write data to file: "+file+"error: "+e);}	
+	}
+	
+	public static void writeIntArray1DInFile(int []tab,String file) {
+		int nData=tab.length;
+		if(nData<1)return;
+		try {
+			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
+			out.write(""+nData+"\n");
+			for(int i=0;i<nData;i++) out.write(tab[i]+"\n");
+			out.close();
+		} catch (Exception e) {IJ.error("Unable to write data to file: "+file+"error: "+e);}	
+	}
+	
+	public static int[] readIntArray1DFromFile(String file) {
+		File fParam=new File(file);
+		int nData;
+		int[]vals;
+		String[]strFile=null;
+		String[]strLine=null;
+		try {
+			 String str= Files.lines(Paths.get(fParam.getAbsolutePath()) ).collect(Collectors.joining("\n"));
+			 strFile=str.split("\n");
+        } catch (IOException ex) {        ex.printStackTrace();   }
+		nData=Integer.parseInt(strFile[0]);
+		vals=new int[nData];
+		for(int i=1;i<=nData ; i++) {
+			vals[i-1]=Integer.parseInt(strFile[i]);			
+		}
+		return vals;
+	}
+
+	
 	
 	public static void writePoint3dArrayInFile(Point3d[]tab,String file) {
 		writeDoubleArrayInFile(VitimageUtils.convertPoint3dArrayToDoubleArray(tab),file);
@@ -189,9 +282,7 @@ public interface VitimageUtils {
 	public static Point3d[] readPoint3dArrayInFile(String file) {
 		return VitimageUtils.convertDoubleArrayToPoint3dArray(VitimageUtils.readDoubleArrayFromFile(file,3));
 	}
-	
-	
-	
+
 	
 	public static Object[] getCorrespondanceListAsImagePlus(ImagePlus imgRef,Point3d[][]tabpt,double[]curVoxSize,int sliceInt) {
 		ArrayList<double[][]>tabCorr=new ArrayList();
@@ -672,17 +763,6 @@ public interface VitimageUtils {
 		return imgOut;	
 	}
 	
-	
-	public static ImagePlus[]getImagePlusStackAsImagePlusTab(ImagePlus img){
-		ImagePlus[]ret=new ImagePlus[img.getStackSize()];
-		for(int i=0;i<img.getStackSize();i++) {
-			img.setSlice(i+1);
-			ret[i] =  img.crop();
-			VitimageUtils.adjustImageCalibration(ret[i],img);
-		}
-		return ret;
-	}
-
 	public static int[] resolveConnexitiesGroupsAndExclude(int  [][] connexions,int nbCouples,int n,int []volume,double volumeLowP,double volumeHighP,int selectByVolume,boolean noVerbose) {
 		int[]prec=new int[n];
 		int[]lut=new int[n+1];
@@ -761,6 +841,17 @@ public interface VitimageUtils {
 		return lut;
 	}
 
+
+	
+	public static ImagePlus[]getImagePlusStackAsImagePlusTab(ImagePlus img){
+		ImagePlus[]ret=new ImagePlus[img.getStackSize()];
+		for(int i=0;i<img.getStackSize();i++) {
+			img.setSlice(i+1);
+			ret[i] =  img.crop();
+			VitimageUtils.adjustImageCalibration(ret[i],img);
+		}
+		return ret;
+	}
 
 	/**
 	 * Main automated detectors : axis detection and inoculation point detection. Usable for both MRI T1, T2, and X ray images
@@ -1151,10 +1242,38 @@ public interface VitimageUtils {
 		return out;
 	}
 	
+	
+	public static ImagePlus cropImageCapillary(ImagePlus img,int x0,int y0,int z0,int rayX,int rayY,int rayZ) {
+		if(img.getType()!=ImagePlus.GRAY16)return null;
+		ImagePlus out=ij.gui.NewImage.createImage("Mask",rayX*2+1,rayY*2+1,rayZ*2+1,16,ij.gui.NewImage.FILL_WHITE);		
+		VitimageUtils.adjustImageCalibration(out, img);
+		int xMax=img.getWidth();
+		int yMax=img.getHeight();
+		int zMax=img.getStackSize();
+		for(int z=-rayZ;z<=rayZ;z++) {
+			int slice=z0+z;
+			if(slice<0)slice=zMax+slice;
+			if(slice>=zMax)slice=slice-zMax;
+			short[] valsImg=(short[])img.getStack().getProcessor(slice+1).getPixels();
+			short[] valsOut=(short[])out.getStack().getProcessor(z+rayZ+1).getPixels();
+			for(int x=-rayX;x<=rayX;x++) {
+				int xx=x+x0;
+				if(xx<0)xx=xMax+xx;
+				if(xx>=xMax)xx=xx-xMax;
+				for(int y=-rayY;y<=rayY;y++) {
+					int yy=y+y0;
+					if(yy<0)yy=yMax+yy;
+					if(yy>=yMax)yy=yy-yMax;
+					valsOut[(rayX*2+1)*(y+rayY)+(x+rayX)]=((short)(valsImg[xMax*yy+xx] & 0xffff));
+				}			
+			}
+		}
+		return out;
+	}
 
 
 	public static ImagePlus uncropImageShort(ImagePlus img,int x0,int y0,int z0,int dimX,int dimY,int dimZ) {
-		if(img.getType()!=ImagePlus.GRAY16)return null;
+		if(img.getType()!=ImagePlus.GRAY16) {			System.out.println("uncropImageShort : unsupported format : "+img.getType()+" format expected="+ImagePlus.GRAY16);return null;}
 		int oldDimX=img.getWidth();
 		int oldDimY=img.getHeight();
 		int oldDimZ=img.getStackSize();
@@ -2065,7 +2184,61 @@ public interface VitimageUtils {
 		}
 		return ret;
 	}
+	public static int[] getMinMaxByte(ImagePlus imgIn) {
+		byte[]in=new byte[imgIn.getStackSize()];
+		int X=imgIn.getWidth();
+		int Y=imgIn.getHeight();
+		int Z=imgIn.getStackSize();
+		int valMin=255;
+		int valMax=0;
+		for(int z=0;z<Z;z++) {
+			in=(byte []) imgIn.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<X;x++) {
+				for(int y=0;y<Y;y++) {
+					if(in[y*X+x]>((byte)(valMax & 0xff))) valMax=(int)((byte)in[y*X+x] & 0xff);
+					if(in[y*X+x]<((byte)(valMin & 0xff))) valMin=(int)((byte)in[y*X+x] & 0xff);
+				}			
+			}
+		}
+		return new int[] {valMin,valMax};
+	}
 	
+	
+	public static ImagePlus edges3DByte(ImagePlus imgRef,double sigma) {
+		ImagePlus img=VitimageUtils.imageCopy(imgRef);
+		IJ.run(img,"8-bit","");
+		double alpha=2.0/(sigma+1);
+		CannyEdge3D edges=new CannyEdge3D(ImageHandler.wrap(img),alpha);
+		ImageHandler[] gg = edges.getGradientsXYZ();
+		ImageHandler ed = edges.getEdge();
+		double max=(125/Math.pow(alpha ,3));
+		ImagePlus out=ed.getImagePlus();
+		out.setDisplayRange(0,max);
+		IJ.run(out,"8-bit","");
+		return out;
+	}
+
+	
+	
+	public static double[] getMinMaxFloat(ImagePlus imgIn) {
+		float[]in=new float[imgIn.getStackSize()];
+		int X=imgIn.getWidth();
+		int Y=imgIn.getHeight();
+		int Z=imgIn.getStackSize();
+		float valMin=(float)10E10;
+		float valMax=(float)(-10E10);
+		for(int z=0;z<Z;z++) {
+			in=(float []) imgIn.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<X;x++) {
+				for(int y=0;y<Y;y++) {
+					if(in[y*X+x]>valMax)valMax=in[y*X+x];
+					if(in[y*X+x]<valMin)valMin=in[y*X+x];
+				}			
+			}
+		}
+		return new double[] {valMin,valMax};
+	}
+
 	public static ImagePlus convertShortToFloatWithoutDynamicChanges(ImagePlus imgIn) {
 		ImagePlus ret=new Duplicator().run(imgIn);
 		IJ.run(ret,"32-bit","");
@@ -2132,6 +2305,17 @@ public interface VitimageUtils {
 		VitimageUtils.adjustImageCalibration(ret, imgRef);
 		return ret;
 	}
+	
+	public static ImagePlus imageCopy(ImagePlus imgRef,String title) {
+		ImagePlus ret=new Duplicator().run(imgRef);
+		VitimageUtils.adjustImageCalibration(ret, imgRef);
+		for(int z=0;z<imgRef.getStackSize();z++) {
+			ret.getStack().setSliceLabel(title+"_z="+(z+1), z+1);
+		}
+		ret.setTitle(title);
+		return ret;
+	}
+
 	
 	
 	public static ImagePlus[]decomposeRGBImage(ImagePlus imgRGB){
@@ -2418,6 +2602,23 @@ public interface VitimageUtils {
 		return composite;
 	}
 
+	public static ImagePlus writeBlackTextOnImage(String text, ImagePlus img,int fontSize,int numLine) {
+		ImagePlus ret=new Duplicator().run(img);
+		Font font = new Font("SansSerif", Font.PLAIN, fontSize);
+		TextRoi roi = new TextRoi(10*img.getWidth()*1.0/512,10*img.getWidth()*1.0/512+numLine*fontSize*2, text, font);
+		roi.setStrokeColor(Color.black);
+		Overlay overlay = new Overlay();
+		overlay.add(roi);
+		ret.setOverlay(overlay); 
+		Roi[] ovlArray = ret.getOverlay().toArray();
+		for (Roi ro: ovlArray) {
+			ret.setRoi(ro);
+			IJ.run(ret, "Draw", "stack");
+			ret.setRoi((Roi)null);
+		}
+		return ret;
+	}
+
 	public static ImagePlus writeTextOnImage(String text, ImagePlus img,int fontSize,int numLine) {
 		ImagePlus ret=new Duplicator().run(img);
 		Font font = new Font("SansSerif", Font.PLAIN, fontSize);
@@ -2523,7 +2724,7 @@ public interface VitimageUtils {
 		}
 		else if(message.equals("Beep")) {
 			try {
-				Runtime.getRuntime().exec("aplay /home/fernandr/Bureau/1417.wav &");
+				Runtime.getRuntime().exec("aplay /home/fernandr/Audio/Beep.wav &");
 			
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -2533,6 +2734,16 @@ public interface VitimageUtils {
 		else {
 			IJ.showMessage("Message not understood. Cannot say it");
 		}
+	}
+	
+	
+	public static String strInt6chars(int nb) {
+		if(nb<100000 && nb>9999)  return new String(" "+nb);
+		if(nb<10000 && nb>999)    return new String("  "+nb);
+		if(nb<1000 && nb>99)      return new String("   "+nb);
+		if(nb<100 && nb>9)        return new String("    "+nb);
+		if(nb<10)                 return new String("     "+nb);
+		                          return new String(""+nb);
 	}
 		
 	public static double getVoxelVolume(ImagePlus img) {
@@ -2570,8 +2781,219 @@ public interface VitimageUtils {
 		return img;
 	}
 
+	public static int indmax(int[]tab) {
+		double max=-1000000;int indmax=0;
+		for(int i=0;i<tab.length;i++)if(tab[i]>max) {max=tab[i];indmax=i;}
+		return indmax;
+	}
 
+	public static int indmax(double[]tab) {
+		double max=-1000000;int indmax=0;
+		for(int i=0;i<tab.length;i++)if(tab[i]>max) {max=tab[i];indmax=i;}
+		return indmax;
+	}
+	
+	//http://www.tomgibara.com/computer-vision/CannyEdgeDetector.java
+	public static ImagePlus cannyDericheGradient(ImagePlus sourceImageBis,float gaussianKernelRadiusBis ) {
+		float gaussianKernelRadius=gaussianKernelRadiusBis;
+		int gaussianKernelWidth=(int)Math.round(gaussianKernelRadius);
+		if(gaussianKernelWidth<10 && gaussianKernelWidth>3)gaussianKernelWidth-=1;
+		if(gaussianKernelRadius==1)gaussianKernelWidth++;
+		if (gaussianKernelRadius <1.1)gaussianKernelRadius=(float)1.3;
+//		else if(gaussianKernelWidth<4 && gaussianKernelWidth>1)gaussianKernelWidth++;
+		ImagePlus sourceImage=VitimageUtils.imageCopy(sourceImageBis);
+		int width = sourceImage.getWidth();
+		int height = sourceImage.getHeight();
+		int picsize = width * height;
+		int[]data = new int[picsize];
+		int[]magnitude = new int[picsize];
 
+		float[]xConv = new float[picsize];
+		float[]yConv = new float[picsize];
+		float[]xGradient = new float[picsize];
+		float[]yGradient = new float[picsize];
+		ImageProcessor ip = sourceImage.getProcessor();
+		ip = ip.convertToByte(true);
+		for (int i=0; i<ip.getPixelCount(); i++)data[i] = ip.get(i);
+		computeGradients(gaussianKernelRadius, gaussianKernelWidth,xConv,yConv,xGradient,yGradient,data,magnitude,width,height,false);
+		ImagePlus out=VitimageUtils.imageCopy(sourceImage);
+		IJ.run(out,"16-bit","");
+		ImageProcessor ip2 = out.getProcessor();
+		for (int i=0; i<ip2.getPixelCount(); i++)ip2.set(i,magnitude[i]);
+		out.setProcessor(ip2);
+		out.setDisplayRange(0,255);		
+		IJ.run(out,"8-bit","");
+		return  out;
+	}
+	
+	
+	
+	
+
+	public static void computeGradients(float kernelRadius, int kernelWidth,float[]xConv,float[]yConv,float[]xGradient,float[]yGradient,int[]data,int[]magnitude,int width,int height,boolean keepOnlyMaxima) {
+		
+		//generate the gaussian convolution masks
+		float kernel[] = new float[kernelWidth];
+		float diffKernel[] = new float[kernelWidth];
+		int kwidth;
+		for (kwidth = 0; kwidth < kernelWidth; kwidth++) {
+			float g1 = gaussian(kwidth, kernelRadius);
+			if (g1 <= GAUSSIAN_CUT_OFF && kwidth >= 2) break;
+			float g2 = gaussian(kwidth - 0.5f, kernelRadius);
+			float g3 = gaussian(kwidth + 0.5f, kernelRadius);
+			kernel[kwidth] = (g1 + g2 + g3) / 3f / (2f * (float) Math.PI * kernelRadius * kernelRadius);
+			diffKernel[kwidth] = g3 - g2;
+		}
+
+		int initX = kwidth - 1;
+		int maxX = width - (kwidth - 1);
+		int initY = width * (kwidth - 1);
+		int maxY = width * (height - (kwidth - 1));
+		
+		//perform convolution in x and y directions
+		for (int x = initX; x < maxX; x++) {
+			for (int y = initY; y < maxY; y += width) {
+				int index = x + y;
+				float sumX = data[index] * kernel[0];
+				float sumY = sumX;
+				int xOffset = 1;
+				int yOffset = width;
+				for(; xOffset < kwidth ;) {
+					sumY += kernel[xOffset] * (data[index - yOffset] + data[index + yOffset]);
+					sumX += kernel[xOffset] * (data[index - xOffset] + data[index + xOffset]);
+					yOffset += width;
+					xOffset++;
+				}
+				
+				yConv[index] = sumY;
+				xConv[index] = sumX;
+			}
+ 
+		}
+ 
+		for (int x = initX; x < maxX; x++) {
+			for (int y = initY; y < maxY; y += width) {
+				float sum = 0f;
+				int index = x + y;
+				for (int i = 1; i < kwidth; i++)
+					sum += diffKernel[i] * (yConv[index - i] - yConv[index + i]);
+ 
+				xGradient[index] = sum;
+			}
+ 
+		}
+
+		for (int x = kwidth; x < width - kwidth; x++) {
+			for (int y = initY; y < maxY; y += width) {
+				float sum = 0.0f;
+				int index = x + y;
+				int yOffset = width;
+				for (int i = 1; i < kwidth; i++) {
+					sum += diffKernel[i] * (xConv[index - yOffset] - xConv[index + yOffset]);
+					yOffset += width;
+				}
+ 
+				yGradient[index] = sum;
+			}
+ 
+		}
+
+ 
+		initX = kwidth;
+		maxX = width - kwidth;
+		initY = width * kwidth;
+		maxY = width * (height - kwidth);
+		for (int x = initX; x < maxX; x++) {
+			for (int y = initY; y < maxY; y += width) {
+				int index = x + y;
+				int indexN = index - width;
+				int indexS = index + width;
+				int indexW = index - 1;
+				int indexE = index + 1;
+				int indexNW = indexN - 1;
+				int indexNE = indexN + 1;
+				int indexSW = indexS - 1;
+				int indexSE = indexS + 1;
+				
+				float xGrad = xGradient[index];
+				float yGrad = yGradient[index];
+				float gradMag = hypot(xGrad, yGrad);
+				if(!keepOnlyMaxima)magnitude[index]=(int) Math.round(MAGNITUDE_SCALE * gradMag);
+				else {
+					//perform non-maximal supression
+					float nMag = hypot(xGradient[indexN], yGradient[indexN]);
+					float sMag = hypot(xGradient[indexS], yGradient[indexS]);
+					float wMag = hypot(xGradient[indexW], yGradient[indexW]);
+					float eMag = hypot(xGradient[indexE], yGradient[indexE]);
+					float neMag = hypot(xGradient[indexNE], yGradient[indexNE]);
+					float seMag = hypot(xGradient[indexSE], yGradient[indexSE]);
+					float swMag = hypot(xGradient[indexSW], yGradient[indexSW]);
+					float nwMag = hypot(xGradient[indexNW], yGradient[indexNW]);
+					float tmp;
+					/*
+					 * An explanation of what's happening here, for those who want
+					 * to understand the source: This performs the "non-maximal
+					 * supression" phase of the Canny edge detection in which we
+					 * need to compare the gradient magnitude to that in the
+					 * direction of the gradient; only if the value is a local
+					 * maximum do we consider the point as an edge candidate.
+					 * 
+					 * We need to break the comparison into a number of different
+					 * cases depending on the gradient direction so that the
+					 * appropriate values can be used. To avoid computing the
+					 * gradient direction, we use two simple comparisons: first we
+					 * check that the partial derivatives have the same sign (1)
+					 * and then we check which is larger (2). As a consequence, we
+					 * have reduced the problem to one of four identical cases that
+					 * each test the central gradient magnitude against the values at
+					 * two points with 'identical support'; what this means is that
+					 * the geometry required to accurately interpolate the magnitude
+					 * of gradient function at those points has an identical
+					 * geometry (upto right-angled-rotation/reflection).
+					 * 
+					 * When comparing the central gradient to the two interpolated
+					 * values, we avoid performing any divisions by multiplying both
+					 * sides of each inequality by the greater of the two partial
+					 * derivatives. The common comparand is stored in a temporary
+					 * variable (3) and reused in the mirror case (4).
+					 * 
+					 */
+					if (xGrad * yGrad <= (float) 0 /*(1)*/
+						? Math.abs(xGrad) >= Math.abs(yGrad) /*(2)*/
+							? (tmp = Math.abs(xGrad * gradMag)) >= Math.abs(yGrad * neMag - (xGrad + yGrad) * eMag) /*(3)*/
+								&& tmp > Math.abs(yGrad * swMag - (xGrad + yGrad) * wMag) /*(4)*/
+							: (tmp = Math.abs(yGrad * gradMag)) >= Math.abs(xGrad * neMag - (yGrad + xGrad) * nMag) /*(3)*/
+								&& tmp > Math.abs(xGrad * swMag - (yGrad + xGrad) * sMag) /*(4)*/
+						: Math.abs(xGrad) >= Math.abs(yGrad) /*(2)*/
+							? (tmp = Math.abs(xGrad * gradMag)) >= Math.abs(yGrad * seMag + (xGrad - yGrad) * eMag) /*(3)*/
+								&& tmp > Math.abs(yGrad * nwMag + (xGrad - yGrad) * wMag) /*(4)*/
+							: (tmp = Math.abs(yGrad * gradMag)) >= Math.abs(xGrad * seMag + (yGrad - xGrad) * sMag) /*(3)*/
+								&& tmp > Math.abs(xGrad * nwMag + (yGrad - xGrad) * nMag) /*(4)*/
+						) {
+						magnitude[index] = gradMag >= MAGNITUDE_LIMIT ? MAGNITUDE_MAX : (int) (MAGNITUDE_SCALE * gradMag);
+						//NOTE: The orientation of the edge is not employed by this
+						//implementation. It is a simple matter to compute it at
+						//this point as: Math.atan2(yGrad, xGrad);
+					} else {
+						magnitude[index] = 0;
+					}
+				}
+			}
+		}
+	}
+ 
+	//NOTE: It is quite feasible to replace the implementation of this method
+	//with one which only loosely approximates the hypot function. I've tested
+	//simple approximations such as Math.abs(x) + Math.abs(y) and they work fine.
+	public static float hypot(float x, float y) {
+		return (float) Math.hypot(x, y);
+	}
+ 
+	public static float gaussian(float x, float sigma) {
+		return (float) Math.exp(-(x * x) / (2f * sigma * sigma));
+	}
+	
+	
 	
 	
 	
@@ -2586,14 +3008,18 @@ public interface VitimageUtils {
 			valsImg[z]=(byte [])img.getStack().getProcessor(z+1).getPixels();
 			for(int x=x0;x<=xf;x++) {
 				for(int y=y0;y<=yf;y++) {
-						valsImg[z][xM*y+x]=  (byte)( ((byte)value) & 0xff);
+					valsImg[z][xM*y+x]=  (byte)( ((byte)value) & 0xff);
 				}
 			}
 		}			
 		return img;
 	}
 
-	
+	public static void printDebugIntro(int N,String message) {
+		for(int i=0;i<N;i++)System.out.println("################## DEBUG ###########");
+		System.out.println(message);
+	}
+
 	
 	public static ImagePlus drawCylinderInImage(ImagePlus imgIn,double ray,int x0,int y0,int value) {
 		if(imgIn.getType() != ImagePlus.GRAY8)return imgIn;
@@ -3139,6 +3565,18 @@ public interface VitimageUtils {
 	}
 
 	
+	public static ImagePlus subXYZ(ImagePlus imgIn,double[]factors,int interpolationScheme) {
+		ImagePlus out=VitimageUtils.imageCopy(imgIn);
+		int []dimsNew=VitimageUtils.getDimensions(imgIn);
+		for(int d=0;d<3;d++) {
+			dimsNew[d]=(int)(Math.ceil( dimsNew[d]*factors[d] ));
+		}
+		IJ.run(out, "Scale...", "x="+factors[0]+" y="+factors[1]+" z="+factors[2]+" width="+dimsNew[0]+" height="+dimsNew[1]+" depth="+dimsNew[2]+" interpolation=Bilinear process average create");
+		out=IJ.getImage();
+		out.hide();
+		return out;
+	}
+
 	public static ImagePlus Up222(ImagePlus img) {
 		ResampleImageFilter res=new ResampleImageFilter();
 		res.setDefaultPixelValue(0);

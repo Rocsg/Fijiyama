@@ -7,7 +7,7 @@
 
 	<groupId>com.vitimage</groupId>
 	<artifactId>Vitimage_Toolbox</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>4.0.0-PHENIX_DE_L_OMBRE</version>
 	<name>Vitimage_Toolbox</name>
 	<packaging>jar</packaging>
 	<description>Useful tools for the common experiments of the VITIMAGE project</description>

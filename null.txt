@@ -1,0 +1,11 @@
+Confusion matrix Pouet , matrice de taille 3 X 3
+[ 900.0 , 90.0 , 10.0 ] 
+[ 0.0 , 1000.0 , 50.0 ] 
+[ 20.0 , 300.0 , 1000.0 ] 
+Precision classes = [ 0.9 , 0.9523809523809523 , 0.7575757575757576 ]
+Recall classes = [ 0.9782608695652174 , 0.7194244604316546 , 0.9433962264150944 ]
+Accuracies classes = [ 0.9643916913946587 , 0.8694362017804155 , 0.887240356083086 ]
+Subtotal actual = [ 920.0 , 1390.0 , 1060.0 ]
+Subtotal predicted = [ 1000.0 , 1050.0 , 1320.0 ]
+Accuracy=0.8605341246290801
+Statistiques calculees sur 3370 valeurs

@@ -103,7 +103,6 @@ public class APLIM_Studio  implements PlugIn,ItkImagePlusInterface,VitiDialogs,V
 	}
 
 	
-	
 	public void runMaidaRegistration() {
 		//Images opening. Handling the case of monoslice images by duplicating the slices
 		ImagePlus[]imgs=VitiDialogs.chooseTwoImagesUI("Choose reference image and moving image","Reference","Moving");
