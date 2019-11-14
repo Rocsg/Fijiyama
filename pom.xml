@@ -166,8 +166,15 @@
 		    <scope>system</scope>
    	   	    <systemPath>/home/fernandr/Programmes/Fiji.app/plugins/Hough_Circle_Transform-1.0.0-RELEASE.jar</systemPath>
 		</dependency>
+
+		<dependency>
+		    <groupId>jgrapht</groupId>
+		    <artifactId>jgrapht</artifactId>
+		    <version>0.7.3</version>
+		</dependency>
 		
 		
+
 		
 	</dependencies>
 </project>

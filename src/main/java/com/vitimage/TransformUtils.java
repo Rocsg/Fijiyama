@@ -814,6 +814,15 @@ public interface TransformUtils {
 		ret[2]=v1[2]-v2[2];		
 		return ret;
 	}
+
+	public static double[] vectorialAddition(double[]v1,double[]v2){
+		double[] ret=new double[3];
+		ret[0]=v1[0]+v2[0];		
+		ret[1]=v1[1]+v2[1];		
+		ret[2]=v1[2]+v2[2];		
+		return ret;
+	}
+
 	
 	public static double[] proj_u_of_v(double[]u,double[]v){
 		double scal1=scalarProduct(u,v);
@@ -870,6 +879,15 @@ public interface TransformUtils {
 		return(vectNom+" = [ "+vect[0]+" , "+vect[1]+" , "+vect[2]+" ]");
 	}
 
+	public static String stringVectorDou(double []vect,String vectNom){
+		return(vectNom+" = [ "+VitimageUtils.dou(vect[0])+" , "+VitimageUtils.dou(vect[1])+" , "+VitimageUtils.dou(vect[2])+" ]");
+	}
+
+	public static String stringVectorDou(double []vect,String vectNom,int n){
+		return(vectNom+" = [ "+VitimageUtils.dou(vect[0],n)+" , "+VitimageUtils.dou(vect[1],n)+" , "+VitimageUtils.dou(vect[2],n)+" ]");
+	}
+
+	
 	public static String stringVector(int []vect,String vectNom){
 		return(vectNom+" = [ "+vect[0]+" , "+vect[1]+" , "+vect[2]+" ]");
 	}

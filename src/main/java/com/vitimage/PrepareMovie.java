@@ -39,7 +39,6 @@ public class PrepareMovie {
 	public static String TYPE_FIELD="";
 	public static void main(String [] args) {
 		ImageJ imag=new ImageJ();
-		System.out.println(imag.VERSION);
 //		smoothMushroom();
 		//computeContinuousSegmentationBasedOnDistanceMapsRayCasting();
 		//smoothMushroom();

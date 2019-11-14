@@ -6,6 +6,7 @@ import org.itk.simple.ImageFileReader;
 import org.itk.simple.ImageFileWriter;
 import org.itk.simple.PixelIDValueEnum;
 import org.itk.simple.VectorDouble;
+import org.itk.simple.VectorFloat;
 import org.itk.simple.VectorUInt32;
 import ij.IJ;
 import ij.ImageJ;
@@ -135,6 +136,7 @@ public interface ItkImagePlusInterface {
 		VectorDouble values=new VectorDouble(3);
 		int coordIJ;
 		for(int z=0;z<dimZ;z++) {
+			System.out.println(z);
 			coordinates.set(2,z);
 			float [][]tabData=new float[4][];
 			tabData[0]=(float[])ret[0].getStack().getProcessor(z+1).getPixels();
@@ -154,6 +156,44 @@ public interface ItkImagePlusInterface {
 				}
 			}
 		}
+		return ret;
+	}
+	
+	public static ImagePlus[] convertDisplacementFieldFloatToImagePlusArray(Image img){
+		System.out.println("Start");
+		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
+		VectorDouble voxSizes= img.getSpacing();		
+		ImagePlus[]ret=new ImagePlus[3];
+		for(int dim=0;dim<3;dim++) {
+			ret[dim]=IJ.createImage("", dimX, dimY, dimZ, 32);
+			Calibration cal = ret[dim].getCalibration();
+			cal.setUnit("mm");
+			cal.pixelWidth =voxSizes.get(0); cal.pixelHeight =voxSizes.get(1); cal.pixelDepth =voxSizes.get(2);
+		}
+		VectorUInt32 coordinates=new VectorUInt32(3);
+		VectorFloat values=new VectorFloat(3);
+		int coordIJ;
+		for(int z=0;z<dimZ;z++) {
+			System.out.println(z);
+			coordinates.set(2,z);
+			float [][]tabData=new float[3][];
+			tabData[0]=(float[])ret[0].getStack().getProcessor(z+1).getPixels();
+			tabData[1]=(float[])ret[1].getStack().getProcessor(z+1).getPixels();
+			tabData[2]=(float[])ret[2].getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<dimX;x++) {
+				coordinates.set(0,x);
+				for(int y=0;y<dimY;y++) {
+					coordinates.set(1,y);
+					coordIJ=dimX*y+x;
+					values= img.getPixelAsVectorFloat32(coordinates);
+					tabData[0][coordIJ]=(float)( values.get(0));
+					tabData[1][coordIJ]=(float)( values.get(1));
+					tabData[2][coordIJ]=(float)( values.get(2));
+				}
+			}
+		}
+		System.out.println("End");
+
 		return ret;
 	}
 	

@@ -369,10 +369,10 @@ public class Weka_Save implements PlugIn
 	
 	public void runOnOtherImage() {
 		boolean debug=true;	
-		boolean compute=false;
+		boolean compute=true;
 		if(debug)loadClassSetup("/home/fernandr/Bureau/ML_CEP/SETUPS/setup.MCLASS");
 
-		for (int s=0;s<12;s++) {
+		for (int s=10;s<12;s++) {
 			String spec= stringSpecimens[s];
 			String nomImg="/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH/Computed_data/3_Hyperimage/hyperimage_THIN.tif";
 			System.out.println("STARTING SEGMENTATION ON "+nomImg);
@@ -390,12 +390,13 @@ public class Weka_Save implements PlugIn
 			int Z=trainNew[0].getStackSize();
 			int Y=trainNew[0].getHeight();
 			int X=trainNew[0].getWidth();
-			int nBatches=(int)Math.round(Z*1.0/batchSize);
+			int nBatches=(int)Math.ceil(Z*1.0/batchSize);
+			System.out.println("Ok. Nb batches : "+nBatches+" of size 44");
 			ImagePlus[][]retTab=new ImagePlus[2][nBatches];
 			if(compute) {
 
-				System.out.println("Ok. Computing mini-batches for hyperimage with "+Z+" slices...");
 				for(int nB=0;nB<nBatches;nB++) {
+					System.out.println("Computing mini-batches number "+nB+" for hyperimage with dimZ="+Z+" slices...");
 					int firstZ=nB*batchSize;
 					int lastZ=Math.min((nB+1)*batchSize-1,Z-1);
 					System.out.println("Processing batch from "+firstZ+" to "+lastZ);
@@ -412,9 +413,11 @@ public class Weka_Save implements PlugIn
 					retTab[0][nB].setDisplayRange(0, 255);
 					IJ.run(retTab[0][nB],"8-bit","");
 					IJ.saveAsTiff(retTab[0][nB], outputBatch+"segmentation_"+nB+".tif");						
-	//				wekaSegmentation.applyClassifier(true);//False means no probability maps
-		//			retTab[1][nB] = wekaSegmentation.getClassifiedImage();
-	//				IJ.saveAsTiff(retTab[1][nB], outputBatch+"probabilities_"+nB+".tif");						
+					if(s==0 || s==9) {
+						wekaSegmentation.applyClassifier(true);//False means no probability maps
+						retTab[1][nB] = wekaSegmentation.getClassifiedImage();
+						IJ.saveAsTiff(retTab[1][nB], outputBatch+"probabilities_"+nB+".tif");					
+					}
 				}
 			}
 			int sum=0;
@@ -437,7 +440,8 @@ public class Weka_Save implements PlugIn
 														 "Exp_2_WEKA_SPECIMEN_TWO_FOLD_CROSS_VALIDATION two ceps versus all, 66 experiences, half an hour",
 														 "Exp_3_WEKA_SYMPTOM_CROSS_VALIDATION one symptom versus all, 4 experiences, few minutes",
 														 "Exp_4_TWO_FOLD among 16 configurations of imaging devices, 1056 experiences, overnighter",
-														 "Exp_5_TWO_FOLD among 8 successive resolutions, 528 experiences, 2 hours"},
+														 "Exp_5_TWO_FOLD among 8 successive resolutions, 528 experiences, 2 hours",
+														 "Just have a look on a subsample version of examples"},
 														"Exp_2_WEKA_SPECIMEN_TWO_FOLD_CROSS_VALIDATION two ceps versus all, 66 experiences, half an hour");														
 		gd.showDialog();						
 		int choice=gd.getNextChoiceIndex();
@@ -453,7 +457,7 @@ public class Weka_Save implements PlugIn
 		wekaSegmentation.setMaximumSigma(optiSigMax);
 		wekaSegmentation.setMinimumSigma(optiSigMin);
 		loadClassSetup("/home/fernandr/Bureau/ML_CEP/SETUPS/setup.MCLASS");
-		String optiExampleSet="/home/fernandr/Bureau/ML_CEP/EXAMPLES/EXAMPLES_MOYEN_CORRIGE/examples.MROI";
+		String optiExampleSet="/home/fernandr/Bureau/ML_CEP/EXAMPLES/EXAMPLES_MOYEN/examples.MROI";
 //		String optiFeatureStack="/home/fernandr/Bureau/ML_CEP/EXAMPLES/EXAMPLES_MOYEN/examples.MROI";
 		String examplesPath=optiExampleSet;
 
@@ -480,7 +484,7 @@ public class Weka_Save implements PlugIn
 		
 		
 		if(choice==3) {//TWO FOLD AMONG MODALITIES COMBINATION
-			String resultPath="/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_3_MODALITIES/";
+			String resultPath="/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_4_MODALITIES/";
 			boolean []tab=new boolean[4];
 			for(int i=1;i<16;i++) {
 				tab[0]=(i>=8);
@@ -498,11 +502,16 @@ public class Weka_Save implements PlugIn
 		}
 	
 		if(choice==4) {//TWO FOLD AMONG RESOLUTIONS
-			boolean stepBuild=true;
-			String resultPath="/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_5_RESOLUTIONS/";
-			for (int subSampl=1;subSampl>0 ; subSampl--) {
+			ImagePlus hyperTmp=VitimageUtils.imageCopy(hyperImage);
+			boolean buildExamples=true;
+			boolean buildFeatures=false;
+			boolean onlyConsensusExamples=true;
+			boolean stepResults=true;
+			String resultPath="/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_5_RESOLUTIONS"+(onlyConsensusExamples?"_CONSENSUS" :"")+"/";
+			double voxX0=VitimageUtils.getVoxelSizes(hyperTmp)[0];
+			for (int subSampl=1;subSampl<2 ; subSampl++) {
 				System.out.println("\n\n\n\nTest avec facteur de subsample="+subSampl);
-				String outExamplesPath="/home/fernandr/Bureau/ML_CEP/EXAMPLES/EXAMPLES_MOYEN_SUB/SUB_"+subSampl+"/";
+				String outExamplesPath="/home/fernandr/Bureau/ML_CEP/EXAMPLES/EXAMPLES_MOYEN_SUB"+(onlyConsensusExamples?"_CONSENSUS" :"")+"/SUB_"+subSampl+"/";
 				File dir=new File(outExamplesPath);dir.mkdirs();
 				outExamplesPath=outExamplesPath+"examples.MROI";
 				String outImgPath="/home/fernandr/Bureau/ML_CEP/IMAGES/imgHybrid_Sub"+subSampl+".tif";
@@ -511,37 +520,39 @@ public class Weka_Save implements PlugIn
 				String outFeatPath="/home/fernandr/Bureau/ML_CEP/FEATURESTACK/FEATURESTACK_SUB_"+subSampl+"/";
 				dir = new File(outFeatPath);dir.mkdirs();
 				System.out.println("String charges");
-/*				if(subSampl>=16)wekaSegmentation.setMaximumSigma(optiSigMax/16);
-				else if(subSampl>=8)wekaSegmentation.setMaximumSigma(optiSigMax/8);
-				else if(subSampl>=4)wekaSegmentation.setMaximumSigma(optiSigMax/4);
-				else if(subSampl>=2)wekaSegmentation.setMaximumSigma(optiSigMax/2);*/
+				if(subSampl>=8*voxX0)wekasave.fixedMaxSigma=optiSigMax/8;
+				else if(subSampl>=4*voxX0)wekasave.fixedMaxSigma=optiSigMax/4;
+				else if(subSampl>=2*voxX0)wekasave.fixedMaxSigma=optiSigMax/2;
+//				this.wekaSegmentation.setMaximumSigma(wekasave.fixedMaxSigma);
+//			wekaSegmentation.setFeaturesDirty();
+				
 				System.out.println("Sigma charges");
-				if(stepBuild) {
+				if(buildExamples) {
 					System.out.println("Fixer le sigma a "+wekaSegmentation.getMaximumSigma());
-					wekasave.fixedMaxSigma=(int)Math.round(wekaSegmentation.getMaximumSigma());
 					System.out.println("Ok. Convertir image et examples avec facteur = "+(1.0/subSampl));
-					ImagePlus imgNew=convertImageAndExamplesToLowerXYResolution((1.0/subSampl),"/home/fernandr/Bureau/ML_CEP/IMAGES/imgHybrid.tif",optiExampleSet,outExamplesPath,outImgPath);
+					startFromNewHyperImage(hyperTmp);
+					ImagePlus imgNew=convertImageAndExamplesToLowerXYResolution(voxX0/subSampl,"/home/fernandr/Bureau/ML_CEP/IMAGES/imgHybrid.tif",optiExampleSet,outExamplesPath,outImgPath,onlyConsensusExamples);
 					System.out.println("Ok. demarrer de cette nouvelle image");
-					startFromNewHyperImage(imgNew);
-					System.out.println("Ok. Calculer la feature stack");
-					FeatureStackArray fsa=buildFeatureStackArrayRGBSeparatedMultiThreadedV2(getUpdatedTrainingHyperImage(),tabHyperFeatures,(int)Math.round(wekaSegmentation.getMinimumSigma()),(int)Math.round(wekaSegmentation.getMaximumSigma()));
-					System.out.println("Ok. Sauver la feature stack");
-					wekaSegmentation.setFeatureStackArray(fsa);
-					wekaSegmentation.setUpdateFeatures(false);
-					saveFeatureStack(outFeatPath);
-					System.out.println("Ok. ajuster les parametres et charger la feature stack");
-					goodTrainerWasLastUsedAndParamsHadNotMove=true;
-					badTrainerWasLastUsed=false;
-					System.out.println("Ok. Fini boucle.");
+					if(buildFeatures) {
+						loadExamplesFromFile(outExamplesPath,0,null,null,null);
+						startFromNewHyperImage(imgNew);
+						System.out.println("Ok. Calculer la feature stack en utilisant "+" RX ?"+wekasave.tabHyperModalities[0]+" T1 ?"+wekasave.tabHyperModalities[1]+" T2 ?"+wekasave.tabHyperModalities[2]+" M0 ?"+wekasave.tabHyperModalities[3]);
+						FeatureStackArray fsa=buildFeatureStackArrayRGBSeparatedMultiThreadedV2(getUpdatedTrainingHyperImage(),tabHyperFeatures,(int)Math.round(wekaSegmentation.getMinimumSigma()),(int)Math.round(wekasave.fixedMaxSigma));
+						System.out.println("Ok. Sauver la feature stack");
+						wekaSegmentation.setFeatureStackArray(fsa);
+						wekaSegmentation.setUpdateFeatures(false);
+						saveFeatureStack(outFeatPath);
+						saveFeatureSetup(outFeatPath+"setup.MFEATURE");
+						
+						System.out.println("Ok. ajuster les parametres et charger la feature stack");
+						goodTrainerWasLastUsedAndParamsHadNotMove=true;
+						badTrainerWasLastUsed=false;
+						System.out.println("Ok. Fini boucle.");
+					}
 				}
-				else {
-					/*
-					img.setTitle("this");
-					IJ.selectWindow("this");
-					Weka_Save ws=new Weka_Save();
-					ws.run("");
-*/	
+				if(stepResults) {
 					System.out.println("Yolo!");
+					startFromNewHyperImage(hyperTmp);
 					ImagePlus img=IJ.openImage(outImgPath);
 					System.out.println("Starting from new hyperimage");VitimageUtils.waitFor(1000);
 					startFromNewHyperImage(img);
@@ -554,12 +565,31 @@ public class Weka_Save implements PlugIn
 					System.out.println("ok. Evaluate cross");VitimageUtils.waitFor(1000);
 					evaluateCross(null,outExamplesPath,resultPathMod,WEKA_SPECIMEN_TWO_FOLD_CROSS_VALIDATION,true,lookupClasses,strNew);
 					System.out.println("Ok");
-				}
-			
+				}			
 			}		
 		}
-		
-		
+		if(choice==5) {//Just have a look on a subsampled version
+			GenericDialog gd2=new GenericDialog("Select subsampling factor");
+			gd2.addChoice("Select factor", new String[] {"1","2","3","4","5","6","7","8","9","10"},
+															"1");														
+			gd2.showDialog();						
+			int val=gd2.getNextChoiceIndex()+1;
+			
+			String outExamplesPath="/home/fernandr/Bureau/ML_CEP/EXAMPLES/EXAMPLES_MOYEN_SUB/SUB_"+val+"/examples.MROI";			
+			String outFeatPath="/home/fernandr/Bureau/ML_CEP/FEATURESTACK/FEATURESTACK_SUB_"+val+"/";
+			boolean stepBuild=false;
+			System.out.println("Loading image");
+			ImagePlus img=IJ.openImage("/home/fernandr/Bureau/ML_CEP/IMAGES/imgHybrid_Sub"+val+".tif");
+			System.out.println("Ok. Starting again");
+			startFromNewHyperImage(img);
+			System.out.println("Ok.Loading features");
+			loadFeatureStack(this,  outFeatPath);
+			System.out.println("Ok.Loading setup");
+			loadClassSetup("/home/fernandr/Bureau/ML_CEP/SETUPS/setup.MCLASS");
+			System.out.println("Ok.Loading examples");
+			loadExamplesFromFile(outExamplesPath,0,null,null,null);
+			System.out.println("Load finished");
+		}		
 	
 	}
 
@@ -568,6 +598,7 @@ public class Weka_Save implements PlugIn
 	public void startFromNewHyperImage(ImagePlus imgNew) {
 		isHyper=true;
 		tabI=new ImagePlus[9];
+		VitimageUtils.printImageResume(imgNew);
 		hyperImage=VitimageUtils.imageCopy(imgNew);
 		hyperTab=VitimageUtils.stacksFromHyperstackFast(hyperImage,9);
 		System.out.println("Starting from new image. ");
@@ -587,6 +618,10 @@ public class Weka_Save implements PlugIn
 		for(int i=0;i<9;i++)tabI[i]=VitimageUtils.imageCopy(trainingImage);
 		trainingHyper = Concatenator.run(tabI);
 		IJ.run(trainingHyper,"Stack to Hyperstack...", "order=xyczt(default) channels=1 slices="+(rgbImage.getStackSize())+" frames=9");
+		wekasave.switchViewToHyperimage();
+//		wekasave.displayImage=
+		//				displayImage=VitimageUtils.imageCopy(hyperImage);
+		//	win.setImagePlus(displayImage);		
 	}
 
 	public static double[][][]assembleConfusionsTab(double[][][][]tabIn){
@@ -3242,7 +3277,6 @@ public class Weka_Save implements PlugIn
 
 		// Update feature stack if necessary
 		if(featuresChanged)	wekaSegmentation.setFeaturesDirty();//Force recomputation of features
-
 		else if( !wekaSegmentation.getFeatureStackArray().isEmpty()&& wekaSegmentation.getFeatureStackArray().getReferenceSliceIndex() != -1)wekaSegmentation.setUpdateFeatures(false);
 
 		return true;
@@ -6129,7 +6163,7 @@ public class Weka_Save implements PlugIn
 	
 
 	
-	public ImagePlus convertImageAndExamplesToLowerXYResolution(double factor,String fileImgInPath,String fileExamplesSource,String outExamplesPath,String outImgPath) {
+	public ImagePlus convertImageAndExamplesToLowerXYResolution(double factor,String fileImgInPath,String fileExamplesSource,String outExamplesPath,String outImgPath,boolean onlyConsensusExamples) {
 		//Images handling
 		System.out.println("Starting conversion of image and examples, with size factor="+factor);
 		System.out.println("Images and files handling");
@@ -6149,11 +6183,11 @@ public class Weka_Save implements PlugIn
 		double[]voxs=VitimageUtils.getVoxelSizes(img);
 		int X=dims[0];		int Y=dims[1];		int Z=dims[2];
 
-		//MakeSubsampling
+		//Make subsampling with nearest
 		System.out.println("Subsampling hyperTab");
 		for(int i=0;i<hyperTabNew.length;i++) {
 			System.out.print("Processing modality "+i+" "+TransformUtils.stringVector(VitimageUtils.getDimensions(hyperTabNew[i])," dims avant="));
-			hyperTabNew[i]=VitimageUtils.subXYZ(hyperTabNew[i],new double[] {factor,factor,1},0);
+			hyperTabNew[i]=VitimageUtils.subXYZ(hyperTabNew[i],new double[] {factor,factor,1},true);
 			System.out.println(" "+TransformUtils.stringVector(VitimageUtils.getDimensions(hyperTabNew[i])," dims apres="));
 		}
 		int Ns=hyperTabNew[0].getStackSize();
@@ -6173,7 +6207,7 @@ public class Weka_Save implements PlugIn
 		String[]classLabels=this.wekaSegmentation.getClassLabels();
 		int[][]examplesPoints=loadExamplesFromFile(fileEx,0,null,null,null);
 		
-		//Could be done easily with linked list
+		//Could be done with linked list
 		//Gather examples in old geometry, and compute their new coordinates in subsampled image
 		System.out.println("Attributing new coordinates to "+examplesPoints.length+" old examples on a grid of "+Xnew+" x "+Ynew+" x "+Znew);
 		int[][][][]listVals=new int[Xnew][Ynew][Znew][];
@@ -6224,8 +6258,8 @@ public class Weka_Save implements PlugIn
 					int[]tabNb=new int[5];
 					for(int t=0;t<listVals[xNew][yNew][zNew].length;t++) tabNb[listVals[xNew][yNew][zNew][t]]++;
 					examplesNew[xNew][yNew][zNew]=VitimageUtils.indmax(tabNb);
-					if(nombreNonNuls(tabNb)>1) {
-			//			System.out.println("Processed  "+xNew+","+yNew+","+zNew+" dote de la liste "+TransformUtils.stringVectorN(listVals[xNew][yNew][zNew], "classe choisie = "+examplesNew[xNew][yNew][zNew]));
+					if(onlyConsensusExamples && nombreNonNuls(tabNb)>1) {
+						examplesNew[xNew][yNew][zNew]=-1;//			System.out.println("Processed  "+xNew+","+yNew+","+zNew+" dote de la liste "+TransformUtils.stringVectorN(listVals[xNew][yNew][zNew], "classe choisie = "+examplesNew[xNew][yNew][zNew]));
 					}
 				}
 			}
@@ -6234,16 +6268,22 @@ public class Weka_Save implements PlugIn
 		//Build array of PointRoi to be exported, with respect to slices and class
 		System.out.println("Building point rois for each class and slice");
 		PointRoi [][]tabRoi=new PointRoi[5][Znew];
+		int[]nbEnd=new int[5];
 		for(int zNew=0;zNew<Znew;zNew++) {
 			for(int cl=0;cl<5;cl++) {
 				tabRoi[cl][zNew]=new PointRoi();
 				for(int yNew=0;yNew<Ynew;yNew++) {
 					for(int xNew=0;xNew<Xnew;xNew++) {
-						if(examplesNew[xNew][yNew][zNew]==cl)tabRoi[cl][zNew].addPoint(xNew, yNew);
+						if(examplesNew[xNew][yNew][zNew]==cl) {
+							nbEnd[cl]++;
+							tabRoi[cl][zNew].addPoint(xNew, yNew);
+						}
 					}
 				}
 			}
 		}
+		System.out.println("Set final apres subsampling :");
+		for(int cl=0;cl<5;cl++)System.out.println("   -> Examples sub classe "+cl+" #Total="+nbEnd[cl]);
 		System.out.println("Writing examples in "+outExamplesPath);
 		Weka_Save.saveExamplesInFile(tabRoi,imgNew,classLabels,outExamplesPath);
 		System.out.println("Writing imgHybridnew in "+outImgPath);

@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 import org.itk.simple.DisplacementFieldTransform;
+import org.itk.simple.GradientImageFilter;
 import org.itk.simple.Image;
 import org.itk.simple.ImageFileWriter;
 import org.itk.simple.InverseDisplacementFieldImageFilter;
@@ -65,6 +66,10 @@ import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
 import ij.process.ByteProcessor;
 import ij.process.FloatPolygon;
+import ij.process.ImageConverter;
+import inra.ijpb.binary.ChamferWeights3D;
+import inra.ijpb.binary.geodesic.GeodesicDistanceTransform3D;
+import inra.ijpb.binary.geodesic.GeodesicDistanceTransform3DFloat;
 import inra.ijpb.morphology.Morphology;
 import inra.ijpb.morphology.Strel3D;
 import math3d.Point3d;
@@ -140,16 +145,79 @@ public class TestRomain {
 //		testTrans();
 //		//		charlotte();
 		
-		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/CEP_020_APO1/segmentation_APO1.tif");
-		ImagePlus imgSain=VitimageUtils.thresholdFloatImage(img, 0.9,1.1);
-		ImagePlus imgFull=VitimageUtils.thresholdFloatImage(img, 0.9,10);
-		imgSain.show();
-		imgSain.setTitle("Sain");
-		imgFull.show();
-		imgFull.setTitle("Full");
+		
+	/*	
+	 * 
+	 * 
+	 * 		ImagePlus distPimpee=null;
+		if(buildDist) {
+			Strel3D strPti=inra.ijpb.morphology.strel.CuboidStrel.fromRadiusList(10,10,10);
+			ImagePlus imgKeep1=VitimageUtils.imageCopy(distance);
+			ImagePlus img =new ImagePlus("",Morphology.erosion(distance.getImageStack(),strPti));
+			ImagePlus imgKeep=VitimageUtils.imageCopy(img);
+			imgKeep1.show();
+			imgKeep1.setTitle("before erosion");
+			imgKeep.show();
+			imgKeep.setTitle("after erosion");
+			ImagePlus maskIn=VitimageUtils.thresholdFloatImage(distance, 0, 300);
+			
+			ImagePlus maskOut=VitimageUtils.imageCopy(maskIn);
+			IJ.run(maskOut,"Invert","stack");
+			maskIn.show();
+			maskOut.show();
+			distPimpee=VitimageUtils.makeOperationBetweenTwoImages(
+						VitimageUtils.makeOperationBetweenTwoImages(maskIn,distance, 2,true),
+						VitimageUtils.makeOperationBetweenTwoImages(maskOut,img, 2,true),
+						1,true);
+			distPimpee=VitimageUtils.makeOperationOnOneImage(distPimpee,3,255, true);
+			//distPimpee=VitimageUtils.gaussianFiltering(distPimpee, 1, 1,1);
+			distPimpee=VitimageUtils.subXYZ(distPimpee, new double[] {1.4734,1.4734,2.04}, true);
+			distPimpee.show();
+			distPimpee.setDisplayRange(0, 310);
+			IJ.run(distPimpee,"Fire","");
+			IJ.saveAsTiff(distPimpee, "/home/fernandr/Bureau/distPimpee.tif");
+		}
+		else if(actionSave){
+			distPimpee=IJ.openImage("/home/fernandr/Bureau/distPimpee.tif");
+			gradients=computeGradients(distPimpee,0.5,true,true);
+			IJ.saveAsTiff(gradients[0], "/home/fernandr/Bureau/gradXYolo.tif");
+			IJ.saveAsTiff(gradients[1], "/home/fernandr/Bureau/gradYYolo.tif");
+			IJ.saveAsTiff(gradients[2], "/home/fernandr/Bureau/gradZYolo.tif");
+			System.exit(0);
+		}
+		if(actionLoad) {
+			gradients[0]=IJ.openImage( "/home/fernandr/Bureau/gradX.tif");
+			gradients[1]=IJ.openImage( "/home/fernandr/Bureau/gradY.tif");
+			gradients[2]=IJ.openImage( "/home/fernandr/Bureau/gradZ.tif");
+		}
+		else {
+			gradients=computeGradients(distance,fiberRay,false,true);
+		}
+		//gradients[0].show();
+
+	 * 
+	 * 
+	 * 
+	 * 
+	 * 
+	 * ImagePlus img2=convertHSBToRGBStack(new ImagePlus [] {
+				IJ.openImage("/home/fernandr/Bureau/hue.tif"),
+				IJ.openImage("/home/fernandr/Bureau/sat.tif"),
+				IJ.openImage("/home/fernandr/Bureau/brig.tif")		});
+		img2.show();
+		*/
+		//merde();
+		//		makeExperimentOnSegmentationsAndGetValuesOfPercentageTissueAccordingWithZ();
+//		makeExperimentOnSegmentationsAndGetValuesOfPercentageTissueAccordingWithGeodesicFromCenter();
+//		makeExperimentOnSegmentationsAndGetValuesOfPercentageTissueAccordingWithGeodesic();
+	
+		//testGrad();
+		//VitimageUtils.waitFor(100000);		
+
+		///testMorphoDist();
+		//VitimageUtils.waitFor(1000000);
 
 		//makeHybrideCepVertical();
-		VitimageUtils.waitFor(100000000);
 		
 		
 		
@@ -158,21 +226,477 @@ public class TestRomain {
 		//ImagePlus img2=transformParts12(img,values,25,25);
 //		ImagePlus imgT1Bef=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/HYBRID/T1BEFORE.tif");
 //		ImagePlus imgT1Aft=transformParts12(imgT1Bef,values,512,512);
-		ImagePlus imgN=evaluateIntensityBias();
-		IJ.saveAsTiff(imgN, "/home/fernandr/Bureau/test.tif");
-		imgN=IJ.openImage("/home/fernandr/Bureau/test.tif");
-		ImagePlus imgN2=correctionBizarre(imgN);
-		IJ.saveAsTiff(imgN2, "/home/fernandr/Bureau/test2.tif");
-		imgN.show();
-		imgN2.show();
+//		ImagePlus imgN=evaluateIntensityBias();
+		//		IJ.saveAsTiff(imgN, "/home/fernandr/Bureau/test.tif");
+		//imgN=IJ.openImage("/home/fernandr/Bureau/test.tif");
+		//ImagePlus imgN2=correctionBizarre(imgN);
+		//IJ.saveAsTiff(imgN2, "/home/fernandr/Bureau/test2.tif");
+		//imgN.show();
+		//imgN2.show();
+
+		//Image
 		//makeHybrideCepVertical();
 //		evaluateIntensityBias();
 		//		extractIRMnormalisationInfoForCep5D();
 		//makeHybrideCepVerticalTotal3D() ;
+		//VitimageUtils.waitFor(100000000);
+		
+		
+		makeTaggingSurface(true,false);
 		VitimageUtils.waitFor(100000000);
 		System.exit(0);
+		
+		makeTaggingSurface(true,false);
+	
+		
 	}
 
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	public static void makeTaggingSurface(boolean doHealthy,boolean borderOnly) {
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		int []sliceRootStocks= new int[] {200+86 , 200+76 , 200+174 ,          200+65 , 200+97 , 200+108 ,        200+71  , 200+74 ,  200+68 ,       200+59 , 200+42  , 200+118}; 
+		Strel3D str=inra.ijpb.morphology.strel.CuboidStrel.fromRadiusList(2,2, 2);
+
+		for(int i=0;i<12;i++) {
+			String spec=specimen[i];
+			System.out.println("Processing "+spec);
+			ImagePlus dist=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+(doHealthy ? "/distanceSain.tif" : "/distanceFull.tif"));
+			
+			ImagePlus binary=VitimageUtils.thresholdFloatImage(dist,0.000001, 1000);
+			ImagePlus binaryEcorce=null;
+			if(borderOnly) {
+				ImagePlus binErode=new ImagePlus("",Morphology.erosion(binary.getImageStack(),str));
+				binaryEcorce=VitimageUtils.makeOperationBetweenTwoImages(binary,binErode, 4,false);
+			}
+			else binaryEcorce=VitimageUtils.imageCopy(binary);
+			//		VitimageUtils.imageChecking(binaryEcorce,"binaryEcorce");ng 
+//			binaryEcorce.show();
+//			VitimageUtils.waitFor(100000);
+
+//			dist.setDisplayRange(0, 300);
+//			dist.show();
+//			VitimageUtils.waitFor(10000000);
+			ImagePlus distEcorce=VitimageUtils.makeOperationBetweenTwoImages(binaryEcorce, dist,2,true);
+			distEcorce=VitimageUtils.makeOperationOnOneImage(distEcorce, 3,255, true);
+			double ray10=6;
+			double ray5=3;
+			double ray1=2;
+			double ray05=1;
+				
+			int X=dist.getWidth();
+			int Y=dist.getHeight();
+			int Z=dist.getStackSize();
+			int index;
+			
+			for(int z=0;z<Z;z++) {
+				float[]vals=(float[])distEcorce.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<X;x++) {
+					for(int y=0;y<Y;y++) {
+						index=y*X+x;
+						if(Math.abs((vals[index])%100)<ray10)vals[index]=0;
+						if(Math.abs((vals[index])%50)<ray5)vals[index]=0;
+						if(Math.abs((vals[index])%10)<ray1)vals[index]=0;
+						if(Math.abs((vals[index])%5)<ray05)vals[index]=0;
+					}
+				}
+			}
+			distEcorce.setDisplayRange(0, 300);
+			IJ.run(distEcorce,"8-bit","");
+			IJ.saveAsTiff(distEcorce,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/distInventaire"+(doHealthy ? "_Healthy":"_Full")+(borderOnly ? "_border" :"_surface")+".tif");
+//			VitimageUtils.waitFor(1000000000);
+		}
+	}
+	
+	public static void makeExperimentOnSegmentationsAndGetValuesOfPercentageTissueAccordingWithGeodesic() {
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		int []sliceRootStocks= new int[] {200+86 , 200+76 , 200+174 ,          200+65 , 200+97 , 200+108 ,        200+71  , 200+74 ,  200+68 ,       200+59 , 200+42  , 200+118}; 
+		for(int i=0;i<12;i++) {
+			String spec=specimen[i];
+			System.out.println("Traitement "+specimen[i]);
+			int sliceRootStock=sliceRootStocks[i];
+			ImagePlus segAniso=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/segmentation.tif");
+			
+
+			//Build image of zones full and healthy at an isotropic resolution
+			System.out.println("Seg full iso.");
+			ImagePlus segFullAniso=VitimageUtils.thresholdByteImage(segAniso, 1, 10);
+			ImagePlus segFullIso=VitimageUtils.subXYZ(segFullAniso, new double[] {0.722,0.722,1}, true);
+			segFullIso=VitimageUtils.thresholdByteImage(segFullIso,10,256);
+
+			System.out.println("Ok. Seg sain iso.");
+			ImagePlus segSainAniso=VitimageUtils.thresholdByteImage(segAniso, 1, 2);
+			ImagePlus segSainIso=VitimageUtils.subXYZ(segSainAniso, new double[] {0.722,0.722,1}, true);
+			segSainIso=VitimageUtils.thresholdByteImage(segSainIso,10,256);
+
+			
+			//Images dimensions at isotropic resolution
+			System.out.println("Ok. Dims.");
+			int X=segSainIso.getWidth();
+			int Y=segSainIso.getHeight();
+			int Z=segSainIso.getStackSize();
+			
+
+			//Build seed image located at 20 cm (200 slices) below trunk top
+			System.out.println("Ok. build seed sain.");
+			ImagePlus seedSain=VitimageUtils.makeOperationOnOneImage(segSainIso,2,0, true);
+			seedSain=VitimageUtils.drawParallepipedInImage(seedSain, 0, 0, sliceRootStock, X-1, Y-1, sliceRootStock, 1);
+			seedSain=VitimageUtils.makeOperationBetweenTwoImages(seedSain, segSainIso, 2,false);
+
+			System.out.println("Ok. Seg full iso.");
+			ImagePlus seedFull=VitimageUtils.makeOperationOnOneImage(segFullIso,2,0, true);
+			seedFull=VitimageUtils.drawParallepipedInImage(seedFull, 0, 0, sliceRootStock, X-1, Y-1, sliceRootStock, 1);
+			seedFull=VitimageUtils.makeOperationBetweenTwoImages(seedFull, segSainIso, 2,false);
+
+			//Compute geodesic map for all plant
+			System.out.println("Ok. Distance sain");
+			float[] floatWeights = ChamferWeights3D.BORGEFORS.getFloatWeights();
+			ImagePlus distanceSain=new ImagePlus(
+					"geodistance",new GeodesicDistanceTransform3DFloat(
+							floatWeights,true).geodesicDistanceMap(seedSain.getStack(), segSainIso.getStack())
+					);
+			segSainIso=VitimageUtils.makeOperationOnOneImage(segSainIso,3,255, true);
+			segSainIso=VitimageUtils.drawParallepipedInImage(segSainIso, 0, 0, sliceRootStock+1, X-1, Y-1, Z-1, 0);
+			distanceSain=VitimageUtils.makeOperationBetweenTwoImages(distanceSain, segSainIso, 2, true);
+			
+			System.out.println("Ok. Distance full");
+			ImagePlus distanceFull=new ImagePlus(
+					"geodistance",new GeodesicDistanceTransform3DFloat(
+							floatWeights,true).geodesicDistanceMap(seedFull.getStack(), segFullIso.getStack())
+					);
+			segFullIso=VitimageUtils.makeOperationOnOneImage(segFullIso,3,255, true);
+			segFullIso=VitimageUtils.drawParallepipedInImage(segFullIso, 0, 0, sliceRootStock+1, X-1, Y-1, Z-1, 0);
+			distanceFull=VitimageUtils.makeOperationBetweenTwoImages(distanceFull, segFullIso, 2,true);
+
+			
+			System.out.println("Ok. sain aniso");
+			VitimageUtils.adjustImageCalibration(distanceSain, segSainIso);
+			ImagePlus imgDistSain=VitimageUtils.subXYZ(distanceSain,new double[] {1/0.722,1/0.722,1}, false);
+			int maxSain=(int)Math.ceil(VitimageUtils.maxOfImage(distanceSain)+0.001);
+
+			System.out.println("Ok. full aniso");
+			VitimageUtils.adjustImageCalibration(distanceFull, segFullIso);
+			ImagePlus imgDistFull=VitimageUtils.subXYZ(distanceFull,new double[] {1/0.722,1/0.722,1}, false);
+			int maxFull=(int)Math.ceil(VitimageUtils.maxOfImage(distanceFull)+0.001);
+
+			System.out.println("Ok. Show");
+
+
+			
+			
+			
+			
+			//Count surface of each category along axis of plant
+			segSainAniso=VitimageUtils.makeOperationOnOneImage(segSainAniso, 3,255, false);
+			int[][]countTabSain=VitimageUtils.countVolumeByDistance(segAniso,imgDistSain,1,0.0001,300,3);
+			VitimageUtils.writeIntArrayInFile(countTabSain,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/countTabGeodesicHealthy.txt");
+			int[][]countTabFull=VitimageUtils.countVolumeByDistance(segAniso,imgDistFull,4,0.0001,300,3);
+			VitimageUtils.writeIntArrayInFile(countTabFull,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/countTabGeodesicFull.txt");
+
+
+			
+			ImagePlus boundary6=VitimageUtils.boundaryZone(segAniso, 1,4,6);		
+			boundary6.setTitle("Boundary 6");
+			boundary6.setDisplayRange(0, 1);
+			countTabFull=VitimageUtils.countVolumeByDistance(boundary6,imgDistFull,1,0.0001,300,3);
+			VitimageUtils.writeIntArrayInFile(countTabFull,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/countTabGeodesicCambiumHealthy.txt");
+			ImagePlus mixEcorceHealthy=VitimageUtils.makeOperationBetweenTwoImages(boundary6,imgDistFull,2,true);
+			mixEcorceHealthy.setDisplayRange(0, 300);
+			IJ.run(mixEcorceHealthy,"Fire","");
+			IJ.saveAsTiff(mixEcorceHealthy,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/distanceEcorceHealthy.tif");
+			Strel3D str=inra.ijpb.morphology.strel.CuboidStrel.fromRadiusList(2,2, 2);
+			ImagePlus img=VitimageUtils.thresholdByteImage(boundary6, 1,255);
+			img =new ImagePlus("",Morphology.dilation(img.getImageStack(),str));
+			IJ.saveAsTiff(img,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/cambiumAreaHealthy.tif");
+			img=VitimageUtils.makeOperationOnOneImage(img, 3,255, false);
+
+			ImagePlus irmT1=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH/Computed_data/3_Hyperimage/Mod_2_THIN_low_mri_t1.tif");
+			irmT1=VitimageUtils.makeOperationBetweenTwoImages(img, irmT1, 2, true);
+			irmT1.setDisplayRange(0, 255);
+			IJ.run(irmT1,"Fire","");
+			IJ.saveAsTiff(irmT1,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/cambiumValuesHealthyInT1.tif");
+
+			irmT1=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH/Computed_data/3_Hyperimage/Mod_3_THIN_low_mri_t2.tif");
+			irmT1=VitimageUtils.makeOperationBetweenTwoImages(img, irmT1, 2, true);
+			irmT1.setDisplayRange(0, 255);
+			IJ.run(irmT1,"Fire","");
+			IJ.saveAsTiff(irmT1,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/cambiumValuesHealthyInT2.tif");
+
+			irmT1=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH/Computed_data/3_Hyperimage/Mod_4_THIN_low_mri_m0.tif");
+			irmT1=VitimageUtils.makeOperationBetweenTwoImages(img, irmT1, 2, true);
+			irmT1.setDisplayRange(0, 255);
+			IJ.run(irmT1,"Fire","");
+			IJ.saveAsTiff(irmT1,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/cambiumValuesHealthyInM0.tif");
+
+			
+			
+			
+			
+			boundary6=VitimageUtils.boundaryZone(segAniso, 2,4,6);		
+			boundary6.setTitle("Boundary 6");
+			boundary6.setDisplayRange(0, 1);
+			countTabFull=VitimageUtils.countVolumeByDistance(boundary6,imgDistFull,1,0.0001,300,3);
+			VitimageUtils.writeIntArrayInFile(countTabFull,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/countTabGeodesicCambiumNecrose.txt");
+			ImagePlus mixEcorceNecrose=VitimageUtils.makeOperationBetweenTwoImages(boundary6,imgDistFull,2,true);
+			mixEcorceNecrose.setDisplayRange(0, 300);
+			IJ.run(mixEcorceNecrose,"Fire","");
+			IJ.saveAsTiff(mixEcorceNecrose,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/distanceEcorceNecrose.tif");
+			str=inra.ijpb.morphology.strel.CuboidStrel.fromRadiusList(2,2, 2);
+			img=VitimageUtils.thresholdByteImage(boundary6, 1,255);
+			img =new ImagePlus("",Morphology.dilation(img.getImageStack(),str));
+			IJ.saveAsTiff(img,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/cambiumAreaNecrose.tif");
+			img=VitimageUtils.makeOperationOnOneImage(img, 3,255, false);
+
+			irmT1=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH/Computed_data/3_Hyperimage/Mod_2_THIN_low_mri_t1.tif");
+			irmT1=VitimageUtils.makeOperationBetweenTwoImages(img, irmT1, 2, true);
+			irmT1.setDisplayRange(0, 255);
+			IJ.run(irmT1,"Fire","");
+			IJ.saveAsTiff(irmT1,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/cambiumValuesNecroseInT1.tif");
+			
+			irmT1=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH/Computed_data/3_Hyperimage/Mod_3_THIN_low_mri_t2.tif");
+			irmT1=VitimageUtils.makeOperationBetweenTwoImages(img, irmT1, 2, true);
+			irmT1.setDisplayRange(0, 255);
+			IJ.run(irmT1,"Fire","");
+			IJ.saveAsTiff(irmT1,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/cambiumValuesNecroseInT2.tif");
+
+			irmT1=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH/Computed_data/3_Hyperimage/Mod_4_THIN_low_mri_m0.tif");
+			irmT1=VitimageUtils.makeOperationBetweenTwoImages(img, irmT1, 2, true);
+			irmT1.setDisplayRange(0, 255);
+			IJ.run(irmT1,"Fire","");
+			IJ.saveAsTiff(irmT1,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/cambiumValuesNecroseInM0.tif");
+
+			ImagePlus binFull=VitimageUtils.thresholdByteImage(segAniso, 1, 10);
+			binFull=VitimageUtils.makeOperationOnOneImage(binFull, 3, 255, true);
+			
+			ImagePlus mixFull=VitimageUtils.makeOperationBetweenTwoImages(binFull,imgDistFull,2,true);
+			mixFull.setDisplayRange(0, 300);
+			IJ.run(mixFull,"Fire","");
+			IJ.saveAsTiff(imgDistSain,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/distanceSain.tif");
+			IJ.saveAsTiff(mixFull,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/distanceFull.tif");
+		}
+	}
+
+	
+	
+	
+	public static void makeExperimentOnSegmentationsAndGetValuesOfPercentageTissueAccordingWithGeodesicFromCenter() {
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		int []sliceRootStocks= new int[] {200+86 , 200+76 , 200+174 ,          200+65 , 200+97 , 200+108 ,        200+71  , 200+74 ,  200+68 ,       200+59 , 200+42  , 200+118}; 
+		for(int i=0;i<12;i++) {
+			System.out.println("Traitement "+specimen[i]);
+			String spec=specimen[i];
+			int sliceRootStock=sliceRootStocks[i];
+			ImagePlus segAniso=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/segmentation.tif");
+			int Xan=segAniso.getWidth();
+			int Yan=segAniso.getHeight();
+			int Zan=segAniso.getStackSize();
+			
+			//Look for center
+			ImagePlus segFullAniso=VitimageUtils.thresholdByteImage(segAniso, 1, 10);
+			segFullAniso=VitimageUtils.drawParallepipedInImage(segFullAniso, 0, 0, 345, Xan-1,Yan-1, Zan-1, 0);
+			ImagePlus segFullIso=VitimageUtils.subXYZ(segFullAniso, new double[] {0.722,0.722,1}, true);
+			segFullIso=VitimageUtils.thresholdByteImage(segFullIso,10,256);
+			ImagePlus imgDist=EDT.run(ImageHandler.wrap(segFullIso), (float)0.1, false, 0).getImagePlus();	
+			double max=VitimageUtils.maxOfImage(imgDist);
+			ImagePlus seed=VitimageUtils.thresholdFloatImage(imgDist,max-0.001, max+0.1);
+			
+			//Images dimensions at isotropic resolution
+			System.out.println("Ok. Dims.");
+			int X=segFullIso.getWidth();
+			int Y=segFullIso.getHeight();
+			int Z=segFullIso.getStackSize();
+
+			//Compute chamfer map from center
+			//export data
+
+			//Compute geodesic map for all plant
+			System.out.println("Ok. Distance sain");
+			float[] floatWeights = ChamferWeights3D.BORGEFORS.getFloatWeights();
+			ImagePlus distanceFull=new ImagePlus(
+					"geodistance",new GeodesicDistanceTransform3DFloat(
+							floatWeights,true).geodesicDistanceMap(seed.getStack(), segFullIso.getStack())
+					);
+			segFullIso=VitimageUtils.makeOperationOnOneImage(segFullIso,3,255, true);
+			distanceFull=VitimageUtils.makeOperationBetweenTwoImages(distanceFull, segFullIso, 2, true);
+			distanceFull=VitimageUtils.subXYZ(distanceFull,new double[] {1/0.722,1/0.722,1}, false);
+			int maxFull=(int)Math.ceil(VitimageUtils.maxOfImage(distanceFull)+0.001);
+
+			
+			System.out.println("Ok. Show");
+			distanceFull.show();
+			distanceFull.setDisplayRange(0, 80);
+			IJ.run(distanceFull,"Fire","");
+			distanceFull.setTitle("distance "+specimen[i]);			
+			VitimageUtils.waitFor(500);
+			int[][]countTabFull=VitimageUtils.countVolumeByDistance(segAniso,distanceFull,4,0.0001,200,3);
+			VitimageUtils.writeIntArrayInFile(countTabFull,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/countTabGeodesicCenter.txt");
+		}
+	}
+
+	
+	
+	
+	
+		
+	public static void makeExperimentOnSegmentationsAndGetValuesOfPercentageTissueAccordingWithZ() {
+		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+		for(int i=0;i<12;i++) {
+			System.out.println("Traitement "+specimen[i]);
+			String spec=specimen[i];
+			ImagePlus imgSeg=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/segmentation.tif");
+			int[][]countTab=VitimageUtils.countVolumeBySlices(imgSeg,4);
+			VitimageUtils.writeIntArrayInFile(countTab,"/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/countTab.txt");
+		}
+	}
+	
+	
+	
+	
+	public static ImagePlus skeletonize3D(ImagePlus imRef) {
+		Skeletonize3D_ skel=new Skeletonize3D_();
+		skel.imRef=imRef;
+		skel.width = imRef.getWidth();
+		skel.height = imRef.getHeight();
+		skel.depth = imRef.getStackSize();
+		skel.inputImage = imRef.getStack();
+						
+		// Prepare data
+		skel.prepareData(skel.inputImage);
+		// Compute Thinning	
+		skel.computeThinImage(skel.inputImage);
+	
+		// Convert image to binary 0-255
+		for(int i = 1; i <= skel.inputImage.getSize(); i++)skel.inputImage.getProcessor(i).multiply(255);
+		return new ImagePlus("",skel.inputImage);
+	}
+
+	
+	
+	public static ImagePlus makeSexyRayX(int mod) {
+		String specimen="CEP020_APO1";
+		ImagePlus imgSeg=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+specimen+"/segmentation.tif");
+		ImagePlus imgRX=new Duplicator().run(IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/"+specimen+"/Source_data/PHOTOGRAPH/Computed_data/3_Hyperimage/hyperimage_THIN.tif"),1, 1, 1,385, mod, mod );
+		imgSeg.setDisplayRange(0, 5);
+		IJ.run(imgSeg, "Fire", "");
+		IJ.run(imgSeg, "RGB Color", "");
+		IJ.run(imgSeg, "HSB Stack", "");
+		ImagePlus[] channels = ChannelSplitter.split(imgSeg);
+		IJ.run(imgRX,"32-bit","");
+		imgRX=VitimageUtils.makeOperationOnOneImage(imgRX, 2, 1.0/255.0, true);
+		channels[2]=VitimageUtils.makeOperationBetweenTwoImages(channels[2], imgRX,2,true);
+		channels[2].setDisplayRange(0,255);
+		IJ.run(channels[2],"8-bit","");
+		
+		ImagePlus ret=convertHSBToRGBStack(channels);
+		VitimageUtils.adjustImageCalibration(ret, imgRX);
+		return ret;
+	}
+	
+	
+	public static ImagePlus convertHSBToRGBStack(ImagePlus []hsbTab) {
+		int Z=hsbTab[0].getStackSize();
+		ImagePlus []retTab=new ImagePlus[Z];
+		ImagePlus []tempTab=new ImagePlus[3];
+		for(int z=0;z<Z;z++) {
+			System.out.println(z);
+			for(int can=0;can<3;can++)tempTab[can]=new Duplicator().run(hsbTab[can],1, 1, z+1,z+1, 1, 1 );
+			retTab[z]=Concatenator.run(tempTab);
+			new ImageConverter(retTab[z]).convertHSBToRGB();
+		}
+		return(Concatenator.run(retTab));
+	}
+	
+	public static ImagePlus chichi() {
+		int nBatches=10;
+		ImagePlus[]tab=new ImagePlus[nBatches];
+		String rep="/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/CEP011_AS1/Batch_";
+		for(int b=0;b<10;b++) {
+			System.out.println("\nOuverture de "+rep+b+"/probabilities_"+b+".tif");
+			tab[b]=IJ.openImage(rep+b+"/probabilities_"+b+".tif");			
+			System.out.println("Effectivement : "+TransformUtils.stringVector(VitimageUtils.getDimensions(tab[b]),""));
+		}
+		return Concatenator.run(tab);
+	}
+	
+	
+	public static ImagePlus probaStackToHyperProba(ImagePlus img,int nClasses){
+		int Z=img.getStackSize();
+		int Zlow=Z/nClasses;
+		ImagePlus ret=VitimageUtils.imageCopy(img);
+		System.out.println("Commande hyperstackage : "+"Stack to Hyperstack..."+ "order=xytzc channels=1 slices="+Zlow+" frames="+nClasses+" display=Grayscale");
+		IJ.run(ret,"Stack to Hyperstack...", "order=xytzc channels=1 slices="+Zlow+" frames="+nClasses+" display=Grayscale");
+		return ret;
+	}
+	
+	
+	public static ImagePlus[] consensusFactors(ImagePlus img,int nClasses) {
+		int X=img.getWidth();
+		int Y=img.getHeight();
+		int Z=img.getStackSize()/nClasses;
+		float[][]tabVal=new float[nClasses][];
+		float[][]tabOutProb=new float[Z][];
+		float[][]tabOutCons=new float[Z][];
+		ImagePlus []imgVals=new ImagePlus[nClasses];
+		ImagePlus retProb= new Duplicator().run(img, 1, 1, 1,Z, 1, 1);
+		ImagePlus retCons= new Duplicator().run(img, 1, 1, 1,Z, 1, 1);
+		double max1;
+		int indmax1;
+		double max2;
+		int index;
+		String s="";
+		double[]valsProb=new double[nClasses];
+		for(int z=0;z<Z;z++) {
+			tabOutProb[z]=(float[])retProb.getStack().getProcessor(z+1).getPixels();
+			tabOutCons[z]=(float[])retCons.getStack().getProcessor(z+1).getPixels();
+			for(int c=0;c<nClasses;c++) {
+				imgVals[c]=new Duplicator().run(img,1,1,z+1,z+1,c+1,c+1);
+				tabVal[c]=(float[])imgVals[c].getStack().getProcessor(1).getPixels();
+			}
+			for(int x=0;x<X;x++) {
+				for(int y=0;y<Y;y++) {
+					index=y*X+x;
+					for(int c=0;c<nClasses;c++) {
+						valsProb[c]=tabVal[c][index];
+					}
+					//Recueillir le maximum et le deuxieme maximum
+					if(index%7237==0) {
+						s+="En effet, tab="+TransformUtils.stringVectorN(valsProb, "valsProb");
+					}
+					max1=VitimageUtils.max(valsProb);
+					indmax1=VitimageUtils.indmax(valsProb);
+					valsProb[indmax1]=0;
+					max2=VitimageUtils.max(valsProb);
+					if(index%7237==0) {
+						s+="  donc, tab="+TransformUtils.stringVectorN(valsProb, "valsProb")+" max1="+max1+" , max2="+max2 +"\n";
+					}
+					tabOutProb[z][index]=(float)(max1);
+					tabOutCons[z][index]=(float)(max1/(Math.max(max2,10E-6)));
+				}
+			}
+		}
+		retProb.setDisplayRange(0, 1);
+		retCons.setDisplayRange(0.9, 10);
+		IJ.run(retProb,"Fire","");
+		IJ.run(retCons,"Fire","");
+		retCons.setDisplayRange(0.9, 10);
+		VitimageUtils.writeStringInFile(s, "/home/fernandr/Bureau/test.txt");
+		return new ImagePlus[] {retProb,retCons};
+	}
+	
+	
 	
 	public static ImagePlus correctionBizarre(ImagePlus img) {
 		double []factors=new double[2000];
