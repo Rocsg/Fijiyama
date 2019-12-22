@@ -7,6 +7,7 @@ public interface Fit {
 	public static final int SIGMA=10000;
 	public static final int MULTI=100000;
     public static final int ALL_AVAILABLE_FIT=1000000;
+	public static final int TRI=100000000;
 
 	public static final int STRAIGHT_LINE=0,EXPONENTIAL=STRAIGHT_LINE+4,EXP_RECOVERY=STRAIGHT_LINE+13;
 	public static final int T2_RELAX = EXP_RECOVERY +3; //offset 3
@@ -17,6 +18,7 @@ public interface Fit {
     public static final int MULTICOMP_BIAS=T2_RELAX+MULTI+BIAS;
     public static final int MULTICOMP_SIGMA=T2_RELAX+MULTI+SIGMA;
     public static final int MULTICOMP_RICE=T2_RELAX+MULTI+RICE;
+    public static final int TRICOMP_RICE=T2_RELAX+TRI+RICE;
  	public static final int T1_RECOVERY = 500; //offset 3
 	public static final int T1_RECOVERY_RICE = 501; //offset 3
 	public static final int T1_RECOVERY_RICE_NORMALIZED = 504; //offset 3

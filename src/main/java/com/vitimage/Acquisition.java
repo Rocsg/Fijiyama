@@ -29,6 +29,7 @@ public abstract class Acquisition implements VitimageUtils{
 	 * Parameters
 	 */
 	public final static double maxShortVal=Math.pow(2,16)-1;
+	public ImagePlus hyperEchoes=null;
 	protected int hyperSize=1;
 	protected ImagePlus normalizedHyperImage;
 	protected ImagePlus[]sourceData;
@@ -255,9 +256,10 @@ public abstract class Acquisition implements VitimageUtils{
 		}
 	}
 
-	
+
+
 	public double getCapillaryValue(ImagePlus img) {
-		return getCapillaryValue(img,detectCapillaryPositionImg(this.dimZ/2,img),4,4);
+		return getCapillaryValue(img,detectCapillaryPositionImg(this.dimZ/2,img),7,7);
 	}
 
 	
@@ -281,7 +283,7 @@ public abstract class Acquisition implements VitimageUtils{
 	}
 
 	
-	public double getCapillaryValue(ImagePlus img, int[]coordinates,int rayXY,int rayZ) {
+	public static double getCapillaryValue(ImagePlus img, int[]coordinates,int rayXY,int rayZ) {
 		System.out.println("");
 		System.out.println("Start");
 		int zMin=coordinates[2]-rayZ;
@@ -297,14 +299,10 @@ public abstract class Acquisition implements VitimageUtils{
 		return (val/nbSlices);
 	}
 	
+
+	
 	public double computeRiceSigmaFromBackgroundValues() {
-		double val1=meanBackground * Math.sqrt(2.0/Math.PI);
-		double val2=sigmaBackground * Math.sqrt(2.0/(4.0-Math.PI));
-		if(Math.abs((val1-val2)/val2) >0.3) {System.out.println("Warning : Acquisition > computeRiceSigma : estimation of sigma rice does not lead to "+
-					"the same results from Mu and Sigma : "+val1+" , "+val2+". Initial background characteristics were : "+
-				"sigmaBack="+this.sigmaBackground+" , meanBack="+this.meanBackground+" .Go ahead with the result using the mean, more robust to any eventual preprocessing that obviously occurred there");
-		}
-		return val1;
+		return RiceEstimator.computeRiceSigmaFromBackgroundValuesStatic(meanBackground,sigmaBackground);
 	}
 	
 	public int[] detectCapillaryPositionImg(int Z,ImagePlus img2) {
@@ -338,6 +336,50 @@ public abstract class Acquisition implements VitimageUtils{
 		
 		return new int[] {(int) (rect.getX() + rect.getWidth()/2.0) , (int) (rect.getY() + rect.getHeight()/2.0) , Z , (int)rect.getWidth(),(int)rect.getHeight()};  
 	}
+	
+	public static int[] detectCapillaryPosition(ImagePlus imgReg,int Z) {
+		ImagePlus img=new Duplicator().run(imgReg);
+		int zMax=img.getStackSize();
+		int tailleMorpho=4;
+		ImagePlus imgMask=VitimageUtils.areaOfPertinentMRIMapComputation(img,MRI_T1_Seq.sigmaGaussMapInPixels);
+		IJ.run(imgMask,"8-bit","");
+		//Protection to ensure non-even connections at the top or the back of the image, due to bias in magnet field
+		imgMask.getStack().getProcessor(1).set(0);
+		imgMask.getStack().getProcessor(2).set(0);
+		imgMask.getStack().getProcessor(3).set(0);
+		imgMask.getStack().getProcessor(4).set(0);
+		imgMask.getStack().getProcessor(zMax).set(0);
+		imgMask.getStack().getProcessor(zMax-1).set(0);
+		imgMask.getStack().getProcessor(zMax-2).set(0);
+		imgMask.getStack().getProcessor(zMax-3).set(0);
+		for(int t =0;t<tailleMorpho;t++) IJ.run(imgMask,"Dilate","stack");
+		for(int t =0;t<tailleMorpho;t++) IJ.run(imgMask,"Erode","stack");
+		ImagePlus imgCap=VitimageUtils.connexe(imgMask,1,256,0,10E10, 6, 2,false);//Le cap
+		IJ.run(imgCap,"8-bit","");
+
+		//Mise en slice et Retrait du bouzin pas beau
+		imgCap=new Duplicator().run(imgCap,Z,Z);
+		IJ.run(imgCap,"Erode","");
+		IJ.run(imgCap,"Erode","");
+		
+		
+		//Preparation seuillage
+		IJ.setThreshold(imgCap, 255,255);
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+//		imgCap.show();
+		
+		Roi capArea=new ThresholdToSelection().convert(imgCap.getProcessor());	
+		rm.add(imgCap, capArea, 0);							
+		Rectangle rect=capArea.getFloatPolygon().getBounds();
+		System.out.println("Capillary position detected is :"+(rect.getX() + rect.getWidth()/2.0)+" , "+
+															 (rect.getY() + rect.getHeight()/2.0)+" , "+
+														 	 Z);
+		rm.close();
+		return new int[] {(int) (rect.getX() + rect.getWidth()/2.0) , (int) (rect.getY() + rect.getHeight()/2.0) , Z , (int)rect.getWidth(),(int)rect.getHeight()};  
+	}
+
+	
 	
 	public int[] detectCapillaryPosition(int Z) {
 		ImagePlus img=new Duplicator().run(this.imageForRegistration);
@@ -411,7 +453,40 @@ public abstract class Acquisition implements VitimageUtils{
 	}
 	
 
+
+	public void caracterizeBackgroundStatic(ImagePlus img) {
+		int samplSize=Math.min(10+20,this.dimX()/10);
+		int x0=samplSize;
+		int y0=samplSize;
+		int x1=this.dimX()-samplSize;
+		int y1=this.dimY()-samplSize;
+		int z01=this.dimZ()/2;
+		double[][] vals=new double[4][2];
+		vals[0]=VitimageUtils.valuesOfImageAround(this.imageForRegistration,x0,y0,z01,samplSize/2);
+		vals[1]=VitimageUtils.valuesOfImageAround(this.imageForRegistration,x0,y1,z01,samplSize/2);
+		vals[2]=VitimageUtils.valuesOfImageAround(this.imageForRegistration,x1,y0,z01,samplSize/2);
+		vals[3]=VitimageUtils.valuesOfImageAround(this.imageForRegistration,x1,y1,z01,samplSize/2);		
+		System.out.println("");
+		double [][]stats=new double[4][2];
+		double []globStats=VitimageUtils.statistics2D(vals);
+		System.out.println("Background statistics averaged on the four corners = ( "+globStats[0]+" , "+globStats[1]+" ) ");
+		for(int i=0;i<4;i++) {
+			stats[i]=(VitimageUtils.statistics1D(vals[i]));
+			System.out.println("  --> Stats zone "+i+" =  ( "+stats[i][0]+" , "+stats[i][1]+")");
+			if( (Math.abs(stats[i][0]-globStats[0])/globStats[0]>0.3)){
+				System.out.println("Warning : noise computation of "+this.getSourcePath()+" "+this.getTitle()+
+							" There should be an object in the supposed background\nthat can lead to misestimate background values. Detected at slice "+samplSize/2+"at "+
+							(i==0 ?"Up-left corner" : i==1 ? "Down-left corner" : i==2 ? "Up-right corner" : "Down-right corner")+
+							". Mean values of squares="+globStats[0]+". Outlier value="+vals[i][0]+" you should inspect the image and run again.");
+				this.imageForRegistration.show();
+			}
+		}
+		this.meanBackground=globStats[0];
+		this.sigmaBackground=globStats[1];
+		if(this.supervisionLevel != SupervisionLevel.AUTONOMOUS)System.out.println("Background caracterised : mean="+this.meanBackground+" sigma="+this.sigmaBackground);
+	}
 	
+
 	public void caracterizeBackground() {
 		int samplSize=Math.min(10+20,this.dimX()/10);
 		int x0=samplSize;

@@ -49,9 +49,33 @@ public class MRI_T2_Seq extends Acquisition{
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B041_DS/Source_data/J218/Source_data/MRI_T2_SEQ",
-									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"B041_DS_J218_MRI_T2_SEQ",ComputingType.COMPUTE_ALL);
-		mri.start();//
+
+//		String []subjects=new String[] {"B079_NP","B080_NP","B081_NP","B089_EL","B090_EL","B091_EL", "B098_PCH" ,"B099_PCH","B100_PCH"};
+		String []subjects=new String[] {"B099_PCH"};
+		String []days=new String[] {"J0","J35","J70","J105","J133","J170","J218"};
+//		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B099_PCH/Source_data/J0/Source_data/MRI_T1_SEQ",
+//									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"B099_PCH_J0_MRI_T1",ComputingType.COMPUTE_ALL);
+//		mri.start();
+		
+		long t0=System.currentTimeMillis()/1000;
+		for(String subject : subjects) {
+			for(String day : days) {
+				if(! new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day).exists())continue;
+				System.out.println("\n\n\n\nRUNNING "+subject+"  "+day);
+				long t1=System.currentTimeMillis()/1000;double dt=VitimageUtils.dou((t1-t0));System.out.println("Time elapsed="+dt);
+				MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day+"/Source_data/MRI_T2_SEQ",
+				Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,subject+"_"+day+"_MRI_T2",ComputingType.COMPUTE_ALL);
+mri.start();
+			}
+		}
+
+		
+		
+		
+		
+		//		MRI_T2_Seq mri=new MRI_T2_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B099_PCH/Source_data/J0/Source_data/MRI_T2_SEQ",
+//									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"B099_PCH_J0_MRI_T2_SEQ",ComputingType.COMPUTE_ALL);
+//		mri.start();//
 	}
 
 
@@ -110,6 +134,11 @@ public class MRI_T2_Seq extends Acquisition{
 			writeHyperImage();
 			break;
 		case 3:
+			System.out.println("T2 Compute echo hyper"+this.getTitle());
+			this.computeHyperEchoes();
+			this.writeHyperEchoes();
+			break;
+		case 4:
 			if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS) return false;
 			System.out.println("MRI_T2_SEQ Computation finished for "+this.getTitle());
 			return false;
@@ -456,12 +485,23 @@ public class MRI_T2_Seq extends Acquisition{
 	}
 	
 
+
+	public void writeHyperEchoes() {
+		IJ.saveAsTiff(this.hyperEchoes,this.sourcePath+slash+"Computed_data"+slash+"3_HyperImage"+slash+"hyperEchoes.tif");
+	}
+		
+	public void readHyperEchoes() {
+		this.hyperEchoes=IJ.openImage(this.sourcePath+slash+"Computed_data"+slash+"3_HyperImage"+slash+"hyperEchoes.tif" );
+	}
+	
+	
 	
 	public void readProcessedImages(int step){
 		if(step <1) IJ.log("Error : read process images, but step is lower than 1");
 		if(step>=1) {readStackedSourceData();readMask();}
 		if(step>=2) readMaps();
 		if(step>=3) readHyperImage();
+		if(step>=4) readHyperEchoes();
 	}
 		
 	public void computeMask() {
@@ -474,6 +514,39 @@ public class MRI_T2_Seq extends Acquisition{
 
 	
 
+	public void computeHyperEchoes() {
+		this.caracterizeBackground(); 
+		double sigma=this.computeRiceSigmaFromBackgroundValues();
+		int []coordinates=this.detectCapillaryPosition(this.dimZ()/2);
+
+		final int fitType=MRUtils.T2_RELAX_RICE;
+		final int algType=MRUtils.SIMPLEX;
+		System.out.println("T2 capillary computation. sigma Rice="+sigma);
+		int nEch=this.sourceData.length;
+		double[]echoesForThisVoxel=new double[nEch];		
+		for(int ech=0;ech<nEch;ech++) {
+			echoesForThisVoxel[ech]=getCapillaryValue(this.sourceData[ech], coordinates,4,3);
+		}
+		double[]estimatedParams=MRUtils.makeFit(this.Te, echoesForThisVoxel,fitType,algType,100,sigma);
+		double[]estimatedParams2=MRUtils.makeFit(this.Te, echoesForThisVoxel,fitType,algType,200,sigma);
+		if( Math.abs((estimatedParams[0]-estimatedParams2[0])/estimatedParams2[0]) >0.01){
+			System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\nOula !");
+			System.out.println(TransformUtils.stringVectorN(estimatedParams,""));
+			System.out.println(TransformUtils.stringVectorN(estimatedParams2,""));
+		}
+		if( Math.abs((estimatedParams[1]-estimatedParams2[1])/estimatedParams2[1])>0.01){
+			System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\nOula !");
+			System.out.println(TransformUtils.stringVectorN(estimatedParams,""));
+			System.out.println(TransformUtils.stringVectorN(estimatedParams2,""));
+		}
+		VitimageUtils.writeDoubleInFile(this.sourcePath+slash+".."+slash+".."+slash+"normT2.txt",estimatedParams[0]);
+		VitimageUtils.writeDoubleInFile(this.sourcePath+slash+".."+slash+".."+slash+"timeT2.txt",estimatedParams[1]);
+		System.out.println("Fit effectue. Données init = "+TransformUtils.stringVectorN(echoesForThisVoxel,"")+" . \nEstimated params = "+TransformUtils.stringVectorN(estimatedParams, ""));
+		this.hyperEchoes=Concatenator.run(sourceData);
+		
+		
+	}
+	
 	
 	
 	

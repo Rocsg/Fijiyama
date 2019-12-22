@@ -113,7 +113,7 @@ public class WekaSegmentation_Save {
 	/** result image after classification */
 	private ImagePlus classifiedImage;
 	/** features to be used in the training */
-	private FeatureStackArray featureStackArray = null;
+	public FeatureStackArray featureStackArray = null;
 
 	/** set of instances from loaded data (previously saved segmentation) */
 	private Instances loadedTrainingData = null;
@@ -4369,6 +4369,8 @@ public class WekaSegmentation_Save {
 				}
 		return numInstances;
 	}
+
+	
 
 	
 	

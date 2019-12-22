@@ -5,6 +5,7 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.io.OpenDialog;
+import ij.io.Opener;
 import ij.io.SaveDialog;
 import ij.plugin.Duplicator;
 import ij.plugin.frame.RoiManager;
@@ -66,6 +67,14 @@ public interface VitiDialogs {
         	return imgRet;
 	}
 
+	
+	public static String chooseOneRoiPathUI(String strGuess,String strImg1) {
+   		OpenDialog od1=new OpenDialog("Select "+strGuess);
+   		return od1.getPath();
+	}
+
+	
+	
 	/** 
 	 * UI interfaces for the tools
 	 * */
@@ -136,8 +145,8 @@ public interface VitiDialogs {
 	 }
 	
 	
-	public static boolean getYesNoUI(String strGuess) {
-        GenericDialog gd=new GenericDialog(strGuess);
+	public static boolean getYesNoUI(String title,String strGuess) {
+        GenericDialog gd=new GenericDialog(title);
         gd.addMessage(strGuess);
         gd.enableYesNoCancel("Yes", "No");
         gd.showDialog();
@@ -258,7 +267,7 @@ public interface VitiDialogs {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			if(rm.getCount()==nbWantedPoints && getYesNoUI("Confirm points ?"))finished=true;
+			if(rm.getCount()==nbWantedPoints && getYesNoUI("","Confirm points ?"))finished=true;
 			System.out.println("Waiting "+nbWantedPoints+". Current number="+rm.getCount());
 		}while (!finished);	
 		for(int indP=0;indP<nbWantedPoints;indP++){
@@ -378,7 +387,7 @@ public interface VitiDialogs {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			if(rm.getCount()>=nbWantedPointsPerImage*2 && getYesNoUI("Confirm points ?"))finished=true;
+			if(rm.getCount()>=nbWantedPointsPerImage*2 && getYesNoUI("","Confirm points ?"))finished=true;
 			System.out.println("Waiting "+(nbWantedPointsPerImage*2)+". Current number="+rm.getCount());
 		}while (!finished);	
 		int nCouples=Math.max(nbWantedPointsPerImage, rm.getCount()/2);

@@ -823,6 +823,14 @@ public interface TransformUtils {
 		return ret;
 	}
 
+	public static double[] invertVector(double[]v1){
+		double[] ret=new double[3];
+		ret[0]=1/v1[0];		
+		ret[1]=1/v1[1];		
+		ret[2]=1/v1[2];		
+		return ret;
+	}
+
 	
 	public static double[] proj_u_of_v(double[]u,double[]v){
 		double scal1=scalarProduct(u,v);
@@ -859,6 +867,12 @@ public interface TransformUtils {
 	static String stringVectorN(double []vect,String vectNom){
 		String str=vectNom+" = [ ";
 		for(int i=0;i<vect.length;i++)str+=vect[i]+(i==vect.length-1 ? " ]" : " , ");
+		return str;
+	}
+
+	static String stringVectorNDou(double []vect,String vectNom){
+		String str=vectNom+" = [ ";
+		for(int i=0;i<vect.length;i++)str+=VitimageUtils.dou(vect[i])+(i==vect.length-1 ? " ]" : " , ");
 		return str;
 	}
 

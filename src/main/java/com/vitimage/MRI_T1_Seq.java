@@ -53,9 +53,24 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	public static void main (String []args) {
 		ImageJ ij=new ImageJ();
 		System.out.println("Test procedure start...");
-		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B099_PCH/Source_data/J0/Source_data/MRI_T1_SEQ",
-									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"B041_DS_J218_MRI_T1",ComputingType.COMPUTE_ALL);
-		mri.start();
+//		String []subjects=new String[] {"B079_NP","B080_NP","B081_NP","B089_EL","B090_EL","B091_EL", "B098_PCH" ,"B099_PCH","B100_PCH"};
+		String []subjects=new String[] {"B079_NP","B080_NP","B081_NP","B089_EL","B090_EL","B091_EL", "B098_PCH" ,"B099_PCH","B100_PCH"};
+		String []days=new String[] {"J0","J35","J70","J105","J133","J170","J218"};
+//		MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B099_PCH/Source_data/J0/Source_data/MRI_T1_SEQ",
+//									Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,"B099_PCH_J0_MRI_T1",ComputingType.COMPUTE_ALL);
+//		mri.start();
+		
+		long t0=System.currentTimeMillis()/1000;
+		for(String subject : subjects) {
+			for(String day : days) {
+				if(! new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day).exists())continue;
+				System.out.println("\n\n\n\nRUNNING "+subject+"  "+day);
+				long t1=System.currentTimeMillis()/1000;double dt=VitimageUtils.dou((t1-t0));System.out.println("Time elapsed="+dt);
+				MRI_T1_Seq mri=new MRI_T1_Seq("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day+"/Source_data/MRI_T1_SEQ",
+				Capillary.HAS_CAPILLARY,SupervisionLevel.GET_INFORMED,subject+"_"+day+"_MRI_T1",ComputingType.COMPUTE_ALL);
+mri.start();
+			}
+		}
 		return;
 	}
 
@@ -118,6 +133,11 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 			writeHyperImage();
 			break;
 		case 4:
+			System.out.println("T1 Compute echo hyper"+this.getTitle());
+			this.computeHyperEchoes();
+			writeHyperEchoes();
+			break;
+		case 5:
 			if(this.computingType==ComputingType.EVERYTHING_UNTIL_MAPS) return false;
 			System.out.println("MRI_T1_Seq Computation finished for "+this.getTitle());
 			return false;
@@ -397,6 +417,14 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 		}
 	}
 
+
+	public void writeHyperEchoes() {
+		IJ.saveAsTiff(this.hyperEchoes,this.sourcePath+slash+"Computed_data"+slash+"3_HyperImage"+slash+"hyperEchoes.tif");
+	}
+		
+	public void readHyperEchoes() {
+		this.hyperEchoes=IJ.openImage(this.sourcePath+slash+"Computed_data"+slash+"3_HyperImage"+slash+"hyperEchoes.tif" );
+	}
 	
 	public void readRegisteredSourceData() {
 		String strPath=this.sourcePath+slash+"Computed_data"+slash+"1_RegisteredStacks";
@@ -458,6 +486,7 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 		if(step>=2) readRegisteredSourceData();		
 		if(step>=3) {readMask();readMaps();}
 		if(step>=4) readHyperImage();
+		if(step>=5) readHyperEchoes();
 	}
 	
 	
@@ -516,6 +545,29 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 
 
 
+	public void computeHyperEchoes() {
+		readRegisteredSourceData();
+		this.caracterizeBackground(); 
+		double sigma=this.computeRiceSigmaFromBackgroundValues();
+		int []coordinates=this.detectCapillaryPosition(this.dimZ()/2);
+
+		final int fitType=MRUtils.T1_RECOVERY_RICE;
+		final int algType=MRUtils.SIMPLEX;
+		System.out.println("T1 capillary computation. sigma Rice="+sigma);
+		int nEch=this.sourceData.length;
+		double[]echoesForThisVoxel=new double[nEch];		
+		for(int ech=0;ech<nEch;ech++) {
+			echoesForThisVoxel[ech]=getCapillaryValue(this.sourceData[ech], coordinates,4,3);
+		}
+		double[]estimatedParams=MRUtils.makeFit(this.Tr, echoesForThisVoxel,fitType,algType,100,sigma);
+		VitimageUtils.writeDoubleInFile(this.sourcePath+slash+".."+slash+".."+slash+"valT1Echo3.txt",echoesForThisVoxel[2]);
+		VitimageUtils.writeDoubleInFile(this.sourcePath+slash+".."+slash+".."+slash+"normT1.txt",estimatedParams[0]);
+		VitimageUtils.writeDoubleInFile(this.sourcePath+slash+".."+slash+".."+slash+"timeT1.txt",estimatedParams[1]);
+		System.out.println("Fit effectue. Données init = "+TransformUtils.stringVectorN(echoesForThisVoxel,"")+" . \nEstimated params = "+TransformUtils.stringVectorN(estimatedParams, ""));
+		this.hyperEchoes=Concatenator.run(sourceData);
+	}
+
+	
 	
 	public void computeMaps() {
 		ImagePlus []smoothCapSourceData=this.getSourceDataWithSmoothedCapillary();
@@ -649,7 +701,44 @@ public class MRI_T1_Seq extends Acquisition implements Fit,ItkImagePlusInterface
 	}
 
 
+	public ImagePlus computeNormalizedHyperImageV2() {
+		if(this.capillary == Capillary.HAS_CAPILLARY)this.computeNormalisationValues();
+		else this.computedValuesNormalisationFactor=defaultNormalisationValues();
+		readRegisteredSourceData();
+		
+		
+		IJ.saveAsTiff(this.computedData[1],"/home/fernandr/Bureau/debugM0MapOfT1.tif");
+		IJ.saveAsTiff(this.computedData[0],"/home/fernandr/Bureau/debugT1MapOfT1.tif");
+		System.out.println("Normalisation factor. Last Tr image="+this.computedValuesNormalisationFactor[0]);
+		System.out.println("Normalisation factor. M0 image="+this.computedValuesNormalisationFactor[1]);
+		System.out.println("Normalisation factor. T1 image="+this.computedValuesNormalisationFactor[2]);
+		int X=this.dimX();
+		int Y=this.dimY();
+		int Z=this.dimZ();
+		int index;
 
+		float[][][]tabComputed=new float[3][Z][];
+		for(int z=0;z<Z;z++) {
+			tabComputed[0][z]=(float[])this.computedData[0].getStack().getProcessor(z+1).getPixels();
+			tabComputed[1][z]=(float[])this.computedData[1].getStack().getProcessor(z+1).getPixels();
+			tabComputed[2][z]=(float[])this.computedData[2].getStack().getProcessor(z+1).getPixels();
+		}
+		for(int z=0;z<Z;z++) {
+			for(int y=0;y<Y;y++) {
+				for(int x=0;x<X;x++) {
+					index=y*X+x;
+					for(int i=0;i<this.computedData.length;i++)tabComputed[i][z][index]/=this.computedValuesNormalisationFactor[i];
+					if(this.removeOutliers) {
+						if( (tabComputed[1][z][index]>this.thresholdOutlier) || (tabComputed[2][z][index]>this.thresholdOutlier) ) {tabComputed[1][z][index]=0;tabComputed[2][z][index]=0;}						
+					}
+				}
+			}
+		}
+		this.normalizedHyperImage=Concatenator.run(computedData);
+		//this.imageForRegistration=this.computedData[0];
+		this.normalizedHyperImage.getProcessor().setMinAndMax(0,1);
+		return this.normalizedHyperImage;
+	}
 
 
 	

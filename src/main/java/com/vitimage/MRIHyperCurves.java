@@ -47,7 +47,7 @@ import ij.plugin.frame.RoiManager;
  */
 
 
-public class MRICurveExplorerWindow extends PlugInFrame implements ActionListener,KeyListener, MouseListener {// 
+public class MRIHyperCurves extends PlugInFrame implements ActionListener,KeyListener, MouseListener {// 
 	Scrollbar scrollbarZ;
 	Scrollbar scrollbarT;
 	int xMouse=0;

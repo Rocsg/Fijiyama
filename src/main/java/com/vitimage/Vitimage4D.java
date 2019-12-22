@@ -63,6 +63,8 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	protected ImagePlus normalizedHyperImage;
 	private ImagePlus mask;
 	ImagePlus imageForRegistration;
+	ImagePlus hyperEchoesT1;
+	ImagePlus hyperEchoesT2;
 	private int timeSerieDay=0;
 	private String projectName="VITIMAGE";
 	private String unit="mm";
@@ -73,12 +75,28 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	 */
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		String subject="B099_PCH";
-		String day="J0";
-		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day,
+		String []subjects=new String[] {"B079_NP","B080_NP","B081_NP","B089_EL","B090_EL","B091_EL", "B098_PCH" ,"B099_PCH","B100_PCH"};
+		String []days=new String[] {"J0","J35","J70","J105","J133","J170","J218"};
+		int incr=-1;
+		//		String subject="B099_PCH";
+//		String day="J0";
+//		Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day,
+//								subject+"_"+day,ComputingType.COMPUTE_ALL);			
+//		viti.start(Vitimage4D.UNTIL_END);
+//		viti.normalizedHyperImage.show();
+		long t0=System.currentTimeMillis()/1000;
+		for(String subject : subjects) {
+			for(String day : days) {
+				incr++;
+				if(incr<6*7+2)continue;
+				if(! new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day).exists())continue;
+				System.out.println("\n\n\n\nRUNNING "+subject+"  "+day);
+				long t1=System.currentTimeMillis()/1000;double dt=VitimageUtils.dou((t1-t0));System.out.println("Time elapsed="+dt);
+				Vitimage4D viti = new Vitimage4D(VineType.CUTTING,0,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day,
 								subject+"_"+day,ComputingType.COMPUTE_ALL);			
-		viti.start(Vitimage4D.UNTIL_END);
-		viti.normalizedHyperImage.show();
+				viti.start(Vitimage4D.UNTIL_END);
+			}
+		}
 	}
 
 
@@ -146,15 +164,15 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 			automaticFineRegistration();
 			this.writeTransforms();
 			break;
-		case 6: //data are registered. Time to share data (i.e. masks of non-computable data...)
-			//this.computeMask();
-			//this.writeMask();
-			break;
-		case 7: //Data are shared. Time to compute hyperimage
+		case 6: //Data are shared. Time to compute hyperimage
 			System.out.println("\nVitimage4D, step7, compute normalized hyperimage");
 			this.computeNormalizedHyperImage();
 			writeHyperImage();
 			break;
+		case 7:
+			System.out.println("Vitimage 4D, computing hyperechoes for "+this.getTitle());
+			this.computeHyperEchoes();
+			this.writeHyperEchoes();
 		case 8:
 			System.out.println("Vitimage 4D, Computation finished for "+this.getTitle());
 			for (Acquisition acq : this.acquisition) {
@@ -162,7 +180,7 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 				long lAcq=acq.getHyperImageModificationTime();
 				if(lAcq>lThis) {
 					System.out.println("Vit4D HyperImage update : at least one source acquisition hyper image has been modified since last hyperimage modification : " +acq.getTitle());
-					writeStep(7);
+					writeStep(8);
 					return true;
 				}			
 			}
@@ -216,7 +234,9 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 //		if(step>=2) {for (Acquisition acq : this.acquisition)acq.start();readImageForRegistration();}
 		if(step>3)readTransforms();
 		if(step>=4) readMask();
-		if(step>=5) readHyperImage();
+		if(step>=6) readTransforms();
+		if(step>=7) readHyperImage();
+		if(step>=8) readHyperEchoes();
 	}
 	
 	
@@ -434,6 +454,15 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		return val;		
 	}
 	
+	public void readHyperEchoes() {
+		this.hyperEchoesT1=IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+"hyperEchoesT1.tif");
+		this.hyperEchoesT2=IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+"hyperEchoesT2.tif");
+	}
+	
+	public void writeHyperEchoes() {
+		IJ.saveAsTiff(this.hyperEchoesT1,this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+"hyperEchoesT1.tif");
+		IJ.saveAsTiff(this.hyperEchoesT2,this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+"hyperEchoesT2.tif");
+	}
 	
 	
 	public void readHyperImage() {
@@ -714,7 +743,6 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		writeRegisteringTransforms("afterItkRegistration");
 	}
 	
-	
 	public void writeRegisteringImages(String registrationStep) {
 		for(int i=0;i<this.acquisition.size() ; i++) {
 			ImagePlus tempView=this.transformation.get(i).transformImage(
@@ -725,8 +753,9 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		}
 	}
 	
-	public void computeNormalizedHyperImage() {
-		
+
+	
+	public void computeNormalizedHyperImage() {	
 		ArrayList<ImagePlus> imgList=new ArrayList<ImagePlus>();
 		ImagePlus[] hyp;
 		
@@ -767,6 +796,38 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	}
 
 	
+	
+	public void computeHyperEchoes() {	
+		ImagePlus[] hyp;		
+		for(int i=0;i<acquisition.size();i++) {
+			System.out.println("Processin acquisition "+i+"="+acquisition.get(i).getTitle());
+			Acquisition acq=acquisition.get(i);
+			if(acq.acquisitionType!=AcquisitionType.MRI_T1_SEQ && acq.acquisitionType!=AcquisitionType.MRI_T2_SEQ)continue;
+			System.out.println("Will be processed");
+			hyp=VitimageUtils.stacksFromHyperstack(acq.hyperEchoes,acq.acquisitionType==AcquisitionType.MRI_T1_SEQ ? 3 : 16);
+			System.out.println("Showing hyperimage substack "+i);
+//			hyp[0].show();			VitimageUtils.waitFor(5000);			hyp[0].hide();
+			
+			switch(acq.acquisitionType) {
+			case MRI_T1_SEQ:
+				System.out.println("It is a T1");
+				for(int nEc=0;nEc<3;nEc++) {
+					hyp[nEc]= transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[nEc]);					
+				}
+				this.hyperEchoesT1=Concatenator.run(hyp);
+				break;
+			case MRI_T2_SEQ:
+				System.out.println("It is a T2");
+				for(int nEc=0;nEc<16;nEc++) {
+					hyp[nEc]= transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[nEc]);					
+				}
+				this.hyperEchoesT2=Concatenator.run(hyp);
+			}
+		}
+	}
+
+	
+
 	
 	
 	/**

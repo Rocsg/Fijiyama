@@ -163,7 +163,7 @@ public class Weka_Save implements PlugIn
 	public boolean signal=false;
 	public static final int N_SPECIMENS=12;
 	public boolean debug=false;
-	public boolean computingImportance=false;
+	public boolean computingImportance=true;
 	final static boolean testing=true;
 	//final static String versionTesting="/home/fernandr/Bureau/EX_CEDRIC/V3/";
 	final static String versionTesting="/home/fernandr/Bureau/EX_CEDRIC/SUBS/SUB_16/";
@@ -359,6 +359,7 @@ public class Weka_Save implements PlugIn
 		ImageJ ij=new ImageJ();
 		if(Weka_Save.testing) {
 			ImagePlus img=IJ.openImage("/home/fernandr/Bureau/ML_CEP/IMAGES/imgHybrid.tif");
+//			ImagePlus img=IJ.openImage("/home/fernandr/Bureau/SE5.tif");
 			img.show();
 		}
 		Weka_Save ws=new Weka_Save();
@@ -1561,7 +1562,7 @@ public class Weka_Save implements PlugIn
 			allConstraints.weighty = 0;
 			allConstraints.gridheight = 1;
 			all.add( scrollPanel, allConstraints );
-
+			
 			GridBagLayout wingb = new GridBagLayout();
 			GridBagConstraints winc = new GridBagConstraints();
 			winc.anchor = GridBagConstraints.NORTHWEST;
@@ -4434,6 +4435,7 @@ public class Weka_Save implements PlugIn
 			FastRandomForest rf=(FastRandomForest)wekaSegmentation.getClassifier();
 			rf.setNumFeatures(wekasave.nbFeatures);
 			rf.setNumTrees(wekasave.nbTrees);
+			rf.setComputeImportances(computingImportance);
 			if( wekaSegmentation.trainClassifier() ){
 				if(computingImportance)printImportances();
 				if(classify) {
@@ -4489,6 +4491,8 @@ public class Weka_Save implements PlugIn
 	public void printImportances() {
 		System.out.println(" Computation of Features importances....");
 		double[]tabImp=((FastRandomForest)wekaSegmentation.getClassifier()).getFeatureImportances();
+		System.out.println("Affichage des importances :");
+		System.out.println(TransformUtils.stringVectorN(tabImp, ""));
 		FeatureStack fs=wekaSegmentation.getFeatureStack(1);
 		String[]strFeat= {"Init","-Gauss-","DiffGauss","DivGauss","Edges","Max","Min","Med","Var","Deriche"};
 		int[]sig=getSigmaTab((int)Math.round(wekaSegmentation.getMinimumSigma()),(int)Math.round(wekaSegmentation.getMaximumSigma()));
@@ -4727,7 +4731,9 @@ public class Weka_Save implements PlugIn
 	}
 
 
-
+	public double getFeatureValue(int x0,int y0,int z0,int numFeature) {
+		return this.wekaSegmentation.featureStackArray.get(z0).getProcessor(numFeature+1).getPixelValue(x0, y0);
+	}
 
 	public static int getSpecimenHorizontal(int x, int y, int z) {
 		return ((z-1)%2)*6 + ((int)Math.round(y )/250)*3+  (((int)Math.round(x)/375));
@@ -4735,6 +4741,9 @@ public class Weka_Save implements PlugIn
 
 
 	public int[][] loadExamplesFromFile(String fichier,int select,int [][]param,int []lookupClasses,String[]strNew){
+		String exportDataInCustomFile=null;//"/home/fernandr/Bureau/ML_CEP/DATA_NN/data_all.txt";	
+		String s="";
+		int nbFeatures=this.wekaSegmentation.featureStackArray.getNumOfFeatures();
 		boolean hasLookup=(lookupClasses!=null);
 		if(hasLookup) {
 			System.out.println("Application d'un fichier de lookup. Correspondances : ");
@@ -4822,15 +4831,19 @@ public class Weka_Save implements PlugIn
 			buff.close(); 
 		}		
 		catch (Exception e){e.printStackTrace();}
-		int dimZ=displayImage.getStackSize();
+		int dimZ=this.displayImage.getStackSize()/(this.displayImage.getNFrames());
 		nSlices=dimZ;
 		PointRoi[][] prTab=new PointRoi[nClassesFile][nSlices];
 
 
 		for(int cl=0;cl<nClassesFile;cl++) {
-			System.out.print("-> Examples classe "+cl);
+			System.out.print("-> Examples classe "+cl+" / "+nClassesFile);
 			int incrTrTot=0;int incrTeTot=0;
 			for(int z=1;z<=nSlices;z++) {    
+				if(exportDataInCustomFile!=null)System.out.println("Demarrage " +z+" / "+nSlices+" : ");
+				FeatureStack fsZ=null;
+				s="";
+				if(exportDataInCustomFile!=null)fsZ = this.wekaSegmentation.featureStackArray.get(z-1);
 				prTab[cl][z-1]=new PointRoi();
 				String stringFileSlice=fullPathNoExt+"_Class_"+cl+"_Slice_"+z+".txt";
 				f=new File(stringFileSlice);
@@ -4844,6 +4857,7 @@ public class Weka_Save implements PlugIn
 					//				System.out.print("Slice "+z+" points disponibles : "+nPt);
 					int incrTrain=0;int incrTest=0;
 					for(int i=0;i<nPt;i++) {
+						if(exportDataInCustomFile!=null)if(((1000*i)/nPt)%100==0)System.out.print("-");
 						ligne=buff.readLine();
 						int x=Integer.parseInt(ligne.split(" ")[0]);
 						int y=Integer.parseInt(ligne.split(" ")[1]);
@@ -4874,6 +4888,14 @@ public class Weka_Save implements PlugIn
 							prTab[cl][z-1].addPoint(x, y);
 							listRet.add(new int[] {(int)Math.round(x),(int)Math.round(y),z,hasLookup ? lookupClasses[cl]:cl,WEKA_IS_TRAINING_POINT});
 							incrTrain++;
+							if(exportDataInCustomFile!=null) {
+								String s2=""+x+";"+y+";"+(z-1)+";"+cl+";"+incrTrain;
+								for (int zz=0; zz<nbFeatures; zz++) {
+									s2+=";"+getFeatureValue(x,y,z-1,zz);
+								} 
+								s2+="\n";
+								s+=s2;
+							}
 						}
 					}
 					buff.close(); 
@@ -4881,7 +4903,8 @@ public class Weka_Save implements PlugIn
 					incrTrTot+=incrTrain;
 					if(hasLookup)this.addExampleFromLoadedFile(lookupClasses[cl],prTab[cl][z-1],z);
 					else this.addExampleFromLoadedFile(cl,prTab[cl][z-1],z);
-				}		
+					if(exportDataInCustomFile!=null) VitimageUtils.writeStringInFile(s, exportDataInCustomFile+"_cl_"+cl+"z_"+(z-1)+".txt");
+				}	
 				catch (Exception e){}
 			}
 			System.out.println(" #Total="+(incrTeTot+incrTrTot)+" , #train set="+incrTrTot+" , #test set="+incrTeTot);
@@ -4891,6 +4914,7 @@ public class Weka_Save implements PlugIn
 		for(int i=0;i<listRet.size();i++) {retTab[i]=listRet.get(i);if(retTab[i][4]==WEKA_IS_TRAINING_POINT)nbTrain++; else nbTest++;}
 		System.out.println("Set initial="+retTab.length+" exemples. Train set="+nbTrain+" exemples , Test set="+nbTest+" exemples");
 		if(nbTrain+nbTest>0)saveExamplesButton.setEnabled(true);
+		System.out.println("End loading Examples");
 		return retTab;
 	}
 

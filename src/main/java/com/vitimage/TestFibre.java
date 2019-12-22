@@ -193,7 +193,7 @@ public class TestFibre {
 			
 			String spec=specimen[num];
 			int[][]contactPoints=contactPointsSain[num];
-			int zStart=getSliceRootStocks()[num];
+			int zStart=VitimageUtils.getSliceRootStocks()[num];
 			System.out.println("Processing "+(contactPoints.length)+" bubbles for "+spec);
 			ImagePlus img=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/segmentation_iso.tif");
 			ImagePlus img2=VitimageUtils.imageCopy(img);
@@ -322,51 +322,6 @@ public class TestFibre {
 		return new String[]{"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
 	}
 
-	public static int []getSliceRootStocks(){
-		return new int[] {200+86 , 200+76 , 200+174 ,          200+65 , 200+97 , 200+108 ,        200+71  , 200+74 ,  200+68 ,       200+59 , 200+42  , 200+118}; 
-	}
-
-	public static int []getSliceRootStocksDown(){
-		return new int[] {200+86 , 200+76 , 200+174 ,          200+65 , 200+97 , 200+108 ,        200+71  , 200+74 ,  200+68 ,       200+59 , 200+42  , 200+118}; 
-	}
-	
-	
-	public static int[][][]getContactPointsAs3DArrayInLittleVoxels(double targetVoxelSize,int numSpec,ImagePlus imgArea,boolean circle){
-		int[][][]ret=null;
-		if(!circle) {
-			int[][]tab=getContactPoints(0,0)[numSpec];
-			ret=new int[tab.length][][];
-			for(int d1=0;d1<tab.length;d1++) {
-				ret[d1]=new int[1][3];
-				ret[d1][0][0]=(int)Math.round(tab[d1][0]*0.7224/targetVoxelSize);
-				ret[d1][0][1]=(int)Math.round(tab[d1][1]*0.7224/targetVoxelSize);
-				ret[d1][0][2]=(int)Math.round(tab[d1][2]*1/targetVoxelSize);
-				System.out.println("GetContact point, point "+d1+" , val image : "+imgArea.getStack().getVoxel(ret[d1][0][0], ret[d1][0][1], ret[d1][0][2]));
-			}
-		}
-		return ret;
-	}
-	
-	public static int[][][]getContactPoints(int i, int j){
-		return new int[][][] {
-		{  { 146,62  , 60},{118, 188  , 60},{9,126   ,60} },/*AS1 la premiere elle est pas passee  */			
-		{  {46,146,62},{62,202,62}},/*AS2*/	
-		{  {117,163,62},{122,107,71}},/*AS3*/	
-		{  {17,148,31},{67,135,31},{156,38,34} },/*RES1*/	
-		{  {224,103,22},{169,199,51},{268,35,78} },/*RES2*/	
-		{  {84,185,97},{7,147,110},{113,122,46} },/*RES3 gris, marron, vert*/	
-		{  {100-4,135-12,23},{133,84,25}},/*{ //  {100+i,135+j,23}},// {100-3,130-7,25},{133,84,25}}S1 marron, vert le premier n a pas marche     ok*/	
-		{  {138,62,42},{218,208,42} },/*S2 vert, marron*/	
-		{  {7,158,102},{15+14,87-19,90},{236,113,11} },/* {7,158,102},{10,102,77},{236,113,11}S3 transpa, le deuxieme ne prend pas*/	
-		{  {67,199,44},{62,129,44} },/*APO1*/	
-		{  {102,54,22} },/*APO2*/	
-		{  {23,136,56},{227,193,56} }/*APO3*/	
-	};
-/*		int[][][]contactPointsNecrose=new int[][][] {
-		{  { 197,109  , 88} }			//,{18, 141  , 41}
-		{  {0,0,0},{0,0,0},{0,0,0} }
-	};*/
-	}	
 	
 	/**
 	 * Build the set of fibers for all ceps, except if testing >= 0 . In this case processing CEP0(11+testing) with test configuration 

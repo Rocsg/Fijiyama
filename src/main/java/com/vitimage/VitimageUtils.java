@@ -2,6 +2,7 @@ package com.vitimage;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.BufferedWriter;
@@ -37,6 +38,7 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.WindowManager;
 import ij.gui.Overlay;
+import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.gui.TextRoi;
 import ij.measure.Calibration;
@@ -52,11 +54,13 @@ import ij.process.ByteProcessor;
 import ij.process.FloatPolygon;
 import ij.process.ImageProcessor;
 import ij.process.StackConverter;
+import inra.ijpb.binary.geodesic.GeodesicDistanceTransform3DFloat;
 import inra.ijpb.morphology.Morphology;
 import inra.ijpb.morphology.Strel3D;
 import math3d.Point3d;
 import mcib3d.image3d.ImageHandler;
 import mcib3d.image3d.processing.CannyEdge3D;
+import trainableSegmentation.FeatureStack;
 import trainableSegmentation.WekaSegmentation;
 
 public interface VitimageUtils {
@@ -195,6 +199,51 @@ public interface VitimageUtils {
 		return vals;
 	}
 		
+	
+	
+	
+	
+	
+	
+	public static ImagePlus computeGeodesicDistanceMap(ImagePlus imgSeg,int labelSeed,int firstLabelIncludedInExtensionArea,int firstLabelExcludedFromExtensionArea,int referenceDimForAnisotropyReduction) {
+		ImagePlus imgSegIso=VitimageUtils.imageCopy(imgSeg);
+		double[]voxS=VitimageUtils.getVoxelSizes(imgSeg);
+		double[]factorS=new double[3];
+		boolean anisotropic=false;
+		if( (   (Math.abs((voxS[0]-voxS[1])/(0.5*voxS[0]+0.5*voxS[1]) ) >0.05) || (Math.abs((voxS[0]-voxS[2])/(0.5*voxS[0]+0.5*voxS[2]) ) >0.05) ) )anisotropic=true;
+		if(anisotropic) {
+			System.out.println("Preprocessing : reducing anisotropy");
+			double globFactor=0;
+			factorS[referenceDimForAnisotropyReduction]=1;
+			globFactor=voxS[referenceDimForAnisotropyReduction];
+			factorS[(referenceDimForAnisotropyReduction+1)%3]=voxS[(referenceDimForAnisotropyReduction+1)%3]/voxS[referenceDimForAnisotropyReduction];
+			factorS[(referenceDimForAnisotropyReduction+2)%3]=voxS[(referenceDimForAnisotropyReduction+2)%3]/voxS[referenceDimForAnisotropyReduction];			
+			imgSegIso=VitimageUtils.subXYZPerso(imgSegIso,factorS,false,0);
+		}
+				
+		float[] floatWeights = new float[] {1000,1414,1732};
+		ImagePlus maskImage=VitimageUtils.thresholdByteImage(imgSegIso,firstLabelIncludedInExtensionArea,firstLabelExcludedFromExtensionArea);
+		ImagePlus seedImage=VitimageUtils.thresholdByteImage(imgSegIso, labelSeed, labelSeed+1);
+		ImagePlus distance=new ImagePlus(
+				"geodistance",new GeodesicDistanceTransform3DFloat(
+						floatWeights,true).geodesicDistanceMap(seedImage.getStack(), maskImage.getStack())
+				);		
+		if( anisotropic ){
+			System.out.println("postprocessing : giving anisotropy");
+			double[]factorSinv=TransformUtils.invertVector(factorS);
+			distance=VitimageUtils.subXYZPerso(distance,factorSinv,true,-1);
+		}
+		distance=VitimageUtils.noNanInFloat(distance,(float) -1);
+		return distance;
+	}
+	
+	
+	
+	
+	
+	
+	
+	
 	public static int getNbCores() {
 		return	Runtime.getRuntime().availableProcessors();
 	}
@@ -207,6 +256,35 @@ public interface VitimageUtils {
 			out.close();
 		} catch (Exception e) {IJ.error("Unable to write data to file: "+file+"error: "+e);}			
 	}
+	
+	public static String readStringFromFile(String file) {
+		String str=null;
+		try {
+			str= Files.lines(Paths.get(new File(file).getAbsolutePath()) ).collect(Collectors.joining("\n"));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return str;
+	}
+	
+	public static void writeIntInFile(String file,int a) {
+		writeStringInFile(""+a,file);
+	}
+	
+	public static int readIntFromFile(String file) {
+		return Integer.parseInt(readStringFromFile(file));
+	}
+	
+	public static void writeDoubleInFile(String file,double a) {
+		writeStringInFile(""+a,file);
+	}
+	
+	public static double readDoubleFromFile(String file) {
+		return Double.parseDouble(readStringFromFile(file));
+	}
+	
+
 	
 	
 	public static void writeDoubleArrayInFile(double [][]tab,String file) {
@@ -275,6 +353,35 @@ public interface VitimageUtils {
 	}
 
 	
+	public static void writeDoubleArray1DInFile(double []tab,String file) {
+		int nData=tab.length;
+		if(nData<1)return;
+		try {
+			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
+			out.write(""+nData+"\n");
+			for(int i=0;i<nData;i++) out.write(tab[i]+"\n");
+			out.close();
+		} catch (Exception e) {IJ.error("Unable to write data to file: "+file+"error: "+e);}	
+	}
+	
+	public static double[] readDoubleArray1DFromFile(String file) {
+		File fParam=new File(file);
+		int nData;
+		double[]vals;
+		String[]strFile=null;
+		String[]strLine=null;
+		try {
+			 String str= Files.lines(Paths.get(fParam.getAbsolutePath()) ).collect(Collectors.joining("\n"));
+			 strFile=str.split("\n");
+        } catch (IOException ex) {        ex.printStackTrace();   }
+		nData=Integer.parseInt(strFile[0]);
+		vals=new double[nData];
+		for(int i=1;i<=nData ; i++) {
+			vals[i-1]=Double.parseDouble(strFile[i]);			
+		}
+		return vals;
+	}
+
 	
 	public static void writePoint3dArrayInFile(Point3d[]tab,String file) {
 		writeDoubleArrayInFile(VitimageUtils.convertPoint3dArrayToDoubleArray(tab),file);
@@ -640,7 +747,16 @@ public interface VitimageUtils {
 		}
 	}
 	
+	public static int []getSliceRootStocks(){
+		return new int[] {200+86 , 200+76 , 200+174 ,          200+65 , 200+97 , 200+108 ,        200+71  , 200+74 ,  200+68 ,       200+59 , 200+42  , 200+118}; 
+	}
+
+	public static int []getSliceRootStocksDown(){
+		return new int[] {200+86 , 200+76 , 200+174 ,          200+65 , 200+97 , 200+108 ,        200+71  , 200+74 ,  200+68 ,       200+59 , 200+42  , 200+118}; 
+	}
 	
+	
+
 	
 	
 	public static ImagePlus thresholdShortImage(ImagePlus img,double thresholdMin, double thresholdMax) {
@@ -704,6 +820,27 @@ public interface VitimageUtils {
 		}
 		return tabRet;
 	}
+	
+	public static void printVolumeOfObject(ImagePlus img) {
+		byte[] in;		
+		int X=img.getWidth();
+		int Y=img.getHeight();
+		int Z=img.getStackSize();
+		double []voxS=VitimageUtils.getVoxelSizes(img);
+		double voxV=voxS[0]*voxS[1]*voxS[2];
+		int count=0;
+		for(int z=0;z<Z;z++) {
+			in=(byte []) img.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<X;x++) {
+				for(int y=0;y<Y;y++) {
+					int val=(int)(in[y*X+x] & 0xff);
+					if(val>0)count++;
+				}			 
+			}
+		}
+		System.out.println("Nb voxels="+count+" ... volume (units^3)="+VitimageUtils.dou(count*voxV));
+	}
+	
 	
 	public static int[][]countVolumeByDistance(ImagePlus seg,ImagePlus distance,int nMax,double valMin,double valMax,double valStep) {
 		byte[] valSeg;		
@@ -1119,6 +1256,41 @@ public interface VitimageUtils {
 		return lut;
 	}
 
+	public static int[][][]getContactPointsAs3DArrayInLittleVoxels(double targetVoxelSize,int numSpec,ImagePlus imgArea,boolean circle){
+		int[][][]ret=null;
+		if(!circle) {
+			int[][]tab=getContactPoints(0,0)[numSpec];
+			ret=new int[tab.length][][];
+			for(int d1=0;d1<tab.length;d1++) {
+				ret[d1]=new int[1][3];
+				ret[d1][0][0]=(int)Math.round(tab[d1][0]*0.7224/targetVoxelSize);
+				ret[d1][0][1]=(int)Math.round(tab[d1][1]*0.7224/targetVoxelSize);
+				ret[d1][0][2]=(int)Math.round(tab[d1][2]*1/targetVoxelSize);
+			}
+		}
+		return ret;
+	}
+	
+	public static int[][][]getContactPoints(int i, int j){
+		return new int[][][] {
+		{  { 146,55  , 60},{118, 188  , 60},{9,126   ,60} },/*AS1 la premiere elle est pas passee  */			
+		{  {42,146,62},{52,202,62}},/*AS2*/	
+		{  {110,163,62},{105,107,71}},/*AS3*/	
+		{  {6,154,27},{60,126,27},{158,39,27} },/*RES1*/	
+		{  {224,103,22},{165,199,51},{268,35,78} },/*RES2*/	
+		{  {84,185,97},{7,147,110},{116,125,46} },/*RES3 gris, marron, vert*/	
+		{  {100-4,135-12,23},{133,84,25}},/*{ //  {100+i,135+j,23}},// {100-3,130-7,25},{133,84,25}}S1 marron, vert le premier n a pas marche     ok*/	
+		{  {138,62,42},{224,208,42} },/*S2 vert, marron*/	
+		{  {7,158,102},{19,80,90},{239,111,11} },/* {7,158,102},{10,102,77},{236,113,11}S3 transpa, le deuxieme ne prend pas*/	
+		{  {61,199,44},{62,129,44} },/*APO1*/	
+		{  {102,54,22} },/*APO2*/	
+		{  {15,136,56},{224,193,56} }/*APO3*/	
+	};
+/*		int[][][]contactPointsNecrose=new int[][][] {
+		{  { 197,109  , 88} }			//,{18, 141  , 41}
+		{  {0,0,0},{0,0,0},{0,0,0} }
+	};*/
+	}	
 
 	
 	public static ImagePlus[]getImagePlusStackAsImagePlusTab(ImagePlus img){
@@ -1329,8 +1501,7 @@ public interface VitimageUtils {
 	}
 
 	public static void printImageResume(ImagePlus img,String str) {
-		img.setTitle(str);
-		System.out.println(imageResume(img));
+		System.out.println(str+" : "+imageResume(img));
 	}
 
 	
@@ -2631,6 +2802,8 @@ public interface VitimageUtils {
 	
 
 	
+	
+	
 	public static ImagePlus imageCopy(ImagePlus imgRef) {
 		ImagePlus ret=new Duplicator().run(imgRef);
 		VitimageUtils.adjustImageCalibration(ret, imgRef);
@@ -2693,6 +2866,7 @@ public interface VitimageUtils {
 			channels[can]=Concatenator.run(tabImg[can]);
 		}
 		ImageStack is=RGBStackMerge.mergeStacks(channels[0].getStack(),channels[1].getStack(),channels[2].getStack(),true);
+		//ImageStack is=RGBStackMerge.mergeChannels(new ImagePlus[] {channels[0],channels[1],channels[2]},true).getStack();
 		img=new ImagePlus("Composite",is);
 		VitimageUtils.adjustImageCalibration(img, imgIn);
 		return img;
@@ -2709,7 +2883,7 @@ public interface VitimageUtils {
 		IJ.run(img1,"8-bit","");
 		IJ.run(img2,"8-bit","");
 		IJ.run(img3,"8-bit","");
-		IJ.run(img3,"Fire...","");
+		IJ.run(img3,"Fire","");
 		ImageStack is=RGBStackMerge.mergeStacks(img1.getStack(),img2.getStack(),img3.getStack(),true);
 		ImagePlus img=new ImagePlus(title,is);
 		VitimageUtils.adjustImageCalibration(img, img1Source);
@@ -2840,6 +3014,13 @@ public interface VitimageUtils {
 
 	
 	
+	public static void showImageIn3D(ImagePlus img) {
+    	ij3d.Image3DUniverse univ=new ij3d.Image3DUniverse();
+		univ.show();
+//		univ.addContent(imgRef, new Color3f(Color.red),"imgRef",50,new boolean[] {true,true,true},1,0 );
+		univ.addVoltex(img,1);
+	}
+		
     public static ItkTransform manualRegistrationIn3D(ImagePlus imRef,ImagePlus imMov) {
     	ImagePlus imgRef=new Duplicator().run(imRef);
     	VitimageUtils.adjustImageCalibration(imgRef,imRef);
@@ -3909,6 +4090,49 @@ public interface VitimageUtils {
 	}
 
 	
+	public static int[][] getRoiAsCoords(Roi r) {
+		int type=r.getType();
+		int incr=0;
+		if(type==0) {//Rectangle
+			System.out.println("Roi de type "+type+" rectangle");
+			final Rectangle rect = r.getBounds();
+			final int x0 = rect.x;			final int y0 = rect.y;
+			final int lastX = x0 + rect.width;  final int lastY = y0 + rect.height;
+			int[][]ret=new int[rect.width*rect.height][2];
+			for( int x = x0; x < lastX; x++ ) {
+				for( int y = y0; y < lastY; y++ ){
+					ret[incr++]=new int[] {x,y};
+				}
+			}	
+			return ret;
+		}
+		else if(type==1 || type==2) {//Ovale
+			System.out.println("Roi de type "+type+" ovale");
+			final Rectangle rect = r.getBounds();
+			final int x0 = rect.x;			final int y0 = rect.y;
+			final int lastX = x0 + rect.width;			final int lastY = y0 + rect.height;
+			for( int x = x0; x < lastX; x++ ) {				for( int y = y0; y < lastY; y++ ){					if(r.contains(x, y))					incr++;				}			}			
+			int[][]ret=new int[incr][2];
+			incr=0;
+			for( int x = x0; x < lastX; x++ ) {				for( int y = y0; y < lastY; y++ ){					if(r.contains(x, y))					ret[incr++]=new int[] {x,y};				}			}			
+			return ret;
+		}
+		else if(type>=3) {//Free
+			System.out.println("Roi de type "+type+" other (freeline, shape, ...)");
+			int[] x = r.getPolygon().xpoints;
+			int[] y = r.getPolygon().ypoints;
+			final int n = r.getPolygon().npoints;
+			int[][]ret=new int[n][2];
+			for( int ind = 0; ind < n; ind++ ) {
+				ret[ind]=new int[] {x[ind],y[ind]};
+			}	
+			return ret;
+		}
+		else return null;
+	}
+	
+	
+	
 	public static ImagePlus Sub222(ImagePlus img) {
 		ResampleImageFilter res=new ResampleImageFilter();
 		res.setDefaultPixelValue(0);
@@ -3939,7 +4163,7 @@ public interface VitimageUtils {
 		System.out.println("\nScale..."+", "+"x="+factors[0]+" y="+factors[1]+" z="+factors[2]+" width="+dimsNew[0]+" height="+dimsNew[1]+" depth="+dimsNew[2]+" interpolation="+(bilinear ?"Bilinear average":"None")+" process create");
 		IJ.run(out, "Scale...", "x="+factors[0]+" y="+factors[1]+" z="+factors[2]+" width="+dimsNew[0]+" height="+dimsNew[1]+" depth="+dimsNew[2]+" interpolation="+(bilinear ?"Bilinear average":"None")+" process create");
 		out=IJ.getImage();
-//		out.hide();
+		out.hide();
 		System.out.println();
 		return out;
 	}
@@ -4596,6 +4820,19 @@ public interface VitimageUtils {
 		return (new double[] {mean,std});
 	}
 
+	
+	public static double[] minAndMaxOfTab(double[] vals){
+		double min=10E35;
+		double max=-10E35;
+		for(int i=0;i<vals.length ;i++) {
+			if(vals[i]>max)max=vals[i];
+			if(vals[i]<min)min=vals[i];
+		}
+		return (new double[] {min,max});
+	}
+
+	
+	
 	public static double[] statistics2D(double[][] vals){
 		double accumulator=0;
 		int hits=0;
@@ -5168,8 +5405,13 @@ public interface VitimageUtils {
 		}
 		return tab;
 	}
-
 	
+	//"CEP011_AS1" "CEP012_AS2" "CEP013_AS3" "CEP014_RES1" "CEP015_RES2" "CEP016_RES3" "CEP017_S1" "CEP018_S2" "CEP019_S3" "CEP020_APO1" "CEP021_APO2" "CEP022_APO3"
+
+	public static String[]getSpecimenNames(){
+		return	new String[] {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
+	}
+
 	
 	public static int mostRepresentedValue(int []vals, double []distances,int MAX_NB_CLASSES) {
 		double HIGH_DISTANCE=10E10;

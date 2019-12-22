@@ -37,7 +37,7 @@ import ij.plugin.ImageCalculator;
 import math3d.Point3d;
 
 public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
-	public boolean ge3dComputation=true;
+	public boolean ge3dComputation=false;
 	public ComputingType computingType;
 	public final static String slash=File.separator;
 	public String title="--";
@@ -51,6 +51,8 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	private int[] referenceImageSize;
 	private double[] referenceVoxelSize;
 	private ImagePlus normalizedHyperImage;
+	private ImagePlus hyperEchoesT1;
+	private ImagePlus hyperEchoesT2;
 	private ImagePlus mask;
 	ImagePlus imageForRegistration;
 	private String projectName="VITIMAGE";
@@ -60,14 +62,333 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	/**
 	 *  Test sequence for the class
 	 */
-	public static void main(String[] args) {
+
+	
+	public static void hack_partPrepaNoise() {
+		String []subjectsNews=new String[] {"B079_NP","B080_NP","B081_NP","B089_EL","B090_EL","B091_EL", "B098_PCH" ,"B099_PCH","B100_PCH"};
+		String []subjectsOld=new String[] {"B001_PAL" ,"B031_NP","B032_NP","B041_DS","B042_DS","B051_CT"};
+		String []subjectsTest=new String[] {"B079_NP"};
+		String []subjects=subjectsNews;
+		String []days=new String[] {"J0","J35","J70","J105","J133","J170","J218"};
+		long t0=System.currentTimeMillis()/1000;
+		long t1;
+		double dt;
+		int dimX=512;
+		int dimY=512;
+		int nTr=3;
+		int nTe=16;
+		int dimZ=40;
+		double significantMarginForAnomaly=0.1;
+		int zMarginForComputation=7;
+		int marginBorder=16;
+		int nCorners=16;
+		int noiseAreaRadius=20;
+		int widthNoiseX=dimX/8-marginBorder/4-noiseAreaRadius/4;
+		int widthNoiseY=dimY/8-marginBorder/4-noiseAreaRadius/4;
+		ImagePlus imgT1,imgT2;
+		double []valsTmp=new double[nCorners];
+		for (int sub=0;sub<subjects.length;sub++) {
+			int nbDays=0;
+			for (int dd=0;dd<days.length;dd++)if(new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+days[dd]).exists())nbDays++;
+			String[]tabDays=new String[nbDays];int indDay=0;
+			for (int dd=0;dd<days.length;dd++)if(new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+days[dd]).exists())tabDays[indDay++]=days[dd];
+
+		
+			for(int dd=0;dd<nbDays;dd++) {
+				System.out.println("Processing "+subjects[sub]+" "+dd+" / "+nbDays);
+				t1=System.currentTimeMillis()/1000;dt=VitimageUtils.dou((t1-t0));System.out.println("Time elapsed="+dt);
+				double []valRiceT1=new double[dimZ];
+				double []valRiceT2=new double[dimZ];
+				double cumulator=0;
+				double []statsTmp=new double[2];
+				String day=tabDays[dd];
+				int[][]coordsCorners=new int[nCorners][2];
+				for(int cor=0;cor<nCorners/2;cor++) {
+					coordsCorners[cor*2][0]=0;coordsCorners[cor*2][1]=cor;
+					coordsCorners[cor*2+1][0]=8;coordsCorners[cor*2][1]=cor;
+				}
+				double[][][][]valuesT1=new double[nTr][nCorners][dimZ][];
+				double[][][][]valuesT2=new double[nTe][nCorners][dimZ][];
+				double[][]valuesT1ForStats=new double[nTr*nCorners][];
+				double[][]valuesT2ForStats=new double[nTe*nCorners][];
+				for(int echo=0;echo<nTr;echo++) {
+					imgT1=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+day+"/Source_data/MRI_T1_SEQ/Computed_data/0_Stacks/Recovery_"+(echo+1)+".tif");
+					for(int z=0;z<dimZ;z++) {
+						cumulator=0;
+						for(int corner=0;corner<nCorners;corner++) {
+							int x0=marginBorder+noiseAreaRadius+widthNoiseX*coordsCorners[corner][0];
+							int y0=marginBorder+noiseAreaRadius+widthNoiseY*coordsCorners[corner][1];
+							//Collecter des "morceaux" du fond de l'image pour une future mesure du niveau de bruit
+							valuesT1[echo][corner][z]=VitimageUtils.valuesOfImageAround(imgT1,x0,y0,z,noiseAreaRadius);
+							valsTmp[corner]=VitimageUtils.statistics1D(valuesT1[echo][corner][z])[0];
+							cumulator+=(1.0/nCorners)*valsTmp[corner];
+						}
+						//Look for champion
+						double distance=10E8;
+						int index=0;
+						for(int corner=0;corner<nCorners;corner++) {if(Math.abs(valsTmp[corner]-cumulator)<distance)  {distance=Math.abs(valsTmp[corner]-cumulator);index=corner;}}
+
+						
+						//Check values
+						for(int corner=0;corner<nCorners;corner++) if(Math.abs((valsTmp[corner]-cumulator)/cumulator)>significantMarginForAnomaly) {
+							System.out.println("Warning in T1 noise computation at subject "+subjects[sub]+" day "+day+" echo "+echo+" z"+ z);
+							System.out.println(TransformUtils.stringVectorN(valsTmp, "Mean values at corners = "));
+							System.out.println("Replaced by champion at index "+index);
+							for(int tt=0;tt<valuesT1[echo][corner][z].length;tt++)valuesT1[echo][corner][z][tt]=valuesT1[echo][index][z][tt];
+						}					
+					}
+				}
+				for(int echo=0;echo<nTe;echo++) {
+					imgT2=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+day+"/Source_data/MRI_T2_SEQ/Computed_data/0_Stacks/Echo_"+(echo+1)+".tif");
+					for(int z=0;z<dimZ;z++) {
+						cumulator=0;
+						for(int corner=0;corner<nCorners;corner++) {
+							int x0=marginBorder+noiseAreaRadius+widthNoiseX*coordsCorners[corner][0];
+							int y0=marginBorder+noiseAreaRadius+widthNoiseY*coordsCorners[corner][1];
+							//Collecter des "morceaux" du fond de l'image pour une future mesure du niveau de bruit
+							valuesT2[echo][corner][z]=VitimageUtils.valuesOfImageAround(imgT2,x0,y0,z,noiseAreaRadius);
+							valsTmp[corner]=VitimageUtils.statistics1D(valuesT2[echo][corner][z])[0];
+							cumulator+=(1.0/nCorners)*valsTmp[corner];
+						}
+						//Look for champion
+						double distance=10E8;
+						int index=0;
+						for(int corner=0;corner<nCorners;corner++) {if(Math.abs(valsTmp[corner]-cumulator)<distance)  {distance=Math.abs(valsTmp[corner]-cumulator);index=corner;}}
+						//Check values
+						for(int corner=0;corner<nCorners;corner++) if(Math.abs((valsTmp[corner]-cumulator)/cumulator)>significantMarginForAnomaly) {
+							System.out.println("Warning in T2 noise computation at subject "+subjects[sub]+" day "+day+" echo "+echo+" z"+ z);
+							System.out.println(TransformUtils.stringVectorN(valsTmp, "Mean values at corners = "));
+							System.out.println("Replaced by champion at index "+index);
+							for(int tt=0;tt<valuesT2[echo][corner][z].length;tt++)valuesT2[echo][corner][z][tt]=valuesT2[echo][index][z][tt];
+						}					
+					}
+				}
+				
+				//Calculer le niveau de bruit pour chaque profondeur, basé sur les statistiques incluant des points venant de chaque echo et de chaque corner
+				for(int z=zMarginForComputation;z<dimZ-zMarginForComputation;z++) {
+					for(int corner=0;corner<nCorners;corner++) for(int echo=0;echo<nTr;echo++) valuesT1ForStats[nTr*corner+echo]=valuesT1[echo][corner][z];
+					statsTmp=VitimageUtils.statistics2D(valuesT1ForStats);
+					valRiceT1[z]=Acquisition.computeRiceSigmaFromBackgroundValuesStatic(statsTmp[0],statsTmp[1]);
+
+					for(int corner=0;corner<nCorners;corner++)for(int echo=0;echo<nTe;echo++) valuesT2ForStats[nTe*corner+echo]=valuesT2[echo][corner][z];
+					statsTmp=VitimageUtils.statistics2D(valuesT2ForStats);
+					valRiceT2[z]=Acquisition.computeRiceSigmaFromBackgroundValuesStatic(statsTmp[0],statsTmp[1]);
+				}
+				for(int z=0;z<zMarginForComputation;z++) {valRiceT1[z]=valRiceT1[zMarginForComputation];valRiceT2[z]=valRiceT2[zMarginForComputation];}
+				for(int z=dimZ-zMarginForComputation;z<dimZ;z++) {valRiceT1[z]=valRiceT1[dimZ-zMarginForComputation-1];valRiceT2[z]=valRiceT2[dimZ-zMarginForComputation-1];}
+
+				for(int z=0;z<valRiceT2.length;z++)System.out.println("Z="+z+"  rice="+valRiceT2[z]);
+				
+				VitimageUtils.writeDoubleArray1DInFile(valRiceT1, "/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+day+"/Source_data/MRI_T1_SEQ/valsRice.txt");
+				VitimageUtils.writeDoubleArray1DInFile(valRiceT2, "/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+day+"/Source_data/MRI_T2_SEQ/valsRice.txt");
+			}		
+		}
+	}
+	
+	public static void hack_part0() {
+		String []subjectsNews=new String[] {"B079_NP","B080_NP","B081_NP","B089_EL","B090_EL","B091_EL", "B098_PCH" ,"B099_PCH","B100_PCH"};
+		String []subjectsOld=new String[] {"B001_PAL" ,"B031_NP","B032_NP","B041_DS","B042_DS","B051_CT"};
+		String []subjectsTest=new String[] {"B079_NP"};
+		String []subjects=subjectsNews;
+		String []days=new String[] {"J0","J35","J70","J105","J133","J170","J218"};
+		long t0=System.currentTimeMillis()/1000;
+		long t1;
+		double dt;
+		for (int sub=0;sub<subjects.length;sub++) {
+			t1=System.currentTimeMillis()/1000;dt=VitimageUtils.dou((t1-t0));System.out.println("Time elapsed="+dt);
+			new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Computed_data/Temp/").mkdirs();
+			System.out.println("Processing "+subjects[sub]);
+			int nbDays=0;
+			for (int dd=0;dd<days.length;dd++)if(new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+days[dd]).exists())nbDays++;
+			String[]tabDays=new String[nbDays];int indDay=0;
+			for (int dd=0;dd<days.length;dd++)if(new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+days[dd]).exists())tabDays[indDay++]=days[dd];
+
+			ImagePlus imgEcho=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+"J0"+"/Source_data/MRI_T1_SEQ/Computed_data/1_RegisteredStacks/Recovery_"+"1"+".tif");
+			ItkTransform[]transTemp=new ItkTransform[nbDays];
+			ItkTransform[]ancTrans=new ItkTransform[nbDays];
+			ancTrans[0]=new ItkTransform();
+			transTemp[0]=new ItkTransform();
+			for(int i=1;i<transTemp.length;i++) {
+				transTemp[i]=new ItkTransform();
+				ancTrans[i]=ItkTransform.readAsDenseField("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+slash+ "Computed_data"+slash+"0_Registration"+slash+"trans_rig_and_dense_with_flo_"+i+".tif");
+			}
+			for(int i=0;i<transTemp.length;i++) {
+				System.out.println("Hyperimage : composition pour transfo i="+i);
+				for(int j=i;j<transTemp.length;j++) {
+					transTemp[j].addTransform(ancTrans[i]);
+				}
+			}
+			imgEcho=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+"J0"+"/Source_data/MRI_T1_SEQ/Computed_data/1_RegisteredStacks/Recovery_"+"1"+".tif");
+			for(int i=0;i<transTemp.length;i++) {
+				t1=System.currentTimeMillis()/1000;dt=VitimageUtils.dou((t1-t0));System.out.println("    Time elapsed="+dt);
+				System.out.println("Hyperimage : flatten transfo i="+i);
+				ancTrans[i]=transTemp[i].flattenDenseField(imgEcho);
+				ancTrans[i].writeAsDenseField("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Computed_data/0_Registration/transfo_last_"+tabDays[i]+".tif", imgEcho);
+			}			
+		}
+	}
+
+	
+	
+	
+	
+	
+	
+	
+	
+	public static void hack_part1() {
+//		String []subjects=new String[] {"B079_NP","B080_NP","B081_NP","B089_EL","B090_EL","B091_EL", "B098_PCH" ,"B099_PCH","B100_PCH"};
+		String []subjects=new String[] {"B089_EL","B090_EL","B091_EL", "B098_PCH" ,"B099_PCH","B100_PCH"};//"B079_NP","B080_NP","B081_NP",
+//		String []subjects=new String[] {"B098_PCH" ,"B099_PCH","B100_PCH"};
+		//,"B001_PAL" ,"B031_NP","B032_NP","B041_DS","B042_DS","B051_CT","B072_NP","B073_PCH"};
+		String []days=new String[] {"J0","J35","J70","J105","J133","J170","J218"};
+		long t0=System.currentTimeMillis()/1000;
+		long t1;
+		double dt;
+		for (int sub=0;sub<subjects.length;sub++) {
+			new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Computed_data/Temp/").mkdirs();
+			System.out.println("Processing "+subjects[sub]+" = subject "+sub+" / "+subjects.length);
+			t1=System.currentTimeMillis()/1000;dt=VitimageUtils.dou((t1-t0));System.out.println("Time elapsed="+dt);
+			int nbDays=0;
+			for (int dd=0;dd<days.length;dd++)if(new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+days[dd]).exists())nbDays++;
+			String[]tabDays=new String[nbDays];int indDay=0;
+			for (int dd=0;dd<days.length;dd++)if(new File("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+days[dd]).exists())tabDays[indDay++]=days[dd];
+
+			ImagePlus imgEcho=null;
+			ImagePlus []tabImgT1=new ImagePlus[nbDays*3];
+			ImagePlus []tabImgT2=new ImagePlus[nbDays*16];
+
+					
+					
+			
+			int dimZ=40;
+
+			
+			
+			for (int dd=0;dd<nbDays;dd++) {
+				System.out.println("   Processing day "+(1+dd)+" / "+nbDays);
+				t1=System.currentTimeMillis()/1000;dt=VitimageUtils.dou((t1-t0));System.out.println("Time elapsed="+dt);
+				String day=tabDays[dd];
+
+				//Load transfo T1 from Vit4D, getT1 M0				
+				ItkTransform transT14D=	ItkTransform.readTransformFromFile("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+tabDays[dd]
+						+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+0+"_step_"+"afterItkRegistration"+".txt");
+				double normT1Value=VitimageUtils.readDoubleFromFile("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+tabDays[dd]+"/valT1Echo3.txt");
+
+				//Load transfo T2 from Vit4D, getT2 M0
+				ItkTransform transT24D=	ItkTransform.readTransformFromFile("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+tabDays[dd]
+						+slash+ "Computed_data"+slash+"0_Registration"+slash+"transformation_"+1+"_step_"+"afterItkRegistration"+".txt");
+				double normT2Value=VitimageUtils.readDoubleFromFile("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+tabDays[dd]+"/normT2.txt");
+
+				
+				
+				//Load transfo Both from Vit5D
+				ItkTransform transTall5D=ItkTransform.readAsDenseField("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Computed_data/0_Registration/transfo_last_"+tabDays[dd]+".tif");
+				System.out.println("   Processing composition");				
+				transT14D.addTransform(transTall5D);
+				transT24D.addTransform(transTall5D);
+
+				//Compute riceValues
+				imgEcho=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+tabDays[dd]+"/Source_data/MRI_T1_SEQ/Computed_data/1_RegisteredStacks/Recovery_1.tif");
+				int zMax=imgEcho.getStackSize();
+				int xMax=imgEcho.getWidth();
+				int yMax=imgEcho.getHeight();
+				double []voxS=VitimageUtils.getVoxelSizes(imgEcho);
+				double[]riceValuesT1Old=VitimageUtils.readDoubleArray1DFromFile("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+tabDays[dd]+"/Source_data/MRI_T1_SEQ/valsRice.txt");
+				double[]riceValuesT2Old=VitimageUtils.readDoubleArray1DFromFile("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+tabDays[dd]+"/Source_data/MRI_T2_SEQ/valsRice.txt");
+				double[]riceValuesT1=new double[riceValuesT1Old.length];
+				double[]riceValuesT2=new double[riceValuesT2Old.length];
+
+				
+				for(int z=0;z<zMax;z++) {
+					Point3d p=new Point3d(voxS[0]*xMax/2,voxS[1]*yMax/2,voxS[2]*z);
+					Point3d pt1=transT14D.transformPoint(p);
+					Point3d pt2=transT24D.transformPoint(p);
+					double zT1Read=(pt1.z)/voxS[2];
+					double zT2Read=(pt2.z)/voxS[2];
+					
+					if(zT1Read<=0)riceValuesT1[z]=riceValuesT1Old[0];
+					else if(zT1Read>=zMax-1)riceValuesT1[z]=riceValuesT1Old[zMax-1];
+					else {
+						double dz=zT1Read-Math.floor(zT1Read);
+						riceValuesT1[z]=dz*riceValuesT1Old[(int)Math.ceil(zT1Read)]+(1-dz)*riceValuesT1Old[(int)Math.floor(zT1Read)];
+					}
+					if(zT2Read<=0)riceValuesT2[z]=riceValuesT2Old[0];
+					else if(zT2Read>=zMax-1)riceValuesT2[z]=riceValuesT2Old[zMax-1];
+					else {
+						double dz=zT2Read-Math.floor(zT2Read);
+						
+						riceValuesT2[z]=dz*riceValuesT2Old[(int)Math.ceil(zT2Read)]+(1-dz)*riceValuesT2Old[(int)Math.floor(zT2Read)];
+					}
+					
+				}
+				System.out.println("Processing T1. Norm factor T1 : "+normT1Value+" , norm factor T2 : "+normT2Value);
+				
+				
+				//Collect transformed echoes T1
+				for(int indT1=0;indT1<3;indT1++) {
+					//System.out.println("       T1, processing echo "+indT1);
+					//Transform echoe using composition, then apply M0 based normalisation, then write text on it
+					imgEcho=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+tabDays[dd]+"/Source_data/MRI_T1_SEQ/Computed_data/1_RegisteredStacks/Recovery_"+(indT1+1)+".tif");
+					tabImgT1[dd*3+indT1]=transT14D.transformImage(imgEcho, imgEcho);
+					IJ.run(tabImgT1[dd*3+indT1],"32-bit","");
+					tabImgT1[dd*3+indT1]=VitimageUtils.makeOperationOnOneImage( tabImgT1[dd*3+indT1],3, normT1Value, false);
+					tabImgT1[dd*3+indT1]=tabImgT1[dd*3+indT1]=VitimageUtils.writeTextOnImage(subjects[sub]+"-"+tabDays[dd]+"-T1 echo "+indT1, tabImgT1[dd*3+indT1]=tabImgT1[dd*3+indT1],15,0);
+					tabImgT1[dd*3+indT1].setDisplayRange(0,1);
+					int n=tabImgT1[dd*3+indT1].getStackSize();
+					for(int i=1;i<=n;i++) {
+						int dayInt=Integer.parseInt(tabDays[dd].split("J")[1]);
+						tabImgT1[dd*3+indT1].getStack().setSliceLabel(subjects[sub]+"|"+dd+"|"+dayInt+"|T1-Tr"+indT1+"|Z="+(i-1)+"|RICE="+riceValuesT1[i-1]/normT1Value,i);
+					}
+				}
+				//Collect transformed echoes T2
+				System.out.println("Processing T2. Norm factor T2 : "+normT2Value);
+				for(int indT2=0;indT2<16;indT2++) {
+					//System.out.println("       T2, processing echo "+indT2);
+					//Transform echoe using composition, then apply M0 based normalisation, then write text on it
+					imgEcho=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+tabDays[dd]+"/Source_data/MRI_T2_SEQ/Computed_data/0_Stacks/Echo_"+(indT2+1)+".tif");
+					tabImgT2[dd*16+indT2]=transT24D.transformImage(imgEcho, imgEcho);
+					IJ.run(tabImgT2[dd*16+indT2],"32-bit","");
+					tabImgT2[dd*16+indT2]=VitimageUtils.makeOperationOnOneImage( tabImgT2[dd*16+indT2],3, normT2Value, false);
+					tabImgT2[dd*16+indT2]=tabImgT2[dd*16+indT2]=VitimageUtils.writeTextOnImage(subjects[sub]+"-"+tabDays[dd]+"-T2 echo "+indT2, tabImgT2[dd*16+indT2]=tabImgT2[dd*16+indT2],15,0);
+					tabImgT2[dd*16+indT2].setDisplayRange(0,1);
+					int n=tabImgT2[dd*16+indT2].getStackSize();
+					for(int i=1;i<=n;i++) {
+						int dayInt=Integer.parseInt(tabDays[dd].split("J")[1]);
+						tabImgT2[dd*16+indT2].getStack().setSliceLabel(subjects[sub]+"|"+dd+"|"+dayInt+"|T2-Te"+indT2+"|Z="+(i-1)+"|RICE="+riceValuesT2[i-1]/normT2Value,i);
+					}
+				}
+			}	
+			Concatenator con=new Concatenator();
+			con.setIm5D(true);
+			ImagePlus concatImage=con.concatenate(tabImgT1,false);
+			ImagePlus result=HyperStackConverter.toHyperStack(concatImage, 3, dimZ,nbDays,"xyzct","Grayscale");
+			IJ.saveAsTiff(result, "/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Computed_data/2_HyperImage/hyperT1_"+subjects[sub]+"day1_to_day"+nbDays+".tif");
+
+			Concatenator con2=new Concatenator();
+			con2.setIm5D(true);
+			ImagePlus concatImage2=con2.concatenate(tabImgT2,false);
+			ImagePlus result2=HyperStackConverter.toHyperStack(concatImage2, 16, dimZ,nbDays,"xyzct","Grayscale");
+			IJ.saveAsTiff(result2, "/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Computed_data/2_HyperImage/hyperT2_"+subjects[sub]+"day1_to_day"+nbDays+".tif");
+		}
+	}
+	
+		
+		
+		
+		
+		public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		String subject="B099_PCH";
+//		hack_partPrepaNoise();
+		hack_part1();
+		System.exit(0);
+		VitimageUtils.waitFor(1000000);
+		String subject="B051_CT";
 		Vitimage5D viti = new Vitimage5D(VineType.CUTTING,"/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject,subject,ComputingType.COMPUTE_ALL);			
 		//viti.useGe3dForTimeRegistration=false;
 		viti.start(10);
-		ImagePlus norm=new Duplicator().run(viti.normalizedHyperImage);
-		norm.show();
+//		ImagePlus norm=new Duplicator().run(viti.normalizedHyperImage);
+//		norm.show();
 		viti.freeMemory();
 	}
 
@@ -116,7 +437,13 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 			writeHyperImage();
 			System.out.println("HYPERIMAGE WRITTEN");
 			break;
-		case 5:
+		case 5: //Data are shared. Time to compute hyperimage
+			System.out.println("\n\nVitimage 5D : step3, start Normalized hyperimage computation");
+			this.computeHyperEchoes(true);
+			writeHyperEchoes();
+			System.out.println("HYPERECHOES WRITTEN");
+			break;
+		case 6:
 			for (Vitimage4D viti : this.vitimage4D) {
 				long lThis=this.getHyperImageModificationTime();
 				long lVit4D=viti.getHyperImageModificationTime();
@@ -129,13 +456,13 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 					return true;
 				}			
 			}
-		case 6:
+		case 7:
 			if(this.ge3dComputation)computeTransfosForGe3dAlignement();saveTransfosForGe3dAlignement();
 			return true;
-		case 7:
+		case 8:
 			if(this.ge3dComputation)computeGe3dHyperImage();
 			return true;
-		case 8:			
+		case 9:			
 			System.out.println("Vitimage 5D, Computation finished for "+this.getTitle());
 			return false;
 		}
@@ -192,6 +519,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		if(step>=2)this.readImageForRegistration();
 		if(step>=4)readDenseTransforms();
 		if(step>=5) readHyperImage();
+		if(step>=6) readHyperEchoes();
 	}
 	
 	
@@ -366,6 +694,15 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		return val;		
 	}
 
+	public void readHyperEchoes() {
+		this.hyperEchoesT1 =IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+this.title+"_HyperEchoesT1.tif");
+		this.hyperEchoesT2 =IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+this.title+"_HyperEchoesT2.tif");
+	}
+	
+	public void writeHyperEchoes() {
+		IJ.saveAsTiff(this.hyperEchoesT1,this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+this.title+"_HyperEchoesT1.tif");
+		IJ.saveAsTiff(this.hyperEchoesT2,this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+this.title+"_HyperEchoesT2.tif");
+	}
 	
 	public void readHyperImage() {
 		this.normalizedHyperImage =IJ.openImage(this.sourcePath+slash+ "Computed_data"+slash+"2_HyperImage"+slash+this.title+"_HyperImage.tif");
@@ -607,6 +944,46 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	}
 
 	
+	
+	public void computeHyperEchoes(boolean useDenseTransfo) {
+		//Calcul des transformations composees
+		System.out.println("Hyperimage : lecture transfo denses");
+//		this.readDenseTransforms();
+		ItkTransform[]transTemp=new ItkTransform[this.transformation.size()];
+		for(int i=0;i<transTemp.length;i++) transTemp[i]=new ItkTransform();
+		for(int i=0;i<transTemp.length;i++) {
+			System.out.println("Hyperimage : composition pour transfo i="+i);
+			for(int j=i;j<transTemp.length;j++) {
+				transTemp[j].addTransform(this.transformation.get(i));
+			}
+		}
+		for(int i=0;i<transTemp.length;i++) {
+			System.out.println("Hyperimage : flatten transfo i="+i);
+			this.transformation.set(i,transTemp[i].flattenDenseField(this.imageForRegistration));
+		}
+		
+		System.out.println("Calcul des hyperEchos T1 et T2");
+		ImagePlus []concatTabT1=new ImagePlus[vitimage4D.size()];
+		ImagePlus []concatTabT2=new ImagePlus[vitimage4D.size()];
+		for(int i=0;i<vitimage4D.size();i++) {
+			System.out.println("Add echoes of "+i+" corresponding to day"+this.successiveTimePoints[i]+" that is"+
+					vitimage4D.get(i).dayAfterExperience+" from path="+vitimage4D.get(i).sourcePath);			
+			concatTabT1[i]=vitimage4D.get(i).hyperEchoesT1;
+			concatTabT1[i]=this.transformation.get(i).transformHyperImage4D(concatTabT1[0],concatTabT1[i], 3);
+			concatTabT2[i]=vitimage4D.get(i).hyperEchoesT2;
+			concatTabT2[i]=this.transformation.get(i).transformHyperImage4D(concatTabT2[0],concatTabT2[i], 16);
+		}
+		Concatenator con=new Concatenator();
+		con.setIm5D(true);
+		this.hyperEchoesT1=con.concatenate(concatTabT1,true);
+		this.hyperEchoesT2=con.concatenate(concatTabT2,true);
+		System.out.println("vitimage4D.size()"+vitimage4D.size());
+		System.out.println(" vitimage4D.get(0).dimZ()"+ vitimage4D.get(0).dimZ());
+		System.out.println(" vitimage4D.get(0).getHyperSize()"+ vitimage4D.get(0).getHyperSize());
+		this.hyperEchoesT1=HyperStackConverter.toHyperStack(hyperEchoesT1, 3, vitimage4D.get(0).dimZ(),this.successiveTimePoints.length,"xyzct","Grayscale");
+		this.hyperEchoesT2=HyperStackConverter.toHyperStack(hyperEchoesT1, 16, vitimage4D.get(0).dimZ(),this.successiveTimePoints.length,"xyzct","Grayscale");
+	}
+
 	
 	
 	

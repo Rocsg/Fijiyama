@@ -283,11 +283,14 @@ public class SimplexCurveFitterNoBias implements Fit{
            case T1_RECOVERY:
                simp[0][0] = lasty;
                simp[0][1] = 1000.0;
+               break;
            case T1_RECOVERY_RICE:
                simp[0][0] = lasty;
                simp[0][1] = 1000.0;
+               break;
            case T1_RECOVERY_RICE_NORMALIZED:
                simp[0][1] = 1000.0;
+               break;
            case T2_RELAX_BIAS:
                simp[0][0] = firsty;
                simp[0][1] = 50.0;
@@ -323,6 +326,14 @@ public class SimplexCurveFitterNoBias implements Fit{
         	   simp[0][1] = 20;
         	   simp[0][2] = firsty/2;
         	   simp[0][3] = 60;
+               break;
+           case TRICOMP_RICE:
+        	   simp[0][0] = firsty/3;
+        	   simp[0][1] = 40;
+        	   simp[0][2] = firsty/3;
+        	   simp[0][3] = 80;
+        	   simp[0][2] = firsty/3;
+        	   simp[0][3] = 150;
                break;
         }
     }
@@ -395,6 +406,7 @@ public class SimplexCurveFitterNoBias implements Fit{
 			case MULTICOMP_BIAS:  return 5;
 			case MULTICOMP:  return 4;
 			case MULTICOMP_RICE:  return 4;
+			case TRICOMP_RICE:  return 6;
 			case MULTICOMP_SIGMA:  return 4;
         }
         return 0;
@@ -447,6 +459,8 @@ public class SimplexCurveFitterNoBias implements Fit{
             	return  p[0]* Math.exp(-(x / p[1])) + p[2]* Math.exp(-(x / p[3])); // a[1] - echo times
             case MULTICOMP_RICE:
             	return  besFunkCost(p[0]* Math.exp(-(x / p[1])) + p[2]* Math.exp(-(x / p[3])),sigma); // a[1] - echo times
+            case TRICOMP_RICE:
+            	return  besFunkCost(p[0]* Math.exp(-(x / p[1])) + p[2]* Math.exp(-(x / p[3]) ) + p[4]* Math.exp(-(x / p[5]) ) ,sigma); // a[1] - echo times
             default:
                 return 0.0;
         }
