@@ -18,34 +18,9 @@ public interface ItkImagePlusInterface {
 
 	
 	public static void runInterfaceTestSequence() {
-		new ImageJ();
-		ImagePlus ijImg1=IJ.openImage("/home/fernandr/Bureau/Test/ITK/4_INTERTIME/T1_J35_to_ref.tif");
-		Image itkImg1=imagePlusToItkImage(ijImg1);
-		ImagePlus ijImg1Back=itkImageToImagePlus(itkImg1);
-		ijImg1Back.getProcessor().setMinAndMax(0,255);
-		ijImg1Back.setTitle("Résultat de la double conversion aller retour entre IJ et ITK");
-		ijImg1.show();
-		ijImg1Back.show();
-		VitimageUtils.waitFor(10000);
-		int[]tabI=new int[] {1,2,3,4,5};
-		VectorUInt32 vectI=ItkImagePlusInterface.intArrayToVectorUInt32(tabI);
-		int[]tabI2=ItkImagePlusInterface.vectorUInt32ToIntArray(vectI);
-		for(int i=0;i<tabI.length;i++) {
-			System.out.println("tabI1 : "+tabI[i]);
-			System.out.println("vect : "+vectI.get(i));
-			System.out.println("tabI2 : "+tabI2[i]);
-		}
-		System.out.println();
-		
-		double[]tabD=new double[] {1,2,3,4,5};
-		VectorDouble vectD=doubleArrayToVectorDouble(tabD);
-		double[]tabD2=vectorDoubleToDoubleArray(vectD);
-		for(int i=0;i<tabD.length;i++) {
-			System.out.println("tabD1 : "+tabD[i]);
-			System.out.println("vect : "+vectD.get(i));
-			System.out.println("tabD2 : "+tabD2[i]);
-		}
-		System.out.println();
+		//Create ImageJ new image
+		//Convert it to Itk
+		//Convert it again to ImageJ
 
 	}
 	
@@ -119,10 +94,10 @@ public interface ItkImagePlusInterface {
 	
 	
 	public static ImagePlus[] convertItkTransformToImagePlusArray(ItkTransform tr){
-		return convertDisplacementFieldToImagePlusArray((new DisplacementFieldTransform((org.itk.simple.Transform)tr).getDisplacementField()));
+		return convertDisplacementFieldToImagePlusArrayAndNorm((new DisplacementFieldTransform((org.itk.simple.Transform)tr).getDisplacementField()));
 	}
 	
-	public static ImagePlus[] convertDisplacementFieldToImagePlusArray(Image img){
+	public static ImagePlus[] convertDisplacementFieldToImagePlusArrayAndNorm(Image img){
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		VectorDouble voxSizes= img.getSpacing();		
 		ImagePlus []ret=new ImagePlus[4];
@@ -378,20 +353,6 @@ public interface ItkImagePlusInterface {
 		return ret;
 	}
 		
-	public default Image naiveImagePlusToItkImage(ImagePlus img) {
-		IJ.save(img,"/home/fernandr/Temp/img.tif");	
-		ImageFileReader reader = new ImageFileReader();
-		reader.setFileName("/home/fernandr/Temp/img.tif");
-		return(reader.execute());
-	}
-	
-	public default ImagePlus naiveItkImageToImagePlus(Image img) {
-		ImageFileWriter imgW=new ImageFileWriter();
-		imgW.execute(img,"/home/fernandr/Temp/img.tif",false);
-		return(IJ.openImage("/home/fernandr/Temp/img.tif"));
-	}
-
-	
 	
 	/**
 	 * Helper functions to convert between arrays (java std format) and VectorDouble (org.itk.simple format)
@@ -431,63 +392,11 @@ public interface ItkImagePlusInterface {
 		return (double)(Math.round(d * Math.pow(10, precision))/Math.pow(10, precision));
 	}
 
+
 	/**
 	 * Helper enums to ease ItkRegistrationManager description and usage. All of them are actually options of simple ITK's ImageRegistrationMethod
 	 * 
 	 */	
-	public enum Transformation3DType{
-		TRANSLATION,
-		EULER,
-		EULER2D,
-		VERSOR,
-		AFFINE,
-		SIMILARITY,
-		DENSE
-	}
-
-	public enum MetricType{
-		JOINT,
-		MEANSQUARE,
-		CORRELATION,
-		SQUARED_CORRELATION,
-		MATTES,
-		ANTS,
-		DEMONS
-	}
-	
-	
-	public enum OptimizerType{
-		GRADIENT,
-		GRADIENT_REGULAR_STEP,
-		GRADIENT_LINE_SEARCH,
-		GRADIENT_CONJUGATE,
-		LBFGSB,
-		LBFGS2,
-		POWELL,
-		EVOLUTIONARY,
-		EXHAUSTIVE,
-		AMOEBA
-	}
-
-	public enum ScalerType{
-		NONE,
-		MANUAL,
-		SCALER_INDEX,
-		SCALER_PHYSICAL,
-		JACOBIAN_VERSOR,
-	}
-
-	public enum CenteringStrategy{
-		NONE,
-		IMAGE_CENTER,
-		MASS_CENTER
-	}
-
-	public enum SamplingStrategy{
-		NONE,
-		REGULAR,
-		RANDOM
-	}
 
 }
 	

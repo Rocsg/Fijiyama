@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.GraphicsConfiguration;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Scrollbar;
@@ -18,6 +19,8 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JPanel;
 
@@ -49,6 +52,70 @@ import ij.process.LUT;
 
 
 public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListener,KeyListener, MouseListener {// 
+	public static final int TEST_SPECIMEN=6;
+
+	public static void main(String[]args) {
+		ImageJ ij=new ImageJ();
+		runExplorer();
+	}
+
+	public static void runExplorer() {
+		if(MRI_HyperCurvesExplorer.debugRep) {
+			String []specs=new String[] {"B079_NP","B080_NP", "B081_NP", "B089_EL", "B090_EL" ,"B091_EL", "B098_PCH", "B099_PCH", "B100_PCH"};
+			int curSpec=MRI_HyperCurvesExplorer.TEST_SPECIMEN;
+			String rep="/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+specs[curSpec]+"/Computed_data/2_HyperImage/";
+			String[]imgsName=new File(rep).list();
+			ImagePlus echoesT1=null;
+			ImagePlus echoesT2=null;
+			for(String s :imgsName)if(s.contains("hyperT1"))echoesT1=IJ.openImage(rep+s);
+			for(String s :imgsName)if(s.contains("hyperT2"))echoesT2=IJ.openImage(rep+s);
+			MRI_HyperCurvesExplorer explorer=new MRI_HyperCurvesExplorer(echoesT1, echoesT2);
+		}
+		else {
+			String rep=VitiDialogs.chooseDirectoryUI("Select hyperT1 image ");
+			System.out.println("Directory selected = "+rep);
+			File dir=new File(rep);
+			String[] listImg=dir.list();
+			String imgT1Name="";
+			String imgT2Name="";
+			for(String s : listImg) {
+				System.out.println("Test de "+s);
+				if(s.contains("hyperT1")) imgT1Name=s;
+				if(s.contains("hyperT2"))imgT2Name=s;
+				System.out.println("Apres ca :");
+				System.out.println("imgT1Name="+imgT1Name);
+				System.out.println("imgT2Name="+imgT2Name);
+			}
+			imgT1Name=new File(rep,imgT1Name).getAbsolutePath();
+			imgT2Name=new File(rep,imgT2Name).getAbsolutePath();
+			System.out.println("Opening "+imgT1Name);
+			System.out.println("Opening "+imgT2Name);
+			ImagePlus echoesT1=IJ.openImage(imgT1Name);
+			ImagePlus echoesT2=IJ.openImage(imgT2Name);
+			MRI_HyperCurvesExplorer explorer=new MRI_HyperCurvesExplorer(echoesT1, echoesT2);			
+		}
+	}
+	
+
+	
+
+	
+	
+	
+	
+	
+	
+	
+	
+	//	String []specs=new String[] {"B079_NP","B080_NP", "B081_NP", "B089_EL", "B090_EL" ,"B091_EL", "B098_PCH", "B099_PCH", "B100_PCH"};
+	boolean rangeDisplayedFullBlocks=true;
+	public int xMouseRange=0;
+	public double[]rangingBoundaries=new double[3];
+	public double rangingFactor=0.2;
+	public boolean spectrumRangingMode=false;
+	public int gaussianSpectrum=0;
+	public static boolean separateNormalizationSpectrum=true;
+	boolean multiThreaded=true;
 	boolean sigmaKhi2WeightedByNumberPoints=false;
 	private int TARGET_HEIGHT_FOR_PLOTS_AND_IMGS=512;
 	private int TARGET_WIDTH_FOR_PLOTS_AND_IMGS=512;
@@ -57,14 +124,15 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	private int DY_TEXT=30;
 	private int DELTA_X=10;
 	private int DELTA_Y=10;
-	private int DX_PLOT_1=200;
-	private int DX_PLOT_2=200;
+	private int DX_PLOT_1=350;
+	private int DX_PLOT_2=350;
 	private int DY_PLOT_1=(2*TARGET_HEIGHT_FOR_PLOTS_AND_IMGS-3*DY_TEXT-4*+DELTA_Y)/2;
 	private int DY_PLOT_2=(2*TARGET_HEIGHT_FOR_PLOTS_AND_IMGS-3*DY_TEXT-4*+DELTA_Y)/2;
 	private int totalSizeX= DX_IMG+DX_PLOT_1+DX_PLOT_2+2*DELTA_X;  
 	private int totalSizeY= 2*DY_IMG;  
 	boolean autoSizingTimePlots=true;
 	RiceEstimator riceEstimator;
+	int computationRate=100;
 	boolean isFireLut=false;
 	int curEc1;
 	int curEc2;
@@ -169,6 +237,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	double [][]tabFittenT2Mono;
 	double [][]tabFittenT2Bicomp;
 	double [][]tabFittenT2Tricomp;
+	double[][][]valsSpectrum;
 	double[]jitterT1;
 	double[]jitterT2Mono;
 	double[]jitterT2Bicomp;
@@ -181,7 +250,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	double[]pValT2Mono;
 	double[]pValT2Bicomp;
 	double[]pValT2Tricomp;
-
+	int [][][]pointsCoords;
 	double [][]tabFittenT1Cute;
 	double [][]tabFittenT2MonoCute;
 	double [][]tabFittenT2BicompCute;
@@ -190,67 +259,114 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	int[][]correspondanceCanvas;
 	int[]actualDay;
 	private int fitAlgorithm=Fit.SIMPLEX;
+	private ArrayList<int[]> rangeRoiPoints;
 
-	public double[][] getDisplayableSpectrumCurve(int time) {
-		double normY=0.9;
-		int numberBins=300;//over 3 decades it makes every 2.5%
-		double sigmaHisto=2;
-		double[]dataTmpT1=new double[this.nTr];
-		double[]dataTmpT2=new double[this.nTe];
-		double[]binInf=new double[300];
-		double[]binSup=new double[300];
-		double[]binMed=new double[300];
-		double[]histoM0T1=new double[300];
-		double[]histoM0T2=new double[300];
-		double [][]output=new double[3][300];
+
+
+	public double[][] getDisplayableSpectrumCurveMultiThread(int time) {
+		boolean debug=true;
+//		if(debug)System.out.println(" \nDEBUG SPECTRUM for t="+(time)+" / "+this.numberTimes+" at z="+zCor);
+		int numberBins=150 /(1+gaussianSpectrum) ;//over 3 decades it makes every 5% or every 10 %
+		final double[]binInf=new double[numberBins];
+		final double[]binSup=new double[numberBins];
+		final double[]binMed=new double[numberBins];
+		double[]histoM0T1=new double[numberBins];
+		double[]histoM0T2=new double[numberBins];
+		double [][]output=new double[3][numberBins];
+		final double[][]inputsAllT1=new double[this.nPtsCur][this.nTr];
+		final double[][]inputsAllT2=new double[this.nPtsCur][this.nTe];
+		final double[]sigmaT1=new double[this.nPtsCur];
+		final double[]sigmaT2=new double[this.nPtsCur];
+		final double[][]valsFitAll=new double[this.nPtsCur][9];
 		double minBin=t0T2;
 		double maxBin=t1T1;
 		double multFromMinToMax=maxBin/minBin;
-		double factor=Math.pow(multFromMinToMax, 1.0/numberBins);
 		for(int i=0;i<numberBins;i++) {
 			binInf[i]=minBin*Math.pow(multFromMinToMax, i*1.0/numberBins);
 			binSup[i]=minBin*Math.pow(multFromMinToMax, (i+1)*1.0/numberBins);
 			binMed[i]=binSup[i]*0.5+binInf[i]*0.5;
 		}
 
-		//get successive values of M0, T1, T2, T22 (eventual)
+		
+		final int stepPt=Math.max(this.nPtsCur/20, 1);
+
+		//Prepare data
 		for(int p=0;p<this.nPtsCur;p++) {
-			for(int tr=0;tr<this.nTr;tr++)dataTmpT1[tr]=this.dataTimelapseT1Full[time][tr][p];
-			for(int te=0;te<this.nTe;te++) {
-				dataTmpT2[te]=this.dataTimelapseT2Full[time][te][p];
+			for(int tr=0;tr<this.nTr;tr++)inputsAllT1[p][tr]=this.dataTimelapseT1Full[time][tr][p];
+			for(int te=0;te<this.nTe;te++)inputsAllT2[p][te]=this.dataTimelapseT2Full[time][te][p];
+			sigmaT1[p]=this.tabSigmas[0][time][zCor-1];
+			sigmaT2[p]=this.tabSigmas[1][time][zCor-1];
+		}
+		int nProc=VitimageUtils.getNbCores()-1;
+		final int[][] listProcs=VitimageUtils.listForThreads(this.nPtsCur,nProc);
+		final int nbTot=this.nPtsCur;
+		AtomicInteger atomNumPt=new AtomicInteger();
+		AtomicInteger atomNumThread=new AtomicInteger();
+		final Thread[] threads = VitimageUtils.newThreadArray(nProc);  
+		for (int ithread = 0; ithread < nProc; ithread++) {  
+			
+			threads[ithread] = new Thread() {  { setPriority(Thread.NORM_PRIORITY); }  
+			public void run() {
+				int thread=atomNumThread.getAndIncrement();
+				int nPtThread=listProcs[thread].length;
+				for(int pt=0;pt<nPtThread;pt++) {
+					int number=listProcs[thread][pt];
+					valsFitAll[number]=computeAllFitsForOnePoint(inputsAllT1[number],inputsAllT2[number],sigmaT1[number],sigmaT2[number]);
+					int nt=atomNumPt.getAndIncrement();
+					if(nt%stepPt==0 && nPtThread>1) {System.out.println((100*nt)/nbTot + " %");IJ.showProgress(nt/nbTot);}					
+					}
+				} //fin run
+				};
 			}
-			double[]valsFit=computeAllFitsForOnePoint(dataTmpT1,dataTmpT2,this.tabSigmas[0][time][zCor-1],this.tabSigmas[1][time][zCor-1]);
+
+		VitimageUtils.startAndJoin(threads);  
+
+			
+		//Collect results
+		for(int p=0;p<this.nPtsCur;p++) {
 			//Fit T1
-			if(valsFit[2]>=1) {
-				for(int bin=0;bin<numberBins;bin++)if( (valsFit[1]<binSup[bin]) && (valsFit[1]>=binInf[bin]) )histoM0T1[bin]+=valsFit[0];
+			if(valsFitAll[p][2]>=1) {
+				for(int bin=0;bin<numberBins;bin++)if( (valsFitAll[p][1]<binSup[bin]) && (valsFitAll[p][1]>=binInf[bin]) ) {
+					histoM0T1[bin]+=valsFitAll[p][0];
+					this.pointsCoords[time][p][2]=(int)Math.round(binMed[bin]);this.pointsCoords[time][p][3]=1;
+				}
 			}
 
-			//Fit T2 
-			if(valsFit[5]>=1) {
-				for(int bin=0;bin<numberBins;bin++)if( (valsFit[4]<binSup[bin]) && (valsFit[4]>=binInf[bin]) )histoM0T2[bin]+=valsFit[3];
+			//Fit T2 Mono et bicomp
+			if(valsFitAll[p][5]>=1) {
+				for(int bin=0;bin<numberBins;bin++)if( (valsFitAll[p][4]<binSup[bin]) && (valsFitAll[p][4]>=binInf[bin]) ) {
+					histoM0T2[bin]+=valsFitAll[p][3];
+					this.pointsCoords[time][p][4]=(int)Math.round(binMed[bin]);this.pointsCoords[time][p][5]=1;
+				}
 			}
-			if(valsFit[8]>=1) {
-				for(int bin=0;bin<numberBins;bin++)if( (valsFit[7]<binSup[bin]) && (valsFit[7]>=binInf[bin]) )histoM0T2[bin]+=valsFit[6];
+			if(valsFitAll[p][8]>=1) {
+				for(int bin=0;bin<numberBins;bin++)if( (valsFitAll[p][7]<binSup[bin]) && (valsFitAll[p][7]>=binInf[bin]) ) {
+					histoM0T2[bin]+=valsFitAll[p][6];
+					this.pointsCoords[time][p][6]=(int)Math.round(binMed[bin]);this.pointsCoords[time][p][7]=1;
+				}
 			}
-
 		}
 				
 		//Smooth this histogram with a factor to be defined, maybe depending on the estimation error on parameters
-		output[0]=smoothHisto(histoM0T1,sigmaHisto);
-		output[1]=smoothHisto(histoM0T2,sigmaHisto);
+//		output[0]=smoothHisto(histoM0T1);
+//		output[1]=smoothHisto(histoM0T2);
+		output[0]=histoM0T1;
+		output[1]=histoM0T2;
 		output[2]=binMed;
 
 		
 		//Normalize it to 0.9		//Add time to the Y values
-		double maxValT1=VitimageUtils.max(output[0]);
-		double maxValT2=VitimageUtils.max(output[1]);
-		for(int i=0;i<numberBins;i++)output[0][i]=time+output[0][i]/maxValT1;
-		for(int i=0;i<numberBins;i++)output[1][i]=time+output[1][i]/maxValT2;
+//		double maxValT1=VitimageUtils.max(output[0]);
+		//		double maxValT2=VitimageUtils.max(output[1]);
+		//for(int i=0;i<numberBins;i++)output[0][i]=time+output[0][i]/maxValT1;
+		//for(int i=0;i<numberBins;i++)output[1][i]=time+output[1][i]/maxValT2;
 		return output;
 	}
 	
+
 	
-	public double[]smoothHisto(double[]histo,double sigma){
+	
+	public double[]smoothHisto(double[]histo){
 		//Test avec sigma=3 bins;
 		int sig=7;
 		int nbBins=histo.length;
@@ -261,15 +377,15 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	
 	
 	
-	public static void main(String[]args) {
-		ImageJ ij=new ImageJ();
-		runExplorer();
-	}
-
+	
+	
+	
+	
 	public void initializeScreenConstants() {
 		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		int screenY=(int) Math.round(screenSize.getHeight());
 		int screenX=(int) Math.round(screenSize.getWidth());
+		if(screenX>1920)screenX=1920;
 		System.out.println("Screen resolution : "+screenX+" X "+screenY);
 		if(screenX<1054)IJ.showMessage("Your screen has a very low resolution : "+screenX+" X "+screenY+"\nPlease consider investing in one which have at least 1024 lines.\nPlugin will run in survivor mode, everything can happen");
 		int DY_TITLE=30;
@@ -286,43 +402,10 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 		DY_PLOT_2=(2*TARGET_HEIGHT_FOR_PLOTS_AND_IMGS-3*DY_TEXT-4*+DELTA_Y)/2;
 		totalSizeX= DX_IMG+DX_PLOT_1+DX_PLOT_2+2*DELTA_X;  
 		totalSizeY= 2*DY_IMG+DY_TITLE;  
-	}
-	
-	public static void runExplorer() {
-		if(MRI_HyperCurvesExplorer.debugRep) {
-			String []specs=new String[] {"B090_EL","B091_EL","B099_PCH","B098_PCH"};
-			int curSpec=3;
-			String rep="/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+specs[curSpec]+"/Computed_data/2_HyperImage/";
-			String[]imgsName=new File(rep).list();
-			ImagePlus echoesT1=null;
-			ImagePlus echoesT2=null;
-			for(String s :imgsName)if(s.contains("hyperT1"))echoesT1=IJ.openImage(rep+s);
-			for(String s :imgsName)if(s.contains("hyperT2"))echoesT2=IJ.openImage(rep+s);
-			MRI_HyperCurvesExplorer explorer=new MRI_HyperCurvesExplorer(echoesT1, echoesT2);
-		}
-		else {
-			String rep=VitiDialogs.chooseDirectoryUI("Select hyperT1 image ");
-			System.out.println("Directory selected = "+rep);
-			File dir=new File(rep);
-			String[] listImg=dir.list();
-			String imgT1Name="";
-			String imgT2Name="";
-			for(String s : listImg) {
-				System.out.println("Test de "+s);
-				if(s.contains("hyperT1")) imgT1Name=s;
-				if(s.contains("hyperT2"))imgT2Name=s;
-				System.out.println("Apres ca :");
-				System.out.println("imgT1Name="+imgT1Name);
-				System.out.println("imgT2Name="+imgT2Name);
-			}
-			imgT1Name=new File(rep,imgT1Name).getAbsolutePath();
-			imgT2Name=new File(rep,imgT2Name).getAbsolutePath();
-			System.out.println("Opening "+imgT1Name);
-			System.out.println("Opening "+imgT2Name);
-			ImagePlus echoesT1=IJ.openImage(imgT1Name);
-			ImagePlus echoesT2=IJ.openImage(imgT2Name);
-			MRI_HyperCurvesExplorer explorer=new MRI_HyperCurvesExplorer(echoesT1, echoesT2);			
-		}
+		System.out.println("Apres initialisation  : ");
+		System.out.println("DXP1 "+DX_PLOT_1);
+		System.out.println("DXP2 "+DX_PLOT_2);
+		System.out.println("totX "+totalSizeX);
 	}
 	
 	
@@ -362,10 +445,12 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 		this.zCor=(int)Math.ceil(this.numberZ/2.0);
 		this.tCor=1;
 
+		this.valsSpectrum=new double[this.numberTimes][][];
 		this.dataTimelapseT1=new double[this.numberTimes][this.nTr];
 		this.dataTimelapseT2=new double[this.numberTimes][this.nTe];
 		this.dataTimelapseT1Full=new double[this.numberTimes][this.nTr][1];
 		this.dataTimelapseT2Full=new double[this.numberTimes][this.nTe][1];
+		this.pointsCoords=new int[this.numberTimes][1][8];
 		this.dataTimelapseT1Sigmas=new double[this.numberTimes][this.nTr];
 		this.dataTimelapseT2SigmasMono=new double[this.numberTimes][this.nTe];
 		this.dataTimelapseT2SigmasBicomp=new double[this.numberTimes][this.nTe];
@@ -414,27 +499,18 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 			}
 		}
 		System.out.println(TransformUtils.stringMatrixMN("Tab des sigmas de T1", tabSigmas[0]));
-		WindowManager.addWindow(this); 
-		if (instance != null){
-		      instance.toFront();
-		      return;
-		    }
 	    WindowManager.addWindow(this);
 	    instance = this;
 	    imgWidth=imgT1.getWidth();
 		imgHeight=imgT1.getHeight();
 		this.imgCan1=new ImageCanvas(imgT1);
 		this.imgCan2=new ImageCanvas(imgT2);
-		mrUt=new MRUtils();
 		ImageJ ij = IJ.getInstance();
         removeKeyListener(ij);
         removeMouseListener(ij);
         startPlotsAndRoi();
 		initializeGUI2();
-		//repaintAll();
 		System.out.println("Changing coordinates to t="+tCor+"/"+this.numberTimes+"  , z="+zCor+"/"+this.numberZ);
-//		scrollbarT.setValues(tCor, 1,1,numberTimes+1);
-		//		scrollbarZ.setValues(zCor,1,1,numberZ+1);
 		imgCan2.getImage().setPosition(this.nTe,zCor,tCor);
 		imgCan1.getImage().setPosition(this.curEc2+1,zCor,tCor);
 		imgCan2.getImage().setPosition(1,zCor,tCor);
@@ -504,7 +580,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 
 		//Image T2
         imgCan2.setMagnification(DX_IMG/dims[0]);
-		addComponentToPanel(panel,imgCan2,gbc,0,DY_IMG,DX_IMG,DY_IMG,0,0);
+        addComponentToPanel(panel,imgCan2,gbc,0,DY_IMG,DX_IMG,DY_IMG,0,0);
 		imgCan2.removeKeyListener(ij);
         imgCan2.addKeyListener(this);
         imgCan2.removeMouseListener(ij);
@@ -561,59 +637,73 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 
 	@Override
 	public void keyTyped(KeyEvent e) {
-		System.out.println("ENTERING KEY"+e.getKeyChar()+" status="+this.statusRoi);
+		System.out.println("\nKEY PRESSED : "+e.getKeyChar());
 
 		
 		
 		///////ACTIONS TO CHANGE SIZE OF AREA
-		if (e.getKeyChar()=='p') {
+		if (e.getKeyChar()=='p' && statusRoi!=2) {
 			this.autoSizingTimePlots=!this.autoSizingTimePlots;
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			actualizeSpectrumCurves();
+			computeFitsAgain();
+			displayFitsAgain();
 		}
-		if (e.getKeyChar()=='z') {
+		if (e.getKeyChar()=='z' && statusRoi!=2) {
 			if(this.crossThick<dims[2] && statusRoi!=2)this.crossThick++;
 			actualizeCursor();
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			actualizeSpectrumCurves();
+			computeFitsAgain();
+			displayFitsAgain();
 		}
 		if (e.getKeyChar()=='s' && statusRoi!=2) {
-			if(this.crossThick>0)this.crossThick--;
+			if(this.crossThick>0 && statusRoi!=2)this.crossThick--;
 			actualizeCursor();
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			actualizeSpectrumCurves();
+			computeFitsAgain();
+			displayFitsAgain();
 		}
 		if (e.getKeyChar()=='a' && statusRoi!=2) {
 			if(this.crossWidth<dims[0])this.crossWidth++;
 			actualizeCursor();
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			actualizeSpectrumCurves();
+			computeFitsAgain();
+			displayFitsAgain();
 		}
 		if (e.getKeyChar()=='q' && statusRoi!=2) {
 			if(this.crossWidth>0)this.crossWidth--;
 			actualizeCursor();
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			actualizeSpectrumCurves();
+			computeFitsAgain();
+			displayFitsAgain();
 		}
 		if (e.getKeyChar()=='e') {
 			this.nRepetMonteCarlo+=20;
 			System.out.println("Monte carlo go to N="+this.nRepetMonteCarlo+" repetitions");
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			actualizeSpectrumCurves();
+			computeFitsAgain();
+			displayFitsAgain();
 		}
 		if (e.getKeyChar()=='d') {
 			this.nRepetMonteCarlo-=20;
 			if(this.nRepetMonteCarlo<0)this.nRepetMonteCarlo=0;
 			System.out.println("Monte carlo go to N="+this.nRepetMonteCarlo+" repetitions");
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			actualizeSpectrumCurves();
+			computeFitsAgain();
+			displayFitsAgain();
 		}
 
 		
 		
 		///////ZOOM IN / OUT		
 		if (e.getKeyChar()=='+') {
-			if(statusRoi==2) {VitiDialogs.notYet("Warning : no zoom in / out during Roi mode");return;}
+			if(statusRoi==2) {}//VitiDialogs.notYet("Warning : no zoom in / out during Roi mode");return;
 			System.out.println("Zoom in");
 			if(currentCanvas==WIN_T1 || currentCanvas==WIN_T2 ) {
 				imgCan1.zoomIn(xMouse,yMouse);
@@ -629,7 +719,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 			}
 		}
 		if (e.getKeyChar()=='-') {
-			if(statusRoi==2) {VitiDialogs.notYet("Warning : no zoom in / out during Roi mode");return;}
+			if(statusRoi==2) {}//VitiDialogs.notYet("Warning : no zoom in / out during Roi mode");return;
 			System.out.println("Zoom out");
 			if( (currentCanvas==WIN_T1 || currentCanvas==WIN_T2) ) {
 				imgCan1.setMagnification(imgCan1.getMagnification()/2.0);
@@ -701,8 +791,18 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 				this.imgCan1.setOverlay(new Overlay(userRoi));
 				this.imgCan2.setOverlay(new Overlay(userRoi));
 			}
-			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			if(e.getKeyChar()=='4' || e.getKeyChar()=='6') {
+				actualizeMriObservationsBasedOnData();
+				actualizeSpectrumCurves();
+				this.actualizeRangingBoundaries();
+				this.actualizeRangedData();
+				computeFitsAgain();
+			}
+			if(e.getKeyChar()=='2' || e.getKeyChar()=='8') {
+				this.actualizeRangingBoundaries();
+				this.actualizeRangedData();
+			}
+			displayFitsAgain();
 		}
 
 
@@ -747,26 +847,26 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 				}					
 				IJ.log("Please select a ROI now, add it to the Roi manager, then hit the 'r' strike again");
 				String file=VitiDialogs.chooseOneRoiPathUI("Choose a .roi file", "");
+				if(file==null)return;
 				this.userRoi=new Opener().openRoi(file);
+				IJ.selectWindow("MRI Curve explorer V2");
 				statusRoi=2;
-				IJ.selectWindow("MRI Curve explorer");
-				statusRoi=2;
-				zCor=this.userRoi.getZPosition();
-				tCor=this.userRoi.getTPosition();
+//				zCor=this.userRoi.getZPosition()+1;
+//				tCor=this.userRoi.getTPosition();
 				this.userRoi.setPosition(0);
-//				scrollbarT.setValues(tCor, 1,1,numberTimes+1);
-//				scrollbarZ.setValues(zCor,1,1,numberZ+1);
 				imgCan2.getImage().setPosition(3,zCor,tCor);
 				imgCan1.getImage().setPosition(1,zCor,tCor);
 				imgCan2.getImage().setPosition(1,zCor,tCor);
 				imgCan1.getImage().setPosition(3,zCor,tCor);
-				repaint();
 				imgCan1.repaint();
 				imgCan2.repaint();
 				this.imgCan1.setOverlay(new Overlay(userRoi));
 				this.imgCan2.setOverlay(new Overlay(userRoi));
+				repaint();
 				actualizeMriObservationsBasedOnData();
-				computeAndDisplayAllAgain();
+				actualizeSpectrumCurves();
+				computeFitsAgain();
+				displayFitsAgain();
 				IJ.log("Please hit the 'r' strike again to quit the Roi mode");
 			}
 			else if(statusRoi==2) {
@@ -775,22 +875,83 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 				this.nPtsRoi=1;
 				actualizeCursor();
 				actualizeMriObservationsBasedOnData();
-				computeAndDisplayAllAgain();
+				actualizeSpectrumCurves();
+				computeFitsAgain();
+				displayFitsAgain();
+			}
+			else {
+				actualizeCursor();
+				actualizeMriObservationsBasedOnData();
+				actualizeSpectrumCurves();
+				computeFitsAgain();
+				displayFitsAgain();
 			}
 		}
 		
 		
 		
 		///MISCELLANEOUS
+		if (e.getKeyChar()==',') {
+			//just update
+			this.rangingFactor=this.rangingFactor*0.7;
+			this.actualizeRangingBoundaries();
+			this.actualizeRangedData();
+			computeFitsAgain();
+			displayFitsAgain();
+		}
+		if (e.getKeyChar()==';') {
+			//just update
+			this.rangingFactor=this.rangingFactor*1.4;
+			this.actualizeRangingBoundaries();
+			this.actualizeRangedData();
+			computeFitsAgain();
+			displayFitsAgain();
+		}
 		if (e.getKeyChar()=='u') {
 			//just update
+			this.actualizeRangingBoundaries();
+			this.actualizeRangedData();
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			actualizeSpectrumCurves();
+			computeFitsAgain();
+			displayFitsAgain();
+		}
+		if (e.getKeyChar()=='b') {
+			//just update
+			this.rangeDisplayedFullBlocks=!this.rangeDisplayedFullBlocks;
+			actualizeMriObservationsBasedOnData();
+			this.actualizeRangingBoundaries();
+			actualizeSpectrumCurves();
+			this.actualizeRangedData();
+			computeFitsAgain();
+			displayFitsAgain();
+		}
+		if (e.getKeyChar()=='c') {
+			this.multiThreaded=!this.multiThreaded;
+			actualizeMriObservationsBasedOnData();
+			this.actualizeRangingBoundaries();
+			actualizeSpectrumCurves();
+			this.actualizeRangedData();
+			computeFitsAgain();
+			displayFitsAgain();
+		}
+		if (e.getKeyChar()=='v') {
+			this.separateNormalizationSpectrum=!this.separateNormalizationSpectrum;
+			actualizeMriObservationsBasedOnData();
+			this.actualizeRangingBoundaries();
+			actualizeSpectrumCurves();
+			this.actualizeRangedData();
+			computeFitsAgain();
+			displayFitsAgain();
 		}
 		if (e.getKeyChar()=='o') {
 			debugLM=!debugLM;
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			this.actualizeRangingBoundaries();
+			actualizeSpectrumCurves();
+			this.actualizeRangedData();
+			computeFitsAgain();
+			displayFitsAgain();
 		}
 		if (e.getKeyChar()=='l') {
 			if(this.fitAlgorithm==Fit.LM) {
@@ -802,17 +963,29 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 				System.out.println("Switching to Levenberg-Marquardt");
 			}
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			this.actualizeRangingBoundaries();
+			actualizeSpectrumCurves();
+			this.actualizeRangedData();
+			computeFitsAgain();
+			displayFitsAgain();
 		}
 		if (e.getKeyChar()=='t') {
 			thickCurve=1-thickCurve;
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			this.actualizeRangingBoundaries();
+			actualizeSpectrumCurves();
+			this.actualizeRangedData();
+			computeFitsAgain();
+			displayFitsAgain();
 		}
 		if (e.getKeyChar()=='g') {
-			gaussianWeighting=!gaussianWeighting;
+			gaussianSpectrum=(gaussianSpectrum+1)%4;
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			this.actualizeRangingBoundaries();
+			actualizeSpectrumCurves();
+			this.actualizeRangedData();
+			computeFitsAgain();
+			displayFitsAgain();
 		}
 		if (e.getKeyChar()=='h') {
 			VitiDialogs.getYesNoUI("Curve explorer help",
@@ -831,11 +1004,15 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 		if (e.getKeyChar()=='m') {
 			this.do3comp=!this.do3comp;
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
+			this.actualizeRangingBoundaries();
+			actualizeSpectrumCurves();
+			this.actualizeRangedData();
+			computeFitsAgain();
+			displayFitsAgain();
 			
 		}
 		
-
+		actualizeCursor();
 		repaint();
 		plotCan1.repaint();
 		plotCan21.repaint();
@@ -846,71 +1023,145 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	}
 	
 	public void actualizeCursor() {
-		xCor=imgCan1.offScreenX(xMouse);
-		yCor=imgCan1.offScreenY(yMouse);
-		double xD=imgCan1.offScreenXD(xMouse);
-		double yD=imgCan1.offScreenYD(yMouse);
-		int xMouseCenter=(int) Math.round(xMouse+  (   Math.floor(xD)+0.5-xD  )*zoomLevel);
+		System.out.println("DEBUG STARTING ACTUALIZE CURSOR");
+		double xD=0;
+		double yD=0;
+		if(this.currentCanvas==this.WIN_T1) {
+			xCor=imgCan1.offScreenX(xMouse);
+			yCor=imgCan1.offScreenY(yMouse);
+			xD=imgCan1.offScreenXD(xMouse);
+			yD=imgCan1.offScreenYD(yMouse);
+		}
+		if(this.currentCanvas==this.WIN_T2) {
+			xCor=imgCan2.offScreenX(xMouse);
+			yCor=imgCan2.offScreenY(yMouse);
+			xD=imgCan2.offScreenXD(xMouse);
+			yD=imgCan2.offScreenYD(yMouse);
+		}
+		else {
+			xD=imgCan1.offScreenXD(xMouse);
+			yD=imgCan1.offScreenYD(yMouse);
+		}
+		int xMouseCenter=(int) Math.round(xMouse+  (   Math.floor(xD)+0.5-xD  )*zoomLevel);//screen location of square center, according to xMouse	
 		int yMouseCenter=(int) Math.round(yMouse+  (   Math.floor(yD)+0.5-yD  )*zoomLevel);
 		double yDMouse=imgCan1.offScreenYD(yMouse);
-		double sizeOnScreen=(0.5+crossWidth)*zoomLevel;
-		System.out.println("Actualisation Curseur.\n");
-		System.out.println("xMouse, yMouse : "+xMouse+" , "+yMouse);
-		System.out.println("xCor, yCor = "+xCor+" , "+yCor);
-		System.out.println("xD, yD = "+xD+" , "+yD);
-		System.out.println("xMouseCenter, yMouseCenter = "+xMouseCenter+" , "+yMouseCenter);
-		System.out.println("Zoom="+zoomLevel+"  sizeOnScreen="+sizeOnScreen);
+		double sizeOnScreen=(0.5+crossWidth)*zoomLevel;//half radius
+//8		System.out.println("Actualisation Curseur");
 
 		PointRoi prT1=new PointRoi(xMouseCenter,yMouseCenter,sizeOfCursor()+" yellow hybrid");
-		Overlay over=new Overlay(prT1);
-		over.add(new Roi(xMouseCenter-sizeOnScreen,yMouseCenter-sizeOnScreen,2*sizeOnScreen,2*sizeOnScreen));
-		imgCan1.setOverlay(over);
-		imgCan2.setOverlay(over);
+		Overlay overT1=new Overlay(prT1);
+		Overlay overT2=new Overlay(prT1);
+		if(statusRoi!=2) {
+			overT1.add(new Roi(xMouseCenter-sizeOnScreen,yMouseCenter-sizeOnScreen,2*sizeOnScreen,2*sizeOnScreen));
+			overT2.add(new Roi(xMouseCenter-sizeOnScreen,yMouseCenter-sizeOnScreen,2*sizeOnScreen,2*sizeOnScreen));
+		}
+		else if(zoomLevel==1) {
+			overT1.add(userRoi);
+			overT2.add(userRoi);
+		}
+		System.out.println("Ajout carre caract : "+(xMouseCenter-sizeOnScreen)+", "+(yMouseCenter-sizeOnScreen)+", "+2*sizeOnScreen+", "+2*sizeOnScreen);
+		if(this.spectrumRangingMode) {
+			for(int pt=0;pt<this.rangeRoiPoints.size();pt++) {
+				int dx=rangeRoiPoints.get(pt)[0]-xCor;//Relative coordinates to the cross
+				int dy=rangeRoiPoints.get(pt)[1]-yCor;
+				Roi r=new Roi(xMouseCenter+(dx-0.5)*zoomLevel,yMouseCenter+(dy-0.5)*zoomLevel,zoomLevel,zoomLevel);
+				System.out.println("Ajout point "+pt+" caract : "+(xMouseCenter+(dx-0.5)*zoomLevel)+", "+(yMouseCenter+(dy-0.5)*zoomLevel)+", "+zoomLevel+", "+zoomLevel);
+				if(rangeDisplayedFullBlocks)r.setFillColor(new Color(0,0,255));
+				else r.setStrokeColor(new Color(0,0,255));
+				if(this.rangingBoundaries[1]<500)overT2.add(r);
+				else overT1.add(r);
+			}
+		}
+		imgCan1.setOverlay(overT1);
+		imgCan2.setOverlay(overT2);
+		imgCan1.repaint();
+		imgCan2.repaint();
 	}
 	
 	public String sizeOfCursor() {
-		//if (crossWidth==0)return  "tiny";
-		//if (crossWidth==1)return "small";
-		//if (crossWidth==3);
 		return "medium";
-		//if (crossWidth==5)return "large";
-		//return "extra large";
 	}
 	
 	
 	public void mouseClicked(MouseEvent e) {
-		System.out.println("\nClick !");
-		if(statusRoi==2) {
-			statusRoi=0;		
-			this.userRoi=null;
-			this.nPtsRoi=1;
-		}
-		xMouse=e.getX();
-		yMouse=e.getY();
-		System.out.println("X="+xMouse+"  Y="+yMouse);
+		System.out.println();
 		if(imgCan1.cursorOverImage()) currentCanvas=WIN_T1;
 		if(imgCan2.cursorOverImage()) currentCanvas=WIN_T2;
 		if(plotCan1.cursorOverImage()) currentCanvas=WIN_PLOT1;
 		if(plotCan2.cursorOverImage()) currentCanvas=WIN_PLOT2;
 		if(plotCan21.cursorOverImage()) currentCanvas=WIN_PLOT21;
 		if(plotCan22.cursorOverImage()) currentCanvas=WIN_PLOT22;
+
 		if(currentCanvas==WIN_T1 || currentCanvas==WIN_T2) {
+			System.out.println("Click sur images IRM | Coordonnees actives=("+ xMouse+","+yMouse+")"+"  |  Niveau de zoom="+zoomLevel+" | x="+this.xCor+" y="+this.yCor+" z="+zCor+"t="+tCor);
+			xMouse=e.getX();
+			yMouse=e.getY();
 			actualizeCursor();
 			actualizeMriObservationsBasedOnData();
-			computeAndDisplayAllAgain();
-//			String infoT2 = String.format("M0 = %7.1f   |   T1 = %6.1f ms   |   T2 = %5.1f ms", M0Last,T1Last,T2Last);
-//			info2.setText(infoT2);
+			this.actualizeRangingBoundaries();
+			actualizeSpectrumCurves();
+			this.actualizeRangedData();
+			computeFitsAgain();
+
+			displayFitsAgain();
+			actualizeCursor();
+			actualizeRangingBoundaries();
+			actualizeRangedData();
+			this.actualizeRangingBoundaries();
+			this.actualizeRangedData();
+		
+			displayFitsAgain();
+			actualizeCursor();
+			plotCan1.repaint();
+			plotCan21.repaint();
+			imgCan1.repaint();
+			plotCan2.repaint();
+			plotCan22.repaint();
+			imgCan2.repaint();
+			repaint();
+			return;
 		}
-		
-		
-		repaint();
-		plotCan1.repaint();
-		plotCan21.repaint();
-		imgCan1.repaint();
-		plotCan2.repaint();
-		plotCan22.repaint();
-		imgCan2.repaint();
-		System.out.println("Fenetre active="+ currentCanvas+" | Coordonnees actives=("+ xMouse+","+yMouse+")"+"  |  Niveau de zoom="+zoomLevel+" | x="+this.xCor+" y="+this.yCor+" z="+zCor+"t="+tCor);
+
+		else if(currentCanvas==WIN_PLOT22) {
+			System.out.println("Click sur Plot22 | Coordonnees actives=("+ xMouse+","+yMouse+")"+"  |  Niveau de zoom="+zoomLevel+" | x="+this.xCor+" y="+this.yCor+" z="+zCor+"t="+tCor);
+			spectrumRangingMode=true;	
+			if(this.spectrumRangingMode) {
+				this.xMouseRange=e.getX();
+				actualizeRangingBoundaries();
+				actualizeRangedData();
+				this.actualizeRangingBoundaries();
+				this.actualizeRangedData();
+			
+				displayFitsAgain();
+				actualizeCursor();
+				plotCan1.repaint();
+				plotCan21.repaint();
+				imgCan1.repaint();
+				plotCan2.repaint();
+				plotCan22.repaint();
+				imgCan2.repaint();
+				repaint();
+				return;
+			}
+		}
+		else {
+			System.out.println("Click sur autre plot. Arret mode ranging");
+			this.spectrumRangingMode=false;	
+			actualizeCursor();
+			actualizeMriObservationsBasedOnData();
+			actualizeSpectrumCurves();
+			computeFitsAgain();
+			displayFitsAgain();
+			repaint();
+			plotCan1.repaint();
+			plotCan21.repaint();
+			imgCan1.repaint();
+			plotCan2.repaint();
+			plotCan22.repaint();
+			imgCan2.repaint();
+			return;
+		}
+
 	}
 	
 	@Override
@@ -945,6 +1196,45 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	    super.windowClosing(paramWindowEvent);
 	    instance = null;
 	  }
+	
+	
+	public void actualizeRangingBoundaries() {
+		double sizeX=this.DX_PLOT_2;
+		double borderLeft=76;
+		double borderRight=20;
+		double lengPlot=DX_PLOT_2-borderRight-borderLeft;
+		double xPos=this.xMouseRange-borderLeft;
+		double[]vals=plotT22.getLimits();
+//		System.out.println("On va calculer la position du ranging avec xPos="+xPos+" / "+lengPlot+"  et limits=["+vals[0]+" , "+vals[1]+" ]");
+		double factMul=vals[1]/vals[0];
+		double rangCenter=Math.pow(factMul,xPos*1.0/lengPlot)*vals[0];
+		this.rangingBoundaries=new double[] {rangCenter*(1-this.rangingFactor),rangCenter,rangCenter*(1+this.rangingFactor)};
+		//System.out.println("Ranging boundaries="+this.rangingBoundaries[0]+" , "+this.rangingBoundaries[1]+" , "+this.rangingBoundaries[2]);			
+	}
+
+	public void actualizeRangedData() {
+		System.out.println("DEBUG START ACTUALIZE RANGE");
+		this.rangeRoiPoints=new ArrayList<int[]>();
+		if(! this.spectrumRangingMode)return;
+		for(int p=0;p<pointsCoords[tCor-1].length;p++) {
+			if((this.rangingBoundaries[1]>=500)) {
+				if ( ( (this.pointsCoords[tCor-1][p][2]<this.rangingBoundaries[2]) && (this.pointsCoords[tCor-1][p][2]>this.rangingBoundaries[0])) &&  this.pointsCoords[tCor-1][p][3]==1){
+					//Ranging T1 values. Current Roi point has its value in the range
+					rangeRoiPoints.add(new int[] {this.pointsCoords[tCor-1][p][0],this.pointsCoords[tCor-1][p][1]});
+					System.out.println("Dans cette selection T1, ajout du point : "+this.pointsCoords[tCor-1][p][0]+" , "+this.pointsCoords[tCor-1][p][1]);
+				}
+			}
+			else{
+				if ( (this.pointsCoords[tCor-1][p][5]==1) && ( (this.pointsCoords[tCor-1][p][4]<this.rangingBoundaries[2]) && (this.pointsCoords[tCor-1][p][4]>this.rangingBoundaries[0]))
+					|| ( (this.pointsCoords[tCor-1][p][7]==1) && (  (this.pointsCoords[tCor-1][p][6]<this.rangingBoundaries[2]) && (this.pointsCoords[tCor-1][p][6]>this.rangingBoundaries[0]))  ) ){
+					//Ranging T2 values. Current Roi point has its value in the range
+					rangeRoiPoints.add(new int[] {this.pointsCoords[tCor-1][p][0],this.pointsCoords[tCor-1][p][1]});
+					System.out.println("Dans cette selection T2, ajout du point : "+this.pointsCoords[tCor-1][p][0]+" , "+this.pointsCoords[tCor-1][p][1]);
+				}
+			}
+		}
+	}
+
 	
 	public void startPlotsAndRoi(){
 		System.out.println("Starting Plots");
@@ -1012,44 +1302,60 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 				paramsTimelapseT2[this.tCor-1][1],paramsTimelapseT2[this.tCor-1][3],(paramsTimelapseT2[this.tCor-1][5]>10000 ? 9999 : paramsTimelapseT2[this.tCor-1][5]),
 				this.khi2T2Mono[this.tCor-1],this.pValT2Mono[this.tCor-1],'%',this.khi2T2Bicomp[this.tCor-1],this.pValT2Bicomp[this.tCor-1],'%');
 		info2.setText(infoT2);
-		String infoT3 = String.format("  T="+(this.tCor)+"/"+this.numberTimes+"  | Z="+(this.zCor)+"/"+this.numberZ+" | Area=%2dx%2dx%2d-%s | #Points=%d",
+		String infoT3 = String.format("  T="+(this.tCor)+"/"+this.numberTimes+"  | Z="+(this.zCor)+"/"+this.numberZ+" | Area=%2dx%2dx%2d-%s | #Points=%d . Running computation = %d%c",
 				1+2*this.crossWidth,1+2*this.crossWidth,1+2*this.crossThick,
-				(this.gaussianWeighting?"" : ""),this.nPtsCur,this.khi2T2Bicomp[this.tCor-1]>this.khi2T2Mono[this.tCor-1] ? "Mono-exp" : "Bi-exp");
+				(this.gaussianWeighting?"" : ""),this.nPtsCur,this.computationRate,'%');
 		info3.setText(infoT3);
 	}
 
-	public void computeAndDisplayAllAgain() {
+	public void computeFitsAgain() {
 		actualizeEstimations2();
 		actualizeExportSentence();
+	}
+
+	public void displayFitsAgain() {
 		actualizeFirstPlots();
 		actualizeSecondPlots();
 		actualizeDisplayedNumbers();
 	}
 	
+	
+	
 	public void actualizeMriObservationsBasedOnData() {
 		for(int tim=1;tim<=this.numberTimes;tim++) {
 			if(statusRoi!=2 || userRoi==null) {
 				this.nPtsCur=statusRoi==2 ? this.nPtsRoi : (1+2*crossWidth)*(1+2*crossWidth)*(1+2*crossThick);
-				this.dataTimelapseT1Full[tim-1]=mrUt.getFullDataForVoxel(this.imgCan1.getImage(),(int)xCor,(int)yCor,tim-1,this.numberTimes,zCor-1,numberZ,this.nTr,this.crossWidth,this.crossThick,this.gaussianWeighting);
-				this.dataTimelapseT2Full[tim-1]=mrUt.getFullDataForVoxel(this.imgCan2.getImage(),(int)xCor,(int)yCor,tim-1,this.numberTimes,zCor-1,numberZ,this.nTe,this.crossWidth,this.crossThick,gaussianWeighting);
+				//System.out.println("Data T1 "+this.dataTimelapseT1Full.length+"  ,  "+this.dataTimelapseT1Full[tim-1].length);
+				this.pointsCoords[tim-1]=new int[nPtsCur][8];
+				this.dataTimelapseT1Full[tim-1]=MRUtils.getFullDataForVoxel(this.imgCan1.getImage(),(int)xCor,(int)yCor,tim-1,this.numberTimes,zCor-1,numberZ,this.nTr,this.crossWidth,this.crossThick,this.gaussianWeighting);
+				this.dataTimelapseT2Full[tim-1]=MRUtils.getFullDataForVoxel(this.imgCan2.getImage(),(int)xCor,(int)yCor,tim-1,this.numberTimes,zCor-1,numberZ,this.nTe,this.crossWidth,this.crossThick,gaussianWeighting);
+				this.pointsCoords[tim-1]=MRUtils.getFullCoordsForVoxel(this.imgCan1.getImage(),(int)xCor,(int)yCor,tim-1,this.numberTimes,zCor-1,numberZ,this.nTr,this.crossWidth,this.crossThick,this.gaussianWeighting);
 			}
 			else {
 				System.out.println("Actualizing data from Roi, at coordinates Z="+zCor+" , T="+tCor);
-				this.nPtsCur=statusRoi==2 ? this.nPtsRoi : (1+2*crossWidth)*(1+2*crossWidth)*(1+2*crossThick);
 				int[][]coordsRoi=VitimageUtils.getRoiAsCoords(this.userRoi);
 				this.nPtsRoi=coordsRoi.length;
 				this.nPtsCur=this.nPtsRoi;
+				System.out.println("Debug : this.nPtsCur"+this.nPtsCur);
+				System.out.println("En effet la liste des points c est, dont les deux premiers couples : ");
+				System.out.println(coordsRoi[0][0]);
+				System.out.println(coordsRoi[0][1]);
+				System.out.println(coordsRoi[1][0]);
+				System.out.println(coordsRoi[1][1]);
+				//				System.out.println(TransformUtils.stringMatrixN(coordsRoi, ""));
 				double[]accumulatorT1=new double[nTr];
 				double[]accumulatorT2=new double[nTe];
 				this.dataTimelapseT1[tim-1]=new double[nTr];
 				this.dataTimelapseT2[tim-1]=new double[nTe];
 				this.dataTimelapseT1Full[tim-1]=new double[nTr][nPtsRoi];
 				this.dataTimelapseT2Full[tim-1]=new double[nTe][nPtsRoi];
+				this.pointsCoords [tim-1]=new int[nPtsRoi][8];
 				for(int pt=0;pt<coordsRoi.length;pt++) {
-					accumulatorT1=mrUt.getDataForVoxel(this.imgCan1.getImage(),coordsRoi[pt][0],coordsRoi[pt][1],tim-1,this.numberTimes,zCor-1,numberZ,this.nTr,this.crossWidth,this.crossThick,gaussianWeighting);
-					accumulatorT2=mrUt.getDataForVoxel(this.imgCan2.getImage(),coordsRoi[pt][0],coordsRoi[pt][1],tim-1,this.numberTimes,zCor-1,numberZ,this.nTe,this.crossWidth,this.crossThick,gaussianWeighting);					
+					accumulatorT1=MRUtils.getDataForVoxel(this.imgCan1.getImage(),coordsRoi[pt][0],coordsRoi[pt][1],tim-1,this.numberTimes,zCor-1,numberZ,this.nTr,0,0,gaussianWeighting);
+					accumulatorT2=MRUtils.getDataForVoxel(this.imgCan2.getImage(),coordsRoi[pt][0],coordsRoi[pt][1],tim-1,this.numberTimes,zCor-1,numberZ,this.nTe,0,0,gaussianWeighting);					
 					for(int tr=0;tr<nTr;tr++) this.dataTimelapseT1Full[tim-1][tr][pt]=accumulatorT1[tr];
 					for(int ec=0;ec<nTe;ec++) this.dataTimelapseT2Full[tim-1][ec][pt]=accumulatorT2[ec];
+					this.pointsCoords[tim-1][pt]=new int[] {coordsRoi[pt][0],coordsRoi[pt][1],0,0,0,0,0,0};
 				}
 			}
 			for(int tr=0;tr<nTr;tr++) {
@@ -1077,6 +1383,37 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	//}
 
 	
+	public void actualizeSpectrumCurves() {
+		for(int tim=1;tim<=(debugLM ? 1 : this.numberTimes);tim++) {
+			this.valsSpectrum[tim-1]=getDisplayableSpectrumCurveMultiThread(tim-1);
+		}
+		if(!this.separateNormalizationSpectrum) {
+			for(int tim=1;tim<=(debugLM ? 1 : this.numberTimes);tim++) {
+				double maxValT1=VitimageUtils.max(this.valsSpectrum[tim-1][0]);
+				double maxValT2=VitimageUtils.max(this.valsSpectrum[tim-1][1]);
+				for(int i=0;i<this.valsSpectrum[tim-1][0].length;i++)this.valsSpectrum[tim-1][0][i]=tim-1+this.valsSpectrum[tim-1][0][i]/maxValT1;
+				for(int i=0;i<this.valsSpectrum[tim-1][1].length;i++)this.valsSpectrum[tim-1][1][i]=tim-1+this.valsSpectrum[tim-1][1][i]/maxValT2;
+			}
+		}
+		else {
+			double maxTotT1=0;
+			double maxTotT2=0;
+			for(int tim=1;tim<=(debugLM ? 1 : this.numberTimes);tim++) {
+				double maxValT1=VitimageUtils.max(this.valsSpectrum[tim-1][0]);
+				double maxValT2=VitimageUtils.max(this.valsSpectrum[tim-1][1]);
+				if(maxTotT1<maxValT1)maxTotT1=maxValT1;
+				if(maxTotT2<maxValT2)maxTotT2=maxValT2;
+			}
+			for(int tim=1;tim<=(debugLM ? 1 : this.numberTimes);tim++) {
+				for(int i=0;i<this.valsSpectrum[tim-1][0].length;i++)this.valsSpectrum[tim-1][0][i]=tim-1+this.valsSpectrum[tim-1][0][i]/maxTotT1;
+				for(int i=0;i<this.valsSpectrum[tim-1][1].length;i++)this.valsSpectrum[tim-1][1][i]=tim-1+this.valsSpectrum[tim-1][1][i]/maxTotT2;
+			}
+		}
+		actualizeRangedData();
+	}
+	
+	
+	
 	public Object[] fitAndEvaluate(double[]tabTimes,double[]tabTimesCute,double[]tabData,double sigmaRice,int fitAlgorithm,int fitCurveType,int nbMonteCarloSimulations,int nbPts) {
 		int nParams=(fitCurveType==MRUtils.T1_RECOVERY_RICE) ? 2 : (fitCurveType==MRUtils.T2_RELAX_RICE) ? 2 :(fitCurveType==MRUtils.MULTICOMP_RICE) ? 4 : 5; 
 		boolean isT1=(fitCurveType==MRUtils.T1_RECOVERY); 
@@ -1094,7 +1431,9 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 			tmp=estimatedSigmas[0];estimatedSigmas[0]=estimatedSigmas[2];estimatedSigmas[2]=tmp;
 		}		
 		double jitter=0;
-		if(isT1 && (estimatedParams[0]<0 || estimatedParams[1]<minAcceptableT1 || estimatedParams[1]>maxT1 || estimatedParams[0]>maxAcceptableM0T1) )  {jitter=99;accs[1]=100;}
+		double[]statsRice=RiceEstimator.computeSigmaAndMeanBgFromRiceSigmaStatic(sigmaRice);
+		if( tabData[0]<(statsRice[0]+3*statsRice[1]) ) {jitter=99;accs[1]=100;}
+		if(isT1 && (estimatedParams[0]<0 || estimatedParams[1]<minAcceptableT1 || estimatedParams[1]>maxT1 || estimatedParams[0]>maxAcceptableM0T1  ) )  {jitter=99;accs[1]=100;}
 		if(!isT1 && (nParams==2) && (estimatedParams[0]<0 || estimatedParams[1]<0 || estimatedParams[0]>maxAcceptableM0T2 || estimatedParams[1]>maxAcceptableT2) ) {jitter=99;accs[1]=100;}
 		if(!isT1 && (nParams==4) && (estimatedParams[0]<0 || estimatedParams[1]<minAcceptableT2 || 
 				estimatedParams[2]<0 || estimatedParams[3]>maxAcceptableT2 || 
@@ -1126,8 +1465,16 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
  		double M01bi=((double[]) obj[0])[0]; 		double T21bi=((double[]) obj[0])[1];
  		double M02bi=((double[]) obj[0])[2]; 		double T22bi=((double[]) obj[0])[3];
  		double khibi=((double) obj[4]);  double jibi=((double) obj[6]);
- 		if(khimono>khibi) { 			if(jibi<99) { 				tabRet[3]=M01bi; tabRet[4]=T21bi ; tabRet[5]=1; tabRet[6]=M02bi; tabRet[7]=T22bi ; tabRet[8]=1; 			} 		}
+ 		if(khimono>khibi) { 
+ 			if(jibi<99) { 	
+ 				tabRet[3]=M01bi; tabRet[4]=T21bi ; tabRet[5]=1; tabRet[6]=M02bi; tabRet[7]=T22bi ; tabRet[8]=1; 	
+			}
+ 			else if(jimono<99) { 			tabRet[3]=M0mono; tabRet[4]=T2mono ; tabRet[5]=1;	} 	
+		}
  		else {	if(jimono<99) { 				tabRet[3]=M0mono; tabRet[4]=T2mono ; tabRet[5]=1;	} 		}
+// 		System.out.println("Computing point of fit. Getting  khimono="+khimono+"  jimono="+jimono+" M0mono="+M0mono+" : T2mono="+T2mono+" ");
+// 		System.out.println("Computing point of fit. Getting  khibi  ="+khibi+"    jibi=  "+jibi  +" M01bi ="+M01bi+" : T21bi="+T21bi+" M02bi ="+M02bi+" : T22bi="+T22bi);
+ 		//System.out.println("-> Resulting tabRet="+TransformUtils.stringVectorN(tabRet, "")+"");
  		return tabRet;
 	}		
 	
@@ -1237,14 +1584,18 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
         
 
         //FIT T1
-        plotT1.setColor(t1Moy);
+        if(jitterT1[tCor-1]>=99)        		plotT1.setColor(Color.gray);
+        else plotT1.setColor(t1Moy);
+        
         plotT1.setLineWidth(1+thickCurve);
         plotT1.replace(incrT1++, "line",timesT1Cute,tabFittenT1Cute[tCor-1]);//Afficher la courbe 
         
-        //PARAM T2 MONO
-        plotT1.setColor(crossColor);
+        //PARAM T1 MONO
+        if(jitterT1[tCor-1]>=99)        		plotT2.setColor(Color.gray);
+        else         plotT1.setColor(t1Moy);
         plotT1.setLineWidth(3);
-		plotT1.replace(incrT1++, "line",new double[]{0,(double)(paramsTimelapseT1[tCor-1][1])},new double[]{maxPlotYT1*0.9,maxPlotYT1*0.9});//Afficher le T2
+		plotT1.replace(incrT1++, "line",new double[]{0,(double)(paramsTimelapseT1[tCor-1][1])},new double[]{maxPlotYT1*0.9,maxPlotYT1*0.9});//Afficher le T1
+        plotT1.setColor(crossColor);
         plotT1.setLineWidth(1);
 		for(int t=0;t<this.nTr;t++)plotT1.replace(incrT1++, "line",new double[]{this.t1Times[t]-deltaXt2,this.t1Times[t]-deltaXt2},new double[]{dataTimelapseT1[tCor-1][t]-dataTimelapseT1Sigmas[tCor-1][t],dataTimelapseT1[tCor-1][t]+dataTimelapseT1Sigmas[tCor-1][t]});//Afficher le T2
 
@@ -1277,11 +1628,6 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 		this.sigmaNoiseT2Cur=statsNoise[1];
 		plotT2.setColor(new Color(210,210 ,210) );
 		nSum=Math.sqrt(this.nPtsCur);
-/*		plotT2.
-		for(int hh=0;hh<24;hh++) {
-			plotT2.replace(incrT2++, "line",new double[]{0,maxT2},new double[]{statsNoise[0]+(hh/23.0)*statsNoise[1]/nSum,statsNoise[0]+(hh/25.0)*statsNoise[1]/nSum});//Afficher le mean+sigma
-			plotT2.replace(incrT2++, "line",new double[]{0,maxT2},new double[]{statsNoise[0]-(hh/23.0)*statsNoise[1]/nSum,statsNoise[0]-(hh/25.0)*statsNoise[1]/nSum});//Afficher le mean+sigma
-		}*/
 		plotT2.setColor(new Color(0,0 ,0) );
 		plotT2.setLineWidth(2);
 		plotT2.replace(incrT2++, "line",new double[]{0,maxT2},new double[]{statsNoise[0],statsNoise[0]});//Afficher le mean+sigma
@@ -1296,10 +1642,12 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
         plotT2.setLineWidth(2);
         
         //COURBES FITTED
-        plotT2.setColor(t2Moy);
+        if(jitterT2Mono[tCor-1]>=99)        		plotT2.setColor(Color.gray);
+        else plotT2.setColor(t2Moy);
         plotT2.setLineWidth(1+thickCurve);
         plotT2.replace(incrT2++, "line",timesT2Cute,tabFittenT2MonoCute[tCor-1]);//Afficher la courbe monocomp
-        plotT2.setColor(t2Bi);
+        if(jitterT2Bicomp[tCor-1]>=99)        		plotT2.setColor(Color.gray);
+        else plotT2.setColor(t2Bi);
         plotT2.setLineWidth(1+thickCurve);
         plotT2.replace(incrT2++, "line",timesT2Cute,tabFittenT2BicompCute[tCor-1]);//Afficher la courbe bicomp
         if(do3comp) {
@@ -1309,7 +1657,8 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
         }
         
         //PARAM T2 MONO ET STD MONO
-        plotT2.setColor(t2Moy);
+        if(jitterT2Mono[tCor-1]>=99)        		plotT2.setColor(Color.gray);
+        else         plotT2.setColor(t2Moy);
         plotT2.setLineWidth(3);
 		plotT2.replace(incrT2++, "line",new double[]{0,(double)(paramsTimelapseT2[tCor-1][1])},new double[]{maxPlotYT2*0.9,maxPlotYT2*0.9});//Afficher le T2
         plotT2.setLineWidth(1);
@@ -1318,11 +1667,13 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 
 		
         //PARAM T2 BI
-        plotT2.setColor(t2Bi);
+        if(jitterT2Bicomp[tCor-1]>=99)        		plotT2.setColor(Color.gray);
+        else         plotT2.setColor(t2Bi);
         plotT2.setLineWidth(3);
 		plotT2.replace(incrT2++, "line",new double[]{0,paramsTimelapseT2[tCor-1][3]},new double[]{maxPlotYT2*0.83,maxPlotYT2*0.83});//Afficher le T2
 
-        plotT2.setColor(t2Bi);
+        if(jitterT2Bicomp[tCor-1]>=99)        		plotT2.setColor(Color.gray);
+        else         plotT2.setColor(t2Bi);
         plotT2.setLineWidth(3);
 		plotT2.replace(incrT2++, "line",new double[]{0,paramsTimelapseT2[tCor-1][5]},new double[]{maxPlotYT2*0.79,maxPlotYT2*0.79});//Afficher le T2
         plotT2.setLineWidth(1);
@@ -1355,7 +1706,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 		plotT2.setColor(new Color(150,150 ,150) );
 		plotT2.addLegend(strLegendT2,"bottom-right");
 		plotCan2.setPlot(plotT2);
-		System.out.println("Fin affichage des plots 1. IncrT1="+incrT1+"  IncrT2="+incrT2);
+//		System.out.println("Fin affichage des plots 1. IncrT1="+incrT1+"  IncrT2="+incrT2);
 	}
 	
 	
@@ -1374,10 +1725,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 		
 		int incrT1=0;
 		int incrT2=0;
-		double x0T1;		double x1T1;
-		double y0T1;		double y1T1;		
-		double x0T2;		double x1T2;
-		double y0T2;		double y1T2;		
+		double y0T1;		double y1T1;				double x0T2;				double y0T2;		double y1T2;	double x0T1; double x1T1; double x1T2;	
 
 		
         //HORIZONTAL GRID T21 ET T22
@@ -1393,35 +1741,23 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
         //VERTICAL GRID T21
         for(int tt=t0T2;tt<t1T1;tt*=10) {
 	        plotT21.setLineWidth(1);        
+			plotT21.setColor(new Color(150,150,150));
+        	for(int mul=2;mul<=9;mul++)plotT21.replace(incrT1++, "line",new double[] {tt*mul,tt*mul},new double[] {0,this.numberTimes});
+	        plotT21.setLineWidth(1);        
 			plotT21.setColor(new Color(250,250,250));
         	plotT21.replace(incrT1++, "line",new double[] {tt,tt},new double[] {0,this.numberTimes});
-	        plotT21.setLineWidth(1);        
-			plotT21.setColor(new Color(150,150,150));
-        	plotT21.replace(incrT1++, "line",new double[] {tt*2,tt*2},new double[] {0,this.numberTimes});
         	plotT21.replace(incrT1++, "line",new double[] {tt*3,tt*3},new double[] {0,this.numberTimes});
-        	plotT21.replace(incrT1++, "line",new double[] {tt*4,tt*4},new double[] {0,this.numberTimes});
-        	plotT21.replace(incrT1++, "line",new double[] {tt*5,tt*5},new double[] {0,this.numberTimes});
-        	plotT21.replace(incrT1++, "line",new double[] {tt*6,tt*6},new double[] {0,this.numberTimes});
-        	plotT21.replace(incrT1++, "line",new double[] {tt*7,tt*7},new double[] {0,this.numberTimes});
-        	plotT21.replace(incrT1++, "line",new double[] {tt*8,tt*8},new double[] {0,this.numberTimes});
-        	plotT21.replace(incrT1++, "line",new double[] {tt*9,tt*9},new double[] {0,this.numberTimes});
         }
 
         //VERTICAL GRID T22
-        for(int tt=t0T2;tt<t1T2;tt*=10) {
+        for(int tt=t0T2;tt<t1T1;tt*=10) {
+	        plotT22.setLineWidth(1);        
+			plotT22.setColor(new Color(150,150,150));
+			for(int mul=2;mul<=9;mul++)plotT22.replace(incrT2++, "line",new double[] {tt*mul,tt*mul},new double[] {0,this.numberTimes});
 	        plotT22.setLineWidth(1);        
 			plotT22.setColor(new Color(250,250,250));
         	plotT22.replace(incrT2++, "line",new double[] {tt,tt},new double[] {0,this.numberTimes});
-	        plotT22.setLineWidth(1);        
-			plotT22.setColor(new Color(150,150,150));
-        	plotT22.replace(incrT2++, "line",new double[] {tt*2,tt*2},new double[] {0,this.numberTimes});
         	plotT22.replace(incrT2++, "line",new double[] {tt*3,tt*3},new double[] {0,this.numberTimes});
-        	plotT22.replace(incrT2++, "line",new double[] {tt*4,tt*4},new double[] {0,this.numberTimes});
-        	plotT22.replace(incrT2++, "line",new double[] {tt*5,tt*5},new double[] {0,this.numberTimes});
-        	plotT22.replace(incrT2++, "line",new double[] {tt*6,tt*6},new double[] {0,this.numberTimes});
-        	plotT22.replace(incrT2++, "line",new double[] {tt*7,tt*7},new double[] {0,this.numberTimes});
-        	plotT22.replace(incrT2++, "line",new double[] {tt*8,tt*8},new double[] {0,this.numberTimes});
-        	plotT22.replace(incrT2++, "line",new double[] {tt*9,tt*9},new double[] {0,this.numberTimes});
         }
         //Draw rectangle of T position
 		x0T1=t0T1*1.05;		x1T1=t1T1*0.95;
@@ -1437,16 +1773,18 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 
         plotT22.setLineWidth(4);        
 		plotT22.setColor(new Color(220,220,0));
-        plotT22.replace(incrT2++, "line",new double[] {x0T2,x1T2},new double[] {y0T2,y0T2});
-        plotT22.replace(incrT2++, "line",new double[] {x0T2,x1T2},new double[] {y1T2,y1T2});
+        plotT22.replace(incrT2++, "line",new double[] {x0T2,x1T1},new double[] {y0T2,y0T2});
+        plotT22.replace(incrT2++, "line",new double[] {x0T2,x1T1},new double[] {y1T2,y1T2});
         plotT22.replace(incrT2++, "line",new double[] {x0T2,x0T2},new double[] {y0T2,y1T2});
-        plotT22.replace(incrT2++, "line",new double[] {x1T2,x1T2},new double[] {y0T2,y1T2});
+        plotT22.replace(incrT2++, "line",new double[] {x1T1,x1T1},new double[] {y0T2,y1T2});
         
         
    		for(int tim=1;tim<=this.numberTimes;tim++) {
+
+   			boolean debug=false;
+   			if(tim==(tCor))debug=true;
 			double maxValT1=2;
 			double maxValT2Mono=1;
-			double maxValT2Bi=1;
 	 		double quota;
 	 		double radius=0;
 	 		boolean flagGray;
@@ -1474,7 +1812,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 			compColMin=new double[][] {{0,215,0},{255,0,0},{0,0,255}};
 			compColMinCentral=new int[][] {{220,0,0},{90,0,0},{0,0,90}};
 	 		quota=1;flagGray=false;
-			if(pValT2Mono[tim-1]<pValT2Bicomp[tim-1]) {
+			if(khi2T2Mono[tim-1]<khi2T2Bicomp[tim-1]) {
 		 		if(jitterT2Mono[tim-1]>30) flagGray=true;
 				if(!flagGray)plotT21.setColor(new Color((int)(quota*compColMin[0][0]),(int)(quota*compColMin[0][1]),(int)(quota*compColMin[0][2])));
 		 		else plotT21.setColor(new Color(120+(int)(0.11*compColMin[0][0]),120+(int)(0.11*compColMin[0][1]),120+(int)(0.11*compColMin[0][2])));
@@ -1523,16 +1861,23 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 					plotT21.replace(incrT1++, "line",new double[] {paramsTimelapseT2[tim-1][5]-paramsTimelapseT2Sigmas[tim-1][5],paramsTimelapseT2[tim-1][5]+paramsTimelapseT2Sigmas[tim-1][5]},new double[] {tim-0.25,tim-0.25});//Afficher la courbe
 				}
 			}		
-			double[][]valsSpectrum=getDisplayableSpectrumCurve(tim-1);
 	 		plotT22.setLineWidth(2);
 	 		plotT22.setColor(new Color(255,0,0));
-	 		plotT22.replace(incrT2++, "line", valsSpectrum[2], valsSpectrum[0]);
+	 		plotT22.replace(incrT2++, "line", valsSpectrum[tim-1][2], valsSpectrum[tim-1][0]);
 	 		plotT22.setColor(new Color(0,255,0));
-	 		plotT22.replace(incrT2++, "line", valsSpectrum[2], valsSpectrum[1]);
+	 		plotT22.replace(incrT2++, "line", valsSpectrum[tim-1][2], valsSpectrum[tim-1][1]);
+   			//if needed, draw ranging interval
+	 		if(this.spectrumRangingMode) {
+	 			plotT22.setColor(new Color(0,0,255));	 		
+	   			plotT22.replace(incrT2++, "line", new double[] {this.rangingBoundaries[0],this.rangingBoundaries[0]}, new double[] {tim-0.7,tim-0.3});
+	   			plotT22.replace(incrT2++, "line", new double[] {this.rangingBoundaries[2],this.rangingBoundaries[2]}, new double[] {tim-0.7,tim-0.3});
+	   			plotT22.replace(incrT2++, "line", new double[] {this.rangingBoundaries[1],this.rangingBoundaries[1]}, new double[] {tim-0.8,tim-0.2});
+	   			plotT22.replace(incrT2++, "line", new double[] {this.rangingBoundaries[0],this.rangingBoundaries[2]}, new double[] {tim-0.5,tim-0.5});
+	 		}   			
    		}				
 		plotT21.setLimits(t0T2,t1T1, 0, numberTimes);
 		plotT22.setLimits(t0T2,t1T1, 0, numberTimes);
-		System.out.println("Fin affichage des plots 2. IncrT1="+incrT1+"  IncrT2="+incrT2);
+//		System.out.println("Fin affichage des plots 2. IncrT1="+incrT1+"  IncrT2="+incrT2);
 	}				
 
 	
@@ -2036,7 +2381,6 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	 		}
 		}
 	}
-	
 
 	
 	
@@ -2050,3 +2394,4 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	
 	
 }
+

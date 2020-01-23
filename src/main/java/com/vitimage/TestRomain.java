@@ -1,5 +1,6 @@
 package com.vitimage;
 
+import java.awt.Color;
 import java.awt.Point;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -34,9 +35,8 @@ import org.itk.simple.ResampleImageFilter;
 import org.itk.simple.Transform;
 import org.itk.simple.VectorUInt32;
 import org.python.core.packagecache.SysPackageManager;
+import org.scijava.vecmath.Color3f;
 
-import com.vitimage.ItkImagePlusInterface.MetricType;
-import com.vitimage.ItkImagePlusInterface.Transformation3DType;
 import com.vitimage.Vitimage4D.VineType;
 import com.vitimage.VitimageUtils.AcquisitionType;
 import com.vitimage.VitimageUtils.Capillary;
@@ -160,10 +160,78 @@ public class TestRomain {
 		//VitimageUtils.waitFor(1000000);
 
 		//makeHybrideCepVertical();
+		ImagePlus imgRef=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgRef_Ttest_16b.tif");
+		VitimageUtils.printImageResume(imgRef);
+		imgRef.show();
+     	double[][]tab=VitimageUtils.getHistogram(imgRef,3);
+     	System.out.println(TransformUtils.stringMatrixMN("",tab));
+     	int[]range=VitimageUtils.getRange(imgRef,95,3);
+
+		VitimageUtils.waitFor(1000000000);
+		ImagePlus imgMov=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgRef_Trans1.tif");
+		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
+		ImagePlus movCopy=VitimageUtils.imageCopy(imgMov);
+		refCopy.resetDisplayRange();
+		IJ.run(refCopy,"8-bit","");
+		movCopy.resetDisplayRange();
+		IJ.run(movCopy,"8-bit","");
+		movCopy.show();
+		VitimageUtils.waitFor(10000);
+		ij3d.Image3DUniverse universe=new ij3d.Image3DUniverse();
+		universe.show();
+		universe.addContent(refCopy, new Color3f(Color.red),"imgRef",50,new boolean[] {true,true,true},1,0 );
+		imgMov.show();
+		VitimageUtils.waitFor(5000);
+		universe.addContent(movCopy, new Color3f(Color.green),"imgMov",50,new boolean[] {true,true,true},1,0 );
+		ij3d.ImageJ3DViewer.select("imgRef");
+		ij3d.ImageJ3DViewer.lock();
+		ij3d.ImageJ3DViewer.select("imgMov");
+		IJ.showMessage("Move the green volume to match the red one\nWhen done, push the \"Validate\" button to stop\n\nCommands : \n"+
+		"mouse-drag the green object to turn the object\nmouse-drag the background to turn the scene\nCTRL-drag to translate the green object");
+		VitimageUtils.waitFor(1000000);
 		
 		
+		/*
+		int[][]pouet=VitimageUtils.listForThreads(66,13);
+		System.out.println(TransformUtils.stringMatrixN(pouet, ""));
+		*/
 		
+		ImagePlus img=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgRef_Ttest.tif");
+		int[]dims=VitimageUtils.getDimensions(img);
+		double[]dimsD=new double[] {dims[0],dims[1],dims[2]};
+		double[]voxs=VitimageUtils.getVoxelSizes(img);
+		double[]dimsCenter=TransformUtils.multiplyVector(TransformUtils.multiplyVector(dimsD, voxs),0.5);
+		double[]dimsPreCenter=TransformUtils.multiplyVector(TransformUtils.multiplyVector(dimsD, voxs),0.49);
+		ItkTransform[]trans=new ItkTransform[] {ItkTransform.itkTransformFromCoefs(new double[] {1,0,0,0  , 0,1,0,0,  0,0,1,0,  0,0,0,1}),
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0,0,0.1}, new double[] {0,0,0}),
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0,0,0.2}, new double[] {0,0,0}),
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0,0,0.3}, new double[] {0,0,0}),//Bof
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0,0,0.4}, new double[] {0,0,0}),//Bof
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0.1,0,0}, new double[] {0,0,0}),//5
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0.2,0,0}, new double[] {0,0,0}),
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0.3,0,0}, new double[] {0,0,0}),
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0,0,0}, new double[] {0.2,0,0}),
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0,0,0}, new double[] {0.5,0,0}),
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0,0,0}, new double[] {1,0,0}),
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0,0,0}, new double[] {0,0,0.2}),
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0,0,0}, new double[] {0,0,0.5}),
+												ItkTransform.getRigidTransform(dimsCenter, new double[] {0,0,0}, new double[] {0,0,1.0})
+				};
 		
+		for(int i=0;i<trans.length;i++) {
+			ItkTransform tr=trans[i];
+			System.out.println("\n\nTrans "+i+" front"+tr.drawableString());
+			System.out.println("Trans "+i+" rear"+new ItkTransform(tr.getInverse()).drawableString());
+			//ImagePlus imgT=tr.transformImage(img,img);
+			//IJ.saveAsTiff(imgT, "/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgRef_Trans"+i+".tif");
+		}
+
+		
+		//ItkTransform trRotZ=ItkTransform.getRigidTransform(center, angles, translation)
+
+		
+		VitimageUtils.waitFor(100000000);
+		//stressTest();
 		
 		//ImagePlus img2=transformParts12(img,values,25,25);
 //		ImagePlus imgT1Bef=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/HYBRID/T1BEFORE.tif");
@@ -183,19 +251,6 @@ public class TestRomain {
 		//makeHybrideCepVerticalTotal3D() ;
 		
 		//testRoi();
-		ChiSquaredDistributionImpl x2 = new ChiSquaredDistributionImpl( 14 );
-		try {
-			System.out.println(x2.cumulativeProbability(4.075));
-			System.out.println(x2.inverseCumulativeProbability(0.1));
-			System.out.println(x2.inverseCumulativeProbability(0.2));
-			System.out.println(x2.inverseCumulativeProbability(0.5));
-			System.out.println(x2.inverseCumulativeProbability(0.8));
-			System.out.println(x2.inverseCumulativeProbability(0.9));
-			System.out.println(x2.inverseCumulativeProbability(0.95));
-		} catch (MathException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 		VitimageUtils.waitFor(1000000);
 
 		VitimageUtils.waitFor(1000000);

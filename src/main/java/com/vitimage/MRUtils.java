@@ -40,7 +40,7 @@ public class MRUtils implements Fit{
 	}
 	
 	
-	public double[]getDataForVoxel(ImagePlus imgIn,int xCor,int yCor,int curT,int totalT,int curZ,int totalZ,int nEchoesExpected,int crossWidth,int crossThick,boolean gaussianWeighting){
+	public static double[]getDataForVoxel(ImagePlus imgIn,int xCor,int yCor,int curT,int totalT,int curZ,int totalZ,int nEchoesExpected,int crossWidth,int crossThick,boolean gaussianWeighting){
 		if(gaussianWeighting) {IJ.showMessage("Not applicable : gaussian weighting. Abort");gaussianWeighting=false;}
 		int xMax=imgIn.getWidth();
 		int yMax=imgIn.getHeight();
@@ -116,7 +116,7 @@ public class MRUtils implements Fit{
 
 	
 	
-	public double[][]getFullDataForVoxel(ImagePlus imgIn,int xCor,int yCor,int curT,int totalT,int curZ,int totalZ,int nEchoesExpected,int crossWidth,int crossThick,boolean gaussianWeighting){
+	public static double[][]getFullDataForVoxel(ImagePlus imgIn,int xCor,int yCor,int curT,int totalT,int curZ,int totalZ,int nEchoesExpected,int crossWidth,int crossThick,boolean gaussianWeighting){
 		if(gaussianWeighting) {IJ.showMessage("Not applicable : gaussian weighting. Abort");gaussianWeighting=false;}
 		int xMax=imgIn.getWidth();
 		int yMax=imgIn.getHeight();
@@ -156,6 +156,45 @@ public class MRUtils implements Fit{
 
 	
 	
+	public static int[][]getFullCoordsForVoxel(ImagePlus imgIn,int xCor,int yCor,int curT,int totalT,int curZ,int totalZ,int nEchoesExpected,int crossWidth,int crossThick,boolean gaussianWeighting){
+		int xMax=imgIn.getWidth();
+		int yMax=imgIn.getHeight();
+		int zMax=imgIn.getNSlices();
+		int zCor=curZ;
+		int xm,ym,xM,yM,zm,zM;
+		xm=xCor-crossWidth;
+		xM=xCor+crossWidth;
+		ym=yCor-crossWidth;
+		yM=yCor+crossWidth;
+		zm=curZ-crossThick;
+		zM=curZ+crossThick;
+		xm=Math.max(xm, 0);
+		xM=Math.min(xMax-1, xM);
+		ym=Math.max(ym, 0);
+		yM=Math.min(yMax-1, yM);
+		zm=Math.max(zm, 0);
+		zM=Math.min(zMax-1, zM);
+		int nHits=(xM-xm+1)*(yM-ym+1)*(zM-zm+1);
+		int incr=0;
+		int[][]data= new int[nHits][8];
+		if( (xCor>xMax-1) || (yCor>yMax-1)) {IJ.log("Bad coordinates. Data set to 0"); return null;}
+		for(int z=zm;z<=zM;z++) {
+			for(int x=xm;x<=xM;x++) {
+				for(int y=ym;y<=yM;y++) {
+					for(int ec=0;ec<nEchoesExpected;ec++) {			
+						int indexZ=nEchoesExpected*totalZ*curT+nEchoesExpected*z+1+ec;
+						//System.out.println("Do "+x+" , "+y+" , "+z+" , "+ec+" with borders="+xm+"-"+xM+"  "+ym+"-"+yM+"  "+zm+"-"+zM+"  0-"+(nEchoesExpected-1)+" with data.size="+data.length);
+						data[incr]=new int[] {x,y,0,0,0,0,0,0};
+					}
+					incr++;
+				}
+			}
+		}
+		return data;
+	}
+
+	
+
 	
 	
 	

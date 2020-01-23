@@ -392,16 +392,16 @@ public interface VitimageUtils {
 	}
 
 	
-	public static Object[] getCorrespondanceListAsImagePlus(ImagePlus imgRef,Point3d[][]tabpt,double[]curVoxSize,int sliceInt) {
+/*	public static Object[] getCorrespondanceListAsImagePlus(ImagePlus imgRef,Point3d[][]tabpt,double[]curVoxSize,int sliceInt,int blockStrideX,int blockStrideY,int blockStrideZ,int blockSizeX,int blockSizeY,int blockSizeZ,boolean vectors) {
 		ArrayList<double[][]>tabCorr=new ArrayList();
 		for (int coup=0;coup<tabpt[0].length;coup++) {
 			tabCorr.add(  new double[][] {   {tabpt[0][coup].x,tabpt[0][coup].y,tabpt[0][coup].z} , {tabpt[1][coup].x,tabpt[1][coup].y,tabpt[1][coup].z} ,{1,1} });
 		}
-		return getCorrespondanceListAsImagePlus(imgRef,tabCorr,curVoxSize,sliceInt);
+		return getCorrespondanceListAsImagePlus(imgRef,tabCorr,curVoxSize,sliceInt,blockStrideX,blockStrideY,blockStrideZ,blockSizeX,blockSizeY,blockSizeZ,vectors);
 	}
+	*/
 	
-	
-	public static Object[] getCorrespondanceListAsImagePlus(ImagePlus imgRef,ArrayList<double[][]>tabCorr,double[]curVoxSize,int sliceInt2) {
+	public static Object[] getCorrespondanceListAsImagePlus(ImagePlus imgRef,ArrayList<double[][]>tabCorr,double[]curVoxSize,int sliceInt2,int blockStrideX,int blockStrideY,int blockStrideZ,int blockHalfSizeX,int blockHalfSizeY,int blockHalfSizeZ,boolean vectors) {
 		int [] dims=VitimageUtils.getDimensions(imgRef);		
 		int sliceInt=(sliceInt2<0 ? dims[2]/2 : sliceInt2);
 		int sliceIntCorr=0;
@@ -414,19 +414,74 @@ public interface VitimageUtils {
 			dataRet[z]=(float[])ret.getStack().getProcessor(z+1).getPixels();
 		}
 
-		for(int cor=0;cor<tabCorr.size();cor++) {
-			int x=(int)Math.round(tabCorr.get(cor)[0][0]/voxS[0]*curVoxSize[0]  );
-			int y=(int)Math.round(tabCorr.get(cor)[0][1]/voxS[1]*curVoxSize[1]  );
-			int z=(int)Math.round(tabCorr.get(cor)[0][2]/voxS[2]*curVoxSize[2]  );
-			if(Math.abs(sliceInt-z) < distMin) {
-				distMin=Math.abs(sliceInt-z);
-				sliceIntCorr=z;
+		
+		if(!vectors) {
+			int dx=Math.min(blockStrideX/2-1, blockHalfSizeX);
+			int dy=Math.min(blockStrideY/2-1, blockHalfSizeY);
+			int dz=Math.min(blockStrideZ/2-1, blockHalfSizeZ);
+			for(int cor=0;cor<tabCorr.size();cor++) {
+				int x=(int)Math.round(tabCorr.get(cor)[0][0]/voxS[0]*curVoxSize[0]  );
+				int y=(int)Math.round(tabCorr.get(cor)[0][1]/voxS[1]*curVoxSize[1]  );
+				int z=(int)Math.round(tabCorr.get(cor)[0][2]/voxS[2]*curVoxSize[2]  );
+				if(Math.abs(sliceInt-z) < distMin) {
+					distMin=Math.abs(sliceInt-z);
+					sliceIntCorr=z;
+				}
+				float score=(float)tabCorr.get(cor)[2][0];
+				int x0=Math.max(0, x-dx);
+				int y0=Math.max(0, y-dy);
+				int z0=Math.max(0, z-dz);
+				int xf=Math.min(dims[0]-1, x+dx);
+				int yf=Math.min(dims[1]-1, y+dy);
+				int zf=Math.min(dims[2]-1, z+dz);
+				for(int xx=x0;xx<=xf;xx++) {
+					for(int yy=y0;yy<=yf;yy++) {
+						for(int zz=z0;zz<=zf;zz++) {
+							dataRet[zz][dims[0]*yy+xx]=score;
+						}
+					}
+				}
 			}
-			int index=dims[0]*y+x;
-			float score=(float)tabCorr.get(cor)[2][0];
-			//System.out.println("element "+cor+"/"+tabCorr.size()+" Pose d'un point de valeur"+score+" au pixel"+x+", "+y+", "+z);
-			dataRet[z][index]=score;
 		}
+		else{
+			
+			for(int cor=0;cor<tabCorr.size();cor++) {
+				int x0=(int)Math.round(tabCorr.get(cor)[0][0]/voxS[0]*curVoxSize[0]  );
+				int y0=(int)Math.round(tabCorr.get(cor)[0][1]/voxS[1]*curVoxSize[1]  );
+				int z0=(int)Math.round(tabCorr.get(cor)[0][2]/voxS[2]*curVoxSize[2]  );
+				int xf=(int)Math.round(tabCorr.get(cor)[1][0]/voxS[0]*curVoxSize[0]  );
+				int yf=(int)Math.round(tabCorr.get(cor)[1][1]/voxS[1]*curVoxSize[1]  );
+				int zf=(int)Math.round(tabCorr.get(cor)[1][2]/voxS[2]*curVoxSize[2]  );
+				double dx=(xf-x0)/5;
+				double dy=(yf-y0)/5;
+				double dz=(zf-z0)/5;
+				float score=(float)tabCorr.get(cor)[2][0];
+				//Bras fleche suivant XY
+				for(int dt=0;dt<=15;dt++) {
+					int zz=z0;
+					int xx=x0+(int)Math.round(dx*dt);
+					int yy=y0+(int)Math.round(dy*dt);
+					dataRet[zz][dims[0]*yy+xx]=score;
+				}
+				//Bras fleche suivant XZ
+				for(int dt=0;dt<=15;dt++) {
+					int yy=y0;
+					int xx=x0+(int)Math.round(dx*dt);
+					int zz=z0+(int)Math.round(dz*dt);
+					dataRet[zz][dims[0]*yy+xx]=score;
+				}
+				//Bras fleche suivant YZ
+				for(int dt=0;dt<=15;dt++) {
+					int xx=x0;
+					int zz=z0+(int)Math.round(dz*dt);
+					int yy=y0+(int)Math.round(dy*dt);
+					dataRet[zz][dims[0]*yy+xx]=score;
+				}
+				//Base fleche
+				for(int ddz=-1;ddz<=1;ddz++)for(int ddx=-1;ddx<=1;ddx++)for(int ddy=-1;ddy<=1;ddy++)dataRet[z0+ddz][dims[0]*(y0+ddy)+x0+ddx]=score;
+			}
+		}
+
 		return new Object[] {ret,sliceIntCorr};		
 	}
 	
@@ -2738,8 +2793,9 @@ public interface VitimageUtils {
 	}
 	
 	public static ImagePlus convertByteToFloatWithoutDynamicChanges(ImagePlus imgIn) {
-		ImagePlus ret=new Duplicator().run(imgIn);
-		IJ.run(ret,"8-bit","");
+		ImagePlus ret=VitimageUtils.imageCopy(imgIn);
+		IJ.run(ret,"32-bit","");
+
 		float[][] out=new float[ret.getStackSize()][];
 		byte[][] in=new byte[imgIn.getStackSize()][];
 		int index;
@@ -3036,7 +3092,7 @@ public interface VitimageUtils {
 		ij3d.ImageJ3DViewer.select("imgMov");
 		int iter=0;    	
 		imgRef.show();
-		VitiDialogs.getYesNoUI("Red volume is fixed, green volume can move.\n Use the 3d viewer to adjust the green volume with the red volume using the mouse.\n Click-drag=rotate , Shift+Click-drag=translate.\nClose imgRef3D to confirm transformation is done");		
+		VitiDialogs.getYesNoUI("","Red volume is fixed, green volume can move.\n Use the 3d viewer to adjust the green volume with the red volume using the mouse.\n Click-drag=rotate , Shift+Click-drag=translate.\nClose imgRef3D to confirm transformation is done");		
 		while(WindowManager.getImage("imgRef3D")!=null) {
 			VitimageUtils.waitFor(1000);
 			System.out.print(iter+++" ");
@@ -3064,8 +3120,10 @@ public interface VitimageUtils {
 	public static ImagePlus compositeOf(ImagePlus img1Source,ImagePlus img2Source){
 		ImagePlus img1=new Duplicator().run(img1Source);
 		ImagePlus img2=new Duplicator().run(img2Source);
-		img1.getProcessor().resetMinAndMax();
-		img2.getProcessor().resetMinAndMax();
+		img1.resetDisplayRange();
+		img2.resetDisplayRange();
+//		img1.getProcessor().resetMinAndMax();
+//		img2.getProcessor().resetMinAndMax();
 		IJ.run(img1,"8-bit","");
 		IJ.run(img2,"8-bit","");
 		ImageStack is=RGBStackMerge.mergeStacks(img1.getStack(),img2.getStack(),null,true);
@@ -3979,7 +4037,50 @@ public interface VitimageUtils {
 		}	
 		return ret;
 	}
-
+	 
+	public static double[][]getHistogram(ImagePlus img,int nbSlicesConsidered){
+		if(img.getType()==ImagePlus.GRAY32 || img.getType()==ImagePlus.COLOR_256 || img.getType()==ImagePlus.COLOR_RGB){
+			VitiDialogs.notYet("GetHistogram of float image in VitimageUtils");
+			System.exit(0);
+		}
+		int nBins=img.getStack().getProcessor(1).getHistogram().length;
+		double[]histo=new double[nBins];
+		double[]histoCumul=new double[nBins];
+		int[][]dataHisto=new int[nbSlicesConsidered][nBins];
+		for(int n=1;n<nbSlicesConsidered+1;n++) {
+			int index=1+(img.getStackSize()*n)/(nbSlicesConsidered+1);
+			dataHisto[n-1]=img.getStack().getProcessor(index).getHistogram();
+			System.out.println("Get histo : "+TransformUtils.stringVectorN(dataHisto[n-1], ""));
+		}
+		double sum=0;
+		for(int b=0;b<nBins;b++) {
+			for(int n=0;n<nbSlicesConsidered;n++) histo[b]+=dataHisto[n][b];
+			histoCumul[b]=histo[b]+(b!=0 ? histo[b-1] : 0);
+		}
+		sum=histoCumul[nBins-1];
+		for(int b=0;b<nBins;b++) {histo[b]/=sum;histoCumul[b]/=sum;}
+		return new double[][] {histo,histoCumul};
+	}
+	
+	public static int[]getRange(ImagePlus img,double percentageDynamicCovered,int nbSlicesConsidered){
+		double firstWing=(100-percentageDynamicCovered)/2;
+		double secondWing=percentageDynamicCovered+firstWing;
+		firstWing/=100;
+		secondWing/=100;
+		double[][]histos=getHistogram(img,nbSlicesConsidered);
+		int nBins=histos[0].length;
+		int firstIndex=0;int secondIndex=nBins-1;
+		while((firstIndex<nBins) && (histos[1][firstIndex]<firstWing))firstIndex++;
+		if(firstIndex>0)firstIndex--;
+		while((secondIndex>=0) && (histos[1][secondIndex]>secondWing))secondIndex--;
+		if(secondIndex<nBins-1)secondIndex++;
+		System.out.println("Quantiles detectes : q1 a "+firstWing+" : index = "+firstIndex+" cumul="+histos[1][firstIndex]);
+		System.out.println("Quantiles detectes : q2 a "+secondWing+" : index = "+secondIndex+" cumul="+histos[1][secondIndex]);
+		System.out.println("");
+		return new int[] {firstIndex,secondIndex};
+	}
+	
+	
 	public static double meanValueofImageAround(ImagePlus img,int x0,int y0,int z0,double ray) {
 		int xMax=img.getWidth();
 		int xm=(int)Math.round(x0-ray);
@@ -4936,6 +5037,35 @@ public interface VitimageUtils {
 	
 	
 	
+	public static int[][]listForThreads(int nbP,int nbProc){
+		int [][]indexes=new int[nbProc][];
+		ArrayList[]arrs=new ArrayList[nbProc];
+		int nbParProc=(int)Math.ceil(nbP*1.0/nbProc);
+		for(int pro=0;pro<nbProc;pro++) arrs[pro]=new ArrayList<Integer>();
+		for(int ind=0;ind<nbP;ind++)arrs[ind%nbProc].add(new Integer(ind));
+		for(int pro=0;pro<nbProc;pro++) {indexes[pro]=new int[arrs[pro].size()]; for (int i=0;i<arrs[pro].size();i++) indexes[pro][i]=(Integer)(arrs[pro].get(i));  }
+		return indexes;
+/*		int nThread=nbProc-1;
+		int[]tabSendToThread=new int[Z];
+		int[]placeIntoThread=new int[Z];
+		int[]incrPlacesThread=new int[nThread];
+		int[][]tabSlicesOfEachThread=new int[nThread][];
+		for(int z=0;z<Z;z++) {
+			tabSendToThread[z]=z%nThread;
+			placeIntoThread[z]=incrPlacesThread[z%nThread]++;
+		}
+		for(int nt=0;nt<nThread;nt++) {
+			tabSlicesOfEachThread[nt]=new int[incrPlacesThread[nt]];
+			incrPlacesThread[nt]=0;
+		}
+		for(int z=0;z<Z;z++) {
+			placeIntoThread[z]=incrPlacesThread[z%nThread];
+			tabSlicesOfEachThread[z%nThread][incrPlacesThread[z%nThread]++]=z;
+		}
+*/
+	}
+	
+	
 	public static double[]getVoxelSizes(ImagePlus img){
 		return new double[] {img.getCalibration().pixelWidth,img.getCalibration().pixelHeight,img.getCalibration().pixelDepth};
 	}
@@ -5153,6 +5283,15 @@ public interface VitimageUtils {
 		} catch (InterruptedException ie) {  	System.out.println(ie.getStackTrace());throw new RuntimeException(ie);  }  
 	}   
 
+	public static void startAndJoin(Thread thread){  
+		thread.setPriority(Thread.NORM_PRIORITY);  
+		thread.start();  
+		try{     
+			thread.join();  
+		} catch (InterruptedException ie) {  	System.out.println(ie.getStackTrace());throw new RuntimeException(ie);  }  
+	}   
+
+	
 	public static String[] stringArraySort(String[]tabStr) {
 		String[]tabRet=new String[tabStr.length];
 		ArrayList<String> listStr=new ArrayList<String>();

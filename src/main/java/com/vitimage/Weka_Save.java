@@ -1151,7 +1151,7 @@ public class Weka_Save implements PlugIn
 			annotationsPanel.setBorder(BorderFactory.createTitledBorder("Labels"));
 			annotationsPanel.setLayout(boxAnnotation);
 
-			for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)
+			for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)//Creer panel // Creer Button. Ajouter le bouton au panel 
 			{
 				exampleList[i].addActionListener(listener);
 				exampleList[i].addItemListener(itemListener);

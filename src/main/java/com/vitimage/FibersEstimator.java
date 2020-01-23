@@ -39,28 +39,28 @@ public class FibersEstimator {
 	public static void main(String[]args) {
 		
 		ImageJ ij=new ImageJ();
-		boolean actionView=false;
+		boolean actionView=true;
 		if(actionView) {
 			String extension="PD";
-			int numSpec=5;
+			int numSpec=11;
 			String spec=TestFibre.getSpecimens()[numSpec];
 			int dzeta=0;
 			
 //			ImagePlus imgA=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_7_FIBERS/"+spec+"/Composite_Dzeta_"+dzeta+extension+".tif");
 			//			ImagePlus imgB=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_7_FIBERS/"+spec+"/Composite_Dzeta_"+dzeta+extension+"colored.tif");
 			dzeta=50;
-			ImagePlus imgA=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_7_FIBERS/"+spec+"/Composite_Dzeta_"+dzeta+extension+".tif");
-			ImagePlus imgMRI=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_7_FIBERS/"+spec+"/Composite_Dzeta_"+dzeta+extension+"colored.tif");
-			ImagePlus imgNECR=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_7_FIBERS/"+spec+"/Composite_Dzeta_"+dzeta+extension+"NECRcolored.tif");
-			ImagePlus imgAMAD=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_7_FIBERS/"+spec+"/Composite_Dzeta_"+dzeta+extension+"AMADcolored.tif");
+			ImagePlus imgA=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_7_FIBERS/"+spec+"/Data_Fibers/Composite_Dzeta_"+dzeta+extension+".tif");
+		//	ImagePlus imgMRI=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_7_FIBERS/"+spec+"/Composite_Dzeta_"+dzeta+extension+"colored.tif");
+			//	ImagePlus imgNECR=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_7_FIBERS/"+spec+"/Composite_Dzeta_"+dzeta+extension+"NECRcolored.tif");
+			//ImagePlus imgAMAD=IJ.openImage("/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_7_FIBERS/"+spec+"/Composite_Dzeta_"+dzeta+extension+"AMADcolored.tif");
 //			imgA.show();
 //			imgB.show();
 //			VitimageUtils.showImageIn3D(imgA);
 			//			VitimageUtils.showImageIn3D(imgB);
-//			VitimageUtils.showImageIn3D(imgA);
+			VitimageUtils.showImageIn3D(imgA);
 //			VitimageUtils.showImageIn3D(imgMRI);
-			VitimageUtils.showImageIn3D(imgNECR);
-			VitimageUtils.showImageIn3D(imgAMAD);
+//			VitimageUtils.showImageIn3D(imgNECR);
+	//		VitimageUtils.showImageIn3D(imgAMAD);
 		}
 		else {
 			String []extensions=new String[] {"PD"};

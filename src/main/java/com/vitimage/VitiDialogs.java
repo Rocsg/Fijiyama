@@ -176,6 +176,11 @@ public interface VitiDialogs {
 		return(od.getDirectory());
 	 }
 
+	public static String[] openFileUI(String strGuess,String fileName,String extension){
+		SaveDialog sd=new SaveDialog(strGuess, fileName, extension);
+		return(new String[] {sd.getDirectory(),sd.getFileName()});
+	 }
+
 	
 	public static ItkTransform chooseTransformsUI(String strGuess,boolean autonomyLevel){
 		ItkTransform globalTransform = null;

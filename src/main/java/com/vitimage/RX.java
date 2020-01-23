@@ -15,9 +15,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import com.vitimage.Vitimage4D.VineType;
 
-import com.vitimage.ItkImagePlusInterface.MetricType;
-import com.vitimage.ItkImagePlusInterface.OptimizerType;
-import com.vitimage.ItkImagePlusInterface.Transformation3DType;
 import com.vitimage.VitimageUtils.Capillary;
 import com.vitimage.VitimageUtils.SupervisionLevel;
 
