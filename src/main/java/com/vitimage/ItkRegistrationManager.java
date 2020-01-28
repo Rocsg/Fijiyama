@@ -23,6 +23,8 @@ import ij.ImagePlus;
 import ij.plugin.Concatenator;
 
 public class ItkRegistrationManager implements ItkImagePlusInterface{
+	ItkTransform additionalTransform=new ItkTransform();
+	boolean returnComposedTransformationIncludingTheInitialTransformationGiven=true;
 	double[]refRange;
 	double[]movRange;
 	boolean flagRange=false;
@@ -145,7 +147,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		return nbFailed;
 	}
 	
-	public static int estimateRegistrationDuration(int[]dims,int viewRegistrationLevel,int maxExpectedTime,int nbIter,int levelMin,int levelMax) {
+	public static int estimateRegistrationDuration(int[]dims,int viewRegistrationLevel,int nbIter,int levelMin,int levelMax) {
 		double imageSize=dims[0]*dims[1]*dims[2];
 		double[]imageSizes=new double[levelMax-levelMin+1];
 		double sumSize=0;
@@ -191,7 +193,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.register();
 		this.showRegistrationSummary();
 		freeMemory();
-		return this.transform;		
+		return new ItkTransform(this.transform);
 	}
 	
 	public ImagePlus runScenarioMaidaFlipFlop(ImagePlus imgRef, ImagePlus imgMov) {
@@ -233,27 +235,25 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.register();
 		this.showRegistrationSummary();	
 		freeMemory();
-		return this.transform;
+		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.transform;
+		else {
+			if(trans.isDense())return new ItkTransform((trans.getInverseOfDenseField()).addTransform(this.transform));
+			else return new ItkTransform(trans.getInverse().addTransform(this.transform));
+		}
 	}
 	
 	public ItkTransform runScenarioInterModal(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov,boolean verySimilarData) {
-		System.out.println("DEBUG ITK 1");
 		this.setMovingImage(imgMov);
-		System.out.println("DEBUG ITK 12");
 		this.setReferenceImage(imgRef);
-		System.out.println("DEBUG ITK 13");
 		this.setViewSlice(imgRef.getStackSize()/2);
-		System.out.println("DEBUG ITK 14");
 		this.setMetric(MetricType.CORRELATION);
 		OptimizerType opt=OptimizerType.ITK_AMOEBA ;
 		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-		System.out.println("DEBUG ITK 15");
 		int lMin1=verySimilarData ? 1 : 2;
 		int lMax1=verySimilarData ? 1 : 3;
 		int lMin2=verySimilarData ? 1 : 1;
 		int lMax2=verySimilarData ? 1 : 2;
 		boolean testSpeed=false;
-		System.out.println("DEBUG ITK 2");
 		
 		this.addStepToQueue( lMin1 ,     lMax1    ,     1     ,   testSpeed ? 2 : 100  , 0.3   ,       Transform3DType.TRANSLATION,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
@@ -271,18 +271,16 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 				OptimizerType.ITK_AMOEBA  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-		System.out.println("DEBUG ITK 3");
 
 		this.transform=new ItkTransform(trans);
-
-		System.out.println("DEBUG ITK 4");
 		this.register();
-		System.out.println("DEBUG ITK 5");
 		this.showRegistrationSummary();
-		System.out.println("DEBUG ITK 6");
 		freeMemory();
-		System.out.println("DEBUG ITK 7");
-		return this.transform;
+		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.transform;
+		else {
+			if(trans.isDense())return new ItkTransform((trans.getInverseOfDenseField()).addTransform(this.transform));
+			else return new ItkTransform(trans.getInverse().addTransform(this.transform));
+		}
 	}
 
 	public ItkTransform runScenarioFromGui(ItkTransform transformInit, ImagePlus imgRef, ImagePlus imgMov, Transform3DType transformType,int levelMin,int levelMax,int nIterations,double learningRate) {
@@ -297,11 +295,17 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-		this.transform=transformInit;
+		this.transform=new ItkTransform(transformInit);
+		System.out.println("DEBUG ITK 1");
 		this.register();
-//		this.showRegistrationSummary();
+		System.out.println("DEBUG ITK 2");
+
 		freeMemory();
-		return this.transform;
+		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.transform;
+		else {
+			if(transformInit.isDense())return new ItkTransform((transformInit.getInverseOfDenseField()).addTransform(this.transform));
+			else return new ItkTransform(transformInit.getInverse().addTransform(this.transform));
+		}
 	}
 
 	public ItkTransform runScenarioKhalifa2(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov,boolean verySimilarData,ImagePlus masque) {
@@ -339,7 +343,11 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.register();
 		this.showRegistrationSummary();
 		freeMemory();
-		return this.transform;
+		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.transform;
+		else {
+			if(trans.isDense())return new ItkTransform((trans.getInverseOfDenseField()).addTransform(this.transform));
+			else return new ItkTransform(trans.getInverse().addTransform(this.transform));
+		}
 	}
 
 	public ItkTransform runScenarioTestStuff(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov) {
@@ -372,7 +380,11 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		this.showRegistrationSummary();
 		
 		freeMemory();
-		return this.transform;
+		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.transform;
+		else {
+			if(trans.isDense())return new ItkTransform((trans.getInverseOfDenseField()).addTransform(this.transform));
+			else return new ItkTransform(trans.getInverse().addTransform(this.transform));
+		}
 	}
 
 	public ImagePlus[] runScenarioInterEchoes(ImagePlus refImgSource, ImagePlus movImgSource) {
@@ -562,9 +574,11 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 			default:trPlus=new ItkTransform(new Euler3DTransform());break;
 		}
 		if(flagCentering && transformation3DTypes.get(currentStep)!= Transform3DType.TRANSLATION)trPlus=new ItkTransform(centerTransformFilter.execute(this.itkImgRef,this.itkImgMov,trPlus));
+
+		//TODO : il se passe des choses ici. Faut il utiliser .setMovingInitialTransform
 		if(this.transform==null)this.transform=trPlus;
 		else this.transform.addTransform(trPlus);
-		this.registrationMethods.get(currentStep).setInitialTransform(this.transform);		
+		this.registrationMethods.get(currentStep).setInitialTransform(this.transform);	
 		switch(scalerTypes.get(currentStep)) {
 		case NONE: ;break;
 		case MANUAL: this.registrationMethods.get(currentStep).setOptimizerScales(ItkImagePlusInterface.doubleArrayToVectorDouble(scales.get(currentStep)));break;
@@ -578,8 +592,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 			this.registrationMethods.get(currentStep).setOptimizerWeights(ItkImagePlusInterface.doubleArrayToVectorDouble(this.weights.get(currentStep)));		
 		}
 
- 		
-		//////////// GO ! ////////////////
+ 		//////////// GO ! ////////////////
 		this.registrationThread= new Thread() {  { setPriority(Thread.NORM_PRIORITY); }  
 			public void run() {  
 				try {
@@ -596,23 +609,40 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 	}
 
 	public void register(){
+		System.out.println("DEBUG ITK 11");
 		this.currentStep=0;
+		System.out.println("DEBUG ITK 12");
 		while(currentStep<nbStep) {
+			System.out.println("DEBUG ITK 13-"+currentStep);
 			int excludeMargin=ijImgRef.getStackSize()/4;
 			this.registrationMethods.get(currentStep).setMetricFixedMask(ItkImagePlusInterface.imagePlusToItkImage(VitimageUtils.restrictionMaskForFadingHandling(this.ijImgRef,excludeMargin)));
 			this.registrationMethods.get(currentStep).setMetricMovingMask(ItkImagePlusInterface.imagePlusToItkImage(VitimageUtils.restrictionMaskForFadingHandling(this.ijImgMov,excludeMargin)));
+			System.out.println("DEBUG ITK 14-"+currentStep);
 
 			this.createUpdater();
 			updateView(this.dimensions.get(0)[0],this.sigmaFactors.get(0)[0],this.shrinkFactors.get(0)[0],
 						"Position before registration, Red=Ref, Green=Mov",this.transform==null ? new ItkTransform() : this.transform);
+			System.out.println("DEBUG ITK 15-"+currentStep);
 			this.runNextStep();
-			this.resampler.setTransform(this.transform);
-			ImagePlus temp=ItkImagePlusInterface.itkImageToImagePlus(this.resampler.execute(this.itkImgMov));
-			this.imgMovSuccessiveResults.add(temp);
+			System.out.println("DEBUG ITK 16-"+currentStep);
+			System.out.println("Check resampler : "+(this.resampler==null));
+			System.out.println("Check transform : "+(this.transform==null));
+			System.out.println("Check transform : "+(this.transform.drawableString()));
+			if(this.displayRegistration>0) {
+				this.resampler.setTransform(this.transform);
+				ImagePlus temp=ItkImagePlusInterface.itkImageToImagePlus(this.resampler.execute(this.itkImgMov));
+				this.imgMovSuccessiveResults.add(temp);
+			}
+
 		}
+		System.out.println("DEBUG ITK 18");
 		displayEndOfRegistrationMessage();
-		this.sliceView.changes=false;
-		this.sliceView.close();
+		System.out.println("DEBUG ITK 19");
+		if(this.displayRegistration>0) {
+			this.sliceView.changes=false;
+			this.sliceView.close();
+		}
+		System.out.println("DEBUG ITK 199");
 	}
 
 	
@@ -700,7 +730,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 			}
 		}
 		this.sliceViewRef=ItkImagePlusInterface.itkImageToImagePlusSlice(this.itkImgViewRef,(int)Math.ceil(this.viewSlice*1.0/(this.lookLikeOptimizerLooks ? shrinkFactor : 1)));
-		
+		if(this.flagRange)this.sliceViewRef.setDisplayRange(this.refRange[0], this.refRange[1]);
 		//Update moving image
 		this.resampler=new ResampleImageFilter();
 		this.resampler.setDefaultPixelValue(0);
@@ -724,17 +754,21 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 			}
 		}
 		this.sliceViewMov=ItkImagePlusInterface.itkImageToImagePlusSlice(this.itkImgViewMov,(int)Math.ceil(this.viewSlice*1.0/(this.lookLikeOptimizerLooks ? shrinkFactor : 1)));
+		if(this.flagRange)this.sliceViewMov.setDisplayRange(this.movRange[0], this.movRange[1]);
 
 		//Compose the images
 		if(this.sliceView==null || this.sliceViewRef.getWidth() != sliceView.getWidth()) {
 			if(this.sliceView!=null) {this.sliceView.changes=false;this.sliceView.close();}
-			this.sliceView=VitimageUtils.compositeOf(this.sliceViewRef,this.sliceViewMov,"Registration is running. Red=Reference, Green=moving");
+			if(flagRange)this.sliceView=VitimageUtils.compositeNoAdjustOf(this.sliceViewRef,this.sliceViewMov,"Registration is running. Red=Reference, Green=moving");
+			else this.sliceView=VitimageUtils.compositeOf(this.sliceViewRef,this.sliceViewMov,"Registration is running. Red=Reference, Green=moving");
 			this.sliceView.show();
 			this.sliceView.getWindow().setSize(this.viewWidth,this.viewHeight);
 			this.sliceView.getCanvas().fitToWindow();	
 		}
 		else {//Copie en place
-			ImagePlus temp=VitimageUtils.compositeOf(this.sliceViewRef,this.sliceViewMov,"Red=Reference, Green=moving");
+			ImagePlus temp=null;
+			if(flagRange)temp=VitimageUtils.compositeNoAdjustOf(this.sliceViewRef,this.sliceViewMov,"Red=Reference, Green=moving");
+			else temp=VitimageUtils.compositeOf(this.sliceViewRef,this.sliceViewMov,"Red=Reference, Green=moving");
 			temp=VitimageUtils.writeTextOnImage(viewText,temp,this.fontSize*temp.getWidth()/this.imageSizeReference[0],0);
 			temp=VitimageUtils.writeTextOnImage(currentTrans.drawableString(),temp,this.fontSize*temp.getWidth()/this.imageSizeReference[0]-2,1);
 			IJ.run(this.sliceView, "Select All", "");
@@ -812,6 +846,7 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		else IJ.log("Warning : unusual type of image in ITKRegistrationManager.setMovingImage : "+imgIn.getType()+" . Registration will fail shortly");
 		this.ijImgMov=VitimageUtils.imageCopy(img);
 		this.itkImgMov=ItkImagePlusInterface.imagePlusToItkImage(ijImgMov);
+		
 	}
 
 	public void setMetric(MetricType metricType) {

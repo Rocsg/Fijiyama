@@ -2,8 +2,10 @@ package com.vitimage;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.Frame;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -148,7 +150,6 @@ public interface VitimageUtils {
 		try {
 			date = new SimpleDateFormat("yyyyMMdd").parse(datStr);
 		} catch (ParseException e) {
-			// TODO Auto-generated catch block
 			return new Date(0);
 		}  
 		return date;
@@ -262,7 +263,6 @@ public interface VitimageUtils {
 		try {
 			str= Files.lines(Paths.get(new File(file).getAbsolutePath()) ).collect(Collectors.joining("\n"));
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return str;
@@ -801,6 +801,15 @@ public interface VitimageUtils {
 			System.out.println("Switch axis : unsupported format");return null;
 		}
 	}
+	
+	public static double[]getImageCenter(ImagePlus ref,boolean giveCoordsInRealSpace){
+		int[]dims=VitimageUtils.getDimensions(ref);
+		double[]voxs=VitimageUtils.getVoxelSizes(ref);
+		double[]ret=new double[3];
+		for(int dim=0;dim<3;dim++)ret[dim]=(dims[dim]-1)/2.0*(giveCoordsInRealSpace ? voxs[dim] : 1);
+		return ret;
+	}
+	
 	
 	public static int []getSliceRootStocks(){
 		return new int[] {200+86 , 200+76 , 200+174 ,          200+65 , 200+97 , 200+108 ,        200+71  , 200+74 ,  200+68 ,       200+59 , 200+42  , 200+118}; 
@@ -2785,12 +2794,126 @@ public interface VitimageUtils {
 
 			for(int x=0;x<imgIn.getWidth();x++) {
 				for(int y=0;y<imgIn.getHeight();y++) {
-					out[z][y*X+x]=(float)((int)((in[z][y*X+x] & 0xffff )));
+					out[z][y*X+x]=((int)((in[z][y*X+x] & 0xffff )));
 				}			
 			}
 		}
 		return ret;
 	}
+	
+	
+	
+	
+	public static void adjustImageOnScreen(ImagePlus img,int xPosition,int yPosition) {
+		adjustFrameOnScreen(img.getWindow(), xPosition, yPosition);
+	}
+
+	public static void adjustFrameOnScreen(Frame frame,int xPosition,int yPosition) {
+		int border=50;//taskbar, or things like this
+        java.awt.Dimension currentScreen = Toolkit.getDefaultToolkit().getScreenSize();
+        int screenX=(int)Math.round(currentScreen.width);
+        int screenY=(int)Math.round(currentScreen.height);
+        if(screenX>1920)screenX/=2;        
+        java.awt.Dimension currentDims=frame.getSize();
+        int frameX=(int)Math.round(currentDims.width);
+        int frameY=(int)Math.round(currentDims.height);
+
+        int x=0;int y=0;
+        if(xPosition==0)x=border;
+        if(xPosition==1)x=(screenX-frameX)/2;
+        if(xPosition==2)x=screenX-border-frameX;
+        if(yPosition==0)y=border;
+        if(yPosition==1)y=(screenY-frameY)/2;
+        if(yPosition==2)y=screenY-border-frameY;
+		int xx=frame.getSize().width;
+		int yy=frame.getSize().height;		
+		frame.setLocation(x, y);
+		frame.setSize(xx, yy);
+        //System.out.println("Positioning frame at screen coordinates : ( "+x+" , "+y+" )");
+    }
+
+	
+	public static void adjustImageOnScreenRelative(ImagePlus img1,ImagePlus img2Reference,int xPosition,int yPosition,int distance) {
+		adjustFrameOnScreenRelative(img1.getWindow(),img2Reference.getWindow(), xPosition, yPosition,distance);
+	}
+
+	public static void adjustFrameOnScreenRelative(Frame currentFrame,Frame referenceFrame,int xPosition,int yPosition,int distance) {
+        if(xPosition==3) {System.out.println("Position sur place");currentFrame.setLocation(referenceFrame.getLocationOnScreen().x,referenceFrame.getLocationOnScreen().y);return;}
+		java.awt.Dimension currentScreen = Toolkit.getDefaultToolkit().getScreenSize();
+        int screenX=(int)Math.round(currentScreen.width);
+        int screenY=(int)Math.round(currentScreen.height);
+        if(screenX>1920)screenX/=2;        
+
+        java.awt.Dimension currentDims=currentFrame.getSize();
+        int currentX=(int)Math.round(currentDims.width);
+        int referenceX=(int)Math.round(referenceFrame.getSize().width);
+        int currentY=(int)Math.round(currentDims.height);
+		int border=50;//taskbar, or things like this
+		int x=0;int y=0;
+        if(xPosition==0)x=referenceFrame.getLocationOnScreen().x-currentX-distance;//Set to the left of reference
+        if(xPosition==2)x=referenceFrame.getLocationOnScreen().x+referenceX+distance;
+        if(yPosition==0)y=border;
+        if(yPosition==1)y=(screenY-currentY)/2;
+        if(yPosition==2)y=screenY-border-currentY;
+        currentFrame.setLocation(x, y);
+        //System.out.println("Positioning frame at screen coordinates : ( "+x+" , "+y+" )");
+    }
+
+
+	
+	public static double[][]getDoubleArray2DCopy(double[][]in){
+		double[][]ret=new double[in.length][];
+		for(int i=0;i<in.length;i++) {
+			ret[i]=new double[in[i].length];
+			for(int j=0;j<in[i].length;j++) {
+				ret[i][j]=in[i][j];
+			}
+		}
+		return ret;
+	}
+	
+	public static Point3d[][] getRegistrationLandmarks(int minimumNbWantedPointsPerImage,ImagePlus imgRef,ImagePlus imgMov){
+		ImagePlus imgRefBis=imgRef.duplicate();		imgRefBis.getProcessor().resetMinAndMax();		imgRefBis.show();		imgRefBis.setTitle("Reference image");
+		ImagePlus imgMovBis=imgMov.duplicate();	imgMovBis.getProcessor().resetMinAndMax();		imgMovBis.show();		imgMovBis.setTitle("Moving image");
+		Point3d []pRef=new Point3d[1000];
+		Point3d []pMov=new Point3d[1000];
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		IJ.setTool("point");
+		IJ.showMessage("Examine images and click on reference points");
+		boolean finished =false;
+		do {
+			if(rm.getCount()>=minimumNbWantedPointsPerImage*2 ) finished=true;
+			try {
+				java.util.concurrent.TimeUnit.MILLISECONDS.sleep(1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}while (!finished);
+		int nbCouples=0;
+		for(int indP=0;indP<rm.getCount()/2;indP++){
+			pRef[indP]=new Point3d(rm.getRoi(indP*2 ).getXBase() , rm.getRoi(indP * 2).getYBase() ,  rm.getRoi(indP * 2).getZPosition());
+			pMov[indP]=new Point3d(rm.getRoi(indP*2 +1 ).getXBase() , rm.getRoi(indP * 2 +1 ).getYBase() ,  rm.getRoi(indP * 2 +1 ).getZPosition());
+			pRef[indP]=TransformUtils.convertPointToRealSpace(pRef[indP],imgRef);
+			pMov[indP]=TransformUtils.convertPointToRealSpace(pMov[indP],imgRef);
+			nbCouples++;
+		}
+		System.out.println("Number of correspondance pairs = "+nbCouples);
+		imgRefBis.close();
+		imgMovBis.close();
+		Point3d []pRefRet=new Point3d[nbCouples];		Point3d []pMovRet=new Point3d[nbCouples];
+		for(int i=0;i<pRefRet.length;i++) {
+			pRefRet[i]=pRef[i];
+			pMovRet[i]=pMov[i];
+		}
+		return new Point3d[][] {pRefRet,pMovRet};
+	}
+	
+	
+	
+
+
+	
 	
 	public static ImagePlus convertByteToFloatWithoutDynamicChanges(ImagePlus imgIn) {
 		ImagePlus ret=VitimageUtils.imageCopy(imgIn);
@@ -2806,7 +2929,7 @@ public interface VitimageUtils {
 
 			for(int x=0;x<imgIn.getWidth();x++) {
 				for(int y=0;y<imgIn.getHeight();y++) {
-					out[z][y*X+x]=(byte)((int)((in[z][y*X+x] & 0xff )));
+					out[z][y*X+x]=((int)((in[z][y*X+x] & 0xff )));
 				}			
 			}
 		}
@@ -3288,7 +3411,6 @@ public interface VitimageUtils {
 				Runtime.getRuntime().exec("aplay /home/fernandr/Audio/Inoc2.wav &");
 				VitimageUtils.waitFor(5000);
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -3297,7 +3419,6 @@ public interface VitimageUtils {
 				Runtime.getRuntime().exec("aplay /home/fernandr/Audio/Beep.wav &");
 			
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -3305,6 +3426,9 @@ public interface VitimageUtils {
 			IJ.showMessage("Message not understood. Cannot say it");
 		}
 	}
+	
+	
+	//TODO : order / sort functions with a logical meaning in sorting. Maybe constitute classes to that end.
 	
 	
 	public static String strInt6chars(int nb) {
@@ -4014,6 +4138,10 @@ public interface VitimageUtils {
 	}
 
 	public static ImagePlus getBinaryGrid(ImagePlus img,int pixelSpacing) {
+		return getBinaryGrid(img, pixelSpacing,true);
+	}
+	
+	public static ImagePlus getBinaryGrid(ImagePlus img,int pixelSpacing,boolean doubleSizeEveryFive) {
 		boolean doDouble=false;
 		if(pixelSpacing<2)pixelSpacing=2;
 		if(pixelSpacing>5)doDouble=true;
@@ -4028,8 +4156,16 @@ public interface VitimageUtils {
 					    (y%pixelSpacing==pixelSpacing/2)  ){
 						tabRet[dimX*y+x]=(byte)(255 & 0xff);
 					}
-					if( doDouble && (x%pixelSpacing==pixelSpacing/2+1) || 
+					if( (doubleSizeEveryFive || doDouble) && (x%pixelSpacing==pixelSpacing/2+1) || 
 						    (y%pixelSpacing==pixelSpacing/2+1)){
+							tabRet[dimX*y+x]=(byte)(255 & 0xff);
+					}	
+					if( doubleSizeEveryFive && ( (x%pixelSpacing==pixelSpacing/2+2) && ((x/pixelSpacing)%5==0)) || 
+						    ((y%pixelSpacing==pixelSpacing/2+2) &&  ((y/pixelSpacing)%5==0))) {
+							tabRet[dimX*y+x]=(byte)(255 & 0xff);
+					}	
+					if( pixelSpacing>9 && doubleSizeEveryFive && ( (x%pixelSpacing==pixelSpacing/2+3) && ((x/pixelSpacing)%5==0)) || 
+						    ((y%pixelSpacing==pixelSpacing/2+3) &&  ((y/pixelSpacing)%5==0))) {
 							tabRet[dimX*y+x]=(byte)(255 & 0xff);
 					}	
 				}
@@ -5073,6 +5209,11 @@ public interface VitimageUtils {
 	public static int[]getDimensions(ImagePlus img){
 		return new int[] {img.getWidth(),img.getHeight(),img.getStackSize()};
 	}
+
+	public static int[]getDimensionsXYZCT(ImagePlus img){
+		int[]tab1=img.getDimensions();
+		return new int[] {tab1[0],tab1[1],tab1[3],tab1[2],tab1[4]};
+	}
 	
 	public static double dou(double d){
 		if(d<0)return (-dou(-d));
@@ -5085,6 +5226,7 @@ public interface VitimageUtils {
 		return (double)(Math.round(d * Math.pow(10, n))/Math.pow(10, n));
 	}
 	
+	// TODO : Throw away the three following, keeping the last one
 	public static ImagePlus[]stacksFromHyperstack(ImagePlus hyper,int nb){
 		ImagePlus []ret=new ImagePlus[nb];
 		for(int i=0;i<nb;i++) {
@@ -5096,6 +5238,34 @@ public interface VitimageUtils {
 		}
 		return ret;
 	}
+
+	
+	public static ImagePlus[]stacksFromHyperstackBis(ImagePlus hyper){
+		int nbZ=hyper.getNSlices();
+		int nbT=hyper.getNFrames();
+		int nbC=hyper.getNChannels();
+		int nb=nbT*nbC;
+		ImagePlus []ret=new ImagePlus[nb];
+		for(int ic=0;ic<nbC;ic++) {
+			for(int it=0;it<nbT;it++) {
+				System.out.println(ic+"/"+nbC+" ,  "+it+"/"+nbT);
+				int i=ic*nbT+it;
+				if(nbC>1 && nbT==1) 						IJ.run(hyper,"Make Substack...","channels="+(ic+1)+"-"+(ic+1)+" slices=1-"+nbZ+"");
+				else if(nbC==1 && nbT>1) 					IJ.run(hyper,"Make Substack...","slices=1-"+nbZ+" frames="+(it+1)+"-"+(it+1)+"");
+				else if(nbC>1 && nbT>1) 					IJ.run(hyper,"Make Substack...","channels="+(ic+1)+"-"+(ic+1)+" slices=1-"+nbZ+" frames="+(it+1)+"-"+(it+1)+"");
+				else 										IJ.run(hyper,"Make Substack...","slices=1-"+nbZ+"");
+				ret[i]=IJ.getImage();
+				System.out.println("Attrape la bonne : "+TransformUtils.stringVectorN(ret[i].getDimensions(),""));
+				System.out.println("Dont le titre est = :"+ret[i].getTitle());
+				ret[i].setTitle("Splitting hyperstack, channel "+ic+" frame "+it);
+				ret[i].hide();
+				VitimageUtils.adjustImageCalibration(ret[i],hyper);
+			}
+		}
+		return ret;
+	}
+	
+
 	
 	
 	public static ImagePlus[]stacksFromHyperstackFast(ImagePlus hyper,int nb){
@@ -5110,6 +5280,24 @@ public interface VitimageUtils {
 	}
 	
 	
+
+	public static ImagePlus[]stacksFromHyperstackFastBis(ImagePlus hyper){
+		int nbZ=hyper.getNSlices();
+		int nbT=hyper.getNFrames();
+		int nbC=hyper.getNChannels();
+		int nb=nbT*nbC;
+		ImagePlus []ret=new ImagePlus[nb];
+		for(int ic=0;ic<nbC;ic++) {
+			for(int it=0;it<nbT;it++) {
+				int i=ic*nbT+it;
+				System.out.println(ic+"/"+nbC+" ,  "+it+"/"+nbT);
+				ret[i] = new Duplicator().run(hyper, 1+ic, 1+ic, 1, nbZ, 1+it, 1+it);
+				VitimageUtils.adjustImageCalibration(ret[i],hyper);
+				IJ.run(ret[i],"Grays","");
+			}
+		}
+		return ret;
+	}
 	
 	
 	
@@ -5912,6 +6100,7 @@ public interface VitimageUtils {
 		imgOut.resetDisplayRange();
 		return imgOut;
 	}
+
 		
 	
 	

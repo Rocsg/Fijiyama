@@ -1,5 +1,7 @@
 package com.vitimage;
 
+import javax.swing.JFileChooser;
+
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
@@ -42,7 +44,7 @@ public interface VitiDialogs {
 	 * */
 	public static ImagePlus chooseOneImageUI(String strGuess,String strImg1) {
 			ImagePlus imgRet;
-			String open="Image a choisir dans l explorateur";
+			String open="Select this option to select image into a dialog";
 			int index1,index2;
 			int[] wList = WindowManager.getIDList();
 			String[] titles=(wList==null) ? new String[1] : new String[wList.length+1] ;
@@ -171,10 +173,14 @@ public interface VitiDialogs {
 		 }
 	}
 
-	public static String chooseDirectoryUI(String strGuess){
-		OpenDialog od=new OpenDialog(strGuess);
-		return(od.getDirectory());
-	 }
+	public static String chooseDirectoryUI(String strGuess,String strApproveButton){
+		JFileChooser jf=new JFileChooser();
+		jf.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+		jf.setDialogTitle(strGuess);
+		jf.setApproveButtonText(strApproveButton);
+		if (jf.showOpenDialog(null) == JFileChooser.APPROVE_OPTION)return jf.getSelectedFile().getAbsolutePath(); 
+		return null;
+	}
 
 	public static String[] openFileUI(String strGuess,String fileName,String extension){
 		SaveDialog sd=new SaveDialog(strGuess, fileName, extension);

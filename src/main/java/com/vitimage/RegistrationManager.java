@@ -1,16 +1,16 @@
 package com.vitimage;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Frame;
 import java.awt.GridLayout;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -24,7 +24,9 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
+import javax.swing.JTextArea;
 import org.scijava.java3d.Transform3D;
 import org.scijava.vecmath.Color3f;
 
@@ -33,7 +35,6 @@ import ij.ImageJ;
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
-import ij.gui.ImageWindow;
 import ij.plugin.Memory;
 import ij.plugin.frame.PlugInFrame;
 import ij.plugin.frame.RoiManager;
@@ -43,13 +44,32 @@ import math3d.Point3d;
 /**
  * 
  * @author fernandr
- *This class give access to iconic and blockmatching registration
+ * TODO : describe Class and code articulation
  */
+/*TODO : v2 Already done non-regression tests :
+Undo is ok. Activate up to one step done, deactivate when last step removed. Close the contexts previously open, update both structures and interfaces
+Abort is ok.
+	
+TODO : Transformer image
+*	continuer le processing d une serie
+* 
+* */
 
-public class RegistrationManager extends PlugInFrame implements ActionListener,KeyListener, MouseListener {
+
+
+
+public class RegistrationManager extends PlugInFrame implements ActionListener {
+	private boolean debugMode=true;
+	
 	//Flags for the kind of viewer
-	private static final int VIEWER_3D = 71;
-	private static final int VIEWER_2D = 72;
+	private static final int VIEWER_3D = 0;
+	private static final int VIEWER_2D = 1;
+	private static final String saut="<div style=\"height:1px;display:block;\"> </div>";
+	private static final String startPar="<p  width=\"650\" >";
+	private static final String nextPar="</p><p  width=\"650\" >";
+
+	private static final int MODE_TWO_IMAGES=1;
+	private static final int MODE_SERIE=2;
 
 	//Flags for the "run" button tooltip
 	private static final int MAIN=81;
@@ -64,7 +84,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener,K
 	private static final int BOXDISP=95;
 	private static final int BOXDISPMAN=96;
 
-	//Identifiers for buttons
+	//Identifiers for buttons of registration two imgs
 	private static final int SETTINGS=101;
 	private static final int RUN=102;
 	private static final int UNDO=103;
@@ -73,35 +93,102 @@ public class RegistrationManager extends PlugInFrame implements ActionListener,K
 	private static final int FINISH=106;
 	private static final int SOS=107;
 
-	//Attributes linked to the registrations actions;
+	//Identifiers for buttons of start window
+	private static final int RUNTWOIMG=111;
+	private static final int RUNSERIE=112;
+	private static final int RUNTRANS=113;
+	private static final int RUNTRANSCOMP=114;
+	private static final int SOSINIT=115;
+
+	//Flags for the state of the registration manager
+	private static final int REGWINDOWTWOIMG=121;
+	private static final int REGWINDOWSERIEPROGRAMMING=122;
+	private static final int REGWINDOWSERIERUNNING=123;
+	int registrationWindowMode=REGWINDOWSERIEPROGRAMMING;
+	
+	//Interface parameters
+	private static final long serialVersionUID = 1L;
+	private int SOS_CONTEXT_LAUNCH=0;
+	private ImagePlus imgView;
+	boolean actionAborted=false;
+	boolean developerMode=false;
+	private ij3d.Image3DUniverse universe;
+	String spaces="                                                                                                                                   ";
+	private int viewSlice;
+
+	
+	//Registration interface attributes
+	private String[]textActions=new String[] {"Manual registration","Automatic registration","Images alignment with XYZ axis"};
+	private String[]textOptimizers=new String[] {"Block-Matching","ITK"};
+	private String[]textTransformsBM=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)","Vector field "};
+	private String[]textTransformsITK=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)"};
+	private String[]textDisplayITK=new String[] {"0-Only at the end (faster)","1-Dynamic display (slower)"};
+	private String[]textDisplayBM=new String[] {"0-Only at the end (faster)","1-Dynamic display (slower)","2-Also display score map (slower+)"};
+	private String[]textDisplayMan=new String[] {"3d viewer (volume rendering)","2d viewer (classic slicer)"};
+	
+	//Interface text, label and lists
+	private JList<String>listActions=new JList<String>(new String[]{spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces});
+	JScrollPane actionsPane = new JScrollPane(listActions);
+	private JLabel labelNextAction = new JLabel("Choose the next action :", JLabel.LEFT);
+    public JComboBox<String>boxTypeAction=new JComboBox<String>(textActions);
+	private JLabel labelOptimizer = new JLabel("Automatic registration optimizer :", JLabel.LEFT);
+	public JComboBox<String>boxOptimizer=new JComboBox<String>(  textOptimizers   );
+	private JLabel labelTransformation = new JLabel("Transformation to estimate :", JLabel.LEFT);
+	public JComboBox<String>boxTypeTrans=new JComboBox<String>( textTransformsBM  );
+	private JLabel labelView = new JLabel("Automatic registration display :", JLabel.LEFT);
+	public JComboBox<String>boxDisplay=new JComboBox<String>( textDisplayBM );
+	private JLabel labelViewMan = new JLabel("Manual registration viewer :", JLabel.LEFT);
+	public JComboBox<String>boxDisplayMan=new JComboBox<String>( textDisplayMan );
+	private JLabel labelTime1 = new JLabel("Estimated time for this action :", JLabel.LEFT);
+	private JLabel labelTime2 = new JLabel("0 mn and 0s", JLabel.CENTER);
+
+	//Buttons, Frames, Panels
+	private JButton settingsButton=new JButton("Advanced settings...");
+	private JButton settingsDefaultButton=new JButton("Restore default settings...");
+
+	private JButton runButton=new JButton("Start this action");
+	private JButton abortButton = new JButton("Abort");
+	private JButton undoButton=new JButton("Undo");
+	private JButton saveButton=new JButton("Save current state");
+	private JButton finishButton=new JButton("Export results");
+	private JButton sos1Button=new JButton("Contextual help");
+
+	private JButton runTwoImagesButton = new JButton("Register two 3d images (training mode)");
+	private JButton runSerieButton = new JButton("Register 3d series (N-times and/or N-modalities)");
+	private JButton transformButton = new JButton("Apply a computed transform to another image");
+	private JButton composeTransformsButton = new JButton("Compose successive transforms into a single one");
+	private JButton sos0Button =new JButton("Start this action");
+	private JButton runNextStepButton = new JButton("Register two 3d images (training mode)");
+	private JButton goBackStepButton = new JButton("Register 3d series (N-times and/or N-modalities)");
+
+	private JButton replaceActionButton = new JButton("Start this action");
+	private JButton removeSelectedButton = new JButton("Start this action");
+	private JButton validatePipelineButton = new JButton("Start this action");
+	
+	private JFrame registrationFrame;
+	private JTextArea logArea=new JTextArea("", 6,4);
+	private Color colorIdle;
+	private JScrollPane scrollPane;
+	private JFrame frameLaunch;
+
+	
+	
+	
+	
+	
+	//Structures for computation (model part);
+	private RegistrationAction currentRegAction;
+	private ArrayList<RegistrationAction>regActions=new ArrayList<RegistrationAction>();
+	private ArrayList<ItkTransform> trActions=new ArrayList<ItkTransform>();
 	ItkRegistrationManager itkManager;
 	BlockMatchingRegistration bmRegistration;
-	private final double EPSILON=1E-8;
-	boolean actionAborted=false;
-	boolean flagAxis=false;
-	boolean flagAxisWasLast=false;
-	boolean flagDense=false;
-	boolean flagDenseWasLast=false;
-	boolean developerMode=false;
-	//ImagePlus imgMovCurrentState;
-	//ImagePlus imgRefCurrentState;
-	private int expectedExecutionTime=60;
-	private int []listExpectedExecutionTimes=new int[] {60,300,900,1800,(int) 1E8};
-	private ij3d.Image3DUniverse universe;
-	int estimatedTime=0;
-	String spaces="-                                                                                                                                   ";
-	private String []textPreviousActions=new String[] {spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces};
-	private Object[][] registrationParametersValues=new Object[][] {
-		{"Type transform",Transform3DType.RIGID},		{"Sigma resampling",0},		{"Sigma dense",1.0},  {"Level min",2},		{"Level max",2},   {"Higher accuracy",0},
-		{"Iterations BM",6},		{"Iterations ITK",100},
-		{"BM Neigh X",3},		{"BM Neigh Y",3},		{"BM Neigh Z",0},
-		{"BM BHS X",7},		{"BM BHS Y",7},		{"BM BHS Z",1},
-		{"BM Stride X",3},		{"BM Stride Y",3},		{"BM Stride Z",3}, {"BM Select score",50},{"BM Select LTS",50},{"BM Select Rand",10},{"BM Subsample Z",0},
-		{"ITK optimizer",OptimizerType.ITK_AMOEBA},		{"Type optimizer",OptimizerType.BLOCKMATCHING}, {"ITK Learning rate",0.3}
-	};
+	public int referenceModality=0;
+	public int referenceTime=0;
+	public int refTime=0;
+	public int refMod=0;
+	public int movTime=0;
+	public int movMod=1;
 	private int step=0;
-	private int viewRegistrationLevel=1;
-	private int viewSlice;
 	private int nTimes=0;
 	private int nMods=0;
 	private ImagePlus[][]images;
@@ -109,79 +196,45 @@ public class RegistrationManager extends PlugInFrame implements ActionListener,K
 	private int[][][]initDimensions;
 	private int[][][]dimensions;
 	private double[][][]imageRanges;
-	private int[][]imageSizes;//In Mvoxels
+	private double[][]imageSizes;//In Mvoxels
 	private double[][][]initVoxs;
 	private double[][][]voxs;
-	private ItkTransform[][] previousTransforms;
-	private ItkTransform[][] transforms;
+	private ArrayList<ItkTransform> [][] transforms;
+	int estimatedTime=0;
+	
+	private final double EPSILON=1E-8;
 	private String unit="mm";
 	private int[]imageParameters=new int[] {512,512,40};
-	private int maxAcceptableLevel=3;
+	public int maxAcceptableLevel=3;
 	private int nbCpu=1;
 	private int freeMemory=1;
 	
 	private int maxImageSizeForRegistration=32;//In Mvoxels
-	private int mode;
-	private int MODE_TWO_IMAGES=1;
+	private int mode=MODE_TWO_IMAGES;
+	private String serieOutputPath;
+	private String serieFjmFile;
+	private String serieInputPath;
+	private String[] times;
+	private String[] mods;
+	private String expression;
+	private int[] lastViewSizes=new int[] {500,500};
+
+	private boolean memorySavingMode=false;
+
+	private boolean pipelineValidated=false;
+
 
 	
-		//Start interface attributes
-	private static final long serialVersionUID = 1L;
-	private JButton sos0Button = null;
-	private JButton runTwoImagesButton = null;
-	private JButton runMultiModalButton = null;
-	private JButton runMultiTimeButton = null;
-	private JButton runMultiModalMultiTimeButton = null;
-	private JPanel buttonPanel=null;
-	private int SOS_CONTEXT_LAUNCH=0;
-	private ImagePlus imgView;
 	
-	
-	//Registration interface attributes
-	private String[]textActions=new String[] {"Manual registration","Automatic registration","Align results with image axis"};
-	private String[]textOptimizers=new String[] {"Block-Matching","ITK"};
-	private String[]textTransformsBM=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)","Vector field "};
-	private String[]textTransformsITK=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)"};
-	private String[]textTiming=new String[] {"Read a mail (1 mn)","Take a coffee (5 mn)","Go for a walk (15mn)","Read a paper (30mn)","No limitation (inf mn)"};
-	private String[]textDisplayITK=new String[] {"0-Only at the end (faster)","1-Dynamic display (slower)"};
-	private String[]textDisplayBM=new String[] {"0-Only at the end (faster)","1-Dynamic display (slower)","2-Also display score map (slower+)"};
-	private String[]textDisplayMan=new String[] {"2d viewer (classic slicer)","3d viewer (volume rendering)"};
-	private Transform3DType[] transform3DList=new Transform3DType[] {Transform3DType.RIGID,Transform3DType.SIMILARITY,Transform3DType.DENSE};
-	
-	private JLabel labelList = new JLabel("Previous actions", JLabel.CENTER);
-	private JList<String>listActions=new JList<String>(textPreviousActions);
-	private JLabel labelNextAction = new JLabel("Choose the next action :", JLabel.LEFT);
-    private JComboBox<String>boxTypeAction=new JComboBox<String>(textActions);
-	private JLabel labelOptimizer = new JLabel("Optimizer used :", JLabel.LEFT);
-	private JComboBox<String>boxOptimizer=new JComboBox<String>(  textOptimizers   );
-	private JLabel labelTransformation = new JLabel("Transformation to estimate :", JLabel.LEFT);
-	private JComboBox<String>boxTypeTrans=new JComboBox<String>( textTransformsBM  );
-	private JLabel labelTiming = new JLabel("Max computation time :", JLabel.LEFT);
-	private JComboBox<String>boxTiming=new JComboBox<String>( textTiming );
-	private JLabel labelView = new JLabel("Display automatic registration :", JLabel.LEFT);
-	private JComboBox<String>boxDisplay=new JComboBox<String>( textDisplayBM );
-	private JLabel labelViewMan = new JLabel("Viewer for manual registration :", JLabel.LEFT);
-	private JComboBox<String>boxDisplayMan=new JComboBox<String>( textDisplayMan );
-	private JLabel labelTime1 = new JLabel("Estimated time for this action :", JLabel.LEFT);
-	private JLabel labelTime2 = new JLabel("0 mn and 0s", JLabel.CENTER);
-	private JButton settingsButton=new JButton("Advanced settings...");
-	private JButton settingsDefaultButton=new JButton("Restore default settings...");
-	private JButton runButton=new JButton("Start this action");
-	private JButton abortButton = new JButton("Abort");
-	private JButton undoButton=new JButton("Undo");
-	private JButton saveButton=new JButton("Save current state");
-	private JButton finishButton=new JButton("Export results");
-	private JButton sos1Button=new JButton("Contextual help");
-	private JFrame registrationFrame;
-	private Color colorIdle;
-	private int kindOfViewer=VIEWER_3D;
 
 	
-	/**Starting entry points 
+	/**Starting points-------------------------------------------------------------------------------- 
 	 * 
 	 */
 	public RegistrationManager() {
 		super("FijiYama : a versatile registration tool for Fiji");
+		this.currentRegAction=new RegistrationAction(this);
+		regActions.add(this.currentRegAction);
 	}
 
 	public static void main(String[]args) {//TestMethod
@@ -192,1002 +245,376 @@ public class RegistrationManager extends PlugInFrame implements ActionListener,K
 		reg.run("");
 	}
 	
-	
-	//TODO : registration image in big for bm, with aside other ones 
-
-	
 	public void run(String arg) {
-		if(developerMode) {
-			this.startFromSavedStateTwoImages("/home/fernandr/Bureau/TESTSAVE/TESTMAN/save_DATA_FJM/save.fjm");
-			/*this.setupTwoImagesRegistration(
-					"/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgRef_Ttest_16b.tif",
-					"/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgRef_Trans8_16b.tif");
-			this.mode=MODE_TWO_IMAGES;
-			*/
-			
+		if(debugMode) {
+			runTest();
 		}
 		else startLaunchingInterface();
 	}
 
-
-	/** Setup methods
-	 * 
-	 */
-	public void setupNimagesRegistration(int nTimes,int nMods) {
-		setupStructures();
-		checkComputerCapacity();
-		openImagesAndCheckOversizing();
-		startRegistrationInterface();
-		updateViewTwoImages();
-		enable(new int[] {RUN,SETTINGS,SOS,BOXACT,BOXTRANS,BOXDISPMAN});		
-	}
-
-	public static void testBuild() {		
-		double sqrt3=Math.pow(2, 1/3.0);
-		for(int nt=0;nt<5;nt++)		for(int nm=0;nm<5;nm++) {
-			double factor=1;
-			int val=5*nt+nm;
-			if(val<12)factor=Math.pow(sqrt3, val);
-			System.out.println("Creating with factor="+factor +"  giving volume factor="+Math.pow(factor,3));
-			ImagePlus imgOut=IJ.createImage("", (int)Math.round(100*factor), (int)Math.round(100*factor),(int)Math.round(100*factor),8);
-			VitimageUtils.adjustImageCalibration(imgOut,new double[] {1,1,3},"mm");
-			IJ.saveAsTiff(imgOut,"/home/fernandr/Bureau/Test/TestBigData/img"+nt+""+nm+".tif");
+	public void runTest() {
+		int TESTLOAD=1;
+		int TESTTRANS=2;
+		int TESTTWOIMG=3;
+		int TESTHYPERIMG=4;
+		int TESTCOMPOSE=5;
+		int TESTNEWSERIE=6;
+		int typeTest=TESTNEWSERIE;
+		if(typeTest==TESTTWOIMG) {
+			String path1="/home/fernandr/Bureau/Test/TWOIMG/imgRef.tif";
+			String path2="/home/fernandr/Bureau/Test/TWOIMG/imgMov.tif";
+			this.startTwoImagesRegistration(path1, path2);
 		}
-		
-		//create image
-		//
+		else if(typeTest==TESTTWOIMG) {
+			String path1="/home/fernandr/Bureau/Test/TWOIMG/imgRef.tif";
+			String path2="/home/fernandr/Bureau/Test/TWOIMG/imgMov.tif";
+			this.startTwoImagesRegistration(path1, path2);
+		}
+		else if(typeTest==TESTLOAD) {
+			this.startFromSavedStateTwoImages("/home/fernandr/Bureau/Pouet/save_DATA_FJM/save.fjm");
+		}
+		else if(typeTest==TESTHYPERIMG) {
+			this.startTwoImagesRegistration(
+					"/home/fernandr/Bureau/testXYZCT.tif",
+					"/home/fernandr/Bureau/testXYZCT.tif");
+		}
+		else if(typeTest==TESTTRANS){
+			runTransformImage();
+		}
+		else if(typeTest==TESTCOMPOSE){
+			runComposeTransforms();
+		}
+		else if(typeTest==TESTNEWSERIE) {
+			startSerie();
+		}
 	}
 	
-	public void setupTwoImagesRegistration(String pathToRef,String pathToMov) {
+
+	
+	
+	
+	
+	
+	/** Setup methods----------------------------------------------------------------------------------
+	 * 
+	 */
+	public void startTwoImagesRegistration(String pathToRef,String pathToMov) {
+		this.registrationWindowMode=REGWINDOWTWOIMG;
+		this.mode=MODE_TWO_IMAGES;
 		this.nTimes=1;
 		this.nMods=2;
+		this.referenceTime=0;this.referenceModality=0;
+		this.refTime=0;this.refMod=0;
+		this.movTime=0;this.movMod=1;
 		setupStructures();
-		this.paths[0][0]=pathToRef;
-		this.paths[0][1]=pathToMov;
+		this.paths[refTime][refMod]=pathToRef;
+		this.paths[movTime][movMod]=pathToMov;
 		checkComputerCapacity();
 		openImagesAndCheckOversizing();
 		startRegistrationInterface();
-		defineRegistrationSettingsFromTwoImages(this.images[0][0],this.images[0][1]);
+		addLog("Starting plugin. Mode=two images registration. ",0);
+		addLog("Available memory="+this.freeMemory+" MB. #Cpu threads="+this.nbCpu+".",0);
+		addLog("Checking image size. Reference image="+VitimageUtils.dou(this.imageSizes[refTime][refMod])+"Mvoxels. Estimating optimal parameters.",0);
+		currentRegAction.defineSettingsFromTwoImages(this.images[refTime][refMod],this.images[movTime][movMod],this,true);
+		addLog("Starting 2d viewer.  ",0);
 		updateViewTwoImages();
+		addLog("Activating user interface. ",2);
 		enable(new int[] {RUN,SETTINGS,SOS,BOXACT,BOXTRANS,BOXDISPMAN});		
+		addLog("",0);
+		addLog("Welcome to Fijiyama ! Choose the next action using the box-lists in the first panel, then click on \"Start this action\". ",0);
+		addLog("First trial with Fijiyama ? Click on \"Contextual help\" to get started",0);
+		addLog("",0);
+	}
+	
+	public void startSerie() {
+		System.out.println("StartSerie");
+		//Select outputPath
+		this.serieOutputPath=(debugMode) ? "/home/fernandr/Bureau/Pouet/Output_dir" : VitiDialogs.chooseDirectoryUI("Select an empty output directory to begin a new work, or select a directory containing a previous .fjm file","Select empty output dir...");
+		if(this.serieOutputPath==null) {IJ.showMessage("No output path given. Abort");return ;}
+		this.serieFjmFile=null;
+		if(this.serieOutputPath==null)return;
+		String[]files=new File(this.serieOutputPath).list();
+		if(files.length==0)if(!createNewSerie())return;
+		else {
+			boolean found=false;
+			for(String str : files) {
+				if(str.substring(str.length()-4,str.length()).equals(".fjm")) {
+					this.serieFjmFile=str;
+					found=true;
+				}
+			}
+			if(!found) {IJ.showMessage("Error : opened a directory with random other files, but no .fjm configuration files. Please choose"+
+						" a fresh empty directory, or an existing Fijiyama directory, containing a .fjm file");return;}
+			openSerieFromFjmFile();
+		}
+		this.mode =MODE_SERIE;
+		this.registrationWindowMode=REGWINDOWSERIERUNNING;
+		startRegistrationInterface();
+		addLog("Available memory="+this.freeMemory+" MB. #Cpu threads="+this.nbCpu+".",0);
+		addLog("Checking image size. Reference image="+VitimageUtils.dou(this.imageSizes[refTime][refMod])+"Mvoxels. Estimating optimal parameters.",0);
+
+		//TODO :
+//		enable(new int[] {RUN,SETTINGS,SOS,BOXACT,BOXTRANS,BOXDISPMAN});		
+		//		addLog("",0);
+		//addLog("Welcome to Fijiyama ! Modify (if needed) the next action using the box-lists in the first panel, then click on \"Start this action\". ",0);
+		//addLog("First trial with Fijiyama ? Click on \"Contextual help\" to get started",0);
+		//addLog("",0);
+	}
+	
+	public void openSerieFromFjmFile() {
+		
+		checkComputerCapacity();
+		openImagesAndCheckOversizing();
 	}
 
+	public boolean createNewSerie() {
+		//Get input dir to collect images of serie
+		System.out.println("Starting new serie");
+		this.serieInputPath=(debugMode) ? "/home/fernandr/Bureau/Pouet/Input_dir" : VitiDialogs.chooseDirectoryUI("Select an input directory containing 3d images","Select input dir...");
+		if(this.serieInputPath==null){IJ.showMessage("Input path = null. Exit");return false;}
+		
+		//Get regular expression for image lookup
+		GenericDialog gd=new GenericDialog("Describe file names with a generic expression");
+		gd.addMessage("Write observation times. If no multiple times, leave blank. Example : 1-5 or 10;33;78 ");
+		gd.addStringField("Times=", "1-5", 40);
+		gd.addMessage("");
+		gd.addMessage("Write modalities. If no multiple modalities, leave blank. Example : RX;MRI;PHOTO ");
+		gd.addStringField("Modalities=", "RX;MRI", 40);
+		gd.addMessage("");
+		gd.addMessage("Write expression describing your files, with {ModalityName} for modalities and {Time} for times");
+		gd.addStringField("Generic expression", "img_{Time}_mod{ModalityName}.tif", 50);
+		gd.showDialog();
+		if(gd.wasCanceled()){IJ.showMessage("Dialog exited. Abort");return false;}
+		String strTimes=gd.getNextString();
+		String strMods=gd.getNextString();
+		this.expression=gd.getNextString();
+		try {
+			this.times=parseTimes(strTimes);
+			this.mods=(strMods.length()==0 ? new String[] {""} : strMods.split(";"));
+			this.nTimes=this.times.length;
+			this.nMods=this.mods.length;
+			setupStructures();			
+		}catch(Exception e) {IJ.showMessage("Exception when reading parameters. Abort");return false;}
+		int []numberPerTime=new int[this.nTimes];
+		int []numberPerMod=new int[this.nMods];
+		int nbTot=0;
+		for(int nt=0;nt<this.nTimes;nt++) {
+			for(int nm=0;nm<this.nMods;nm++) {
+				File f=new File(this.serieInputPath,expression.replace("{Time}", times[nt]).replace("{ModalityName}",mods[nm]));
+				System.out.print("Testing "+f.getAbsolutePath());
+				if(f.exists()) {
+					System.out.println(" ... Found !");
+					this.paths[nt][nm]=f.getAbsolutePath();
+					numberPerTime[nt]++;
+					numberPerMod[nm]++;
+					nbTot++;
+				}
+				else System.out.println(" ... not found.");
+			}
+		}
+		if(nbTot==0) {IJ.showMessage("No image found. Exit");return false;}
+		for(int nt=0;nt<this.nTimes;nt++)if(numberPerTime[nt]==0) {IJ.showMessage("No image found for time "+times[nt]+". Exit");return false;}
+		for(int nm=0;nm<this.nMods;nm++)if(numberPerMod[nm]==0) {IJ.showMessage("No image found for modality "+mods[nm]+". Exit");return false;}
+		int nbPotentialRef=0;
+		for(int nm=0;nm<this.nMods;nm++)if(numberPerMod[nm]==this.nTimes)nbPotentialRef++;
+		if(nbPotentialRef==0) {IJ.showMessage("No modality can be used as inter-time reference, because no modality is present at both observation times. Exit");return false;}
+		String[]potentialRef=new String[nbPotentialRef];
+		int[]potentialRefIndex=new int[nbPotentialRef];
+		int index=0;
+		for(int nm=this.nMods-1;nm>=0;nm--)if(numberPerMod[nm]==this.nTimes) {potentialRef[index]=mods[nm];potentialRefIndex[index++]=nm;}
 
+		//Select reference modality
+		GenericDialog gd2=new GenericDialog("Choose reference modality for registration");
+		gd2.addMessage("This modality will be the reference image for each time-point. Choose the easiest to compare with all the other ones.");
+		gd2.addMessage("The registration process is done with the dimensions of the reference image.\n--> If you choose a low resolution modality, registration can be unaccurate\n"+
+				"--> If you choose a high resolution modality, it will be subsampled to prevent memory overflow");
+		gd2.addMessage("");
+		gd2.addMessage("After reference modality, you will have to choose the reference time. The dirst one is the recommended choice");
+		gd2.addChoice("Reference modality", potentialRef, potentialRef[0]);
+		gd2.addChoice("Reference time", this.times, times[0]);
+		gd2.showDialog();
+		if(gd2.wasCanceled()){IJ.showMessage("Dialog exited. Abort");return false;}
+		int refInd=gd2.getNextChoiceIndex();
+		this.referenceModality=potentialRefIndex[refInd];
+		this.referenceTime=gd2.getNextChoiceIndex();
+		
+		
+		System.out.println("\nReference modality             : nb."+this.referenceModality+" = "+this.mods[this.referenceModality]);
+		System.out.println("Reference time                 : nb."+this.referenceTime+" = "+this.times[this.referenceTime]);
+		System.out.println("Serie input path               : "+this.serieInputPath);
+		System.out.println("Serie output path              : "+this.serieOutputPath);
+		System.out.println("Times                          : "+strTimes);
+		System.out.println("Modalities                     : "+strMods);
+		System.out.println("Expression                     : "+this.expression);
+		System.out.println("Nb images detected             : "+nbTot);
+		System.out.println("Nb registrations to compute    : "+(nbTot-1));
+		System.out.println("\nEverything fine, then. Keep clicking !");
+		if(nbTot>30) {
+			System.out.println("There is a lot of images there. Memory saving / Computation time tradeoff is set to memory saving first, for the sake of your RAM");
+			this.memorySavingMode=true;
+		}
+		
+		checkComputerCapacity();
+		openImagesAndCheckOversizing();
+		defineSerieRegistrationPipeline();
+		return true;
+	}
+
+	//The global pipeline is composed of steps to match :
+	//  - successive times together
+	//  - at each time point, modalities with the reference modalities
+	public void defineSerieRegistrationPipeline() {
+		this.registrationWindowMode=REGWINDOWSERIERUNNING;
+		startRegistrationInterface();
+		ArrayList<RegistrationAction>interTimes=new ArrayList<RegistrationAction> ();
+		ArrayList<ArrayList<RegistrationAction>>interMods=new ArrayList<ArrayList<RegistrationAction> >();
+		//Define inter-time pipeline, if needed
+		if(this.nTimes>1) {
+			this.regActions=new ArrayList<RegistrationAction>();
+			this.regActions.add(RegistrationAction.createRegistrationAction(
+					images[referenceTime][referenceModality],images[referenceTime][referenceModality], this,RegistrationAction.TYPEACTION_MAN));
+			this.regActions.add(RegistrationAction.createRegistrationAction(
+					images[referenceTime][referenceModality],images[referenceTime][referenceModality],this,RegistrationAction.TYPEACTION_AUTO));
+			this.updateFieldsDisplay();
+			IJ.showMessage("Define registration pipeline to align images of the reference modality between two successive times.\n"+
+			"Click on an action in the bottom list, and modify it using the menus. Click on remove to delete the selected action, \n"+
+			"and click on add action to insert a new registration action just before the cursor\n\nOnce done, click on Validate pipeline.");
+			waitForValidaton();
+			interTimes=this.regActions;
+		}
+		//Define inter-mods pipeline, if needed
+		if(this.nTimes>1) {
+			for(int curMod=0;curMod<this.nMods;curMod++) {
+				if(curMod == referenceModality) interMods.add(null);
+				else {
+					this.regActions=new ArrayList<RegistrationAction>();
+					this.regActions.add(RegistrationAction.createRegistrationAction(
+							images[referenceTime][referenceModality],images[referenceTime][referenceModality], this,RegistrationAction.TYPEACTION_MAN));
+					this.regActions.add(RegistrationAction.createRegistrationAction(
+							images[referenceTime][referenceModality],images[referenceTime][referenceModality],this,RegistrationAction.TYPEACTION_AUTO));
+					this.updateFieldsDisplay();
+					IJ.showMessage("Define registration pipeline to align "+this.mods[referenceModality]+" with "+this.mods[curMod]+" from the same timepoint.\n"+
+							"Click on an action in the bottom list, and modify it using the menus. Click on remove to delete the selected action, \n"+
+							"and click on add action to insert a new registration action just before the cursor\n\nOnce done, click on Validate pipeline.");
+					waitForValidaton();
+					interMods.add(this.regActions);
+				}
+			}
+		}
+		registrationFrame.setVisible(false);
+		registrationFrame.dispose();
+		
+		//Build sequence of steps
+		boolean sequenceRegistrationSaveHumanTime=VitiDialogs.getYesNoUI("Sequencing order tradeoff", "Do you want the sequence to be fit to save human time ? \n"+
+				"The \"No\" option means you prefer the sequence being stuck on the logical order of the serie,\n"+
+				" alternating automatic steps with manual steps where human presence is compulsory. ");
+		
+		//If pipeline is in logical order
+		if(!sequenceRegistrationSaveHumanTime) {
+			this.step=-1;
+			this.regActions=new ArrayList<RegistrationAction>();
+			System.out.println("Sequencing intertime registrations");
+			for(int tRef=0;tRef<this.nTimes-1;tRef++) {
+				refTime=tRef;refMod=referenceModality;
+				movTime=tRef+1;movMod=referenceModality;
+				for(int regSt=0;regSt<interTimes.size();regSt++) {
+					this.step++;
+					regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(regSt),refTime,refMod,movTime,movMod,step));
+				}
+				regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
+			}
+			System.out.println("Sequencing intermodal registrations");
+			for(int tRef=0;tRef<this.nTimes-1;tRef++) {
+				refTime=tRef;refMod=referenceModality;
+				movTime=tRef;
+				for(int mMov=0;mMov<this.nMods;mMov++) {
+					movMod=mMov;
+					if(refMod != movMod) {
+						for(int regSt=0;regSt<interMods.get(movMod).size();regSt++) {
+							this.step++;
+							regActions.add(RegistrationAction.copyWithModifiedElements(interMods.get(movMod).get(regSt),refTime,refMod,movTime,movMod,step));
+						}
+						this.step++;
+						regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
+					}
+				}
+			}
+		}
+		//If pipeline is in human-time saving mode
+		else {
+			this.step=-1;
+			this.regActions=new ArrayList<RegistrationAction>();
+			int[]typeSuccessives=new int[] {0,1};//MAn then AUTO
+			for(int type : typeSuccessives) {
+				System.out.println("Sequencing intertime registrations");
+				for(int tRef=0;tRef<this.nTimes-1;tRef++) {
+					refTime=tRef;refMod=referenceModality;
+					movTime=tRef+1;movMod=referenceModality;
+					for(int regSt=0;regSt<interTimes.size();regSt++) {
+						if(interTimes.get(regSt).typeAction==type) {
+							this.step++;
+							regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(regSt),refTime,refMod,movTime,movMod,step));
+						}
+					}
+					this.step++;
+					regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
+				}
+				System.out.println("Sequencing intermodal registrations");
+				for(int tRef=0;tRef<this.nTimes-1;tRef++) {
+					refTime=tRef;refMod=referenceModality;
+					movTime=tRef;
+					for(int mMov=0;mMov<this.nMods;mMov++) {
+						movMod=mMov;
+						if(refMod != movMod) {
+							for(int regSt=0;regSt<interMods.get(movMod).size();regSt++) {
+								if(interMods.get(movMod).get(regSt).typeAction==type) {
+									this.step++;
+									regActions.add(RegistrationAction.copyWithModifiedElements(interMods.get(movMod).get(regSt),refTime,refMod,movTime,movMod,step));
+								}
+							}
+							this.step++;
+							regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
+						}
+					}
+				}
+				this.step++;
+				regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
+			}
+		}
+		this.step++;
+		regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
+		this.step++;
+		regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_ALIGN));
+		this.step++;
+		regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_EXPORT));
+
+		this.step=0;
+	}
+
+	
+	public void waitForValidaton() {
+		while(!this.pipelineValidated)VitimageUtils.waitFor(500);
+		pipelineValidated=false;
+	}
+	
+	
+	/** Helpers for setup ----------------------------------------------------------------------------
+	* 
+	 */
+	@SuppressWarnings("unchecked")
 	public void setupStructures(){
 		this.images=new ImagePlus[this.nTimes][this.nMods];
-		this.transforms=new ItkTransform[this.nTimes][this.nMods];
-		this.previousTransforms=new ItkTransform[this.nTimes][this.nMods];
+		this.transforms=(ArrayList<ItkTransform>[][])new ArrayList[this.nTimes][this.nMods];
+		for(int nt=0;nt<this.nTimes;nt++)		for(int nm=0;nm<this.nMods;nm++)	this.transforms[nt][nm]=new ArrayList<ItkTransform>();
 		this.paths=new String[this.nTimes][this.nMods];
-		this.initDimensions=new int[this.nTimes][nMods][3];
+		this.initDimensions=new int[this.nTimes][nMods][5];
 		this.dimensions=new int[this.nTimes][this.nMods][3];
 		this.initVoxs=new double[this.nTimes][this.nMods][3];
-		this.imageSizes=new int[this.nTimes][this.nMods];
+		this.imageSizes=new double[this.nTimes][this.nMods];
 		this.imageRanges=new double[this.nTimes][this.nMods][2];
 		this.voxs=new double[this.nTimes][this.nMods][3];
 	}
-
 	
-	
-	/** Main listener
- * 
- */
-	@Override
-	public void actionPerformed(ActionEvent e) {
-		final ExecutorService exec = Executors.newFixedThreadPool(1);
-		exec.submit(new Runnable() {
-			public void run() 
-			{
-				if(e.getSource()==settingsButton) {
-					openSettingsDialog();					
-					updateEstimatedTime();
-				}
-				if(e.getSource()==settingsDefaultButton) {
-					defineRegistrationSettingsFromTwoImages(images[0][0],images[0][1]);	
-					updateFieldsDisplay();
-					updateEstimatedTime();
-				}
-
-				if(e.getSource()==boxTypeAction) {		
-					setState(new int[] {BOXOPT,BOXTIME,BOXDISP },boxTypeAction.getSelectedIndex()==1);
-					setState(new int[] {BOXDISPMAN },boxTypeAction.getSelectedIndex()!=1);
-					updateFieldsDisplay();
-					updateEstimatedTime();
-				}
-				
-				if(e.getSource()==boxOptimizer || e.getSource()==boxTiming || e.getSource()==boxTypeTrans || e.getSource()==boxDisplay) {
-					if(e.getSource()==boxTiming) {
-						expectedExecutionTime=listExpectedExecutionTimes[boxTiming.getSelectedIndex()];
-						System.out.println("Update expected time = "+expectedExecutionTime);
-					}
-					if(e.getSource()==boxOptimizer) {
-						setParameterOptimizerType(boxOptimizer.getSelectedIndex()==0 ? OptimizerType.BLOCKMATCHING : OptimizerType.ITK_AMOEBA);
-						System.out.println("Update optimizer = "+getParameterOptimizerType());
-						updateFieldsDisplay();
-					}
-					if(e.getSource()==boxTypeTrans) {
-						setParameterTransformType(transform3DList[boxTypeTrans.getSelectedIndex()]);
-						System.out.println("Update transform type = "+getParameterTransformType());
-					}
-					if(e.getSource()==boxDisplay) {
-						viewRegistrationLevel=boxDisplay.getSelectedIndex();
-						System.out.println("Update dynamic display level= "+viewRegistrationLevel);
-					}
-					updateEstimatedTime();
-				}
-
-				if(e.getSource()==runButton) {
-					disable(RUN);
-					if(flagDenseWasLast)flagDenseWasLast=false;//Adding a transform over a Dense one -> dense is not anymore removable by undo, thus the transform will be exported as a dense field
-					if(flagAxisWasLast)flagAxisWasLast=false;//Adding a transform over a Dense one -> dense is not anymore removable by undo, thus the transform will be exported as a dense field
-					//si automatique
-					else if(((String)(boxTypeAction.getSelectedItem())).equals(textActions[1])){	
-						boolean undoEn=undoButton.isEnabled();
-						disable(new int[] {RUN,SAVE,FINISH,SETTINGS,UNDO,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP});
-						if(boxOptimizer.getSelectedIndex()==0) {//BlockMatching
-							disable(RUN);
-							runButton.setText("Running Blockmatching...");
-							bmRegistration=new BlockMatchingRegistration(flagAxis ? transforms[0][0].transformImage(images[0][0],images[0][0],false) : images[0][0],images[0][1],getParameterTransformType(),MetricType.SQUARED_CORRELATION,
-									getParameterValue("Sigma resampling"),getParameterSigma(),getParameterValue("Higher accuracy")==1 ? -1 : getParameterValue("Level min"),getParameterValue("Level max"),getParameterValue("Iterations BM"),
-									images[0][0].getStackSize()/2,null  ,getParameterValue("BM Neigh X"),getParameterValue("BM Neigh Z"),
-									getParameterValue("BM BHS X"),getParameterValue("BM BHS Z"),	getParameterValue("BM Stride X"),getParameterValue("BM Stride Z"));
-							bmRegistration.refRange=imageRanges[0][0];
-							bmRegistration.movRange=imageRanges[0][1];
-							bmRegistration.flagRange=true;
-							bmRegistration.percentageBlocksSelectedByScore=getParameterValue("BM Select score");
-							bmRegistration.minBlockVariance=0.04;
-							bmRegistration.displayRegistration=viewRegistrationLevel;
-							bmRegistration.displayR2=false;
-							enable(ABORT);
-							ItkTransform trTemp=bmRegistration.runBlockMatching(new ItkTransform(transforms[0][1]));
-							disable(ABORT);
-							if(! actionAborted) {
-								setTransform(trTemp,0,1);
-								bmRegistration.closeLastImages();
-								bmRegistration.freeMemory();
-								addAction("Blockmatching "+getParameterTransformType()+" "+(getParameterTransformType()==Transform3DType.DENSE ? (getParameterSigma()+" ") : "") +
-										" -lev"+(getParameterValue("Higher accuracy")==1 ? -1 : getParameterValue("Level min"))+"|"+getParameterValue("Level max")+
-										" -Nei"+getParameterValue("BM Neigh X")+"|"+getParameterValue("BM Neigh Y")+"|"+getParameterValue("BM Neigh Z")+
-										" -BHS"+getParameterValue("BM BHS X")+"|"+getParameterValue("BM BHS Y")+"|"+getParameterValue("BM BHS Z")+
-										" -Str"+getParameterValue("BM Stride X")+"|"+getParameterValue("BM Stride Y")+"|"+getParameterValue("BM Stride Z")+
-										" -Scr "+getParameterValue("BM Select score")+" -Lts "+getParameterValue("BM Select LTS"));
-								if(getParameterTransformType()==Transform3DType.DENSE) {
-									if(! flagDense) {flagDense=true;flagDenseWasLast=true;}
-								}
-							}
-							else actionAborted=false;
-							if(undoEn)enable(UNDO);//TODO : abort marche pas avec 2D
-						}
-						else {//Itk iconic
-							runButton.setText("Running Itk registration...");
-							itkManager=new ItkRegistrationManager();
-							itkManager.refRange=imageRanges[0][0];
-							itkManager.movRange=imageRanges[0][1];
-							itkManager.flagRange=true;
-							itkManager.displayRegistration=viewRegistrationLevel;
-							enable(ABORT);
-							System.out.println("STARTING  ITK");
-							ItkTransform trTemp=itkManager.runScenarioFromGui(new ItkTransform(transforms[0][1]),
-									flagAxis ? transforms[0][0].transformImage(images[0][0]  ,    images[0][0],false) : images[0][0],
-											images[0][1], getParameterTransformType(), getParameterValue("Level min"),getParameterValue("Level max"),getParameterValue("Iterations ITK"),getParameterItkLearningRate());
-							disable(ABORT);
-						
-							if(! actionAborted) {
-								setTransform(trTemp,0,1);
-								addAction("Itk iconic "+getParameterTransformType()+" "+(getParameterTransformType()==Transform3DType.DENSE ? (getParameterSigma()+" ") : "") +
-										" -lev"+getParameterValue("Level min")+"|"+getParameterValue("Level max")+
-										" -parameters to define");
-								if(getParameterTransformType()==Transform3DType.DENSE) {
-									if(! flagDense) {flagDense=true;flagDenseWasLast=true;}
-								}
-							}
-							else actionAborted=false;
-						}
-						runButton.setText("Start this action");
-						updateViewTwoImages();
-						enable(new int[] {RUN,SAVE,FINISH,SETTINGS,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP});
-						if(undoEn)enable(UNDO);
-					}
-					
-					//si manuel
-					if(((String)(boxTypeAction.getSelectedItem())).equals(textActions[0])){						
-						disable(RUN);
-
-						//Parameters verification
-						if(boxTypeTrans.getSelectedIndex()>0 && kindOfViewer==VIEWER_3D) {
-							IJ.showMessage("Warning : transform is not set to Rigid. But the 3d viewer can only compute Rigid transform."+
-								"If you just intend to compute a rigid transform (no deformation / dilation), please select RIGID in the transformation list. Otherwise, select the 2d viewer in "+
-								"the settings to compute a similarity from landmarks points, or select automatic block matching registration to compute a dense vector field");
-							enable(RUN);
-							return;
-						}
-						if(boxTypeTrans.getSelectedIndex()>1 && kindOfViewer==VIEWER_2D) {
-							IJ.showMessage("Warning : transform is set to Vector field. But the 3d viewer can only compute Rigid and Similarity transform."+
-								"Please select automatic block matching registration to compute a dense vector field");
-							enable(RUN);
-							return;
-						}
-
-						//Starting manual registration
-						if(runButton.getText().equals("Start this action")) {
-							disable(new int[] {BOXACT,RUN});
-							runButton.setText("Position ok");
-							
-							ImagePlus imgMovCurrentState=transforms[0][1].transformImage(images[0][0],images[0][1],false);
-							imgMovCurrentState.setDisplayRange(imageRanges[0][0][0],imageRanges[0][0][1]);
-							if(kindOfViewer==VIEWER_3D) {
-								run3dInterface(flagAxis ? transforms[0][0].transformImage(images[0][0],images[0][0],false) : images[0][0],imgMovCurrentState);
-								setRunToolTip(MANUAL3D);
-							}
-							else {
-								run2dInterface(flagAxis ? transforms[0][0].transformImage(images[0][0],images[0][0],false) : images[0][0],imgMovCurrentState);
-								setRunToolTip(MANUAL2D);								
-							}
-							enable(new int[] {ABORT,RUN});
-						}
-						else {
-							//Window verifications
-							if( ( (kindOfViewer==VIEWER_3D) && (universe==null)) || 
-							( (kindOfViewer==VIEWER_2D) && ( ( RoiManager.getInstance()==null) || (WindowManager.getImage("Image 1")==null) || (WindowManager.getImage("Image 2")==null) ) ) ) {
-								//Wild aborting procedure
-								boolean undoEn=(undoButton.isEnabled());
-								disable(new int[] {RUN,ABORT});
-								if((WindowManager.getImage("Image 1")!=null)) WindowManager.getImage("Image 1").close();
-								if((WindowManager.getImage("Image 2")!=null)) WindowManager.getImage("Image 2").close();
-								if(RoiManager.getInstance()!=null)RoiManager.getInstance().close();
-								runButton.setText("Start this action");
-								setRunToolTip(MAIN);
-								enable(new int[] {FINISH,SAVE,SETTINGS,BOXACT,RUN});
-								if(undoEn)enable(UNDO);
-								return;
-							}
-							if((kindOfViewer==VIEWER_2D) && (RoiManager.getInstance().getCount()<10 ) ) {IJ.showMessage("Please identify at least 10 points (5 correspondance couples)");enable(RUN);return;}
-							disable(new int[] {ABORT,RUN});
-							
-							//Closing manual registration
-							ItkTransform tr=null;
-							if(kindOfViewer==VIEWER_3D) 	tr=close3dInterface();
-							else						 	tr=close2dInterface();
-							addTransform(tr,0,1);
-					    	addAction("Manual registration" +(kindOfViewer==VIEWER_2D ? " in 2d interface" : "in 3d interface"));
-							updateViewTwoImages();
-							runButton.setText("Start this action");
-							setRunToolTip(MAIN);
-							enable(new int[] {UNDO,BOXACT,FINISH,SAVE,RUN});
-						}
-					}
-					
-				
-					
-					else {//si axis alignment
-						if((boxTypeAction.getSelectedIndex()==2)){						
-							disable(RUN);
-							
-							if(runButton.getText().equals("Start this action")) {
-
-								//Parameters verification
-								if(boxTypeTrans.getSelectedIndex()>0 && kindOfViewer==VIEWER_3D) {
-									IJ.showMessage("Warning : transform is not set to Rigid. But the 3d viewer can only compute Rigid transform."+
-										"If you just intend to compute a rigid transform (no deformation / dilation), please select RIGID in the transformation list. Otherwise, select the 2d viewer in "+
-										"the settings to compute a similarity from landmarks points, or select automatic block matching registration to compute a dense vector field");
-									enable(RUN);
-									return;
-								}
-								if(boxTypeTrans.getSelectedIndex()>1 && kindOfViewer==VIEWER_2D) {
-									IJ.showMessage("Warning : transform is set to Vector field. But the 3d viewer can only compute Rigid and Similarity transform."+
-										"Please select automatic block matching registration to compute a dense vector field");
-									enable(RUN);
-									return;
-								}
-
-								//Running axis alignment
-								disable(new int[] {BOXACT,FINISH,SAVE,SETTINGS,UNDO});
-								runButton.setText("Axis ok");
-								if(kindOfViewer==VIEWER_3D) {
-									run3dInterface((!flagAxis) ? images[0][0] : transforms[0][0].transformImage(images[0][0],images[0][0],false),null);
-									setRunToolTip(MANUAL3D);
-								}
-								else {
-									run2dInterface((!flagAxis) ? images[0][0] : transforms[0][0].transformImage(images[0][0],images[0][0],false),null);
-									setRunToolTip(MANUAL2D);
-								}
-								enable(new int[] {ABORT,RUN});
-							}
-							else {
-								//Plugin state verification
-								if( ( (kindOfViewer==VIEWER_3D) && (universe==null)) || 
-										( (kindOfViewer==VIEWER_2D) && ( ( RoiManager.getInstance()==null) || (WindowManager.getImage("Image 1")==null) || (WindowManager.getImage("Image 2")==null) ) ) ) {
-									System.out.println("Wild aborting");
-									//Wild aborting procedure
-									boolean undoEn=(undoButton.isEnabled());
-									disable(new int[] {RUN,ABORT});
-									if((WindowManager.getImage("Image 1")!=null)) {WindowManager.getImage("Image 1").changes=false;WindowManager.getImage("Image 1").close();}
-									if((WindowManager.getImage("Image 2")!=null)) {WindowManager.getImage("Image 2").changes=false;WindowManager.getImage("Image 2").close();}
-									if(RoiManager.getInstance()!=null)RoiManager.getInstance().close();
-									runButton.setText("Start this action");
-									setRunToolTip(MAIN);
-									enable(new int[] {FINISH,SAVE,SETTINGS,BOXACT,RUN});
-									if(undoEn)enable(UNDO);
-									return;
-								}
-								if((kindOfViewer==VIEWER_2D) && (RoiManager.getInstance().getCount()<10 ) ) {IJ.showMessage("Please identify at least 10 points (5 correspondance couples)");enable(RUN);return;}
-
-								//Closing axis alignement
-								disable(new int[] {RUN,ABORT});
-								ItkTransform tr=null;
-								if(kindOfViewer==VIEWER_3D) 	tr=close3dInterface();
-								else						 	tr=close2dInterface();
-								addTransformToAllTimesAndMods(tr);
-								if(! flagAxis) {flagAxis=true;flagAxisWasLast=true;}
-								addAction("Axis alignment of reference");
-								updateViewTwoImages();
-								runButton.setText("Start this action");
-								setRunToolTip(MAIN);
-								enable(new int[] {UNDO,FINISH,SAVE,SETTINGS,BOXACT,RUN});
-							}
-						}
-					}
-				}
-				
-				if(e.getSource()==undoButton && step>0) {
-					disable(new int[] {RUN,SAVE,FINISH});
-					System.out.println("Start an undo action");
-					if(flagDenseWasLast) {flagDenseWasLast=false;flagDense=false;}
-					if(flagAxisWasLast) {flagAxisWasLast=false;flagAxis=false;}
-					applyUndoToTransforms();
-					removeAction();
-					updateViewTwoImages();
-					enable(new int[] {RUN,SAVE,FINISH,BOXACT});
-					disable(UNDO);
-				}
-				
-				if(e.getSource()==sos1Button) {
-					runSos();
-				}
-				
-				if(e.getSource()==finishButton  ||  e.getSource()==saveButton) {
-					disable(new int[] {RUN,FINISH,SAVE,UNDO});
-					if(e.getSource()==finishButton)runExport();
-					else runSave();
-					enable(new int[] {FINISH,SAVE,RUN});
-					if(step>0)enable(UNDO);
-				}
-				
-				if(e.getSource()==abortButton) {
-					boolean undoEn=(undoButton.isEnabled());
-					disable(new int[] {RUN,SAVE,FINISH,UNDO, SETTINGS,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP});
-					actionAborted=true;
-					System.out.println("Entering aborting procedure");
-					if(runButton.getText().equals("Position ok")){
-						disable(new int[] {RUN,ABORT});
-						close3dInterface();
-						runButton.setText("Start this action");
-						setRunToolTip(MAIN);
-						enable(new int[] {FINISH,SAVE,SETTINGS,BOXACT,RUN});
-						if(undoEn)enable(UNDO);
-					}
-					else if(runButton.getText().equals("Axis ok")){
-						disable(new int[] {RUN,ABORT});
-						close3dInterface();
-						runButton.setText("Start this action");
-						setRunToolTip(MAIN);
-						enable(new int[] {FINISH,SAVE,SETTINGS,BOXACT,RUN});
-						if(undoEn)enable(UNDO);
-					}
-					else if(runButton.getText().equals("Running Blockmatching...")){
-						System.out.println("aborting bockmatching");
-						int nThreads=bmRegistration.threads.length;
-						while(!bmRegistration.bmIsInterruptedSucceeded) {
-							VitimageUtils.waitFor(100);
-							bmRegistration.bmIsInterrupted=true;
-							for(int th=0;th<nThreads;th++)bmRegistration.threads[th].interrupt();
-						}
-					}
-					else if(runButton.getText().equals("Running Itk registration...")){
-						System.out.println("aborting itk registration");
-						int trial=0;
-						while(itkManager.registrationThread!=null && itkManager.registrationThread.isAlive() && trial<100) {
-							trial++;
-							System.out.println("Trying !");
-							VitimageUtils.waitFor(100);	
-							itkManager.itkRegistrationInterrupted=true;
-							itkManager.registrationThread.stop();
-						}
-					}
-					runButton.setText("Start this action");
-				}				
-			}
-		});
-		System.gc();
-	}
-
-	
-	
-	/** Export-Save routines and sos
-	*
-	*/
-	public void runExport() {
-		//Ask for target dimensions
-		ImagePlus refResult = null,movResult=null;
-		GenericDialog gd=new GenericDialog("Choose target dimensions...");
-		gd.addMessage("Initial dimensions : ");
-		gd.addMessage("..Reference image : "+this.initDimensions[0][0][0]+" x "+this.initDimensions[0][0][1]+" x "+this.initDimensions[0][0][2]+
-				" avec des voxels "+this.initVoxs[0][0][0]+" x "+this.initVoxs[0][0][1]+" x "+this.initVoxs[0][0][2]);
-		gd.addMessage("..Moving image : "+this.initDimensions[0][1][0]+" x "+this.initDimensions[0][1][1]+" x "+this.initDimensions[0][1][2]+
-				" avec des voxels "+this.initVoxs[0][1][0]+" x "+this.initVoxs[0][1][1]+" x "+this.initVoxs[0][1][2]);
-		gd.addMessage("\nYou can choose the target dimensions to export both images,\nand the transform that resample the moving image onto the reference image");
-		gd.addMessage("If you feel lost after this explanation, consider using dimensions of the reference image.\n.\n.");
-		gd.addMessage("After this operation, you can combine reference and moving images with the Color / merge channels tool of ImageJ)");
-		gd.addChoice("Choose target dimensions", new String[] {"Dimensions of reference image","Dimensions of moving image","Provide custom dimensions"}, "Dimensions of reference image");
-		gd.showDialog();
-		int choice=gd.getNextChoiceIndex();
-		if(choice==0) {
-			refResult=this.transforms[0][0].transformImage(this.images[0][0], this.images[0][0], false);
-			movResult=this.transforms[0][1].transformImage(this.images[0][0], this.images[0][1], false);
-		}
-		if(choice==1) {
-			refResult=this.transforms[0][0].transformImage(this.images[0][1], this.images[0][0], false);
-			movResult=this.transforms[0][1].transformImage(this.images[0][1], this.images[0][1], false);
-		}
-
-		if(choice==2) {
-			GenericDialog gd2=new GenericDialog("Provide custom dimensions (and voxel sizes)");
-			gd2.addNumericField("Dimension along X",1, 0);
-			gd2.addNumericField("Dimension along Y",1, 0);
-			gd2.addNumericField("Dimension along Z",1, 0);
-			gd2.addNumericField("Voxel size along X",1, 6);
-			gd2.addNumericField("Voxel size along Y",1, 6);
-			gd2.addNumericField("Voxel size along Z",1, 6);					
-			gd.showDialog();
-	        if (gd.wasCanceled()) return;	        
-	        int[]outputDimensions=new int[] {(int)Math.round(gd.getNextNumber()),(int)Math.round(gd.getNextNumber()),(int)Math.round(gd.getNextNumber())};
-	        double[]outputVoxs=new double[] {gd.getNextNumber(),gd.getNextNumber(),gd.getNextNumber()};
-			refResult=this.transforms[0][0].transformImage(outputDimensions, outputVoxs,this.images[0][0], false);
-			movResult=this.transforms[0][1].transformImage(outputDimensions, outputVoxs,this.images[0][1], false);
-		}
-		VitiDialogs.saveImageUI(refResult, "Save reference image", false, "", "image_ref_transformed.tif");
-		VitiDialogs.saveImageUI(movResult, "Save moving image", false, "", "image_mov_transformed.tif");
-		if(this.flagAxis)VitiDialogs.saveMatrixTransformUI(this.transforms[0][0].simplify(), "Save transform applied to reference image (for axis alignement)", false, "", "transform_ref.txt");
-		if(this.flagDense)VitiDialogs.saveDenseFieldTransformUI(this.transforms[0][1].flattenDenseField(refResult),  "Save transform applied to moving image", false, "", "transform_mov.txt", refResult);	
-		System.out.println("Exportation finished.");
-	}
-	
-	public void startFromSavedStateTwoImages(String pathToFile) {
-		this.mode=MODE_TWO_IMAGES;
-		String []names;
-		if(pathToFile==null) {
-			names=VitiDialogs.openFileUI("Select a file to load a plugin state","save","fjm");
-			if(names==null) {
-				IJ.showMessage("No file selected. Save cannot be done");
-				return;
-			}
-		}
-		else {
-			names=new String[] {new File(pathToFile).getParent(),new File(pathToFile).getName()};
-		}
-		this.nTimes=1;
-		this.nMods=2;
-		setupStructures();
-		checkComputerCapacity();
-		
-		String nameDir=names[0];
-		String nameWithNoExt=names[1].substring(0,names[1].lastIndexOf('.'));
-		File dirData=new File(nameDir,nameWithNoExt+"_DATA_FJM");
-		String nameDataDir=dirData.getAbsolutePath();
-		String filePath=new File(nameDir,names[1]).getAbsolutePath();
-
-		//Read informations in filePath
-		String str=VitimageUtils.readStringFromFile(filePath);
-		String[]lines=str.split("\n");
-		this.mode=Integer.parseInt(lines[1].split("=")[1]);
-		nameDataDir=(lines[2].split("=")[1]);
-		this.paths[0][0]=(lines[3].split("=")[1]);
-		this.paths[0][1]=(lines[4].split("=")[1]);
-		this.flagAxis=Integer.parseInt(lines[5].split("=")[1])==1;
-		this.flagDense=Integer.parseInt(lines[6].split("=")[1])==1;
-		int tempStep=Integer.parseInt(lines[7].split("=")[1]);
-		for(int st=0;st<tempStep;st++) {
-			addAction(lines[8].split("=")[1].split("~")[st].split(": ")[1]);
-		}
-		
-		//Read data from directory
-		if(this.flagAxis) 			this.transforms[0][0]=ItkTransform.readTransformFromFile(new File(nameDataDir,"transfo_ref.txt").getAbsolutePath());
-		if(this.flagDense)			this.transforms[0][1]=ItkTransform.readAsDenseField(new File(nameDataDir,"transfo_mov.tif").getAbsolutePath());
-		else this.transforms[0][1]=ItkTransform.readTransformFromFile(new File(nameDataDir,"transfo_mov.txt").getAbsolutePath());
-		System.out.println("Reading done from file = "+filePath);
-		openImagesAndCheckOversizing();
-		startRegistrationInterface();
-		updateViewTwoImages();
-		defineRegistrationSettingsFromTwoImages(this.images[0][0],this.images[0][1]);
-		enable(new int[] {RUN,SETTINGS,SOS,BOXACT,BOXTRANS,BOXDISPMAN});		
-		
-	}
-	
-	public void runSave() {
-		if(mode==MODE_TWO_IMAGES)runSaveTwoImages();
-		else runSaveNmImages();
-	}
-
-	public void runSaveNmImages() {
-		
-	}
-	
-	public void runSaveTwoImages() {
-		String []names=VitiDialogs.openFileUI("Select a file to save the plugin state","save",".fjm");
-		if(names==null) {
-			IJ.showMessage("No file selected. Save cannot be done");
-			return;
-		}
-		System.out.println("Opened : path = "+names[0]+"  file="+names[1]);
-		String nameDir=names[0];
-		String nameFile=names[1];
-		System.out.println("Test split :");
-		System.out.println("Est null ? "+(names[1]==null));
-		System.out.println("Last index="+names[1].lastIndexOf('.'));
-		String nameWithNoExt=names[1].substring(0,names[1].lastIndexOf('.'));
-		File dirData=new File(nameDir,nameWithNoExt+"_DATA_FJM");
-		String nameDataDir=dirData.getAbsolutePath();
-		String filePath=new File(nameDir,names[1]).getAbsolutePath();
-
-		//Write informations in filePath
-		System.out.println("DEBUG 16");
-		String str="#Fijiyama save###\n"+
-				"#Mode="+MODE_TWO_IMAGES+"\n"+
-				"#Saving path="+nameDataDir+"\n"+
-				"#Path to reference image="+this.paths[0][0]+"\n"+
-				"#Path to moving image="+this.paths[0][1]+"\n"+
-				"#Flag axis="+(this.flagAxis ? 1 : 0)+"\n"+
-				"#Flag dense="+(this.flagDense ? 1 : 0)+"\n"+
-				"#Step="+step+"\n"+
-				"#Previous actions=";
-		for(int st=0;st<step;st++)str+=this.listActions.getModel().getElementAt(st)+"~";
-		str+="\n#\n";
-		VitimageUtils.writeStringInFile(str, filePath);
-		System.out.println("DEBUG 17");
-		
-		//Save data in a directory
-		dirData.mkdirs();
-		VitimageUtils.writeStringInFile(str, new File(nameDataDir,nameFile).getAbsolutePath());
-		String tempPath;
-		System.out.println("DEBUG 18");
-		if(flagAxis) {
-			tempPath=new File(nameDataDir,"transfo_ref.txt").getAbsolutePath();
-			this.transforms[0][0]=this.transforms[0][0].simplify();
-			this.transforms[0][0].writeMatrixTransformToFile(tempPath);
-		}
-		if(flagDense){
-			tempPath=new File(nameDataDir,"transfo_mov.tif").getAbsolutePath();
-			this.transforms[0][1]=this.transforms[0][1].flattenDenseField(this.images[0][0]);
-			this.transforms[0][1].writeAsDenseField(tempPath,this.images[0][0]);
-		}
-		else {
-			tempPath=new File(nameDataDir,"transfo_mov.txt").getAbsolutePath();
-			this.transforms[0][1]=this.transforms[0][1].simplify();
-			this.transforms[0][1].writeMatrixTransformToFile(tempPath);
-		}
-		System.out.println("DEBUG 19");
-
-		System.out.println("Saving done. File = "+filePath);
-	}
-
-	
-	
-	/** Updating routines for structures, view and buttons
-	 * 
-	 */
-	public void addAction(String text) {
-		this.textPreviousActions[step]="Step "+step+" : "+text;
-		this.updateList();
-		step++;
-		this.listActions.setSelectedIndex(step);
-	}
-	
-	public void removeAction() {
-		this.textPreviousActions[step-1]="-";
-		this.updateList();
-		step--;
-		this.listActions.setSelectedIndex(step);
-	}
-	
-	public void updateList() {
-		DefaultListModel<String> listModel = new DefaultListModel<String>();
-        for(int i=0;i<textPreviousActions.length;i++)listModel.addElement(textPreviousActions[i]);
-		this.listActions.setModel(listModel);
-	}
-			
-	public void updateEstimatedTime() {
-		if((this.boxTypeAction.getSelectedIndex()==0) && this.boxDisplayMan.getSelectedIndex()==0)this.estimatedTime=300;//manual registration with landmarks
-		if((this.boxTypeAction.getSelectedIndex()==0) && this.boxDisplayMan.getSelectedIndex()==1)this.estimatedTime=120;//manual registration in 3d
-		if((this.boxTypeAction.getSelectedIndex()==2) && this.boxDisplayMan.getSelectedIndex()==0)this.estimatedTime=200;//axis alignment with landmarks
-		if((this.boxTypeAction.getSelectedIndex()==2) && this.boxDisplayMan.getSelectedIndex()==1)this.estimatedTime=120;//axis alignment in 3d
-		else {
-			if(this.boxOptimizer.getSelectedIndex()==0)this.estimatedTime=(int)Math.round(BlockMatchingRegistration.estimateRegistrationDuration(
-					this.imageParameters,viewRegistrationLevel,this.expectedExecutionTime,getParameterValue("Level min"),getParameterValue("Level max"),getParameterValue("Iterations BM"),getParameterTransformType(),
-					new int[] {getParameterValue("BM BHS X"),getParameterValue("BM BHS Y"),getParameterValue("BM BHS Z")},
-					new int[] {getParameterValue("BM Stride X"),getParameterValue("BM Stride Y"),getParameterValue("BM Stride Z")},
-					new int[] {getParameterValue("BM Neigh X"),getParameterValue("BM Neigh Y"),getParameterValue("BM Neigh Z")},
-					this.nbCpu,getParameterValue("BM Select score"),getParameterValue("BM Select LTS"),getParameterValue("BM Select Rand"),getParameterValue("BM Subsample Z")==1,getParameterValue("Higher accuracy")
-					));
-		
-			
-			else this.estimatedTime=ItkRegistrationManager.estimateRegistrationDuration(
-					this.imageParameters,viewRegistrationLevel,this.expectedExecutionTime,getParameterValue("Iterations ITK"), getParameterValue("Level min"),getParameterValue("Level max"));
-		}
-		int nbMin=this.estimatedTime/60;
-		int nbSec=this.estimatedTime%60;
-		this.labelTime2.setText(""+nbMin+" mn and "+nbSec+" s");
-		System.out.println("Actualisation : estimatedTime="+this.estimatedTime+" et expectedTime="+this.expectedExecutionTime);
-		if(this.estimatedTime>this.expectedExecutionTime)this.labelTime2.setForeground(new Color(200,20,20));
-		else this.labelTime2.setForeground(new Color(10,200,10));
-		if(this.boxTypeAction.getSelectedIndex()!=1)this.labelTime2.setForeground(new Color(150,150,150));
-	}
-
-	public void updateViewTwoImages() {
-		ImagePlus imgMovCurrentState,imgRefCurrentState;
-		if(this.transforms[0][1]==null)imgMovCurrentState=this.images[0][1];
-		else imgMovCurrentState= this.transforms[0][1].transformImage(this.images[0][0],this.images[0][1],false);
-		imgMovCurrentState.setDisplayRange(this.imageRanges[0][0][0], this.imageRanges[0][0][1]);
-		
-		if(this.transforms[0][0]==null)imgRefCurrentState=this.images[0][0];
-		else imgRefCurrentState= this.transforms[0][0].transformImage(this.images[0][0],this.images[0][0],false);		
-		imgRefCurrentState.setDisplayRange(this.imageRanges[0][0][0], this.imageRanges[0][0][1]);
-
-		imgView=VitimageUtils.compositeNoAdjustOf(imgRefCurrentState,imgMovCurrentState,step==0 ? "Superimposition before registration" : "Registration results after "+step+" steps");
-		this.viewSlice=this.images[0][0].getStackSize()/2;
-		imgView.show();imgView.setSlice(this.viewSlice);imgView.updateAndRepaintWindow();
-		adjustFrameOnScreenRelative(imgView.getWindow(),registrationFrame,0,0);
-	}
-
-	public void updateFieldsDisplay() {
-		System.out.println("Updating fields");
-		int valDisp=boxDisplay.getSelectedIndex();		
-		int valTrans=boxTypeTrans.getSelectedIndex();		
-		DefaultComboBoxModel<String> listModelDisp = new DefaultComboBoxModel<String>();
-		DefaultComboBoxModel<String> listModelTrans = new DefaultComboBoxModel<String>();
-		if(boxTypeAction.getSelectedIndex()==1 && boxOptimizer.getSelectedIndex()==0) {
-	        for(int i=0;i<textDisplayBM.length;i++)listModelDisp.addElement(textDisplayBM[i]);
-	        for(int i=0;i<textTransformsBM.length;i++)listModelTrans.addElement(textTransformsBM[i]);
-			this.boxDisplay.setModel(listModelDisp);
-			this.boxDisplay.setSelectedIndex(valDisp);
-			this.boxTypeTrans.setModel(listModelTrans);
-			this.boxTypeTrans.setSelectedIndex(valTrans);
-		}
-		else {
-			for(int i=0;i<textDisplayITK.length;i++)listModelDisp.addElement(textDisplayITK[i]);
-	        for(int i=0;i<textTransformsITK.length;i++)listModelTrans.addElement(textTransformsITK[i]);
-			this.boxDisplay.setModel(listModelDisp);
-			this.boxDisplay.setSelectedIndex(valDisp>=textDisplayITK.length ? textDisplayITK.length-1 : valDisp);
-			this.boxTypeTrans.setModel(listModelTrans);
-			this.boxTypeTrans.setSelectedIndex(valTrans>=textTransformsITK.length ? textTransformsITK.length : valTrans);
-		}
-		this.boxDisplay.repaint();
-		this.viewRegistrationLevel=this.boxDisplay.getSelectedIndex();
-	}
-
-	public void addTransform(ItkTransform tr,int nt,int nm) {
-		for(int nnt=0;nnt<this.nTimes;nnt++)for(int nnm=0;nnm<this.nMods;nnm++) if(imageExists(nnt,nnm)) {
-			if((nnt==nt) && (nnm==nm)) {
-				this.previousTransforms[nt][nm]=new ItkTransform(this.transforms[nt][nm]);
-				this.transforms[nt][nm].addTransform(tr);
-			}
-			else {
-				this.previousTransforms[nt][nm]=this.transforms[nt][nm];
-			}
-		}
-	}
-
-	public void addTransformToAllTimesAndMods(ItkTransform tr) {
-		for(int nnt=0;nnt<this.nTimes;nnt++)for(int nnm=0;nnm<this.nMods;nnm++)if(imageExists(nnt,nnm)) {
-			this.previousTransforms[nnt][nnm]=new ItkTransform(this.transforms[nnt][nnm]);
-			this.transforms[nnt][nnm].addTransform(tr);
-		}
-	}
-	
-	public void setTransform(ItkTransform tr,int nt,int nm) {
-		for(int nnt=0;nnt<this.nTimes;nnt++)for(int nnm=0;nnm<this.nMods;nnm++)if(imageExists(nnt,nnm)) { 
-			if((nnt==nt) && (nnm==nm)) {
-				this.previousTransforms[nt][nm]=new ItkTransform(this.transforms[nt][nm]);
-				this.transforms[nt][nm]=new ItkTransform(tr);
-			}
-			else this.previousTransforms[nt][nm]=this.transforms[nt][nm];
-		}		
-	}
-	
-	public void applyUndoToTransforms() {
-		for(int nt=0;nt<this.nTimes;nt++)for(int nm=0;nm<this.nMods;nm++)  if(imageExists(nt,nm)){
-			System.out.println("removing transform to this one "+nt+" "+nm);
-			System.out.println("Transform previous before= "+this.previousTransforms[nt][nm].drawableString());
-			System.out.println("Transform current before= "+this.transforms[nt][nm].drawableString());
-			this.transforms[nt][nm]=new ItkTransform(this.previousTransforms[nt][nm]);
-			this.previousTransforms[nt][nm]=new ItkTransform() ;
-			System.out.println("Transform previous after= "+this.previousTransforms[nt][nm].drawableString());
-			System.out.println("Transform current after= "+this.transforms[nt][nm].drawableString());
-		}
-	}
-	
-	public void enable(int but) {
-		setState(new int[] {but},true);
-	}
-	public void disable(int but) {
-		setState(new int[] {but},false);
-	}
-
-	public void enable(int[]tabBut) {
-		setState(tabBut,true);
-	}
-	public void disable(int[]tabBut) {
-		setState(tabBut,false);
-	}
-			
-	public void setState(int[]tabBut,boolean state) {
-		for(int but:tabBut) {
-			switch(but) {
-			case BOXACT:this.boxTypeAction.setEnabled(state);break;
-			case BOXOPT:this.boxOptimizer.setEnabled(state);break;
-			case BOXTRANS:this.boxTypeTrans.setEnabled(state);break;
-			case BOXTIME:this.boxTiming.setEnabled(state);break;
-			case BOXDISP:this.boxDisplay.setEnabled(state);break;
-			case BOXDISPMAN:this.boxDisplayMan.setEnabled(state);break;
-			case SETTINGS:this.settingsButton.setEnabled(state);this.settingsDefaultButton.setEnabled(state);break;
-			case RUN:this.runButton.setEnabled(state);break;
-			case UNDO:this.undoButton.setEnabled(state);break;
-			case ABORT:this.abortButton.setEnabled(state);abortButton.setBackground(state ? new Color(255,0,0) : colorIdle);break;
-			case SAVE:this.saveButton.setEnabled(state);break;
-			case FINISH:this.finishButton.setEnabled(state);break;
-			case SOS:this.sos1Button.setEnabled(state);break;
-			}	
-		}	
-	}
-	
-	public void setRunToolTip(int context){
-		if(context==MAIN) {
-			runButton.setToolTipText("<html><p width=\"500\">" +"Start means starting the action defined by the current configuration, and the current settings."+
-			"During the execution, the action can be interrupted using the Abort button. After the execution, the action can be undone using the Undo button"+"</p></html>");
-		}
-		if(context==MANUAL2D) {
-			runButton.setToolTipText("<html><p width=\"500\">" +"Click here to validate the landmarks, compute the corresponding transform, and get the transform applied to images"+"</p></html>");
-		}
-		if(context==MANUAL3D) {
-			runButton.setToolTipText("<html><p width=\"500\">" +"Click here to validate the actual relative position of objects, and get the transform applied to images"+"</p></html>");
-		}
-	}	
-	
-	                                     
-	
-	
-	/** Routines describing manual registration. If called with a null imgMov, set orthoslices axis instead in order to run registration of ref with XYZ axis
-	 */
-	@SuppressWarnings("deprecation")
-	public void run3dInterface(ImagePlus imgRef,ImagePlus imgMov) {
-		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
-		IJ.run(refCopy,"8-bit","");
-		this.universe=new ij3d.Image3DUniverse();
-		universe.show();
-		System.out.println("En effet, step="+step);
-
-		if(imgMov!=null) {
-			ImagePlus movCopy=VitimageUtils.imageCopy(imgMov);		
-			movCopy.resetDisplayRange();
-			IJ.run(movCopy,"8-bit","");
-			universe.addContent(refCopy, new Color3f(Color.red),"refCopy",50,new boolean[] {true,true,true},1,0 );
-			universe.addContent(movCopy, new Color3f(Color.green),"movCopy",50,new boolean[] {true,true,true},1,0 );
-		}
-		else {
-			ImagePlus movCopy=VitimageUtils.getBinaryGrid(refCopy,17);
-			universe.addContent(refCopy, new Color3f(Color.red),"movCopy",50,new boolean[] {true,true,true},1,0 );
-			universe.addOrthoslice(movCopy, new Color3f(Color.white),"refCopy",50,new boolean[] {true,true,true},1);
-		}
-		ij3d.ImageJ3DViewer.select("refCopy");
-		ij3d.ImageJ3DViewer.lock();
-		ij3d.ImageJ3DViewer.select("movCopy");
-		IJ.showMessage("Move the green volume to match the red one\nWhen done, push the \""+runButton.getText()+"\" button to stop\n\nCommands : \n"+
-				"mouse-drag the green object to turn the object\nmouse-drag the background to turn the scene\nCTRL-drag to translate the green object");
-		adjustFrameOnScreenRelative((Frame)((JPanel)(this.universe.getCanvas().getParent())).getParent().getParent().getParent(),this.imgView.getWindow(),0,1);
-	}
-	
-	public ItkTransform close3dInterface(){
-		Transform3D tr=new Transform3D();
-		double[]tab=new double[16];
-		universe.getContent("movCopy").getLocalRotate().getTransform(tr);		tr.get(tab);
-		ItkTransform itRot=ItkTransform.array16ElementsToItkTransform(tab);
-		universe.getContent("movCopy").getLocalTranslate().getTransform(tr);		tr.get(tab);
-		ItkTransform itTrans=ItkTransform.array16ElementsToItkTransform(tab);
-		itTrans.addTransform(itRot);
-		itTrans=itTrans.simplify();
-		ItkTransform ret=new ItkTransform(itTrans.getInverse());
-		universe.removeAllContents();
-		universe.close();
-    	universe=null;    
-    	return ret;		
-	}
-
-	
-	public void run2dInterface(ImagePlus imgRef,ImagePlus imgMov) {
-		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
-		ImagePlus movCopy=null;
-		IJ.run(refCopy,"8-bit","");
-		refCopy.show();
-		refCopy.setTitle("Image 1");
-		if(imgMov!=null) {
-			movCopy=VitimageUtils.imageCopy(imgMov);		
-			movCopy.resetDisplayRange();
-			IJ.run(movCopy,"8-bit","");
-			movCopy.show();
-			movCopy.setTitle("Image 2");
-		}
-		else {
-			movCopy=VitimageUtils.getBinaryGrid(refCopy,17);
-			movCopy.show();
-			movCopy.setTitle("Image 2");
-		}
-
-		IJ.showMessage("Examine images, identify correspondances between images and use the Roi manager to build a list of correspondances points. Points should be given this way : \n- Point A  in image 1\n- Correspondant of point A  in image 2\n- Point B  in image 1\n- Correspondant of point B  in image 2\netc...\n"+
-		"Once done (at least 5-15 couples of corresponding points), push the \""+runButton.getText()+"\" button to stop\n\n");
-		RoiManager rm=RoiManager.getRoiManager();
-		rm.reset();
-		IJ.setTool("point");
-		adjustImageOnScreen(movCopy, 0,0);
-		adjustFrameOnScreenRelative((Frame)rm,refCopy.getWindow(),0,0);
-		adjustFrameOnScreenRelative(refCopy.getWindow(),(Frame)rm,0,0);
-		
-	}
-	
-	public ItkTransform close2dInterface(){
-		RoiManager rm=RoiManager.getRoiManager();
-		Point3d[][]pointTab=convertLandmarksToRealSpacePoints(WindowManager.getImage("Image 1"),WindowManager.getImage("Image 2"));
-		WindowManager.getImage("Image 1").changes=false;
-		WindowManager.getImage("Image 2").changes=false;
-		WindowManager.getImage("Image 1").close();
-		WindowManager.getImage("Image 2").close();
-		ItkTransform trans=null;
-		if(this.boxTypeAction.getSelectedIndex()==0) {
-			if(this.boxTypeTrans.getSelectedIndex()==0)trans=ItkTransform.estimateBestRigid3D(pointTab[1],pointTab[0]);
-			if(this.boxTypeTrans.getSelectedIndex()==1)trans=ItkTransform.estimateBestSimilarity3D(pointTab[1],pointTab[0]);
-		}
-		if(this.boxTypeAction.getSelectedIndex()==2) {
-			if(this.boxTypeTrans.getSelectedIndex()==0)trans=ItkTransform.estimateBestRigid3D(pointTab[0],pointTab[1]);
-			if(this.boxTypeTrans.getSelectedIndex()==1)trans=ItkTransform.estimateBestSimilarity3D(pointTab[0],pointTab[1]);
-		}
-		rm.close();
-    	return trans;		
-	}
-	
-//	TODO : debug window
-	//TODO : already read messages
-
-	public Point3d[][] convertLandmarksToRealSpacePoints(ImagePlus imgRef,ImagePlus imgMov){
-		RoiManager rm=RoiManager.getRoiManager();
-		int nbCouples=rm.getCount()/2;
-		Point3d[]pRef=new Point3d[nbCouples];
-		Point3d[]pMov=new Point3d[nbCouples];
-		IJ.setTool("point");
-		for(int indP=0;indP<rm.getCount()/2;indP++){
-			pRef[indP]=new Point3d(rm.getRoi(indP*2 ).getXBase() , rm.getRoi(indP * 2).getYBase() ,  rm.getRoi(indP * 2).getZPosition());
-			pMov[indP]=new Point3d(rm.getRoi(indP*2 +1 ).getXBase() , rm.getRoi(indP * 2 +1 ).getYBase() ,  rm.getRoi(indP * 2 +1 ).getZPosition());
-			pRef[indP]=TransformUtils.convertPointToRealSpace(pRef[indP],imgRef);
-			pMov[indP]=TransformUtils.convertPointToRealSpace(pMov[indP],imgMov);
-		}
-		return new Point3d[][] {pRef,pMov};
-	}
-
-	//TODO : uniformiser interface, evolutif en fonction des options
-	//TODO : faire evoluer l aide contextuelle pour expliquer un peu tout
-	//TODO : abort marche pas avec landmarks
-	//TODO : landmarks 2d estime transfo en fonction du choix actuel
-	//TODO : grid plus claire, avec un centre
-	
-	/** Gui setup
-	 */
-	public void startRegistrationInterface() {
-		//Panel 1 , with main settings
-		JPanel registrationPanel1=new JPanel();
-		registrationPanel1.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));		
-		registrationPanel1.setLayout(new GridLayout(10,2,15,10));
-		registrationPanel1.add(labelNextAction);
-		registrationPanel1.add(boxTypeAction);		
-		registrationPanel1.add(labelTransformation);
-		registrationPanel1.add(boxTypeTrans);		
-		registrationPanel1.add(labelView);
-		registrationPanel1.add(boxDisplay);
-		registrationPanel1.add(labelOptimizer);
-		registrationPanel1.add(boxOptimizer);
-		registrationPanel1.add(labelViewMan);
-		registrationPanel1.add(boxDisplayMan);
-		registrationPanel1.add(new JLabel(""));
-		registrationPanel1.add(new JLabel(""));
-		registrationPanel1.add(labelTime1);
-		registrationPanel1.add(labelTime2);		
-		registrationPanel1.add(new JLabel(""));
-		registrationPanel1.add(new JLabel(""));
-		registrationPanel1.add(settingsButton);
-		registrationPanel1.add(settingsDefaultButton);
-		boxTypeAction.addActionListener(this);
-		boxOptimizer.addActionListener(this);
-		boxTypeTrans.addActionListener(this);
-		boxTiming.addActionListener(this);
-		boxDisplay.addActionListener(this);		
-		settingsButton.addActionListener(this);
-		settingsDefaultButton.addActionListener(this);
-		disable(new int[] {BOXOPT,BOXACT,BOXTIME,BOXTRANS,BOXDISP,BOXDISPMAN,SETTINGS});
-		this.boxDisplay.setSelectedIndex(this.viewRegistrationLevel);
-		settingsButton.setToolTipText("<html><p width=\"500\">" +"Advanced settings let you manage more parameters of the automatic registration algorithms"+"</p></html>");
-		settingsDefaultButton.setToolTipText("<html><p width=\"500\">" +"Restore settings compute and set default parameters suited to your images"+"</p></html>");
-
-		
-		//Panel 2 , with run/undo buttons
-		JPanel registrationPanel2=new JPanel();
-		registrationPanel2.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
-		registrationPanel2.setLayout(new GridLayout(1,3,40,40));
-		registrationPanel2.add(runButton);
-		registrationPanel2.add(abortButton);
-		registrationPanel2.add(undoButton);
-		runButton.addActionListener(this);
-		setRunToolTip(MAIN);
-		
-		abortButton.addActionListener(this);
-		abortButton.setEnabled(false);
-		this.colorIdle=abortButton.getBackground();
-		abortButton.setToolTipText("<html><p width=\"500\">" +"Abort means killing a running operation and come back to the state before you clicked on Start this action."+
-				"Automatic registration is harder to kill. Please insist on this button until its colour fades to gray"+"</p></html>");
-
-		undoButton.addActionListener(this);
-		undoButton.setToolTipText("<html><p width=\"500\">" +"Undo works as you would expect : it delete the previous action, and recover the previous state of transforms and images. Fijiyama handles only one undo : two successive actions can't be undone"+"</p></html>");
-		disable(new int[] {RUN,ABORT,UNDO});
-		
-		//Panel 3 , with export and sos
-		JPanel registrationPanel3=new JPanel();
-		registrationPanel3.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
-		registrationPanel3.setLayout(new GridLayout(1,3,40,40));
-		registrationPanel3.add(finishButton);
-		registrationPanel3.add(saveButton);
-		registrationPanel3.add(sos1Button);
-		finishButton.addActionListener(this);
-		saveButton.addActionListener(this);
-		sos1Button.addActionListener(this);
-		finishButton.setToolTipText("<html><p width=\"500\">" +"Export aligned images and computed transforms"+"</p></html>");
-		saveButton.setToolTipText("<html><p width=\"500\">" +"Save the current state of the plugin in a .fjm file, including the transforms and image paths. This .ijm file can be used later to restart from this point"+"</p></html>");
-		sos1Button.setToolTipText("<html><p width=\"500\">" +"Opens a contextual help"+"</p></html>");
-		disable(new int[] {SAVE,FINISH});
-		
-		//Panel 4 , with list of previous moves
-		JPanel registrationPanel4=new JPanel();
-		registrationPanel4.setBorder(BorderFactory.createEmptyBorder(25,25,0,25));
-		registrationPanel4.setLayout(new GridLayout(1,1,10,10));
-		registrationPanel4.add(labelList);
-		JPanel registrationPanel5=new JPanel();
-		registrationPanel5.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
-		registrationPanel5.setLayout(new GridLayout(1,1,10,10));
-		registrationPanel5.add(listActions);
-		listActions.setSelectedIndex(0);
-		
-
-		//Main frame and main panel
-		registrationFrame=new JFrame();
-		JPanel registrationPanelGlobal=new JPanel();
-		registrationPanelGlobal.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-		registrationPanelGlobal.setLayout(new BoxLayout(registrationPanelGlobal, BoxLayout.Y_AXIS));
-		registrationPanelGlobal.add(registrationPanel1);
-		registrationPanelGlobal.add(new JSeparator());
-		registrationPanelGlobal.add(registrationPanel2);
-//		registrationPanelGlobal.add(new JSeparator());
-		registrationPanelGlobal.add(registrationPanel3);
-		registrationPanelGlobal.add(new JSeparator());
-		registrationPanelGlobal.add(registrationPanel4);
-		registrationPanelGlobal.add(registrationPanel5);
-		registrationFrame.add(registrationPanelGlobal);
-		registrationFrame.setTitle("Registration manager : two images registration");
-		registrationFrame.pack();
-		registrationFrame.setVisible(true);
-		registrationFrame.repaint();
-		adjustFrameOnScreen(registrationFrame,2,0);
-	}
-	
-	
-	
-	
-	
-	/** Helpers to ease the setup : computer measurements, handling of oversized images, automatic definition of parameters values depending on the ref image
-	* 
-	 */
 	public void checkComputerCapacity() {
 		int nbCpu=Runtime.getRuntime().availableProcessors();
 		System.out.println("Nb cores for multithreading = "+nbCpu);
@@ -1200,31 +627,30 @@ public class RegistrationManager extends PlugInFrame implements ActionListener,K
 	}
 
 	public void openImagesAndCheckOversizing() {
-		System.out.println("Verif 1 reading : "+this.transforms[0][1].drawableString());
 		ImagePlus img;
 		boolean thereIsBigImages=false;
 		int factor=1;
 		for(int nt=0;nt<this.nTimes;nt++) {
 			for(int nm=0;nm<this.nMods;nm++) {
 				if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
-					if(this.transforms[nt][nm]==null)this.transforms[nt][nm]=new ItkTransform();//If it is not the case, it is a startup from a file
+					if(this.transforms[nt][nm]==null)this.transforms[nt][nm]=new ArrayList<ItkTransform>();//If it is not the case, it is a startup from a file
 					ImagePlus imgTemp=IJ.openImage(this.paths[nt][nm]);
-					initDimensions[nt][nm]=VitimageUtils.getDimensions(imgTemp);
+					initDimensions[nt][nm]=VitimageUtils.getDimensionsXYZCT(imgTemp);
 					dimensions[nt][nm]=VitimageUtils.getDimensions(imgTemp);
 					initVoxs[nt][nm]=VitimageUtils.getVoxelSizes(imgTemp);
 					voxs[nt][nm]=VitimageUtils.getVoxelSizes(imgTemp);
-					imageSizes[nt][nm]=(int)Math.round((1.0*initDimensions[nt][nm][0]*initDimensions[nt][nm][1]*initDimensions[nt][nm][2])/(1024.0*1024.0));
+					imageSizes[nt][nm]=((1.0*initDimensions[nt][nm][0]*initDimensions[nt][nm][1]*initDimensions[nt][nm][2])/(1024.0*1024.0));
 					if(imageSizes[nt][nm]>this.maxImageSizeForRegistration)thereIsBigImages=true;
 				}
 			}
 		}
-		System.out.println("Verif 2 reading : "+this.transforms[0][1].drawableString());
 		if(!thereIsBigImages) {
 			for(int nt=0;nt<this.nTimes;nt++) {
 				for(int nm=0;nm<this.nMods;nm++) {
 					if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 						System.out.println("Processing image t"+nt+" mod"+nm+" , size="+imageSizes[nt][nm]+" . No resizing");
 						img=IJ.openImage(this.paths[nt][nm]);
+						if(this.initDimensions[nt][nm][3]*this.initDimensions[nt][nm][4]>1)img=VitimageUtils.stacksFromHyperstackFastBis(img)[0];
 						ImageProcessor ip=img.getStack().getProcessor(img.getStackSize()/2+1);
 						ip.resetMinAndMax();
 						this.imageRanges[nt][nm][0]=ip.getMin();
@@ -1235,7 +661,6 @@ public class RegistrationManager extends PlugInFrame implements ActionListener,K
 					}
 				}
 			}
-			System.out.println("Verif 99-1 reading : "+this.transforms[0][1].drawableString());
 		}
 		else{
 			String recap="There is oversized images, which can lead to very slow computation, or memory overflow.\n"+
@@ -1294,14 +719,14 @@ public class RegistrationManager extends PlugInFrame implements ActionListener,K
 									int factorPow3=(int)(Math.ceil(Math.pow(imageSizes[nt][nm]/this.maxImageSizeForRegistration, 1.0/3)));
 									int factorPow2=(int)(Math.ceil(Math.pow(imageSizes[nt][nm]/this.maxImageSizeForRegistration, 1.0/2)));
 									if((factorPow2/anisotropy)<3){factor=factorPow2;this.dimensions[nt][nm][0]/=factor;this.dimensions[nt][nm][1]/=factor;this.voxs[nt][nm][0]*=factor;this.voxs[nt][nm][1]*=factor;}
-									else {factor=factorPow3;this.dimensions[nt][nm][0]/=factor;this.dimensions[nt][nm][1]/=factor;this.dimensions[nt][nm][2]/=factor;this.voxs[nt][nm][0]*=factor;this.voxs[nt][nm][1]*=factor;this.voxs[nt][nm][2]*=factor;}
-								
+									else {factor=factorPow3;this.dimensions[nt][nm][0]/=factor;this.dimensions[nt][nm][1]/=factor;this.dimensions[nt][nm][2]/=factor;this.voxs[nt][nm][0]*=factor;this.voxs[nt][nm][1]*=factor;this.voxs[nt][nm][2]*=factor;
+									}					
 								}
 								System.out.println("Processing image t"+nt+" mod"+nm+" , size="+imageSizes[nt][nm]+" . Resizing.");
 								System.out.println(" -> Initial image : "+TransformUtils.stringVector(this.initDimensions[nt][nm], "dims")+TransformUtils.stringVector(this.initVoxs[nt][nm], "voxs"));
 								System.out.println(" -> Sampled image : "+TransformUtils.stringVector(this.dimensions[nt][nm], "dims")+TransformUtils.stringVector(this.voxs[nt][nm], "voxs")+ "final size="+((this.dimensions[nt][nm][0]*this.dimensions[nt][nm][1]*this.dimensions[nt][nm][2]/(1024.0*1024.0)))+" Mvoxs" );
 								System.out.println();
-								img=IJ.openImage(this.paths[nt][nm]);
+								img=IJ.openImage(this.paths[nt][nm]);if(this.initDimensions[nt][nm][3]*this.initDimensions[nt][nm][4]>1)img=VitimageUtils.stacksFromHyperstackFastBis(img)[0];
 								ImageProcessor ip=img.getStack().getProcessor(img.getStackSize()/2+1);
 								ip.resetMinAndMax();
 								this.imageRanges[nt][nm][0]=ip.getMin();
@@ -1314,373 +739,1029 @@ public class RegistrationManager extends PlugInFrame implements ActionListener,K
 					}
 				}
 			}
-			System.out.println("Verif 99-2 reading : "+this.transforms[0][1].drawableString());
-
 		}
 		img=null;
 		for(int nt=0;nt<this.nTimes;nt++)for(int nm=0;nm<this.nMods;nm++) if(imageExists(nt,nm)) {
-			if(this.transforms[nt][nm]==null) {transforms[nt][nm]=new ItkTransform();}
-			previousTransforms[nt][nm]=new ItkTransform();
+			if(this.transforms[nt][nm]==null) {transforms[nt][nm]=new ArrayList<ItkTransform>();}
 		}
 		System.gc();
 	}
 	
-	public void defineRegistrationSettingsFromTwoImages(ImagePlus imgRef,ImagePlus imgMov) {
-		int nbStrideAtMinLevel=100;
-		double minSubResolutionImageSizeLog2=6.0;//In power of two : min resolution=64;
-		double maxSubResolutionImageSizeLog2=8.0;//In power of two : max resolution=512;
-		int strideMinZ=3;
-
-		int[]dimsTemp=VitimageUtils.getDimensions(imgRef);
-		double[]voxsTemp=VitimageUtils.getVoxelSizes(imgRef);
-		double[]sizesTemp=new double[] {dimsTemp[0]*voxsTemp[0],dimsTemp[1]*voxsTemp[1],dimsTemp[2]*voxsTemp[2]};				
-		this.setParameterSigma(sizesTemp[0]/20);//Default : gaussian kernel for dense field estimation is 20 times smaller than image
-		double anisotropyVox=voxsTemp[2]/Math.max(voxsTemp[1],voxsTemp[0]);
-		int levelMin=0;
-		int levelMax=0;
-		boolean subZ=false;
-		setParameterValue("Iterations BM",6);
-		setParameterValue("Iterations ITK",100);
-		setParameterValue("BM Neigh X",3);
-		setParameterValue("BM Neigh Y",3);
-		setParameterValue("BM Neigh Z",3);
-		if((dimsTemp[2]>=5) && (anisotropyVox<1.5)) {//Cas 3D pur
-			subZ=true;
-			int []dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-minSubResolutionImageSizeLog2),
-						              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-minSubResolutionImageSizeLog2),
-					              	  (int)Math.floor(Math.log(dimsTemp[2])/Math.log(2)-minSubResolutionImageSizeLog2)};
-			levelMax=Math.min(Math.min(dimsLog2[0], dimsLog2[1]), dimsLog2[2]);
-			dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-maxSubResolutionImageSizeLog2),
-		              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-maxSubResolutionImageSizeLog2),
-	              	  (int)Math.floor(Math.log(dimsTemp[2])/Math.log(2)-maxSubResolutionImageSizeLog2)};
-			levelMin=Math.max(Math.max(dimsLog2[0], dimsLog2[1]), dimsLog2[2]);	
-			if(levelMin>levelMax)levelMin=levelMax;
-			setParameterValue("BM Subsample Z",1);
-			setParameterValue("Level min",levelMin);
-			setParameterValue("Level max",levelMax);
-			setParameterValue("Higher accuracy",levelMin<1 ? 1 : 0);
-		}
-		else {	
-			//Si dims[2]<5, cas 2D --> pas de subsampleZ, levelMin et max defini sur dims 0 et 1, neighZ=0 BHSZ=0 strideZ=1;
-			//Sinon si anisotropyVox>1.5 -> pas de subsampleZ levelMin et max defini sur dims 0 et 1, neighZ=3 BHSZ=prop strideZ=prop;
-			int []dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-minSubResolutionImageSizeLog2),
-		              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-minSubResolutionImageSizeLog2) };
-			System.out.println(TransformUtils.stringVectorN(dimsLog2, "dimsLog2"));
-			levelMax=Math.min(dimsLog2[0], dimsLog2[1]);
-			dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-maxSubResolutionImageSizeLog2),
-			    (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-maxSubResolutionImageSizeLog2)};
-			levelMin=Math.max(dimsLog2[0], dimsLog2[1]);	
-			System.out.println(TransformUtils.stringVectorN(dimsLog2, "dimsLog2"));
-			if(levelMin>levelMax)levelMin=levelMax;
-			setParameterValue("BM Subsample Z",0);
-			setParameterValue("Level min",levelMin);
-			setParameterValue("Level max",levelMax);
-			setParameterValue("Higher accuracy",levelMin<1 ? 1 : 0);
-		}
-		int subFactorMin=(int)Math.round(Math.pow(2, -1+Math.max(1,levelMin)));
-		int subFactorMax=(int)Math.round(Math.pow(2, -1+Math.max(1,levelMax)));
-		int []targetDimsLevelMin=new int[] {dimsTemp[0]/subFactorMin,dimsTemp[1]/subFactorMin,dimsTemp[2]/(subZ ? subFactorMin : 1)};
-		int []targetDimsLevelMax=new int[] {dimsTemp[0]/subFactorMax,dimsTemp[1]/subFactorMax,dimsTemp[2]/(subZ ? subFactorMin : 1)};
-		System.out.println("Targets dims at level Min : "+TransformUtils.stringVectorN(targetDimsLevelMin,""));
-		System.out.println("Targets dims at level Max : "+TransformUtils.stringVectorN(targetDimsLevelMax,""));
-
-		int[]strides=new int[] { (int) Math.round(Math.max(1,Math.ceil(targetDimsLevelMin[0]/nbStrideAtMinLevel))),
-								 (int) Math.round(Math.max(1,Math.ceil(targetDimsLevelMin[1]/nbStrideAtMinLevel))),
-								 (int) Math.round(Math.max(strideMinZ,Math.ceil(targetDimsLevelMin[2]/nbStrideAtMinLevel))) };
-		setParameterValue("BM Stride X",strides[0]);
-		setParameterValue("BM Stride Y",strides[1]);
-		setParameterValue("BM Stride Z",strides[2]);
-		setParameterValue("BM BHS X",(int) Math.round(Math.max(strides[0],3)));
-		setParameterValue("BM BHS Y",(int) Math.round(Math.max(strides[1],3)));
-		setParameterValue("BM BHS Z",(int) Math.round(Math.max(strides[2],3)));
-		if(dimsTemp[2]<5) {//cas 2D
-			setParameterValue("BM Neigh Z",0);
-			setParameterValue("BM BHS Z",0);
-			setParameterValue("BM Stride Z",1);
-		}
-		this.maxAcceptableLevel=levelMax;
-	}
-	
-	public void displayRegistrationparametersValues(String context) {
-		System.out.println("Displaying parameters values "+context);
-		for(int i=0;i<registrationParametersValues.length;i++)System.out.println(" - "+registrationParametersValues[i][0]+"="+registrationParametersValues[i][1]);
-		System.out.println();
-	}
-	
-
-	
-	
-	
-	/** Helper functions
-	 * 
-	 */
 	public boolean imageExists(int nt,int nm) {
 		return this.paths[nt][nm]!=null;
 	}
 	
-	public static void adjustImageOnScreen(ImagePlus img,int xPosition,int yPosition) {
-		adjustFrameOnScreen(img.getWindow(), xPosition, yPosition);
-	}
-
-	public static void adjustFrameOnScreen(Frame frame,int xPosition,int yPosition) {
-		int border=50;//taskbar, or things like this
-        java.awt.Dimension currentScreen = Toolkit.getDefaultToolkit().getScreenSize();
-        int screenX=(int)Math.round(currentScreen.width);
-        int screenY=(int)Math.round(currentScreen.height);
-        if(screenX>1920)screenX/=2;        
-        java.awt.Dimension currentFrame=frame.getSize();
-        int frameX=(int)Math.round(currentFrame.width);
-        int frameY=(int)Math.round(currentFrame.height);
- 
-        int x=0;int y=0;
-        if(xPosition==0)x=border;
-        if(xPosition==1)x=(screenX-frameX)/2;
-        if(xPosition==2)x=screenX-border-frameX;
-        if(yPosition==0)y=border;
-        if(yPosition==1)y=(screenY-frameY)/2;
-        if(yPosition==2)y=screenY-border-frameY;
-        frame.setLocation(x, y);
-    }
-
-	
-	
-	public static void adjustImageOnScreenRelative(ImagePlus img1,ImagePlus img2Reference,int xPosition,int yPosition) {
-		adjustFrameOnScreenRelative(img1.getWindow(),img2Reference.getWindow(), xPosition, yPosition);
-	}
-
-	public static void adjustFrameOnScreenRelative(Frame frameToAdjust,Frame frameReference,int xPosition,int yPosition) {
-        System.out.println("Adjusting image with frame");
-        java.awt.Dimension currentScreen = Toolkit.getDefaultToolkit().getScreenSize();
-        int screenX=(int)Math.round(currentScreen.width);
-        int screenY=(int)Math.round(currentScreen.height);
-        if(screenX>1920)screenX/=2;        
-
-		int border=50;//taskbar, or things like this
-		int x=0;int y=0;
-        if(xPosition==0)x=frameReference.getLocationOnScreen().x-frameToAdjust.getSize().width-border;
-        if(xPosition==2)x=frameReference.getLocationOnScreen().x+frameReference.getSize().width+border;
-        if(yPosition==0)y=border;
-        if(yPosition==1)y=(screenY-frameToAdjust.getSize().height)/2;
-        if(yPosition==2)y=screenY-border-frameToAdjust.getSize().height;
-        frameToAdjust.setLocation(x, y);
-    }
-
-	
-	
-	/** Setters/ getters for registration parameters
-	 *  
-	 */
-	public int getParameterValue(String name) {
-		for(int i=0;i<registrationParametersValues.length;i++)if(name.equals(registrationParametersValues[i][0]))return (int)registrationParametersValues[i][1];
-		return 0;
-	}
-	public void setParameterValue(String name,int a) {
-		for(int i=0;i<registrationParametersValues.length;i++)if(name.equals(registrationParametersValues[i][0]))registrationParametersValues[i][1]=a;
-	}
-
-	public double getParameterSigma() {
-		for(int i=0;i<registrationParametersValues.length;i++)if(registrationParametersValues[i][0].equals("Sigma dense"))return (double)registrationParametersValues[i][1];
-		return 0;		
-	}
-	public void setParameterSigma(double sigma) {
-		for(int i=0;i<registrationParametersValues.length;i++)if(registrationParametersValues[i][0].equals("Sigma dense"))registrationParametersValues[i][1]=sigma;
-	}
-
-	public Transform3DType getParameterTransformType() {
-		for(int i=0;i<registrationParametersValues.length;i++)if(registrationParametersValues[i][0].equals("Type transform"))return (Transform3DType)registrationParametersValues[i][1];
-		return null;		
-	}
-	public void setParameterTransformType(Transform3DType transform) {
-		for(int i=0;i<registrationParametersValues.length;i++)if(registrationParametersValues[i][0].equals("Type transform"))registrationParametersValues[i][1]=transform;
-	}
-
-	public OptimizerType getParameterOptimizerType() {
-		for(int i=0;i<registrationParametersValues.length;i++)if(registrationParametersValues[i][0].equals("Type optimizer"))return (OptimizerType)registrationParametersValues[i][1];
-		return null;		
-	}
-	public void setParameterOptimizerType(OptimizerType opt) {
-		for(int i=0;i<registrationParametersValues.length;i++)if(registrationParametersValues[i][0].equals("Type optimizer"))registrationParametersValues[i][1]=opt;
-	}
-	
-	public OptimizerType getParameterItkOptimizerType(){
-		for(int i=0;i<registrationParametersValues.length;i++)if(registrationParametersValues[i][0].equals("ITK optimizer"))return (OptimizerType)registrationParametersValues[i][1];
-		return null;
-	}
-	public void setParameterItkOptimizerType(OptimizerType opt) {
-		for(int i=0;i<registrationParametersValues.length;i++)if(registrationParametersValues[i][0].equals("ITK optimizer"))registrationParametersValues[i][1]=opt;
-	}
-
-	public double getParameterItkLearningRate() {
-		for(int i=0;i<registrationParametersValues.length;i++)if(registrationParametersValues[i][0].equals("ITK Learning rate"))return (double)registrationParametersValues[i][1];
-		return 0;		
-	}
-	public void setParameterItkLearningRate(double learningRate) {
-		for(int i=0;i<registrationParametersValues.length;i++)if(registrationParametersValues[i][0].equals("ITK Learning rate"))registrationParametersValues[i][1]=learningRate;
-	}
-	
-	/** Launching interface, at the very start
-	 * 
-	 */
-	public void startLaunchingInterface() {
-		sos0Button=new JButton("Sos");
-		runTwoImagesButton=new JButton("Register two images");
-		runMultiModalButton=new JButton("Register multiple modalities");
-		runMultiTimeButton=new JButton("Register multiple time");
-		runMultiModalMultiTimeButton=new JButton("Register multiple modal multiple times");
-
-		buttonPanel=new JPanel();
-		buttonPanel.setLayout(new GridLayout(5,1,20,20));
-		buttonPanel.add(sos0Button);
-		buttonPanel.add(runTwoImagesButton);
-		buttonPanel.add(runMultiModalButton);
-		buttonPanel.add(runMultiTimeButton);
-		buttonPanel.add(runMultiModalMultiTimeButton);
-		add(buttonPanel);
-		pack();
-		actualizeLaunchingInterface(true);
-		System.out.println("Launching interface done");
-
-	}
-	
-	public void actualizeLaunchingInterface(boolean expectedState) {
-		if(expectedState) {
-			sos0Button.addMouseListener(this);
-			runTwoImagesButton.addMouseListener(this);
-			runMultiModalButton.addMouseListener(this);
-			runMultiTimeButton.addMouseListener(this);
-			runMultiModalMultiTimeButton.addMouseListener(this);
+	public static String[]parseTimes(String str){
+		if(str.length()==0)return (new String[] {""});
+		if(str.contains("-")){
+			int min=Integer.parseInt(str.split("-")[0]);
+			int max=Integer.parseInt(str.split("-")[1]);
+			String []times=new String[max-min+1];
+			for(int m=min;m<=max;m++)times[m-min]=""+m+"";
+			return times;
 		}
-		else {
-			sos0Button.removeMouseListener(this);
-			runTwoImagesButton.removeMouseListener(this);
-			runMultiModalButton.removeMouseListener(this);
-			runMultiTimeButton.removeMouseListener(this);
-			runMultiModalMultiTimeButton.removeMouseListener(this);			
-		}
-		setVisible(true);
-		repaint();		
+		return str.split(";");
 	}
+		
 
+	
+	
+	
+	
+	
+	/** Action listener ----------------------------------------------------------------------------------------
+ * 
+ */
 	@Override
-	public void mouseClicked(MouseEvent e) {
+	public void actionPerformed(ActionEvent e) {
+		if((e.getSource()==this.sos0Button || e.getSource()==this.runTwoImagesButton || e.getSource()==this.runSerieButton || e.getSource()==this.transformButton || e.getSource()==this.composeTransformsButton)
+				&& this.registrationFrame!=null && this.registrationFrame.isVisible()) {
+			IJ.showMessage("A Registration manager is running, with the corresponding interface open. Please close this interface before any other operation.");
+			return;
+		}
+				
 		if(e.getSource()==this.sos0Button)displaySosMessage(SOS_CONTEXT_LAUNCH);
 		else if(e.getSource()==this.runTwoImagesButton) {
+			this.registrationWindowMode=REGWINDOWTWOIMG;
+			startRegistrationInterface();
 			String path1=VitiDialogs.chooseOneRoiPathUI("Select your reference image", "Select your reference image");
-			String path2=VitiDialogs.chooseOneRoiPathUI("Select your reference image", "Select your reference image");
-			this.setupTwoImagesRegistration(path1, path2);
-			actualizeLaunchingInterface(false);
+			String path2=VitiDialogs.chooseOneRoiPathUI("Select your moving image", "Select your moving image");
+			this.startTwoImagesRegistration(path1, path2);
 		}
+		else if(e.getSource()==this.runSerieButton) {
+			this.registrationWindowMode=REGWINDOWSERIEPROGRAMMING;
+			startRegistrationInterface();
+			startSerie();
+		}
+		else if(e.getSource()==this.transformButton) {
+			this.registrationWindowMode=REGWINDOWSERIEPROGRAMMING;
+			runTransformImage();
+		}
+		else if(e.getSource()==this.composeTransformsButton) {
+			runComposeTransforms();
+		}
+		final ExecutorService exec = Executors.newFixedThreadPool(1);
+		exec.submit(new Runnable() {
+			public void run() 
+			{
+				System.out.println("\n\n\nNEW ACTION. Step="+step);
+				if(registrationWindowMode>100000) {
+					runSos();
+				}
+				
+				/* Run button is the bigger part : it is the starter/stopper for the main functions*/
+				if(e.getSource()==runButton) {
+					if( (transforms[referenceTime][referenceModality].size() > 0) &&  (boxTypeAction.getSelectedIndex()!=2 ) ) {	
+						IJ.showMessage("Registration steps cannot be added after an axis alignement step. Use UNDO to return before axis alignement");
+						return;
+					}
+					disable(RUN);
+					
+					//Automatic registration
+					if(((String)(boxTypeAction.getSelectedItem())).equals(textActions[1])){	
+						disable(new int[] {SAVE,FINISH,SETTINGS,UNDO,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP});
+						
+						//Automatic blockMatching registration
+						if(boxOptimizer.getSelectedIndex()==0) {
+							runButton.setText("Running Blockmatching...");
+							bmRegistration=new BlockMatchingRegistration(images[refTime][refMod],images[movTime][movMod],currentRegAction.typeTrans,MetricType.SQUARED_CORRELATION,
+									currentRegAction.sigmaResampling,currentRegAction.sigmaDense , currentRegAction.higherAcc==1 ? -1 : currentRegAction.levelMin,currentRegAction.levelMax,currentRegAction.iterationsBM,
+									images[refTime][refMod].getStackSize()/2,null  ,currentRegAction.neighX,currentRegAction.neighZ,
+									currentRegAction.bhsX,currentRegAction.bhsZ,currentRegAction.strideX,currentRegAction.strideZ);
+							bmRegistration.refRange=imageRanges[refTime][refMod];
+							bmRegistration.movRange=imageRanges[movTime][movMod];
+							bmRegistration.flagRange=true;
+							bmRegistration.percentageBlocksSelectedByScore=currentRegAction.selectScore;
+							bmRegistration.minBlockVariance=0.04;
+							bmRegistration.displayRegistration=currentRegAction.typeAutoDisplay;
+							bmRegistration.displayR2=false;
+							bmRegistration.returnComposedTransformationIncludingTheInitialTransformationGiven=false;
+							enable(ABORT);
+							ItkTransform trTemp=bmRegistration.runBlockMatching(getComposedTransform(movTime,movMod));
+							disable(ABORT);
+							if(! actionAborted) {
+								addTransformAndAction(trTemp,movTime,movMod);
+								bmRegistration.closeLastImages();
+								bmRegistration.freeMemory();
+							}
+						}
+						
+						//Automatic Itk iconic registration
+						else {
+							runButton.setText("Running Itk registration...");
+							itkManager=new ItkRegistrationManager();
+							itkManager.refRange=imageRanges[refTime][refMod];
+							itkManager.movRange=imageRanges[movTime][movMod];
+							itkManager.flagRange=true;
+							itkManager.displayRegistration=currentRegAction.typeAutoDisplay;
+							itkManager.returnComposedTransformationIncludingTheInitialTransformationGiven=false;
+							enable(ABORT);
+							System.out.println("STARTING  ITK");
+							ItkTransform trTemp=itkManager.runScenarioFromGui(new ItkTransform(),
+									images[refTime][refMod],
+									getComposedTransform(movTime,movMod).transformImage(images[refTime][refMod], images[movTime][movMod],false), currentRegAction.typeTrans, currentRegAction.levelMin,currentRegAction.levelMax,currentRegAction.iterationsITK,currentRegAction.learningRate);
+							disable(ABORT);
+							itkManager.freeMemory();
+							itkManager=null;
+							if(! actionAborted) {
+								addTransformAndAction(trTemp,movTime,movMod);
+							}
+						}
+						runButton.setText("Start this action");
+						if(!actionAborted)updateViewTwoImages();
+						enable(new int[] {RUN,SAVE,FINISH,SETTINGS,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP,UNDO});
+						actionAborted=false;
+					}
+					
+					
+					
+					//Manual registration
+					else if(((String)(boxTypeAction.getSelectedItem())).equals(textActions[0])){						
+						disable(new int[] {RUN,UNDO});
+						//Parameters verification
+						if(boxTypeTrans.getSelectedIndex()>0 && boxDisplayMan.getSelectedIndex()==VIEWER_3D) {
+							IJ.showMessage("Warning : transform is not set to Rigid. But the 3d viewer can only compute Rigid transform."+
+								"If you just intend to compute a rigid transform (no deformation / dilation), please select RIGID in the transformation list. Otherwise, select the 2d viewer in "+
+								"the settings to compute a similarity from landmarks points, or select automatic block matching registration to compute a dense vector field");
+							enable(new int[] {RUN,UNDO});
+							return;
+						}
+						if(boxTypeTrans.getSelectedIndex()>1 && boxDisplayMan.getSelectedIndex()==VIEWER_2D) {
+							IJ.showMessage("Warning : transform is set to Vector field. But the 3d viewer can only compute Rigid and Similarity transform."+
+								"Please select automatic block matching registration to compute a dense vector field");
+							enable(new int[] {RUN,UNDO});
+							return;
+						}
+
+						//Starting manual registration
+						if(runButton.getText().equals("Start this action")) {
+							disable(new int[] {BOXACT,RUN,UNDO});
+							runButton.setText("Position ok");
+							
+							ImagePlus imgMovCurrentState=getComposedTransform(movTime,movMod).transformImage(images[refTime][refMod],images[movTime][movMod],false);
+							imgMovCurrentState.setDisplayRange(imageRanges[movTime][movMod][0],imageRanges[movTime][movMod][1]);
+							if(boxDisplayMan.getSelectedIndex()==VIEWER_3D) {
+								run3dInterface(images[refTime][refMod],imgMovCurrentState);
+								setRunToolTip(MANUAL3D);
+							}
+							else {
+								run2dInterface(images[refTime][refMod],imgMovCurrentState);
+								setRunToolTip(MANUAL2D);								
+							}
+							enable(new int[] {ABORT,RUN});
+						}
+						
+						//Finish manual registration
+						else {
+							//Window verifications and wild abort if needed
+							if( ( (boxDisplayMan.getSelectedIndex()==VIEWER_3D) && (universe==null)) || 
+							( (boxDisplayMan.getSelectedIndex()==VIEWER_2D) && ( ( RoiManager.getInstance()==null) || (WindowManager.getImage("Image 1")==null) || (WindowManager.getImage("Image 2")==null) ) ) ) {
+								disable(new int[] {RUN,ABORT});
+								if((WindowManager.getImage("Image 1")!=null)) WindowManager.getImage("Image 1").close();
+								if((WindowManager.getImage("Image 2")!=null)) WindowManager.getImage("Image 2").close();
+								if(RoiManager.getInstance()!=null)RoiManager.getInstance().close();
+								runButton.setText("Start this action");
+								setRunToolTip(MAIN);
+								enable(new int[] {FINISH,SAVE,SETTINGS,BOXACT,RUN,UNDO});
+								return;
+							}
+							
+							//Verify number of landmarks, and return if the number of couples is < 5
+							if((boxDisplayMan.getSelectedIndex()==VIEWER_2D) && (RoiManager.getInstance().getCount()<10 ) ) {IJ.showMessage("Please identify at least 10 points (5 correspondance couples)");enable(RUN);return;}
+							
+							
+							//Closing manual registration
+							disable(new int[] {ABORT,RUN});
+							ItkTransform tr=null;
+							if(boxDisplayMan.getSelectedIndex()==VIEWER_3D) 	tr=close3dInterface();
+							else	tr=close2dInterface();
+							addTransformAndAction(tr,movTime,movMod);
+					    	updateViewTwoImages();
+							runButton.setText("Start this action");
+							setRunToolTip(MAIN);
+							enable(new int[] {UNDO,BOXACT,FINISH,SAVE,RUN});
+						}
+					}
+					
+				
+					//Axis alignment
+					else if((boxTypeAction.getSelectedIndex()==2)){						
+						disable(RUN);
+						if(runButton.getText().equals("Start this action")) {
+							if(!developerMode && !VitiDialogs.getYesNoUI("Warning : data finalization", "Warning : image alignment means to transform reference image.\n\n"+
+									" For simplicity reasons, this operation ends the registration procedure. No more manual or automatic registration step\n"+
+									" can be added after. If after this operation you want to add new registration steps, you will have to undo it before.\n"+
+									"\nIf you feel unsafe about what is going on, you can answer \"No\" to abort this operation,\n"+
+									" and use the \"Save current state\" button, before running again image alignement. \nConversely, "+
+									"answer \"Yes\" to start alignment anyway.\n\nDo you want to start image alignment right now ?")) {enable(RUN);return;}
+
+							//Parameters verification
+							if(boxTypeTrans.getSelectedIndex()>0 && boxDisplayMan.getSelectedIndex()==VIEWER_3D) {
+								IJ.showMessage("Warning : transform is not set to Rigid. But the 3d viewer can only compute Rigid transform."+
+									"If you just intend to compute a rigid transform (no deformation / dilation), please select RIGID in the transformation list. Otherwise, select the 2d viewer in "+
+									"the settings to compute a similarity from landmarks points, or select automatic block matching registration to compute a dense vector field");
+								enable(new int[] {RUN});
+								return;
+							}
+							if(boxTypeTrans.getSelectedIndex()>1 && boxDisplayMan.getSelectedIndex()==VIEWER_2D) {
+								IJ.showMessage("Warning : transform is set to Vector field. But the 3d viewer can only compute Rigid and Similarity transform."+
+									"Please select automatic block matching registration to compute a dense vector field");
+								enable(new int[] {RUN});
+								return;
+							}
+
+							//Starting axis alignment
+							disable(new int[] {BOXACT,FINISH,SAVE,SETTINGS,UNDO});
+							runButton.setText("Axis ok");
+							ImagePlus imgRefCurrentState=images[refTime][refMod];
+							if(transforms[refTime][refMod].size()>0)imgRefCurrentState=getComposedTransform(refTime,refMod).transformImage(images[refTime][refMod],images[refTime][refMod],false);
+							imgRefCurrentState.setDisplayRange(imageRanges[refTime][refMod][0],imageRanges[refTime][refMod][1]);
+
+							if(boxDisplayMan.getSelectedIndex()==VIEWER_3D) {
+								run3dInterface(imgRefCurrentState,null);
+								setRunToolTip(MANUAL3D);
+							}
+							else {
+								run2dInterface(images[refTime][refMod],null);
+								setRunToolTip(MANUAL2D);
+							}
+							enable(new int[] {ABORT,RUN});
+						}
+
+						//Finish axis alignment
+						else {
+							//Window verifications and wild abort if needed
+							if( ( (boxDisplayMan.getSelectedIndex()==VIEWER_3D) && (universe==null)) || 
+									( (boxDisplayMan.getSelectedIndex()==VIEWER_2D) && ( ( RoiManager.getInstance()==null) || (WindowManager.getImage("Image 1")==null) || (WindowManager.getImage("Image 2")==null) ) ) ) {
+								System.out.println("Wild aborting");
+								//Wild aborting procedure
+								disable(new int[] {RUN,ABORT,UNDO});
+								if((WindowManager.getImage("Image 1")!=null)) {WindowManager.getImage("Image 1").changes=false;WindowManager.getImage("Image 1").close();}
+								if((WindowManager.getImage("Image 2")!=null)) {WindowManager.getImage("Image 2").changes=false;WindowManager.getImage("Image 2").close();}
+								if(RoiManager.getInstance()!=null)RoiManager.getInstance().close();
+								runButton.setText("Start this action");
+								setRunToolTip(MAIN);
+								enable(new int[] {FINISH,SAVE,SETTINGS,BOXACT,RUN,UNDO});
+								return;
+							}
+
+							//Verify number of landmarks, and return if the number of couples is < 5
+							if((boxDisplayMan.getSelectedIndex()==VIEWER_2D) && (RoiManager.getInstance().getCount()<10 ) ) {IJ.showMessage("Please identify at least 10 points (5 correspondance couples)");enable(RUN);return;}
+
+							//Closing axis alignement
+							disable(new int[] {RUN,ABORT});
+							ItkTransform tr=null;
+							System.out.println("HERE JUSTE AVANT");
+							if(boxDisplayMan.getSelectedIndex()==VIEWER_3D) {System.out.println("HERE JUSTE JUSTE AVANT");	tr=close3dInterface();}
+							else						 	tr=close2dInterface();
+							System.out.println("HERE JUSTE JUSTE JUSTEAVANT");							
+							addTransformToReference(tr);
+							System.out.println("HERE JUSTE JUSTE JUSTE APRES");							
+							updateViewTwoImages();
+							runButton.setText("Start this action");
+							setRunToolTip(MAIN);
+							enable(new int[] {UNDO,FINISH,SAVE,SETTINGS,BOXACT,RUN});
+						}
+					}
+				}
+				
+				
+				/* Abort button, and associated behaviours depending on the context*/
+				if(e.getSource()==abortButton) {
+					disable(new int[] {RUN,SAVE,FINISH,UNDO, SETTINGS,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP});
+					actionAborted=true;
+					System.out.println("Entering aborting procedure");
+					
+					//Aborting a manual registration or axis alignment procedure
+					if(runButton.getText().equals("Position ok") || runButton.getText().equals("Axis ok")){
+						disable(new int[] {RUN,ABORT});
+						if((WindowManager.getImage("Image 1")!=null)) {WindowManager.getImage("Image 1").changes=false;WindowManager.getImage("Image 1").close();}
+						if((WindowManager.getImage("Image 2")!=null)) {WindowManager.getImage("Image 2").changes=false;WindowManager.getImage("Image 2").close();}
+						if(RoiManager.getInstance()!=null)RoiManager.getInstance().close();
+						if(boxDisplayMan.getSelectedIndex()==VIEWER_3D && universe !=null) {universe.close();universe=null;}
+						runButton.setText("Start this action");
+						setRunToolTip(MAIN);
+						enable(new int[] {FINISH,SAVE,SETTINGS,BOXACT,BOXTRANS,RUN,UNDO});
+					}
+					//Aborting automatic blockmatching registration, killing threads, and checking if threads are deads
+					else if(runButton.getText().equals("Running Blockmatching...")){
+						System.out.println("aborting bockmatching");
+						int nThreads=bmRegistration.threads.length;
+						while(!bmRegistration.bmIsInterruptedSucceeded) {
+							VitimageUtils.waitFor(100);
+							bmRegistration.bmIsInterrupted=true;
+							for(int th=0;th<nThreads;th++)bmRegistration.threads[th].interrupt();
+						}
+					}
+					//Aborting automatic itk iconic registration, killing threads, and checking if threads are deads
+					else if(runButton.getText().equals("Running Itk registration...")){
+						System.out.println("aborting itk registration");
+						int trial=0;
+						while(itkManager.registrationThread!=null && itkManager.registrationThread.isAlive() && trial<100) {
+							trial++;
+							System.out.println("Trying !");
+							VitimageUtils.waitFor(100);	
+							itkManager.itkRegistrationInterrupted=true;
+							itkManager.registrationThread.stop();
+						}
+					}
+					runButton.setText("Start this action");
+				}				
+
+				
+				
+				
+				
+				/*Others buttons : minor and easy functions, settings and parameters modification*/		
+				if(e.getSource()==settingsButton) {
+					openSettingsDialog();					
+					updateEstimatedTime();
+				}
+				if(e.getSource()==settingsDefaultButton) {
+					currentRegAction.defineSettingsFromTwoImages(images[refTime][refMod],images[movTime][movMod],getRegistrationManager(),true);	
+					updateFieldsDisplay();
+					updateEstimatedTime();
+				}
+
+				if(e.getSource()==boxTypeAction) {		
+					setState(new int[] {BOXOPT,BOXTIME,BOXDISP },boxTypeAction.getSelectedIndex()==1);
+					setState(new int[] {BOXDISPMAN },boxTypeAction.getSelectedIndex()!=1);
+					updateFieldsDisplay();
+					currentRegAction.adjustSettingsFromManager(getRegistrationManager());
+					updateEstimatedTime();
+				}
+				
+				if(e.getSource()==boxOptimizer  || e.getSource()==boxTypeTrans || e.getSource()==boxDisplay || e.getSource()==boxDisplayMan) {
+					if(e.getSource()==boxOptimizer) {
+						updateFieldsDisplay();
+					}
+					currentRegAction.adjustSettingsFromManager(getRegistrationManager());
+					updateEstimatedTime();
+				}
+				
+				if(e.getSource()==finishButton  ||  e.getSource()==saveButton) {
+					disable(new int[] {RUN,FINISH,SAVE,UNDO});
+					if(e.getSource()==finishButton)runExport();
+					else runSave();
+					enable(new int[] {FINISH,SAVE,RUN});
+					enable(UNDO);
+				}
+				if(e.getSource()==undoButton && step>0) {
+					disable(new int[] {RUN,SAVE,FINISH,UNDO});
+					System.out.println("Start an undo action");
+					runUndo();
+					enable(new int[] {RUN,SAVE,FINISH,BOXACT,UNDO});
+					if(step==0)disable(new int[] {UNDO,SAVE,FINISH});
+				}				
+				if(e.getSource()==sos1Button) {
+					runSos();
+				}			
+			}
+		});
+		System.gc();
+	}
+
+	public RegistrationManager getRegistrationManager() {
+		return this;
 	}
 
 	
-	/** advanced settings menu
-	 */
-	public void openSettingsDialog() {
-		if(this.boxTypeAction.getSelectedIndex()!=1) {//BlockMatching parameters
-	        GenericDialog gd= new GenericDialog("Settings for manual registration");
-	        gd.addMessage("In most images, objects of interest are bright structures with an irregular surface,\n"+
-	        		"surrounded with a dark background.\nUnder these assumption, manual registration can be done in the 3d viewer.\n"+
-	        		"If your images are not of this kind, you should set the other option : Use 2d viewer");
-	        gd.addChoice("Choose the most adapted viewer : ",new String[] {"3d viewer","2d viewer"}, this.kindOfViewer==VIEWER_3D ? "3d viewer" : "2d viewer");
-	        gd.showDialog();
-	        if (gd.wasCanceled()) return;	        
-	        this.kindOfViewer=(gd.getNextChoiceIndex()==0) ? VIEWER_3D : VIEWER_2D;		
-	        return;
-		}
-		String message="Successive subsampling factors used, from max to min"+"\n \n"+
-				"The max level is the first level being processed, using the under-sampled image"+"\n"+
-				"At this resolution, the step runs faster, and only uses the global shapes of structures\n"+
-				"If the max level is too high, registration could diverge"+"\n"+
-				"Conversely, the min level is the last one, slower, but more accurate\n"+"These two parameters have a dramatic effect on computation time and results accuracy";
-			if(this.boxOptimizer.getSelectedIndex()==0) {//BlockMatching parameters
-	        GenericDialog gd= new GenericDialog("Expert mode for Blockmatching registration");
-	        String[]levelsMax=new String[maxAcceptableLevel];for(int i=0;i<maxAcceptableLevel;i++)levelsMax[i]=""+((int)Math.round(Math.pow(2, (i))))+"";
-	        gd.addMessage(message);
-	        gd.addChoice("Max subsampling factor (high=fast)",levelsMax, levelsMax[this.getParameterValue("Level max")-1]);
-	        gd.addChoice("Min subsampling factor (low=slow)",levelsMax, levelsMax[this.getParameterValue("Level min")-1]);
-	        gd.addChoice("Higher accuracy (subpixellic level)", new String[] {"Yes","No"},this.getParameterValue("Higher accuracy")==1 ? "Yes":"No");
-	        
-	        gd.addMessage("Blocks dimensions. Blocks are image subparts\nCompared to establish correspondances between ref and mov images");
-	        gd.addNumericField("Block half-size along X", this.getParameterValue("BM BHS X"), 0, 3, "original pixels");
-	        gd.addNumericField("Block half-size along Y", this.getParameterValue("BM BHS Y"), 0, 3, "original pixels");
-	        gd.addNumericField("Block half-size along Z", this.getParameterValue("BM BHS Z"), 0, 3, "original pixels");
-
-	        gd.addMessage("Searching neighbourhood. Distance to look for\nbetween a reference image block and a moving image block");
-	        gd.addNumericField("Block neighbourhood along X", this.getParameterValue("BM Neigh X"), 0, 3, "subsampled pixels");
-	        gd.addNumericField("Block neighbourhood along Y", this.getParameterValue("BM Neigh Y"), 0, 3, "subsampled pixels");
-	        gd.addNumericField("Block neighbourhood along Z",  this.getParameterValue("BM Neigh Z"), 0, 3, "subsampled pixels");
-
-	        gd.addMessage("Spacing between two successive blocks\nalong each dimension");
-	        gd.addNumericField("Striding along X", this.getParameterValue("BM Stride X"), 0, 3, "subsampled pixels");
-	        gd.addNumericField("Strinding along Y",  this.getParameterValue("BM Stride Y"), 0, 3, "subsampled pixels");
-	        gd.addNumericField("Strinding along Z",  this.getParameterValue("BM Stride Z"), 0, 3, "subsampled pixels");
-
-	        gd.addMessage("Others");
-	        gd.addNumericField("Number of iterations per level",  this.getParameterValue("Iterations BM"), 0, 3, "iterations");
-	        if(this.boxTypeTrans.getSelectedIndex()==2)gd.addNumericField("Sigma for dense field smoothing", 1, 3, 6, unit);
-	        gd.addNumericField("Percentage of blocks selected by score", this.getParameterValue("BM Select score"), 0, 3, "%");
-	        if(this.boxTypeTrans.getSelectedIndex()!=2)gd.addNumericField("Percentage kept in Least-trimmed square", this.getParameterValue("BM Select LTS"), 0, 3, "%");	        
-
-	        gd.showDialog();
-	        if (gd.wasCanceled()) return;	        
-	        System.out.println("Go");
-	        int a=gd.getNextChoiceIndex()+1; this.setParameterValue("Level max", a);
-	        System.out.println("a="+a);
-	        int b=gd.getNextChoiceIndex()+1; b=b<a ? b : a; this.setParameterValue("Level min", b);
-	        System.out.println("b="+b);
-	        a=1-gd.getNextChoiceIndex();
-	        System.out.println("Valeur actualisee pour higher accuracy="+a);
-	        this.setParameterValue("Higher accuracy",a);
-	       	
-	       	int c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; this.setParameterValue("BM BHS X", c);
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; this.setParameterValue("BM BHS Y", c);
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; this.setParameterValue("BM BHS Z", c);
-
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; this.setParameterValue("BM Neigh X", c);
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; this.setParameterValue("BM Neigh Y", c);
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; this.setParameterValue("BM Neigh Z", c);
-
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; this.setParameterValue("BM Stride X", c);
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; this.setParameterValue("BM Stride Y", c);
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; this.setParameterValue("BM Stride Z", c);
-
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; this.setParameterValue("Iterations BM", c);
-	       	if(this.boxTypeTrans.getSelectedIndex()==2) {double d=gd.getNextNumber(); d=d<1E-6 ? 1E-6 : d; this.setParameterSigma(d);}
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; this.setParameterValue("BM Select score", c);
-	       	if(this.boxTypeTrans.getSelectedIndex()!=2) {c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; this.setParameterValue("BM Select LTS", c);}
-		}
-		else {//Itk parameters
-	        GenericDialog gd= new GenericDialog("Expert mode for Itk registration");
-	        String[]levelsMax=new String[maxAcceptableLevel];for(int i=0;i<maxAcceptableLevel;i++)levelsMax[i]=""+((int)Math.round(Math.pow(2, (i))))+"";
-	        gd.addMessage(message);
-	        gd.addChoice("Max subsampling factor (high=fast)",levelsMax, levelsMax[this.getParameterValue("Level max")-1]);
-	        gd.addChoice("Min subsampling factor (low=slow)",levelsMax, levelsMax[this.getParameterValue("Level min")-1]);
-	        
-	        gd.addMessage("Others");
-	        gd.addNumericField("Number of iterations per level",  this.getParameterValue("Iterations ITK"), 0, 5, "iterations");
-	        gd.addNumericField("Learning rate",  this.getParameterItkLearningRate(), 4, 8, " no unit");
-
-	        gd.showDialog();
-	        if (gd.wasCanceled()) return;	        
-	        int param1=gd.getNextChoiceIndex()+1; 
-	        this.setParameterValue("Level max", param1);
-
-	        int param2=gd.getNextChoiceIndex()+1; param2=param2<param1 ? param2 : param1;
-	        this.setParameterValue("Level min", param2);
-	       	
-	       	int param3=(int)Math.round(gd.getNextNumber());
-	       	param3=param3<0 ? 0 : param3; this.setParameterValue("Iterations ITK", param3);
-	       	double param4=gd.getNextNumber();
-	       	param4=param4<0 ? EPSILON : param4; this.setParameterItkLearningRate(param4);
-		}		
-	}
 	
-
-
 	
-	/** Everything about help dialogs
+	
+	
+	
+	
+	
+	/** Structures updating routines--------------------------------------------------------------------------
 	 * 
 	 */
+	public void addTransformAndAction(ItkTransform tr,int nt,int nm) {
+		System.out.println("Add transform to "+nt+","+nm+" : "+tr.drawableString());
+		System.out.println("size of regActions before : "+regActions.size());
+		tr.step=this.step;
+		currentRegAction.movMod=nm;
+		currentRegAction.movTime=nt;
+		this.transforms[nt][nm].add(tr);
+		this.trActions.add(tr);
+		step++;
+		RegistrationAction tmpAction=new RegistrationAction(currentRegAction);
+		tmpAction.step=currentRegAction.step+1;
+		currentRegAction=tmpAction;
+		this.regActions.add(currentRegAction);
+		this.listActions.setSelectedIndex(step);
+		System.out.println("Ending addTransform and action. Size of regActions after : "+regActions.size()+"going to step "+step);
+		this.updateList();
+		enable(UNDO);
+	}
+
+	public void addTransformToReference(ItkTransform tr) {
+		addTransformAndAction(tr,this.referenceTime,this.referenceModality);
+	}
+		
+	public ItkTransform getComposedTransform(int nt, int nm) {
+		if (nt>=this.nTimes)return null;
+		if (nm>=this.nMods)return null;
+		if (this.transforms[nt][nm].size()==0)return new ItkTransform();
+		ItkTransform trTot=new ItkTransform();
+		for(int indT=0;indT<this.transforms[nt][nm].size();indT++)trTot.addTransform(this.transforms[nt][nm].get(indT));
+		return trTot;
+	}
+	
+	public void runUndo() {
+		System.out.println("DEBUG RUNUNDO");
+		System.out.println("STEP="+step);
+		//Identify the next transforms to be undone, and undone it
+		WindowManager.getImage("Registration results after "+(step)+" step"+((step>1)?"s":"")).changes=false;
+		WindowManager.getImage("Registration results after "+(step)+" step"+((step>1)?"s":"")).close();
+		this.imgView=(step>1) ? WindowManager.getImage("Registration results after "+(step-1)+" step"+(((step-1)>1)?"s":"")) : WindowManager.getImage("Superimposition before registration");
+		int nt=regActions.get(step-1).movTime;
+		int nm=regActions.get(step-1).movMod;
+
+		int index=this.transforms[nt][nm].size()-1;
+		this.transforms[nt][nm].remove(index);
+		this.trActions.remove(step-1);
+		this.regActions.remove(this.regActions.size()-1);
+		this.currentRegAction=this.regActions.get(this.regActions.size()-1);
+		step--;
+		this.updateList();
+		if(this.imgView==null)updateViewTwoImages();
+	}
+	
+	public boolean isHyperImage(int n,int m) {
+		System.out.println("Test pour savoir la hyperimagité de "+n+" "+m+" : "+(this.initDimensions[n][m][3]*this.initDimensions[n][m][4]>1));
+		return (this.initDimensions[n][m][3]*this.initDimensions[n][m][4]>1);
+	}
+	
+	                                     
+	
+	
+	
+	
+	
+	/** Manual registration and axis alignment routines ---------------------------------------------------------------
+	 */
+	@SuppressWarnings("deprecation")
+	public void run3dInterface(ImagePlus imgRef,ImagePlus imgMov) {
+		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
+		IJ.run(refCopy,"8-bit","");
+		this.universe=new ij3d.Image3DUniverse();
+		universe.show();
+
+		if(imgMov!=null) {
+			ImagePlus movCopy=VitimageUtils.imageCopy(imgMov);		
+			movCopy.resetDisplayRange();
+			IJ.run(movCopy,"8-bit","");
+			universe.addContent(refCopy, new Color3f(Color.red),"refCopy",50,new boolean[] {true,true,true},1,0 );
+			universe.addContent(movCopy, new Color3f(Color.green),"movCopy",50,new boolean[] {true,true,true},1,0 );
+		}
+		else {
+			ImagePlus movCopy=VitimageUtils.getBinaryGrid(refCopy,17);
+			universe.addContent(refCopy, new Color3f(Color.red),"movCopy",50,new boolean[] {true,true,true},1,0 );
+			universe.addOrthoslice(movCopy, new Color3f(Color.white),"refCopy",50,new boolean[] {true,true,true},1);
+		}
+		ij3d.ImageJ3DViewer.select("refCopy");
+		ij3d.ImageJ3DViewer.lock();
+		ij3d.ImageJ3DViewer.select("movCopy");
+		universe.setSize(this.lastViewSizes[0], this.lastViewSizes[1]);
+		//universe.getWindow().setSize(this.lastViewSizes[0], this.lastViewSizes[1]);
+		System.out.println("En effet,lastViewSizes="+this.lastViewSizes[0]+" , "+this.lastViewSizes[1]);
+		VitimageUtils.adjustFrameOnScreenRelative((Frame)((JPanel)(this.universe.getCanvas().getParent())).getParent().getParent().getParent(),this.imgView.getWindow(),3,3,10);
+		if(!debugMode)IJ.showMessage("Move the green volume to match the red one\nWhen done, push the \""+runButton.getText()+"\" button to stop\n\nCommands : \n"+
+				"mouse-drag the green object to turn the object\nmouse-drag the background to turn the scene\nCTRL-drag to translate the green object");
+	}
+	
+	public ItkTransform close3dInterface(){
+		Transform3D tr=new Transform3D();
+		double[]tab=new double[16];
+		universe.getContent("movCopy").getLocalRotate().getTransform(tr);		tr.get(tab);
+		ItkTransform itRot=ItkTransform.array16ElementsToItkTransform(tab);
+		universe.getContent("movCopy").getLocalTranslate().getTransform(tr);		tr.get(tab);
+		ItkTransform itTrans=ItkTransform.array16ElementsToItkTransform(tab);
+		itTrans.addTransform(itRot);
+		itTrans=itTrans.simplify();
+		ItkTransform ret=new ItkTransform(itTrans.getInverse());
+		universe.removeAllContents();
+		universe.close();
+    	universe=null;    
+    	return ret;		
+	}
+	
+	public void run2dInterface(ImagePlus imgRef,ImagePlus imgMov) {
+		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
+		ImagePlus movCopy=null;
+		IJ.run(refCopy,"8-bit","");
+		refCopy.setTitle("Image 1");
+		if(imgMov!=null) {
+			movCopy=VitimageUtils.imageCopy(imgMov);		
+			movCopy.resetDisplayRange();
+			IJ.run(movCopy,"8-bit","");
+			movCopy.setTitle("Image 2");
+		}
+		else {
+			movCopy=VitimageUtils.getBinaryGrid(refCopy,17);
+			movCopy.show();
+			movCopy.setTitle("Image 2");
+		}
+
+		
+		IJ.setTool("point");
+		IJ.showMessage("Examine images, identify correspondances between images and use the Roi manager to build a list of correspondances points. Points should be given this way : \n- Point A  in image 1\n- Correspondant of point A  in image 2\n- Point B  in image 1\n- Correspondant of point B  in image 2\netc...\n"+
+		"Once done (at least 5-15 couples of corresponding points), push the \""+runButton.getText()+"\" button to stop\n\n");
+		refCopy.show();refCopy.setSlice(refCopy.getStackSize()/2+1);refCopy.updateAndRepaintWindow();
+		VitimageUtils.adjustFrameOnScreen((Frame)WindowManager.getWindow("Image 1"), 0,2);
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		VitimageUtils.adjustFrameOnScreenRelative((Frame)rm,(Frame)WindowManager.getWindow("Image 1"),2,1,2);
+		movCopy.show();movCopy.setSlice(movCopy.getStackSize()/2+1);movCopy.updateAndRepaintWindow();
+		VitimageUtils.adjustFrameOnScreenRelative((Frame)WindowManager.getWindow("Image 2"),rm,2,2,2);
+	}
+	
+	public ItkTransform close2dInterface(){
+		RoiManager rm=RoiManager.getRoiManager();
+		Point3d[][]pointTab=convertLandmarksToRealSpacePoints(WindowManager.getImage("Image 1"),WindowManager.getImage("Image 2"));
+		WindowManager.getImage("Image 1").changes=false;
+		WindowManager.getImage("Image 2").changes=false;
+		WindowManager.getImage("Image 1").close();
+		WindowManager.getImage("Image 2").close();
+		ItkTransform trans=null;
+		if(this.boxTypeAction.getSelectedIndex()==0) {
+			if(this.boxTypeTrans.getSelectedIndex()==0)trans=ItkTransform.estimateBestRigid3D(pointTab[1],pointTab[0]);
+			if(this.boxTypeTrans.getSelectedIndex()==1)trans=ItkTransform.estimateBestSimilarity3D(pointTab[1],pointTab[0]);
+		}
+		if(this.boxTypeAction.getSelectedIndex()==2) {
+			if(this.boxTypeTrans.getSelectedIndex()==0)trans=ItkTransform.estimateBestRigid3D(pointTab[0],pointTab[1]);
+			if(this.boxTypeTrans.getSelectedIndex()==1)trans=ItkTransform.estimateBestSimilarity3D(pointTab[0],pointTab[1]);
+		}
+		rm.close();
+    	return trans;		
+	}
+	
+	public Point3d[][] convertLandmarksToRealSpacePoints(ImagePlus imgRef,ImagePlus imgMov){
+		RoiManager rm=RoiManager.getRoiManager();
+		int nbCouples=rm.getCount()/2;
+		Point3d[]pRef=new Point3d[nbCouples];
+		Point3d[]pMov=new Point3d[nbCouples];
+		IJ.setTool("point");
+		for(int indP=0;indP<rm.getCount()/2;indP++){
+			pRef[indP]=new Point3d(rm.getRoi(indP*2 ).getXBase() , rm.getRoi(indP * 2).getYBase() ,  rm.getRoi(indP * 2).getZPosition());
+			pMov[indP]=new Point3d(rm.getRoi(indP*2 +1 ).getXBase() , rm.getRoi(indP * 2 +1 ).getYBase() ,  rm.getRoi(indP * 2 +1 ).getZPosition());
+			pRef[indP]=TransformUtils.convertPointToRealSpace(pRef[indP],imgRef);
+			pMov[indP]=TransformUtils.convertPointToRealSpace(pMov[indP],imgMov);
+		}
+		return new Point3d[][] {pRef,pMov};
+	}
+
+	
+	
+	
+	
+	
+	
+	
+	/** Export-Save routines for images and transforms----------------------------------------------------------------------------------
+	*
+	*/
+	public void runExport() {
+		//Ask for target dimensions
+		ImagePlus refResult = null,movResult=null;
+		GenericDialog gd=new GenericDialog("Choose target dimensions...");
+		gd.addMessage("Initial dimensions : ");
+		gd.addMessage("..Reference image : "+this.initDimensions[refTime][refMod][0]+" x "+this.initDimensions[refTime][refMod][1]+" x "+this.initDimensions[refTime][refMod][2]+" x "+this.initDimensions[refTime][refMod][3]+" x "+this.initDimensions[refTime][refMod][4]+
+				" avec des voxels "+VitimageUtils.dou(this.initVoxs[refTime][refMod][0],6)+" x "+VitimageUtils.dou(this.initVoxs[refTime][refMod][1],6)+" x "+VitimageUtils.dou(this.initVoxs[refTime][refMod][2],6));
+		gd.addMessage("..Moving image : "+this.initDimensions[movTime][movMod][0]+" x "+this.initDimensions[movTime][movMod][1]+" x "+this.initDimensions[movTime][movMod][2]+" x "+this.initDimensions[movTime][movMod][4]+" x "+this.initDimensions[movTime][movMod][4]+
+				" avec des voxels "+VitimageUtils.dou(this.initVoxs[movTime][movMod][0],6)+" x "+VitimageUtils.dou(this.initVoxs[movTime][movMod][1],6)+" x "+VitimageUtils.dou(this.initVoxs[movTime][movMod][2],6));
+		gd.addMessage("\nChoose the target dimensions to export both images");
+		gd.addMessage("If you feel lost, consider choosing the first option : Dimensions of reference image.\n.\n.");
+		gd.addMessage("After this operation, you can combine reference and moving images with the Color / merge channels tool of ImageJ)");
+		gd.addChoice("Choose target dimensions", new String[] {"Dimensions of reference image","Dimensions of moving image","Provide custom dimensions"}, "Dimensions of reference image");
+		gd.showDialog();
+        if (gd.wasCanceled()) return;	        
+		int choice=gd.getNextChoiceIndex();
+		ItkTransform transformMov=getComposedTransform(movTime,movMod);
+		ItkTransform transformRef=getComposedTransform(refTime, refMod);
+		ItkTransform transformMovNoAxis=getComposedTransform(movTime,movMod);
+		if(transforms[referenceTime][referenceModality].size()>0)transformMov.addTransform(new ItkTransform(transformRef));
+		if(choice==0) {
+			refResult=transformRef.transformImage(this.images[refTime][refMod], isHyperImage(refTime, refMod) ? IJ.openImage(this.paths[refTime][refMod]) : this.images[refTime][refMod], false);
+			movResult=transformMov.transformImage(this.images[refTime][refMod], isHyperImage(movTime,movMod) ? IJ.openImage(this.paths[movTime][movMod]) : this.images[movTime][movMod], false);
+		}
+		if(choice==1) {
+			refResult=transformRef.transformImage(this.images[movTime][movMod], isHyperImage(refTime, refMod) ? IJ.openImage(this.paths[refTime][refMod]) : this.images[refTime][refMod], false);
+			movResult=transformMov.transformImage(this.images[movTime][movMod], isHyperImage(movTime,movMod) ? IJ.openImage(this.paths[movTime][movMod]) : this.images[movTime][movMod], false);
+		}
+
+		
+		if(choice==2) {
+			GenericDialog gd2=new GenericDialog("Provide custom dimensions (and voxel sizes)");
+			gd2.addNumericField("Dimension along X",1, 0);
+			gd2.addNumericField("Dimension along Y",1, 0);
+			gd2.addNumericField("Dimension along Z",1, 0);
+			gd2.addNumericField("Voxel size along X",1, 6);
+			gd2.addNumericField("Voxel size along Y",1, 6);
+			gd2.addNumericField("Voxel size along Z",1, 6);					
+			gd2.showDialog();
+	        if (gd2.wasCanceled()) return;	        
+	        int[]outputDimensions=new int[] {(int)Math.round(gd2.getNextNumber()),(int)Math.round(gd2.getNextNumber()),(int)Math.round(gd2.getNextNumber())};
+	        double[]outputVoxs=new double[] {gd2.getNextNumber(),gd2.getNextNumber(),gd2.getNextNumber()};
+//	        transformRef.transformImage(outputDimensions, outputVoxs,IJ.openImage(this.paths[refTime][refMod]), false);
+			refResult=transformRef.transformImage(outputDimensions, outputVoxs,isHyperImage(refTime, refMod) ? IJ.openImage(this.paths[refTime][refMod]) : this.images[refTime][refMod], false);
+			movResult=transformMov.transformImage(outputDimensions, outputVoxs,isHyperImage(movTime,movMod) ? IJ.openImage(this.paths[movTime][movMod]) : this.images[movTime][movMod], false);
+		}
+		if(transforms[referenceTime][referenceModality].size()>0){
+			VitiDialogs.saveImageUI(refResult, "Save reference image", false, "", "image_ref_axis_aligned.tif");
+			VitiDialogs.saveImageUI(movResult, "Save moving image", false, "", "image_mov_registered_with_axis_aligned.tif");
+		}
+		else {
+			VitiDialogs.saveImageUI(refResult, "Save reference image", false, "", "image_ref.tif");
+			VitiDialogs.saveImageUI(movResult, "Save moving image", false, "", "image_mov_registered.tif");
+		}
+		if(transforms[referenceTime][referenceModality].size()>0)VitiDialogs.saveMatrixTransformUI(transformRef.simplify(), "Save transform applied to reference image (for axis alignement)", false, "", "transform_ref_axis_alignment.txt");
+		if(transformMov.isDense()) {
+			if(transforms[referenceTime][referenceModality].size()>0) {
+				VitiDialogs.saveDenseFieldTransformUI(transformMov.flattenDenseField(refResult),  "Save global transform applied to moving image", false, "", "transform_mov_to_reference_with_axis_aligned.txt", refResult);	
+			}
+			else VitiDialogs.saveDenseFieldTransformUI(transformMov.flattenDenseField(refResult),  "Save global transform applied to moving image", false, "", "transform_mov_to_reference.txt", refResult);	
+			if(transforms[referenceTime][referenceModality].size()>0)VitiDialogs.saveDenseFieldTransformUI(transformMovNoAxis.flattenDenseField(refResult),  "Save transform applied to moving image without axis alignment", false, "", "transform_mov_to_reference_without_axis_alignment.txt", refResult);	
+		}
+		else {
+			if(transforms[referenceTime][referenceModality].size()>0) {
+				VitiDialogs.saveMatrixTransformUI(transformMov.simplify(), "Save global transform applied to moving image", false, "", "transform_mov_to_reference_with_axis_aligned.txt");
+			}
+			else VitiDialogs.saveMatrixTransformUI(transformMov.simplify(), "Save global transform applied to moving image", false, "", "transform_mov_to_reference.txt");
+			if(transforms[referenceTime][referenceModality].size()>0)VitiDialogs.saveMatrixTransformUI(transformMovNoAxis.simplify(), "Save transform applied to moving image without axis alignment", false, "", "transform_mov_to_reference_without_axis_alignment.txt");
+		}
+		System.out.println("Export finished.");
+	}
+	
+	public void startFromSavedStateTwoImages(String pathToFile) {
+		//Open file and prepare structures
+		String []names;
+		if(pathToFile==null) {
+			names=VitiDialogs.openFileUI("Select a file to load a plugin state","save","fjm");
+			if(names==null) {
+				IJ.showMessage("No file selected. Save cannot be done");
+				return;
+			}
+		}
+		else names=new String[] {new File(pathToFile).getParent(),new File(pathToFile).getName()};	
+		this.registrationWindowMode=REGWINDOWTWOIMG;
+		this.mode=MODE_TWO_IMAGES;
+		this.nTimes=1;
+		this.nMods=2;
+		setupStructures();
+		checkComputerCapacity();
+	
+		
+		
+		//Read informations in main file
+		String nameDir=names[0];
+		String filePath=new File(nameDir,names[1]).getAbsolutePath();
+		String str=VitimageUtils.readStringFromFile(filePath);
+		String[]lines=str.split("\n");
+		this.mode=Integer.parseInt(lines[1].split("=")[1]);
+		String nameDataDir=(lines[2].split("=")[1]);
+		File dirReg=new File(nameDataDir,"Registration_files");
+		this.paths[refTime][refMod]=(lines[3].split("=")[1]);
+		this.paths[movTime][movMod]=(lines[4].split("=")[1]);
+		int tempStep=Integer.parseInt(lines[9].split("=")[1]);
+
+		//Read the already executed steps : RegistrationAction serialized .ser object, and associated transform 
+		for(int st=0;st<tempStep;st++) {
+			File f=new File(dirReg,"RegistrationAction_Step_"+st+".ser");
+			System.out.println("HERE st="+st+"/"+tempStep);
+			RegistrationAction regTemp=RegistrationAction.readFromFile(f.getAbsolutePath());
+			System.out.println("THERE "+f.getAbsolutePath());
+			System.out.println("Read file RegistrationAction_Step_"+st+".ser : " +regTemp.readableString());
+			f=new File(dirReg,"Transform_Step_"+st+".txt");
+			ItkTransform trTemp;
+			if(regTemp.typeTrans!=Transform3DType.DENSE)trTemp=ItkTransform.readTransformFromFile(f.getAbsolutePath());
+			else trTemp=ItkTransform.readAsDenseField(f.getAbsolutePath());
+			this.currentRegAction=regTemp;
+			this.regActions.set(st, regTemp);
+			addTransformAndAction(trTemp,regTemp.movTime,regTemp.movMod);
+		}
+		System.out.println("Reading done from file = "+filePath);
+
+		
+		//Start interface
+		startRegistrationInterface();
+		addLog("Starting plugin. Mode=two images registration. ",0);
+		addLog("Available memory="+this.freeMemory+" MB. #Cpu threads="+this.nbCpu+".",0);
+		openImagesAndCheckOversizing();
+		updateViewTwoImages();
+		currentRegAction.defineSettingsFromTwoImages(this.images[refTime][refMod],this.images[movTime][movMod],getRegistrationManager(),true);
+		enable(new int[] {RUN,SETTINGS,SOS,BOXACT,BOXTRANS,BOXDISPMAN});		
+		addLog("",0);
+		addLog("Welcome to Fijiyama ! Choose the next action using the box-lists in the first panel, then click on \"Start this action\". ",0);
+		addLog("First trial with Fijiyama ? Click on \"Contextual help\" to get started",0);
+		addLog("",0);
+		if(this.step>0)enable(new int[] {RUN,SAVE,UNDO,FINISH});
+	}
+	
+	public void runSave() {
+		System.out.println("DEBUG RUN SAVE mode ="+mode);
+		if(mode==MODE_TWO_IMAGES)runSaveTwoImages();
+		else runSaveNmImages();
+	}
+
+	public void runSaveNmImages() {
+		
+	}
+
+	public void runSaveTwoImages() {
+		String []names=VitiDialogs.openFileUI("Select a file to save the plugin state","save",".fjm");
+		System.out.println(names.length);
+		if(names[0]==null) {
+			IJ.showMessage("No file selected. Save cannot be done");
+			return;
+		}
+		System.out.println("Opened : path = "+names[0]+"  file="+names[1]);
+		String nameDir=names[0];
+		String nameFile=names[1];
+		System.out.println("Test split :");
+		System.out.println("Est null ? "+(names[1]==null));
+		System.out.println("Last index="+names[1].lastIndexOf('.'));
+		String nameWithNoExt=names[1].substring(0,names[1].lastIndexOf('.'));
+		File dirData=new File(nameDir,nameWithNoExt+"_DATA_FJM");
+		String nameDataDir=dirData.getAbsolutePath();
+		String filePath=new File(nameDir,names[1]).getAbsolutePath();
+
+		//Write informations in filePath
+		String str="#Fijiyama save###\n"+
+				"#Mode="+MODE_TWO_IMAGES+"\n"+
+				"#output path="+nameDataDir+"\n"+
+				"#Path to reference image="+this.paths[refTime][refMod]+"\n"+
+				"#Path to moving image="+this.paths[movTime][movMod]+"\n"+
+				"#ReferenceTime=0\n"+
+				"#ReferenceMod=0\n"+
+				"#MovingTime=0\n"+
+				"#MovingMod=1\n"+
+				"#Step="+step+"\n"+
+				"#Previous actions=\n";
+		for(int indAct=0;indAct<this.regActions.size()-1;indAct++) {
+			str+="#"+regActions.get(indAct).readableString()+"\n";
+			System.out.println("Saved action : "+regActions.get(indAct).readableString());
+		}
+		str+="#\n";
+		VitimageUtils.writeStringInFile(str, filePath);
+		
+		//Save data in a directory
+		dirData.mkdirs();
+		File dirDataReg=new File(dirData,"Registration_files");
+		dirDataReg.mkdirs();
+		VitimageUtils.writeStringInFile(str, new File(nameDataDir,nameFile).getAbsolutePath());
+		for(int indAct=0;indAct<this.regActions.size()-1;indAct++) {
+			System.out.println(indAct+"-1");
+			RegistrationAction regTemp=regActions.get(indAct);
+			System.out.println(indAct+"-2");
+			int ntRef=regTemp.refTime;
+			System.out.println(indAct+"-3");
+			int nmRef=regTemp.refMod;
+			
+			System.out.println(indAct+"-4");
+			String fileName="RegistrationAction_Step_"+indAct+".ser";
+			System.out.println(indAct+"-5");
+			File out=new File(dirDataReg,fileName);
+			System.out.println(indAct+"-6");
+			regTemp.writeToFile(out.getAbsolutePath());
+			System.out.println(indAct+"-7");
+			ItkTransform tr=trActions.get(indAct);
+			System.out.println(indAct+"-8");
+			fileName="Transform_Step_"+indAct+(".txt");
+			System.out.println(indAct+"-9");
+			out=new File(dirDataReg,fileName);
+			System.out.println(indAct+"-10");
+			if(tr.isDense())tr.writeAsDenseField(out.getAbsolutePath(), images[ntRef][nmRef]);
+			else tr.writeMatrixTransformToFile(out.getAbsolutePath());
+			System.out.println(indAct+"-11");
+		}
+		System.out.println("Saving ok, in file : "+filePath);
+	}
+	
+	public void runTransformImage() {
+		ImagePlus imgMov=VitiDialogs.chooseOneImageUI("Select the image to transform (moving image)","Select the image to transform (moving image)");
+		if(imgMov==null) {IJ.showMessage("Moving image does not exist. Abort.");return;}
+		ImagePlus imgRef=VitiDialogs.chooseOneImageUI("Select the reference image, giving output dimensions (it can be the same)","Select the reference image, giving output dimensions (it can be the same)");
+		ItkTransform tr=VitiDialogs.chooseOneTransformsUI("Select the transform to apply , .txt for Itk linear and .transform.tif for Itk dense", "", false);
+		if(tr==null) {IJ.showMessage("No transform given. Abort");return;}
+		if(imgRef==null) {IJ.showMessage("No reference image provided. Moving image will be used as reference image.");imgRef=VitimageUtils.imageCopy(imgMov);}
+		ImagePlus result=tr.transformImage(imgRef, imgMov, false);
+		result.setTitle("Transformed image");
+		result.show();
+	}
+	
+	public void runComposeTransforms() {
+		ArrayList<ItkTransform> listTr=new ArrayList<ItkTransform>();
+		boolean oneMore=true;
+		int num=1;
+		while(oneMore) {
+			ItkTransform tr=VitiDialogs.chooseOneTransformsUI("Select the transform #"+(num++)+" , .txt for Itk linear and .transform.tif for Itk dense", "", false);
+			if(tr==null) {tr=new ItkTransform();IJ.showMessage("Warning : you included a bad transform file. It was replaced by an identity transform\nin order the process is to be interrupted");}
+			listTr.add(tr);
+			oneMore=VitiDialogs.getYesNoUI("One more transform ?","One more transform ?");
+		}
+		ItkTransform trGlob=new ItkTransform();
+		for(int i=0;i<listTr.size();i++)trGlob.addTransform(listTr.get(i));
+		if(trGlob.isDense()) {
+			ImagePlus imgRef=VitiDialogs.chooseOneImageUI("Select the reference image, giving output space dimensions","Select the reference image, giving output space dimensions");
+			VitiDialogs.saveDenseFieldTransformUI(trGlob, "Save the resulting composed transform",false,"", "composed_transform.tif", imgRef);
+		}
+		else {
+			VitiDialogs.saveMatrixTransformUI(trGlob, "Save the resulting composed transform", false, "", "composed_transform.txt");
+		}
+		IJ.showMessage("Transform successfully saved.");
+	}
+	
+	
+	
+	
+	
+	
+	
+	/** Registration Manager gui setup and update----------------------------------------------------- ----------------------------------
+	 */
+	public void startRegistrationInterface() {
+		 actualizeLaunchingInterface(false);         
+		//Panel with console-style log informations and requests
+		JPanel consolePanel=new JPanel();
+		consolePanel.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));
+		consolePanel.setLayout(new GridLayout(1,1,0,0));
+		logArea=new JTextArea("", this.registrationWindowMode==REGWINDOWSERIERUNNING ? 10 : 6,4);
+		logArea.setBackground(new Color(10,10,10));
+		logArea.setForeground(new Color(245,255,245));
+		logArea.setFont(new Font(Font.DIALOG,Font.PLAIN,14));
+		scrollPane=new JScrollPane(logArea);
+        logArea.setLineWrap(true);
+        logArea.setWrapStyleWord(true);
+        logArea.setEditable(false);		
+        consolePanel.add(scrollPane);
+
+        //Panel with step settings, used for registration of two images, and when programming registration pipelines for series
+		JPanel stepSettingsPanel=new JPanel();
+		stepSettingsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));		
+		stepSettingsPanel.setLayout(new GridLayout(9,2,15,10));
+
+		stepSettingsPanel.add(labelNextAction);
+		stepSettingsPanel.add(boxTypeAction);		
+		stepSettingsPanel.add(labelTransformation);
+		stepSettingsPanel.add(boxTypeTrans);		
+		stepSettingsPanel.add(labelOptimizer);
+		stepSettingsPanel.add(boxOptimizer);
+		stepSettingsPanel.add(labelView);
+		stepSettingsPanel.add(boxDisplay);
+		stepSettingsPanel.add(labelViewMan);
+		stepSettingsPanel.add(boxDisplayMan);
+		stepSettingsPanel.add(new JLabel(""));
+		stepSettingsPanel.add(new JLabel(""));
+		stepSettingsPanel.add(labelTime1);
+		stepSettingsPanel.add(labelTime2);		
+		stepSettingsPanel.add(new JLabel(""));
+		stepSettingsPanel.add(new JLabel(""));
+		stepSettingsPanel.add(settingsButton);
+		stepSettingsPanel.add(settingsDefaultButton);
+
+		boxTypeAction.addActionListener(this);
+		boxOptimizer.addActionListener(this);
+		boxTypeTrans.addActionListener(this);
+		boxDisplay.addActionListener(this);		
+		boxDisplayMan.addActionListener(this);		
+		settingsButton.addActionListener(this);
+		settingsDefaultButton.addActionListener(this);
+
+		settingsButton.setToolTipText("<html><p width=\"500\">" +"Advanced settings let you manage more parameters of the automatic registration algorithms"+"</p></html>");
+		settingsDefaultButton.setToolTipText("<html><p width=\"500\">" +"Restore settings compute and set default parameters suited to your images"+"</p></html>");
+
+		disable(new int[] {BOXOPT,BOXACT,BOXTIME,BOXTRANS,BOXDISP,BOXDISPMAN,SETTINGS});
+		this.boxDisplay.setSelectedIndex(currentRegAction.typeAutoDisplay);
+
+		
+		
+		//Panel with buttons for the context of two image registration
+		JPanel buttonsPanel=new JPanel();
+		if(this.registrationWindowMode==REGWINDOWTWOIMG) {
+			buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
+			buttonsPanel.setLayout(new GridLayout(2,3,40,40));
+			buttonsPanel.add(runButton);
+			buttonsPanel.add(abortButton);
+			buttonsPanel.add(undoButton);
+			buttonsPanel.add(finishButton);
+			buttonsPanel.add(saveButton);
+			buttonsPanel.add(sos1Button);
+			
+			runButton.addActionListener(this);
+			abortButton.addActionListener(this);
+			undoButton.addActionListener(this);
+			finishButton.addActionListener(this);
+			saveButton.addActionListener(this);
+			sos1Button.addActionListener(this);
+
+			abortButton.setToolTipText("<html><p width=\"500\">" +"Abort means killing a running operation and come back to the state before you clicked on Start this action."+
+									   "Automatic registration is harder to kill. Please insist on this button until its colour fades to gray"+"</p></html>");
+			finishButton.setToolTipText("<html><p width=\"500\">" +"Export aligned images and computed transforms"+"</p></html>");
+			saveButton.setToolTipText("<html><p width=\"500\">" +"Save the current state of the plugin in a .fjm file, including the transforms and image paths. This .ijm file can be used later to restart from this point"+"</p></html>");
+			sos1Button.setToolTipText("<html><p width=\"500\">" +"Opens a contextual help"+"</p></html>");
+			undoButton.setToolTipText("<html><p width=\"500\">" +"Undo works as you would expect : it delete the previous action, and recover the previous state of transforms and images. Fijiyama handles only one undo : two successive actions can't be undone"+"</p></html>");
+			finishButton.setToolTipText("<html><p width=\"500\">" +"Export aligned images and computed transforms"+"</p></html>");
+			saveButton.setToolTipText("<html><p width=\"500\">" +"Save the current state of the plugin in a .fjm file, including the transforms and image paths. This .ijm file can be used later to restart from this point"+"</p></html>");
+			sos1Button.setToolTipText("<html><p width=\"500\">" +"Opens a contextual help"+"</p></html>");
+			undoButton.setToolTipText("<html><p width=\"500\">" +"Undo works as you would expect : it delete the previous action, and recover the previous state of transforms and images. Fijiyama handles only one undo : two successive actions can't be undone"+"</p></html>");
+			
+			setRunToolTip(MAIN);
+			this.colorIdle=abortButton.getBackground();
+			disable(new int[] {RUN,ABORT,UNDO,SAVE,FINISH});
+		}
+
+		
+		else if(this.registrationWindowMode==REGWINDOWSERIEPROGRAMMING) {
+			buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
+			buttonsPanel.setLayout(new GridLayout(2,2,40,40));
+			buttonsPanel.add(replaceActionButton);
+			buttonsPanel.add(removeSelectedButton);
+			buttonsPanel.add(validatePipelineButton);
+			buttonsPanel.add(sos1Button);
+
+			replaceActionButton.addActionListener(this);
+			removeSelectedButton.addActionListener(this);
+			validatePipelineButton.addActionListener(this);
+			sos1Button.addActionListener(this);
+
+			replaceActionButton.setToolTipText("<html><p width=\"500\">" +"Click to replace the selected action (bottom list) with the defined configuration (upper menus)"+"</p></html>");
+			removeSelectedButton.setToolTipText("<html><p width=\"500\">" +"Remove the selected action (bottom list) from the global pipeline"+"</p></html>");
+			validatePipelineButton.setToolTipText("<html><p width=\"500\">" +"Validate the global processing pipeline, and go to next step"+"</p></html>");
+
+			disable(new int[] {});
+		}
+		
+		else if(this.registrationWindowMode==REGWINDOWSERIERUNNING) {
+			buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
+			buttonsPanel.setLayout(new GridLayout(1,3,40,40));
+			buttonsPanel.add(runNextStepButton);
+			buttonsPanel.add(goBackStepButton);
+			buttonsPanel.add(sos1Button);
+
+			runNextStepButton.addActionListener(this);
+			goBackStepButton.addActionListener(this);
+			sos1Button.addActionListener(this);
+
+			runNextStepButton.setToolTipText("<html><p width=\"500\">" +"Click here to run the next step in the global pipeline (see the black console log)"+"</p></html>");
+			goBackStepButton.setToolTipText("<html><p width=\"500\">" +"Use this function to compute again a step that went not as well as you expected"+"</p></html>");
+
+			disable(new int[] {});
+		}
+
+		//Panel with list of actions, used for registration of two images, and when programming registration pipelines for series
+		JPanel titleActionPanel=new JPanel();
+		titleActionPanel.setBorder(BorderFactory.createEmptyBorder(5,25,0,25));
+		titleActionPanel.setLayout(new GridLayout(1,1,10,10));
+		titleActionPanel.add(new JLabel(this.registrationWindowMode==REGWINDOWSERIEPROGRAMMING ?  "Global registration pipeline (select an action to remove or modify it)" : "List of previously executed actions"));
+		JPanel listActionPanel=new JPanel();
+		listActionPanel.setBorder(BorderFactory.createEmptyBorder(5,10,10,10));
+		listActionPanel.setLayout(new GridLayout(1,1,10,10));
+		listActionPanel.add(actionsPane);
+		updateList();
+		
+		
+		
+		//Main frame and main panel
+		registrationFrame=new JFrame();
+		JPanel registrationPanelGlobal=new JPanel();
+		registrationPanelGlobal.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+		registrationPanelGlobal.setLayout(new BoxLayout(registrationPanelGlobal, BoxLayout.Y_AXIS));
+		registrationPanelGlobal.add(new JSeparator());
+		registrationPanelGlobal.add(consolePanel);
+		registrationPanelGlobal.add(new JSeparator());
+		registrationPanelGlobal.add(stepSettingsPanel);
+		registrationPanelGlobal.add(new JSeparator());
+		registrationPanelGlobal.add(buttonsPanel);
+		registrationPanelGlobal.add(new JSeparator());
+		registrationPanelGlobal.add(titleActionPanel);
+		registrationPanelGlobal.add(listActionPanel);
+		registrationPanelGlobal.add(new JSeparator());
+		registrationFrame.add(registrationPanelGlobal);
+		registrationFrame.setTitle("Registration manager : two images registration");
+		registrationFrame.pack();
+
+		registrationFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		registrationFrame.addWindowListener(new WindowAdapter(){
+             public void windowClosing(WindowEvent e){
+                   System.out.println("CLOSING REGISTRATION WINDOW !");
+                   closeAllViews();
+                   registrationFrame.setVisible(false);
+                   dispose();
+                   actualizeLaunchingInterface(true);                   
+             }
+		});
+		registrationFrame.setVisible(true);
+		registrationFrame.repaint();
+		VitimageUtils.adjustFrameOnScreen(registrationFrame,2,0);		
+	}
+		
+	public void addLog(String t,int level) {
+		logArea.append((level==0 ? "\n > ": (level==1) ? "\n " : " ")+t);
+		logArea.setCaretPosition(logArea.getDocument().getLength());
+	}
+	
 	public void displaySosMessage(int context){
 		if(context==SOS_CONTEXT_LAUNCH) {
 			IJ.showMessage(
@@ -1695,105 +1776,431 @@ public class RegistrationManager extends PlugInFrame implements ActionListener,K
 	}
 
 	public void runSos() {
-		String saut="<div style=\"height:1px;display:block;\"> </div>";
-		String startPar="<p  width=\"600\" >";
-		String nextPar="</p><p  width=\"600\" >";
 		String textToDisplay="";
+
+		String mainWindowText="<b>Main window help : </b>Fijiyama is a versatile tool to perform 3d alignment of images, acquired at successive observation times, or with different imaging modalities. "+
+				"The most common registration strategy combine these steps :"+startPar+
+				" <b>1)   Manual registration with a rigid transform</b> : "+"rough correction of relative image position and orientation"+nextPar+
+				" <b>2-a) Automatic registration with a rigid transform : </b>using ITK if the problem is \"easy\" (accurate manual registration and object is dissymetric) or Blockmatching if more robustness is needed."+nextPar+
+				" <b>2-b) <i>(optional)</i> Automatic registration with a similarity transform : </b>, if the object shows an isotropic dilation / shrinkage between reference and moving image."+nextPar+
+				" <b>2-c) <i>(optional)</i> Automatic registration with a dense vector field : </b> using the Block matching algorithm, for more complex deformation between images."+nextPar+
+				" <b>3)   Axis alignment of the reference image : </b> useful to export the results in a reproducible geometry, suited for analysis (for example, with the plant axis along the image Z axis."+saut+
+				" The manual registration steps (1 and 3) can be done in a 2d or 3d viewer, depending of your images. Try the 3d viewer first, and if needed, use the  <b>\"Abort\"</b> button to come back to the main window, and choose the 2d viewer."+
+				"Automatic registration can be monitored, too. Set the monitoring level using the <b>\"Automatic registration display\"</b>box-list. No monitoring means hoping everything goes fine until the step finish, but it is really faster. Finally, "+
+				"automatic algorithms settings can be modified using the settings dialog ( <b>\"Advanced settings\"</b> button )."+saut+saut; 
+		
 		String axisText=
 				"Axis alignment of the reference image onto the image XYZ axis, in order to set the object position in both results images that will be exported."+
 				"This operation can be done at any time, following or being followed by any registration operation. "+
 				"The process can be interrupted, using the <b>\"Abort\"</b> button during the execution, or undone once finished, using the <b>\"Undo\"</b> button."+							
-				nextPar+
+				saut+
 				"All along the registration procedure, only the moving image is moved."+
 				"Thus, one could need the final result to be in a geometry that is optimal for biological analysis."+
 				"For example, one could expect that the the axis of the object (a plant, a bone, ...) would be aligned with the Z axis (slices normal axis). "+
 				"The axis alignment process opens a 3d interface, to interact with the reference image (shown as a red volume)"+
 				" and set its alignment relative to the XYZ axis, drawn as white orthogonal lines "+
-				"<b>Use the mouse to select (click) and move (click and drag)</b> the red volume or the 3d scene in order to align the red volume onto the grid :"+saut+
-				" -> <b>Click on a volume</b> to select it, or on the background to select the 3d scene."+saut+
-				" -> <b>Right-click and drag the red volume</b> to turn it,"+saut+
-				" -> <b>right-click and drag the background</b> or the grid to turn around the 3d scene,"+saut+
-				" -> <b>push shift key and right-click and drag</b> to translate the red volume or the 3d scene."+saut+saut+
+				"<b>Use the mouse to select (click) and move (click and drag)</b> the red volume or the 3d scene in order to align the red volume onto the grid :"+startPar+
+				" -> <b>Click on a volume</b> to select it, or on the background to select the 3d scene."+nextPar+
+				" -> <b>Right-click and drag the red volume</b> to turn it,"+nextPar+
+				" -> <b>right-click and drag the background</b> or the grid to turn around the 3d scene,"+nextPar+
+				" -> <b>push shift key and right-click and drag</b> to translate the red volume or the 3d scene."+
 				nextPar+" "+
-				"Once done, click on the <b>\"Position ok\"</b> button to validate the alignment."+
-				nextPar+" "+"The transform computed is then applied to the reference and moving images";
+				" -> Once done, click on the <b>\"Position ok\"</b> button to validate the alignment."+" "+"The transform computed is then applied to the reference and moving images"+saut;
 		String bmText="Automatic registration."+
 				"This operation can be done at any time, following or being followed by any registration operation. "+
 				"The process can be interrupted, using the <b>\"Abort\"</b> button during the execution, or undone once finished, using the <b>\"Undo\"</b> button."+							
 				nextPar+
 				"Automatic registration can be done using two different optimizers : "+
 				" Block matching compares subparts of images to identify correspondances, and use these correpondances to align the moving image on the reference image ; "+
-				" Itk Iconic optimizes a transform, and measure the evolution of image matching using a global statistical measure. Both use a pyramidal scheme, computing correspondances and transforms from a rough level (image subsampling=2^levelmax) to a precise level (image subsampling=2^levelmin)."+
+				" Itk Iconic optimizes a transform, and quantify the evolution of image matching using a global statistical measure. Both use a pyramidal scheme, computing correspondances and transforms from a rough level (max image subsampling factor=2, 4, 8...) to an accurate level (min image subsampling factor=1, 2, 4, ...)."+
 				nextPar+
-				"Automatic registration is an optimization process, its duration depends on the parameters. The estimated computation is given to help you"+
-				"to define parameters according with the computation time you expect. The process is started when clicking on the <b>\"Start this action\"</b> button and finish when all the iterations are done at all levels. .";
+				"Automatic registration is an optimization process, its duration depends on the parameters. The estimated computation is given to help you "+
+				"to define parameters according with the computation time you expect. The process starts when clicking on the <b>\"Start this action\"</b> button and finish when all the iterations are done at all levels, or when you click on the <b>\"Abort\"</b> button ."+saut;
 				
 		String manualText="Manual registration step."+""+
 				"This operation can be done at any time, following or being followed by any registration operation. "+
 				"The process can be interrupted, using the <b>\"Abort\"</b> button during the execution, or undone once finished, using the <b>\"Undo\"</b> button."+							
-				nextPar+
+				saut+
 				"This operation lets you roughly align the images manually, in order to handle transforms of great amplitude (angle > 15 degrees) that cannot be estimated automatically."+
-				"To start this action, click on the <b>\"Start this action\"</b> button. A 3d interface opens, and let you interact with the images."+nextPar+
+				"To start this action, click on the <b>\"Start this action\"</b> button. A 3d interface opens, and let you interact with the images."+saut+
 				"In the 3d interface, the reference image is shown as a green volume, locked to the 3d scene."+
 				"The red volume is the moving image (free to move relatively to the red one and the 3d scene)."+
-				"<b>Use the mouse to select (click) and move (click and drag)</b> the red volume or the 3d scene in order to align the red volume onto the green one :"+saut+
-				" -> <b>Click on a volume</b> to select it, or on the background to select the 3d scene."+saut+
-				" -> <b>Right-click and drag the red volume</b> to turn it,"+saut+
-				" -> <b>right-click and drag the background</b> or the green volume to turn around the 3d scene,"+saut+
-				" -> <b>push shift key and right-click and drag</b> to translate the red volume or the 3d scene."+saut+saut+
+				"<b>Use the mouse to select (click) and move (click and drag)</b> the red volume or the 3d scene in order to align the red volume onto the green one :"+nextPar+
+				" -> <b>Click on a volume</b> to select it, or on the background to select the 3d scene."+nextPar+
+				" -> <b>Right-click and drag the red volume</b> to turn it, and <b>the background or the green volume</b> to turn around the 3d scene,"+nextPar+
+				" -> <b>push shift key and right-click and drag</b> to translate the red volume or the 3d scene."+
 				nextPar+" "+
 				"Once done, click on the <b>\"Position ok\"</b> button to validate the alignment."+
-				nextPar+" ";
+				saut;
 				
 		
 		disable(SOS);
 		if(this.runButton.getText().equals("Start this action")) {//Nothing running
-			textToDisplay="<html>"+startPar+"<b>Two images registration main window</b>"+""+nextPar+"The actual parameters are set to run the following operation :  "+nextPar;
+			textToDisplay="<html>"+saut+""+""+mainWindowText+saut+saut+"<b>Contextual help (current settings / parameters) :</b>";
 			if(this.boxTypeAction.getSelectedIndex()==0)textToDisplay+=manualText;
 			else if(this.boxTypeAction.getSelectedIndex()==1)textToDisplay+=bmText;
 			else if(this.boxTypeAction.getSelectedIndex()==2) textToDisplay+=axisText;
 		}
 		else {
-			if(this.boxTypeAction.getSelectedIndex()==0)textToDisplay="<html>"+startPar+"<b>Help during 3d manual registration</b>"+"<br/>"+""+nextPar+manualText;
-			if(this.boxTypeAction.getSelectedIndex()==1)textToDisplay="<html>"+startPar+"<b>Help during automatic registration</b>"+"<br/>"+""+nextPar+bmText;
-			if(this.boxTypeAction.getSelectedIndex()==2)textToDisplay="<html>"+startPar+"<b>Help during axis alignment registration</b>"+"<br/>"+""+nextPar+axisText;
+			if(this.boxTypeAction.getSelectedIndex()==0)textToDisplay="<html>"+startPar+"<b>3d manual registration of two images</b>"+"<br/>"+""+nextPar+manualText;
+			if(this.boxTypeAction.getSelectedIndex()==1)textToDisplay="<html>"+startPar+"<b>Automatic registration of two images</b>"+"<br/>"+""+nextPar+bmText;
+			if(this.boxTypeAction.getSelectedIndex()==2)textToDisplay="<html>"+startPar+"<b>Axis alignment registration of two images</b>"+"<br/>"+""+nextPar+axisText;
 		}
-		textToDisplay+=nextPar+"  </p>";
+		textToDisplay+="<b>Citing this work :</b> R. Fernandez and C. Moisy, <i>Fijiyama : a versatile registration tool for 3D multimodal time-lapse monitoring of biological tissues in Fiji</i> (under review)"+saut+
+				"<b>Credits :</b> this work was supported by the \"Plan deperissement du vignoble\"   </p>";
 		IJ.showMessage("Fijiyama contextual help", textToDisplay);
 		enable(SOS);
 	}
 	
+	public void openSettingsDialog() {
+		//Parameters for manual and axis aligment
+		if(this.boxTypeAction.getSelectedIndex()!=1) {
+	        GenericDialog gd= new GenericDialog("Settings for manual registration");
+	        gd.addMessage("No advanced settings for manual registration. The only setting is in the main menu (manual registration viewer)\n.\n"+
+	        "The first option (3d viewer) assumes objects of interest are bright structures with an irregular surface,\n"+
+	        		"surrounded with a dark background. Under these assumption, manual registration can be done in the 3d viewer.\n.\n"+
+	        		"If your images are not of this kind, manual registration in the 3d viewer will be a hard task, and you should set\nthe other option : 2d viewer, to identify landmarks using the classic 2d slicer");
+	        gd.showDialog();
+	        if (gd.wasCanceled()) return;	        
+	        return;
+		}
+
+		
+		//Parameters for automatic registration
+		String message="Successive subsampling factors used, from max to min."+"These parameters have the most dramatic effect\non computation time and results accuracy :\n"+
+				"- The max level is the first level being processed, making comparisons between subsampled versions of images."+"\n"+
+				"  After subsampling images, the algorithm only sees the global structures, but allows transforms of greater amplitude\n"+
+				"  High subsampling levels run faster, and low subsampling levels run slower. But if the max subsampling level is too high, the subsampled image\n  is not informative anymore, and registration could diverge"+"\n.\n"+
+				"- The min level is the last subsampling level and the more accurate to be processed\n  Subsampling=1 means using all image informations (no subsampling) \n";
+
+			//Parameters for BlockMatching
+			if(this.boxOptimizer.getSelectedIndex()==0) {
+			GenericDialog gd= new GenericDialog("Expert mode for Blockmatching registration");
+	        String[]levelsMax=new String[maxAcceptableLevel];for(int i=0;i<maxAcceptableLevel;i++)levelsMax[i]=""+((int)Math.round(Math.pow(2, (i))))+"";
+	        gd.addChoice("Max subsampling factor (high=fast)",levelsMax, levelsMax[currentRegAction.levelMax-1]);
+	        gd.addChoice("Min subsampling factor (low=slow)",levelsMax, levelsMax[currentRegAction.levelMin-1]);
+	        gd.addChoice("Higher accuracy (subpixellic level)", new String[] {"Yes","No"},currentRegAction.higherAcc==1 ? "Yes":"No");
+	        
+	        gd.addMessage("Blocks dimensions. Blocks are image subparts\nCompared to establish correspondances between ref and mov images");
+	        gd.addNumericField("Block half-size along X", currentRegAction.bhsX, 0, 3, "original pixels");
+	        gd.addNumericField("Block half-size along Y", currentRegAction.bhsY, 0, 3, "original pixels");
+	        gd.addNumericField("Block half-size along Z", currentRegAction.bhsZ, 0, 3, "original pixels");
+
+	        gd.addMessage("Searching neighbourhood. Distance to look for\nbetween a reference image block and a moving image block");
+	        gd.addNumericField("Block neighbourhood along X", currentRegAction.neighX, 0, 3, "subsampled pixels");
+	        gd.addNumericField("Block neighbourhood along Y", currentRegAction.neighY, 0, 3, "subsampled pixels");
+	        gd.addNumericField("Block neighbourhood along Z",  currentRegAction.neighZ, 0, 3, "subsampled pixels");
+
+	        gd.addMessage("Spacing between two successive blocks\nalong each dimension");
+	        gd.addNumericField("Striding along X", currentRegAction.strideX, 0, 3, "subsampled pixels");
+	        gd.addNumericField("Strinding along Y",  currentRegAction.strideY, 0, 3, "subsampled pixels");
+	        gd.addNumericField("Strinding along Z",  currentRegAction.strideZ, 0, 3, "subsampled pixels");
+
+	        gd.addMessage("Others");
+	        gd.addNumericField("Number of iterations per level",  currentRegAction.iterationsBM, 0, 3, "iterations");
+	        if(this.boxTypeTrans.getSelectedIndex()==2)gd.addNumericField("Sigma for dense field smoothing", currentRegAction.sigmaDense, 3, 6, unit);
+	        gd.addNumericField("Percentage of blocks selected by score", currentRegAction.selectScore, 0, 3, "%");
+	        if(this.boxTypeTrans.getSelectedIndex()!=2)gd.addNumericField("Percentage kept in Least-trimmed square", currentRegAction.selectLTS, 0, 3, "%");	        
+
+	        gd.showDialog();
+	        if (gd.wasCanceled()) return;	        
+	        System.out.println("Go");
+	        int a=gd.getNextChoiceIndex()+1; currentRegAction.levelMax=a;
+	        System.out.println("a="+a);
+	        int b=gd.getNextChoiceIndex()+1; b=b<a ? b : a; currentRegAction.levelMin=b;
+	        System.out.println("b="+b);
+	        a=1-gd.getNextChoiceIndex();
+	        currentRegAction.higherAcc=a;
+	       	
+	       	int c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; currentRegAction.bhsX=c;
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; currentRegAction.bhsY=c;
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; currentRegAction.bhsZ=c;
+
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; currentRegAction.neighX=c;
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; currentRegAction.neighY=c;
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; currentRegAction.neighZ=c;
+
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; currentRegAction.strideX=c;
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; currentRegAction.strideY=c;
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; currentRegAction.strideZ=c;
+
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; currentRegAction.iterationsBM=c;
+	       	if(this.boxTypeTrans.getSelectedIndex()==2) {double d=gd.getNextNumber(); d=d<1E-6 ? 1E-6 : d; currentRegAction.sigmaDense=d;}
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; currentRegAction.selectScore=c;
+	       	if(this.boxTypeTrans.getSelectedIndex()!=2) {c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; currentRegAction.selectLTS=c;}
+		}
+		//Parameters for Itk Iconic
+		else {//Itk parameters
+			System.out.println("Opening settings for itk");
+	        GenericDialog gd= new GenericDialog("Expert mode for Itk registration");
+	        System.out.println("MaxAc="+maxAcceptableLevel);
+	        System.out.println("CurLevMin="+currentRegAction.levelMin);
+	        System.out.println("CurLevMax="+currentRegAction.levelMax);
+	        String[]levelsMax=new String[maxAcceptableLevel];for(int i=0;i<maxAcceptableLevel;i++)levelsMax[i]=""+((int)Math.round(Math.pow(2, (i))))+"";
+			System.out.println("After critical");
+        gd.addMessage(message);
+	        gd.addChoice("Max subsampling factor (high=fast)",levelsMax, levelsMax[currentRegAction.levelMax-1]);
+	        gd.addChoice("Min subsampling factor (low=slow)",levelsMax, levelsMax[currentRegAction.levelMin-1]);
+	        
+	        gd.addMessage("Others");
+	        gd.addNumericField("Number of iterations per level",  currentRegAction.iterationsITK, 0, 5, "iterations");
+	        gd.addNumericField("Learning rate",  currentRegAction.learningRate, 4, 8, " no unit");
+
+	        gd.showDialog();
+	        if (gd.wasCanceled()) return;	        
+	        int param1=gd.getNextChoiceIndex()+1; 
+	        currentRegAction.levelMax=param1;
+
+	        int param2=gd.getNextChoiceIndex()+1; param2=param2<param1 ? param2 : param1;
+	        currentRegAction.levelMin=param2;
+	       	
+	       	int param3=(int)Math.round(gd.getNextNumber());
+	       	param3=param3<0 ? 0 : param3;  currentRegAction.iterationsITK=param3;
+	       	double param4=gd.getNextNumber();
+	       	param4=param4<0 ? EPSILON : param4;  currentRegAction.learningRate=param4;
+		}		
+	}
+	
+	public void enable(int but) {
+		setState(new int[] {but},true);
+	}
+	public void disable(int but) {
+		setState(new int[] {but},false);
+	}
+
+	public void enable(int[]tabBut) {
+		setState(tabBut,true);
+	}
+	public void disable(int[]tabBut) {
+		setState(tabBut,false);
+	}
+			
+	public void setState(int[]tabBut,boolean state) {
+		for(int but:tabBut) {
+			switch(but) {
+			case BOXACT:this.boxTypeAction.setEnabled(state);this.labelNextAction.setEnabled(state);break;
+			case BOXOPT:this.boxOptimizer.setEnabled(state);this.labelOptimizer.setEnabled(state);break;
+			case BOXTRANS:this.boxTypeTrans.setEnabled(state);this.labelTransformation.setEnabled(state);break;
+			case BOXDISP:this.boxDisplay.setEnabled(state);this.labelView.setEnabled(state);break;
+			case BOXDISPMAN:this.boxDisplayMan.setEnabled(state);this.labelViewMan.setEnabled(state);break;
+			case SETTINGS:this.settingsButton.setEnabled(state);this.settingsDefaultButton.setEnabled(state);break;
+			case RUN:this.runButton.setEnabled(state);break;
+			case UNDO:this.undoButton.setEnabled(state);break;
+			case ABORT:this.abortButton.setEnabled(state);abortButton.setBackground(state ? new Color(255,0,0) : colorIdle);break;
+			case SAVE:this.saveButton.setEnabled(state);break;
+			case FINISH:this.finishButton.setEnabled(state);break;
+			case SOS:this.sos1Button.setEnabled(state);break;
+			case RUNTWOIMG:this.runTwoImagesButton.setEnabled(state);break;
+			case RUNSERIE:this.runSerieButton.setEnabled(state);break;
+			case SOSINIT:this.sos0Button.setEnabled(state);break;
+			case RUNTRANS:this.transformButton.setEnabled(state);break;
+			case RUNTRANSCOMP:this.composeTransformsButton.setEnabled(state);break;
+			}	
+		}	
+	}
+	
+	public void setRunToolTip(int context){
+		if(context==MAIN) {
+			runButton.setToolTipText("<html><p width=\"500\">" +"Start means starting the action defined by the current configuration, and the current settings."+
+			"During the execution, the action can be interrupted using the Abort button. After the execution, the action can be undone using the Undo button"+"</p></html>");
+		}
+		if(context==MANUAL2D) {
+			runButton.setToolTipText("<html><p width=\"500\">" +"Click here to validate the landmarks, compute the corresponding transform, and get the transform applied to images"+"</p></html>");
+		}
+		if(context==MANUAL3D) {
+			runButton.setToolTipText("<html><p width=\"500\">" +"Click here to validate the actual relative position of objects, and get the transform applied to images"+"</p></html>");
+		}
+	}	
+	
+	public void updateList() {
+		DefaultListModel<String> listModel = new DefaultListModel<String>();
+        for(int i=0;i<this.regActions.size()-1;i++) {
+        	listModel.addElement(regActions.get(i).readableString());
+        }
+        listModel.addElement("< Next action to come >");
+		this.listActions.setModel(listModel);
+		this.listActions.setSelectedIndex(this.regActions.size()-1);
+		ScrollUtil.scroll(listActions,ScrollUtil.BOTTOM);
+	}
+			
+	public void updateEstimatedTime() {
+		if((this.boxTypeAction.getSelectedIndex()==0) && this.boxDisplayMan.getSelectedIndex()==0)this.estimatedTime=300;//manual registration with landmarks
+		else if((this.boxTypeAction.getSelectedIndex()==0) && this.boxDisplayMan.getSelectedIndex()==1)this.estimatedTime=240;//manual registration in 3d
+		else if((this.boxTypeAction.getSelectedIndex()==2) && this.boxDisplayMan.getSelectedIndex()==0)this.estimatedTime=200;//axis alignment with landmarks
+		else if((this.boxTypeAction.getSelectedIndex()==2) && this.boxDisplayMan.getSelectedIndex()==1)this.estimatedTime=240;//axis alignment in 3d
+		else {
+			if(this.boxOptimizer.getSelectedIndex()==0)this.estimatedTime=(int)Math.round(BlockMatchingRegistration.estimateRegistrationDuration(
+					this.imageParameters,currentRegAction.typeAutoDisplay,currentRegAction.levelMin,currentRegAction.levelMax,currentRegAction.iterationsBM,currentRegAction.typeTrans,
+					new int[] {currentRegAction.bhsX,currentRegAction.bhsY,currentRegAction.bhsZ},
+					new int[] {currentRegAction.strideX,currentRegAction.strideY,currentRegAction.strideZ},
+					new int[] {currentRegAction.neighX,currentRegAction.neighY,currentRegAction.neighZ},
+					this.nbCpu,currentRegAction.selectScore,currentRegAction.selectLTS,currentRegAction.selectRandom,currentRegAction.subsampleZ==1,currentRegAction.higherAcc
+					));
+		
+			
+			else this.estimatedTime=ItkRegistrationManager.estimateRegistrationDuration(
+					this.imageParameters,currentRegAction.typeAutoDisplay,currentRegAction.iterationsITK, currentRegAction.levelMin,currentRegAction.levelMax);
+		}
+		int nbMin=this.estimatedTime/60;
+		int nbSec=this.estimatedTime%60;
+		this.labelTime2.setText(""+nbMin+" mn and "+nbSec+" s");
+		System.out.println("Actualisation : estimatedTime="+this.estimatedTime+" ");
+		this.labelTime2.setForeground(new Color(20,60,20));
+	}
+
+	public void updateViewTwoImages() {
+		ImagePlus imgMovCurrentState,imgRefCurrentState;
+		ItkTransform trMov,trRef = null;
+		//Update views
+		if(this.transforms[movTime][movMod].size()==0 && this.transforms[refTime][refMod].size()==0 ) {
+			imgRefCurrentState=this.images[refTime][refMod];
+			imgMovCurrentState=this.images[movTime][movMod];
+		}
+		else {
+			trMov=getComposedTransform(movTime,movMod);
+			if(this.transforms[refTime][refMod].size()>0) {
+				trRef=getComposedTransform(refTime, refMod);
+				trMov.addTransform(trRef);
+			}
+			imgMovCurrentState= trMov.transformImage(this.images[refTime][refMod],this.images[movTime][movMod],false);
+			imgMovCurrentState.setDisplayRange(this.imageRanges[movTime][movMod][0], this.imageRanges[movTime][movMod][1]);
+	
+			imgRefCurrentState= (trRef==null)? this.images[refTime][refMod] : trRef.transformImage(this.images[refTime][refMod],this.images[refTime][refMod],false);
+			imgRefCurrentState.setDisplayRange(this.imageRanges[refTime][refMod][0], this.imageRanges[refTime][refMod][1]);
+		}
+		
+		//Compose images
+		imgView=VitimageUtils.compositeNoAdjustOf(imgRefCurrentState,imgMovCurrentState,step==0 ? "Superimposition before registration" : "Registration results after "+(step)+" step"+((step>1)?"s":""));
+		this.viewSlice=this.images[refTime][refMod].getStackSize()/2;
+		int screenHeight=Toolkit.getDefaultToolkit().getScreenSize().height;
+		int screenWidth=Toolkit.getDefaultToolkit().getScreenSize().width;
+		if(screenWidth>1920)screenWidth/=2;
+		imgView.show();imgView.setSlice(this.viewSlice);
+		double zoomFactor=  Math.min((screenHeight/2)/imgView.getHeight()  ,  (screenWidth/2)/imgView.getWidth()); 
+		System.out.println("Using zoom factor="+zoomFactor);
+		java.awt.Rectangle w = imgView.getWindow().getBounds();
+		
+		//If little image, enlarge it until its size is between half screen and full screen
+		while(imgView.getWindow().getWidth()<(screenWidth/2) && imgView.getWindow().getHeight()<(screenHeight/2)) {
+			int sx=imgView.getCanvas().screenX((int) (w.x+w.width));
+			int sy=imgView.getCanvas().screenY((int) (w.y+w.height));
+			imgView.getCanvas().zoomIn(sx, sy);
+			VitimageUtils.waitFor(50);
+			this.lastViewSizes=new int[] {imgView.getWindow().getWidth(),imgView.getWindow().getHeight()};
+		}
+		//If big image, reduce it until its size is between half screen and full screen
+		while(imgView.getWindow().getWidth()>(screenWidth) || imgView.getWindow().getHeight()>(screenHeight)) {
+			int sx=imgView.getCanvas().screenX((int) (w.x+w.width));
+			int sy=imgView.getCanvas().screenY((int) (w.y+w.height));
+			imgView.getCanvas().zoomOut(sx, sy);
+			this.lastViewSizes=new int[] {imgView.getWindow().getWidth(),imgView.getWindow().getHeight()};
+		}
+		VitimageUtils.adjustFrameOnScreenRelative(imgView.getWindow(),registrationFrame,0,0,10);
+	}
+
+	public void closeAllViews() {
+		for(int st=0;st<=this.step;st++) {
+			String text=(st==0) ? "Superimposition before registration" :  ("Registration results after "+(st)+" step"+((st>1)? "s" : "")) ;
+			if (WindowManager.getImage(text)!=null)WindowManager.getImage(text).close();
+		}
+		if (WindowManager.getImage("Image 1")!=null)WindowManager.getImage("Image 1").close();
+		if (WindowManager.getImage("Image 2")!=null)WindowManager.getImage("Image 2").close();
+		if (RoiManager.getInstance()!=null)RoiManager.getInstance().close();
+		if (universe!=null) universe.close();
+	}	
+	
+	public void updateFieldsDisplay() {
+		System.out.println("Updating fields");
+		int valDisp=boxDisplay.getSelectedIndex();		
+		int valTrans=boxTypeTrans.getSelectedIndex();		
+		DefaultComboBoxModel<String> listModelDisp = new DefaultComboBoxModel<String>();
+		DefaultComboBoxModel<String> listModelTrans = new DefaultComboBoxModel<String>();
+		if(boxTypeAction.getSelectedIndex()==1 && boxOptimizer.getSelectedIndex()==0) {
+	        for(int i=0;i<textDisplayBM.length;i++)listModelDisp.addElement(textDisplayBM[i]);
+	        for(int i=0;i<textTransformsBM.length;i++)listModelTrans.addElement(textTransformsBM[i]);
+			this.boxDisplay.setModel(listModelDisp);
+			this.boxDisplay.setSelectedIndex(valDisp);
+			this.boxTypeTrans.setModel(listModelTrans);
+			this.boxTypeTrans.setSelectedIndex(valTrans);
+		}
+		else {
+			for(int i=0;i<textDisplayITK.length;i++)listModelDisp.addElement(textDisplayITK[i]);
+	        for(int i=0;i<textTransformsITK.length;i++)listModelTrans.addElement(textTransformsITK[i]);
+			this.boxDisplay.setModel(listModelDisp);
+			this.boxDisplay.setSelectedIndex(valDisp>=textDisplayITK.length ? textDisplayITK.length-1 : valDisp);
+			this.boxTypeTrans.setModel(listModelTrans);
+			this.boxTypeTrans.setSelectedIndex(valTrans>=textTransformsITK.length ? textTransformsITK.length : valTrans);
+		}
+		this.boxDisplay.repaint();
+		currentRegAction.adjustSettingsFromManager(getRegistrationManager());
+	}
+
 	
 	
 	
-	/** unuseful listeners
+	/** Launching interface, at the very start
 	 * 
 	 */
-	@Override
-	public void mouseReleased(MouseEvent e) {	}
-
-	@Override
-	public void mouseEntered(MouseEvent e) {	}
-
-	@Override
-	public void mouseExited(MouseEvent e) {	}
-
-	@Override
-	public void keyTyped(KeyEvent e) {	}
-
-	@Override
-	public void keyPressed(KeyEvent e) {	}
-
-	@Override
-	public void keyReleased(KeyEvent e) {	}
-
-	@Override
-	public void mousePressed(MouseEvent e) {	}
-
-
+	public void startLaunchingInterface() {
+		sos0Button=new JButton("Sos");
+		runTwoImagesButton=new JButton("Register two 3d images (training mode)");
+		runSerieButton=new JButton("Register 3d series (N-times and/or N-modalities)");
+		transformButton=new JButton("Apply a computed transform to another image");
+		composeTransformsButton=new JButton("Compose successive transforms into a single one");
+		JPanel globalPanel=new JPanel();
+		globalPanel.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+		globalPanel.setLayout(new BoxLayout(globalPanel, BoxLayout.Y_AXIS));
+		
+		JPanel somethingPanel=new JPanel();
+		somethingPanel.setBorder(BorderFactory.createEmptyBorder(15,15,15,15));		
+		somethingPanel.setLayout(new GridLayout(1,1,20,20));
+		JLabel jlab=new JLabel("Fijiyama : a versatile 3d registration tool for Fiji",JLabel.CENTER);
+		somethingPanel.add(jlab);
+		JPanel buttonPanel=new JPanel();
+		buttonPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));		
+		buttonPanel.setLayout(new GridLayout(2,2,20,20));
+		buttonPanel.add(runTwoImagesButton);
+		buttonPanel.add(runSerieButton);
+		buttonPanel.add(transformButton);
+		buttonPanel.add(composeTransformsButton);
+		buttonPanel.add(sos0Button);
+		frameLaunch=new JFrame("Fijiyama : a versatile 3d registration tool for Fiji");
+		globalPanel.add(new JSeparator());
+		globalPanel.add(somethingPanel);
+		globalPanel.add(buttonPanel);
+		globalPanel.add(new JSeparator());
+		frameLaunch.add(globalPanel);
+		frameLaunch.pack();
+		actualizeLaunchingInterface(true);
+		frameLaunch.setVisible(true);
+		frameLaunch.repaint();		
+		System.out.println("Launching interface done");
+	}
 	
-
-	
+	public void actualizeLaunchingInterface(boolean expectedState) {
+		if(expectedState) {
+			sos0Button.setEnabled(true);
+			runTwoImagesButton.setEnabled(true);
+			runSerieButton.setEnabled(true);
+			composeTransformsButton.setEnabled(true);
+			transformButton.setEnabled(true);
+			sos0Button.addActionListener(this);
+			runTwoImagesButton.addActionListener(this);
+			runSerieButton.addActionListener(this);
+			transformButton.addActionListener(this);
+		}
+		else {
+			sos0Button.setEnabled(false);
+			runTwoImagesButton.setEnabled(false);
+			runSerieButton.setEnabled(false);
+			transformButton.setEnabled(false);
+			sos0Button.removeActionListener(this);
+			runTwoImagesButton.removeActionListener(this);
+			runSerieButton.removeActionListener(this);
+			transformButton.removeActionListener(this);			
+			composeTransformsButton.removeActionListener(this);			
+		}
+	}
 
 	
 }

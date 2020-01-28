@@ -155,20 +155,40 @@ public class TestRomain {
 	
 		//testGrad();
 		//VitimageUtils.waitFor(100000);		
-
-		///testMorphoDist();
-		//VitimageUtils.waitFor(1000000);
+		OptimizerType opt=OptimizerType.ITK_AMOEBA;
+		System.out.println(opt);
+		String s=""+opt;
+		OptimizerType op2=OptimizerType.valueOf(s);
+		System.out.println(op2);
+//		OptimizerType=(OptimizerType)s;
+		
+		testNewSchemeNoAlgo();
+		VitimageUtils.waitFor(1000000);
 
 		//makeHybrideCepVertical();
-		ImagePlus imgRef=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgRef_Ttest_16b.tif");
+		String str="pouetpouet.fjm";
+		System.out.println(str);
+		System.out.println(str.substring(str.length()-4,str.length()));
+		System.out.println(str.substring(str.length()-4,str.length()).equals(".fjm"));
+		VitimageUtils.waitFor(1000000000);
+		ImagePlus imgMov=IJ.openImage("/home/fernandr/Bureau/testXYZCT.tif");
+		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/testXYZCT.tif");
+		ImagePlus imgTrans=new ItkTransform().transformHyperImage(imgRef, imgMov);
+		imgMov.show();
+		imgTrans.show();
+		VitimageUtils.waitFor(1000000000);
+		ImagePlus img=null;
+		ImagePlus[]testImg=VitimageUtils.stacksFromHyperstackFastBis(img);
+		for(int i=0;i<testImg.length;i++)testImg[i].show();
+		img.show();
+		imgRef=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/B080_NP/Computed_data/2_HyperImage/B080_NP_HyperImage.tif");
 		VitimageUtils.printImageResume(imgRef);
 		imgRef.show();
      	double[][]tab=VitimageUtils.getHistogram(imgRef,3);
      	System.out.println(TransformUtils.stringMatrixMN("",tab));
      	int[]range=VitimageUtils.getRange(imgRef,95,3);
 
-		VitimageUtils.waitFor(1000000000);
-		ImagePlus imgMov=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgRef_Trans1.tif");
+		imgMov=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgRef_Trans1.tif");
 		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
 		ImagePlus movCopy=VitimageUtils.imageCopy(imgMov);
 		refCopy.resetDisplayRange();
@@ -196,7 +216,7 @@ public class TestRomain {
 		System.out.println(TransformUtils.stringMatrixN(pouet, ""));
 		*/
 		
-		ImagePlus img=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgRef_Ttest.tif");
+		img=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgRef_Ttest.tif");
 		int[]dims=VitimageUtils.getDimensions(img);
 		double[]dimsD=new double[] {dims[0],dims[1],dims[2]};
 		double[]voxs=VitimageUtils.getVoxelSizes(img);
@@ -285,7 +305,48 @@ public class TestRomain {
 		
 	}
 
+	public static void testIsDense() {
+		ItkTransform tr=new ItkTransform();
+		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/testImg.tif");
+		System.out.println("Is dense ? "+tr.isDense());
+		ItkTransform tr2=ItkTransform.getIdentityDenseFieldTransform(imgRef);
+		tr.addTransform(tr);
+		System.out.println("Is dense ? "+tr.isDense());
+	}
 	
+	public static void testNewSchemeNoAlgo() {
+		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/testImg.tif");
+		ImagePlus imgTemp=IJ.openImage("/home/fernandr/Bureau/testImg.tif");
+		imgRef.show();
+//		imgTemp.show();
+		ItkTransform rot1=ItkTransform.getRigidTransform(VitimageUtils.getImageCenter(imgRef,true), new double[] {0,0,0.4}, new double[] {0,0,0});
+		ItkTransform trans1=ItkTransform.getRigidTransform(VitimageUtils.getImageCenter(imgRef,true), new double[] {0,0,0}, new double[] {2,0,0});
+		ItkTransform tr=new ItkTransform(rot1);
+		tr.addTransform(trans1);
+		ImagePlus testMov=tr.transformImage(imgRef,imgRef,false);
+		testMov.show();
+		imgTemp=rot1.transformImage(imgTemp, imgTemp, false);
+		imgTemp.show();
+		ImagePlus imgMov=trans1.transformImage(imgTemp, imgTemp, false);
+		imgMov.show();
+		
+		ItkTransform transEstimatedAtFirstStep=ItkTransform.getRigidTransform(VitimageUtils.getImageCenter(imgRef,true), new double[] {0,0,0}, new double[] {-2,0,0});
+		ImagePlus imgAfterFirstStep=transEstimatedAtFirstStep.transformImage(imgMov, imgMov, false);
+		imgAfterFirstStep.show();
+		ItkTransform transEstimatedAtSecondStep=ItkTransform.getRigidTransform(VitimageUtils.getImageCenter(imgRef,true), new double[] {0,0,-1}, new double[] {0,0,0});
+		ImagePlus imgAfterSecondStep=transEstimatedAtSecondStep.transformImage(imgAfterFirstStep, imgAfterFirstStep,false);
+		imgAfterSecondStep.show();
+		ItkTransform trAll=new ItkTransform(transEstimatedAtFirstStep);
+		trAll.addTransform(new ItkTransform(transEstimatedAtSecondStep));
+		ImagePlus imgAfterAllStep=trAll.transformImage(imgMov, imgMov, false);
+		imgAfterAllStep.show();
+		ItkTransform trOnlySecondStepComputed=new ItkTransform((transEstimatedAtFirstStep.getInverse()));
+		trOnlySecondStepComputed.addTransform(trAll);
+		System.out.println("REAL TRANSFORM="+transEstimatedAtSecondStep.drawableString());
+		System.out.println("ESTIMATED TRANSFORM="+trOnlySecondStepComputed.drawableString());
+		
+	}
+
 	
 /*	
 	polygon = roi.getPolygon()

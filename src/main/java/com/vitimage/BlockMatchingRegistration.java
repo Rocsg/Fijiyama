@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import java.awt.Toolkit;
 import java.io.File;
 import org.itk.simple.DisplacementFieldTransform;
 import org.itk.simple.Image;
@@ -26,6 +26,9 @@ import ij.process.LUT;
 import math3d.Point3d;
 
 public class BlockMatchingRegistration  implements ItkImagePlusInterface{
+	//ItkTransform additionalTransform=new ItkTransform();
+	boolean returnComposedTransformationIncludingTheInitialTransformationGiven=true;
+	boolean viewFuseBigger=true;
 	boolean bmIsInterruptedSucceeded=false;
 	public Thread[] threads;
 	public Thread mainThread;
@@ -141,6 +144,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		VitimageUtils.waitFor(100000);
 	}
 	
+	
 	/** Main for testing, and constructor
 	 * 
 	 */
@@ -246,7 +250,12 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		this.blocksStrideX=strideXY;
 		this.blocksStrideY=strideXY;
 		this.blocksStrideZ=strideZ;
-		if(dims[0]<512)this.zoomFactor=(int)Math.round(800/dims[0]);
+		//TODO : verify screen height, and adjust zoomFactor in order that viewHeight < screen height/2
+		java.awt.Dimension currentScreen = Toolkit.getDefaultToolkit().getScreenSize();
+		int screenHeight=Toolkit.getDefaultToolkit().getScreenSize().height;
+		int screenWidth=Toolkit.getDefaultToolkit().getScreenSize().width;
+		zoomFactor=  Math.min((screenHeight/2)/dims[1]  ,  (screenWidth/2)/dims[0]) ; 
+//		if(dims[0]<512)this.zoomFactor=(int)Math.round(800/dims[0]);
 		this.viewHeight=(int)(this.imgRef.getHeight()*zoomFactor);
 		this.viewWidth=(int)(this.imgRef.getWidth()*zoomFactor);
 		System.out.println("Min block variance="+this.minBlockVariance);
@@ -279,7 +288,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 	
 	
-	public static double estimateRegistrationDuration(int[]dims,int viewRegistrationLevel,int maxExpectedTime,int levelMin,int levelMax,int nIterations,Transform3DType transformType,
+	public static double estimateRegistrationDuration(int[]dims,int viewRegistrationLevel,int levelMin,int levelMax,int nIterations,Transform3DType transformType,
 													int []blockHalfSizes,int []strides,int []neighbourhoods,int nCpu,int percentageScoreSelect,int percentageVarianceSelect,int percentageRandomSelect,boolean subsampleZ,int higherAccuracy) {
 		if(higherAccuracy==1)levelMin=-1;
 		System.out.println("DEBUG\nDEBUG ESTIMATION");
@@ -384,7 +393,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		timesGlob[0]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 		handleOutput("Absolute time at start="+t0);
 		double progress=0;IJ.showProgress(progress);
-		this.currentTransform=trInit;
+		this.currentTransform=new ItkTransform(trInit);
 		if(this.currentTransform==null)this.currentTransform=new ItkTransform();
 		handleOutput(new Date().toString());
 		//Initialize various artifacts
@@ -744,7 +753,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 					//Finally, add it to the current stack of transformations
 					handleOutput("  Update to transform = \n"+transEstimated.drawableString());
 					if(!transEstimated.isIdentityAffineTransform(1E-6,0.05*Math.min(Math.min(voxSX,voxSY),voxSZ) ) ){
-						this.currentTransform.addTransform(transEstimated);
+						this.currentTransform.addTransform(new ItkTransform(transEstimated));
+						//this.additionalTransform.addTransform(new ItkTransform(transEstimated));
 						handleOutput("Global transform after this step =\n"+this.currentTransform.drawableString());
 					}
 					else {
@@ -768,6 +778,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 					
 					//Finally, add it to the current stack of transformations
 					this.currentTransform.addTransform(new ItkTransform(new DisplacementFieldTransform( this.currentField[indField-1])));
+//					this.additionalTransform.addTransform(new ItkTransform(new DisplacementFieldTransform( this.currentField[indField-1])));//TODO : may be unuseful now
 					timesIter[lev][iter][15]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 				}
 				if(displayR2) {
@@ -869,7 +880,15 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		//                        st   tr mov     maketab      compvar      sortvar     trimvar          prep bm             prejoin       join          buildcorrtab	  trim score
 		//                         10                    11                    12                         13                        14                  15          16  
 		//                               firstestimate           LTS                 second estimate             correspImage               add              R2
-		return new ItkTransform(this.currentTransform);
+		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.currentTransform;
+		else {
+			if(trInit.isDense())return new ItkTransform((trInit.getInverseOfDenseField()).addTransform(this.currentTransform));
+			else return new ItkTransform(trInit.getInverse().addTransform(this.currentTransform));
+		}
+
+/*		
+		if(returnComposedTransformationIncludingTheInitialTransformationGiven)return new ItkTransform(this.currentTransform);
+		else return new ItkTransform(this.additionalTransform);*/
 	}
 	
 				
@@ -1012,8 +1031,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			this.sliceFuse.show();
 			this.sliceFuse.getWindow().setSize(this.viewWidth,this.viewHeight);
 			this.sliceFuse.getCanvas().fitToWindow();
-			
-	
 		}
 		else {
 			sliceCorr=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.correspondancesSummary),this.sliceIntCorr);
@@ -1074,20 +1091,23 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			else this.sliceFuse=flagRange ? VitimageUtils.compositeNoAdjustOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info) : 
 				VitimageUtils.compositeOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info);
 			this.sliceFuse.show();
-			this.sliceFuse.getWindow().setSize(this.viewWidth,this.viewHeight);
+			System.out.println("SIZE BEF FUSE = "+this.sliceFuse.getWindow().getSize().getWidth()+" x "+this.sliceFuse.getWindow().getSize().getHeight());
+			this.sliceFuse.getWindow().setSize(this.viewWidth*(viewFuseBigger?2:1),this.viewHeight*(viewFuseBigger?2:1));
 			this.sliceFuse.getCanvas().fitToWindow();
 			this.sliceFuse.setSlice(this.sliceInt);
-			RegistrationManager.adjustImageOnScreen(this.sliceFuse,0,0);
+			System.out.println("SIZE PEND FUSE = "+this.sliceFuse.getWindow().getSize().getWidth()+" x "+this.sliceFuse.getWindow().getSize().getHeight());
+			VitimageUtils.adjustImageOnScreen(this.sliceFuse,0,0);
+			System.out.println("SIZE AFT  FUSE = "+this.sliceFuse.getWindow().getSize().getWidth()+" x "+this.sliceFuse.getWindow().getSize().getHeight());
 			
 			if(displayRegistration>1) {
 				ImagePlus tempImg=VitimageUtils.getBinaryGrid(this.imgRef, 10);
 				this.sliceGrid=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(tempImg,tempImg,false)),this.sliceInt);
 				this.sliceGrid.show();
-				this.sliceGrid.setTitle("Field visualization on a uniform 3D grid");
+				this.sliceGrid.setTitle("Transform visualization on a uniform 3D grid");
 				this.sliceGrid.getWindow().setSize(this.viewWidth,this.viewHeight);
 				this.sliceGrid.getCanvas().fitToWindow();
 				this.sliceGrid.setSlice(this.sliceInt);
-				RegistrationManager.adjustImageOnScreenRelative(this.sliceGrid,this.sliceFuse,2,0);
+				VitimageUtils.adjustImageOnScreenRelative(this.sliceGrid,this.sliceFuse,2,0,10);
 	
 				tempImg=new Duplicator().run(imgRef);
 				IJ.run(tempImg,"32-bit","");
@@ -1101,7 +1121,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				this.sliceCorr.setSlice(this.sliceIntCorr);
 				IJ.selectWindow("Correspondances points");
 				IJ.run("Fire","");
-				RegistrationManager.adjustImageOnScreenRelative(this.sliceCorr,this.sliceGrid,2,0);
+				VitimageUtils.adjustImageOnScreenRelative(this.sliceCorr,this.sliceFuse,2,2,10);
 			}
 			if(flagSingleView)IJ.selectWindow("Registration is running. Red=Reference, Green=moving, Gray=score. Level=0 Iter=0"+" "+this.info);
 			else IJ.selectWindow("Registration is running. Red=Reference, Green=moving. Level=0 Iter=0"+" "+this.info);
@@ -1280,59 +1300,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		double val=correlationCoefficient(refData,movData);
 		return (val*val);
 	}
-	//TODO : should be elsewhere, in VitiDialogs for example
-	public Point3d[][] getRegistrationLandmarks(int minimumNbWantedPointsPerImage){
-		ImagePlus imgRefBis=imgRef.duplicate();		imgRefBis.getProcessor().resetMinAndMax();		imgRefBis.show();		imgRefBis.setTitle("Reference image");
-		ImagePlus imgMovBis=imgMov.duplicate();	imgMovBis.getProcessor().resetMinAndMax();		imgMovBis.show();		imgMovBis.setTitle("Moving image");
-		Point3d []pRef=new Point3d[1000];
-		Point3d []pMov=new Point3d[1000];
-		RoiManager rm=RoiManager.getRoiManager();
-		rm.reset();
-		IJ.setTool("point");
-		IJ.showMessage("Examine images and click on reference points");
-		boolean finished =false;
-		do {
-			if(rm.getCount()>=minimumNbWantedPointsPerImage*2 ) finished=true;
-			try {
-				java.util.concurrent.TimeUnit.MILLISECONDS.sleep(1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}while (!finished);
-		int nbCouples=0;
-		for(int indP=0;indP<rm.getCount()/2;indP++){
-			pRef[indP]=new Point3d(rm.getRoi(indP*2 ).getXBase() , rm.getRoi(indP * 2).getYBase() ,  rm.getRoi(indP * 2).getZPosition());
-			pMov[indP]=new Point3d(rm.getRoi(indP*2 +1 ).getXBase() , rm.getRoi(indP * 2 +1 ).getYBase() ,  rm.getRoi(indP * 2 +1 ).getZPosition());
-			pRef[indP]=TransformUtils.convertPointToRealSpace(pRef[indP],imgRef);
-			pMov[indP]=TransformUtils.convertPointToRealSpace(pMov[indP],imgRef);
-			nbCouples++;
-		}
-		System.out.println("Number of correspondance pairs = "+nbCouples);
-		imgRefBis.close();
-		imgMovBis.close();
-		Point3d []pRefRet=new Point3d[nbCouples];		Point3d []pMovRet=new Point3d[nbCouples];
-		for(int i=0;i<pRefRet.length;i++) {
-			pRefRet[i]=pRef[i];
-			pMovRet[i]=pMov[i];
-		}
-		return new Point3d[][] {pRefRet,pMovRet};
-	}
-	
-	//TODO : should be elsewhere, in VitiUtils
-	double[][]getDoubleArray2DCopy(double[][]in){
-		double[][]ret=new double[in.length][];
-		for(int i=0;i<in.length;i++) {
-			ret[i]=new double[in[i].length];
-			for(int j=0;j<in[i].length;j++) {
-				ret[i][j]=in[i][j];
-			}
-		}
-		return ret;
-	}
-	
-
-	
-	
 	
 	
 	/**Helper functions to determine initial factors from given data and parameters 
