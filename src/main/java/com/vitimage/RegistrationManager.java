@@ -347,6 +347,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 						" a fresh empty directory, or an existing Fijiyama directory, containing a .fjm file");return;}
 			openSerieFromFjmFile();
 		}
+		
 		this.mode =MODE_SERIE;
 		this.registrationWindowMode=REGWINDOWSERIERUNNING;
 		startRegistrationInterface();
