@@ -10,6 +10,7 @@ import java.io.Serializable;
 import ij.ImagePlus;
 
 public class RegistrationAction implements Serializable{
+	public boolean isDone=false;
 	public String nameAction;
 	public String nameSubject;
 	public int refTime=0;
@@ -142,7 +143,7 @@ public class RegistrationAction implements Serializable{
 	
 	
 	public void defineSettingsFromTwoImages(ImagePlus imgRef,ImagePlus imgMov,RegistrationManager regManager,boolean modifyMaxLevelOfManager) {
-		int nbStrideAtMinLevel=100;
+		int nbStrideAtMinLevel=20;//100 ou bien 20 mais avec decroissance
 		double minSubResolutionImageSizeLog2=6.0;//In power of two : min resolution=64;
 		double maxSubResolutionImageSizeLog2=8.0;//In power of two : max resolution=512;
 		int strideMinZ=3;
@@ -181,12 +182,10 @@ public class RegistrationAction implements Serializable{
 			//Sinon si anisotropyVox>1.5 -> pas de subsampleZ levelMin et max defini sur dims 0 et 1, neighZ=3 BHSZ=prop strideZ=prop;
 			int []dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-minSubResolutionImageSizeLog2),
 		              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-minSubResolutionImageSizeLog2) };
-			System.out.println(TransformUtils.stringVectorN(dimsLog2, "dimsLog2"));
 			levelMax=Math.min(dimsLog2[0], dimsLog2[1]);
 			dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-maxSubResolutionImageSizeLog2),
 			    (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-maxSubResolutionImageSizeLog2)};
 			levelMin=Math.max(dimsLog2[0], dimsLog2[1]);	
-			System.out.println(TransformUtils.stringVectorN(dimsLog2, "dimsLog2"));
 			if(levelMin>levelMax)levelMin=levelMax;
 			subsampleZ=0;
 			higherAcc=levelMin<1 ? 1 : 0;
@@ -197,8 +196,6 @@ public class RegistrationAction implements Serializable{
 		int subFactorMax=(int)Math.round(Math.pow(2, -1+Math.max(1,levelMax)));
 		int []targetDimsLevelMin=new int[] {dimsTemp[0]/subFactorMin,dimsTemp[1]/subFactorMin,dimsTemp[2]/(subZ ? subFactorMin : 1)};
 		int []targetDimsLevelMax=new int[] {dimsTemp[0]/subFactorMax,dimsTemp[1]/subFactorMax,dimsTemp[2]/(subZ ? subFactorMin : 1)};
-		System.out.println("Targets dims at level Min : "+TransformUtils.stringVectorN(targetDimsLevelMin,""));
-		System.out.println("Targets dims at level Max : "+TransformUtils.stringVectorN(targetDimsLevelMax,""));
 
 		int[]strides=new int[] { (int) Math.round(Math.max(1,Math.ceil(targetDimsLevelMin[0]/nbStrideAtMinLevel))),
 								 (int) Math.round(Math.max(1,Math.ceil(targetDimsLevelMin[1]/nbStrideAtMinLevel))),
@@ -225,40 +222,37 @@ public class RegistrationAction implements Serializable{
 	
 	
 	public String toString() {
-		String str="Step "+step+"   t"+movTime+"_Mod"+movMod+" -> t"+refTime+"_Mod"+refMod+"   "+
-				(typeAction==0 ? "Manual registration" : typeAction==1 ? "Automatic registration" : "Alignment of images axis")+" "+typeTrans;
-		if (typeAction!=1) {
-			str+=(typeManViewer==0 ? "in 3d-viewer" : "in 2d-viewer");
-		}
-		else {
-			str+=" levs="+levelMax+"->"+(higherAcc==1 ? -1 : levelMin); 
-			if (typeTrans==Transform3DType.DENSE) str+=" sigma="+sigmaDense;
-			if (typeOpt==OptimizerType.BLOCKMATCHING) {
-				str+=" it="+iterationsBM+" bh="+bhsX+" nei="+neighX+" strd="+strideX;
-			}
-			else {
-				str+=" it="+iterationsITK+" lr="+learningRate;
-			}
-			str+=typeAutoDisplay==0 ? " noDisp" : typeAutoDisplay==1 ? "DispFus" : "DispAll"; 
-		}
-		return str;
+		return readableString();
 	}
 	
+	public RegistrationAction setStepTo(int step) {
+		this.step=step;
+		return this;
+	}
 	
+	public boolean isTransformationAction() {
+		return ( (typeAction==TYPEACTION_ALIGN) || (typeAction==TYPEACTION_AUTO) || (typeAction==TYPEACTION_MAN) );
+	}
 	
 	public String readableString() {
-		String str="Step "+step+"   ";
+		return readableString(true);
+	}
+
+	public String readableString(boolean withTodoDone) {
+		String str="";
+		if(withTodoDone)str+="|"+(isDone ? "Done " : "To do")+"| ";
+		str+="Step "+step+"   ";
 		switch(typeAction) {
-		case TYPEACTION_MAN: str+="Manual registration";break;
-		case TYPEACTION_AUTO: str+="Automatic registration";break;
-		case TYPEACTION_ALIGN: str+="Alignment of images axis";break;
-		case TYPEACTION_VIEW: str+="View global result";break;
-		case TYPEACTION_SAVE: str+="Save plugin state and previous results";break;
-		case TYPEACTION_EXPORT: str+="Export resulting multimodal time serie and composed transformations";break;
-		default : str+="Unknown operation";break;
+		case TYPEACTION_MAN: str+="Manual reg."  ;break;
+		case TYPEACTION_AUTO: str+="Auto. reg.  ";break;
+		case TYPEACTION_ALIGN: str+="Align. axis  ";break;
+		case TYPEACTION_VIEW: str+="View results  ";break;
+		case TYPEACTION_SAVE: str+="Save actions and results  ";break;
+		case TYPEACTION_EXPORT: str+="Export results  ";break;
+		default : str+="Unknown operation  ";break;
 		}
-		if (typeAction==TYPEACTION_MAN || typeAction==TYPEACTION_AUTO || typeAction==TYPEACTION_ALIGN) {
-			str+="t"+movTime+"_Mod"+movMod+" -> t"+refTime+"_Mod"+refMod+"   ";
+		if (this.isTransformationAction()) {
+			str+="Transform="+typeTrans+" Mov=t"+movTime+"_mod"+movMod+" -> Ref=t"+refTime+"_mod"+refMod+"   ";
 		}
 		if (typeAction==TYPEACTION_MAN || typeAction==TYPEACTION_ALIGN) {
 			str+=(typeManViewer==0 ? "in 3d-viewer" : "in 2d-viewer");
@@ -293,7 +287,7 @@ public class RegistrationAction implements Serializable{
 		reg.refMod=refMod2;
 		reg.movMod=movMod2;
 		reg.step=step2;
-		return null;
+		return reg;
 	}
 	
 	public RegistrationAction setActionTo(int typeAction2) {

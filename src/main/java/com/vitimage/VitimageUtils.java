@@ -177,6 +177,24 @@ public interface VitimageUtils {
 		return vals;
 	}
 
+	public static void setLabelOnAllSlices(ImagePlus img,String label) {
+		for(int i=0;i<img.getStack().getSize();i++)img.getStack().setSliceLabel(label,i+1);
+	}
+	
+	public static String getSystemName(){
+		String os=System.getProperty("os.name").toLowerCase();
+		if(os.indexOf("win") >= 0)return "Windows system";
+		if(os.indexOf("mac") >= 0)return "Mac iOs system";
+		if(os.indexOf("nux") >= 0)return "Linux system";
+		return "System";
+	}
+	public static String getSystemNeededMemory(){
+		String os=System.getProperty("os.name").toLowerCase();
+		if(os.indexOf("win") >= 0)return "3000 MB";
+		if(os.indexOf("mac") >= 0)return "3000 MB";
+		if(os.indexOf("nux") >= 0)return "3000 MB";
+		return "System";
+	}
 	
 	public static double[][] readDoubleArrayFromFile(String file,int nbDimsPerLine) {
 		File fParam=new File(file);

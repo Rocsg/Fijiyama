@@ -147,6 +147,34 @@ public interface VitiDialogs {
 	 }
 	
 	
+	public static String getStringUI(String strGuess,String parameter,String value,boolean forceStringToBeValidForFilenames) {
+		String ret="";
+		while(!isStandardName(ret)) {
+			GenericDialog gd = new GenericDialog(strGuess);
+			gd.addStringField(parameter+" :",value,20);
+	        gd.showDialog();
+	        if (gd.wasCanceled()) {IJ.showMessage("Dialog cancel. Value is set to default : "+value);return value;}
+	        ret=gd.getNextString();
+		}
+        return ret;
+	}
+	
+	//work like isAlphaNumeric, but including also underscore and minus
+	public static boolean isStandardChar(char c) {
+		int val=(int)c;
+		if(val>=97 && val<=122)return true;//Character from a to z
+		if(val>=65 && val<=90)return true;//Character from A to Z
+		if(val>=48 && val<=57)return true;//Character from A to Z
+		if(val==95 || val==45)return true;//Respectively, underscore and minus symbols
+		return false;
+	}
+	
+	public static boolean isStandardName(String str) {
+		if(str.length()<=0)return false;
+		for (int i=0;i<str.length();i++)if (!isStandardChar(str.charAt(i)))return false;
+		return true;
+	}
+	
 	public static boolean getYesNoUI(String title,String strGuess) {
         GenericDialog gd=new GenericDialog(title);
         gd.addMessage(strGuess);

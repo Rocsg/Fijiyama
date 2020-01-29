@@ -14,14 +14,19 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Path;
-import java.sql.Date;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.swing.JFrame;
+import javax.swing.JTextArea;
 
 import org.apache.commons.math.MathException;
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
@@ -154,16 +159,17 @@ public class TestRomain {
 //		makeExperimentOnSegmentationsAndGetValuesOfPercentageTissueAccordingWithGeodesic();
 	
 		//testGrad();
-		//VitimageUtils.waitFor(100000);		
-		OptimizerType opt=OptimizerType.ITK_AMOEBA;
-		System.out.println(opt);
-		String s=""+opt;
-		OptimizerType op2=OptimizerType.valueOf(s);
-		System.out.println(op2);
-//		OptimizerType=(OptimizerType)s;
+		//VitimageUtils.waitFor(100000);
+		JFrame fra=new JFrame();
+		JTextArea logArea=new JTextArea("", 10,10);
+		fra.add(logArea);
+		fra.pack();
+		fra.setVisible(true);
+		
+		VitimageUtils.waitFor(1000000);
+		makingData();
 		
 		testNewSchemeNoAlgo();
-		VitimageUtils.waitFor(1000000);
 
 		//makeHybrideCepVertical();
 		String str="pouetpouet.fjm";
@@ -305,6 +311,37 @@ public class TestRomain {
 		
 	}
 
+	
+	public static void makingData() {
+		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/TWOIMG/imgRef.tif");
+		String []mods=new String[] {"MRI","RX"};
+		String []times=new String[] {"1","2","3"};
+		int incr=0;
+		ImagePlus []imgs=new ImagePlus[5];
+		for(int im=0;im<2;im++) {
+			for(int it=0;it<3;it++) {
+				if(im==1 && it==1)continue;
+				double angleZ=(Math.random()-0.5);
+				double angleY=(Math.random()-0.5)*0.1;
+				double angleX=(Math.random()-0.5)*0.1;
+				double factMult=1+(  (Math.random()-0.5))*0.5;
+				double factAdd=Math.random()*0.1;
+				double dX=(Math.random()-0.5);
+				double dY=(Math.random()-0.5);
+				double dZ=(Math.random()-0.5);
+				ItkTransform tr=ItkTransform.getRigidTransform(VitimageUtils.getImageCenter(img,true), new double[] {angleX,angleY,angleZ}, new double[] {dX,dY,dZ});
+				ImagePlus temp=tr.transformImage(img, img, false);
+				temp=VitimageUtils.makeOperationOnOneImage(temp, 1, factAdd,false);
+				temp=VitimageUtils.makeOperationOnOneImage(temp, 2, factMult,false);
+				VitimageUtils.setLabelOnAllSlices(temp,"img_t"+times[it]+"_mod"+mods[im]+".tif");
+				IJ.saveAsTiff(temp,"/home/fernandr/Bureau/Test/SERIE/INPUT_DIR/img_t"+times[it]+"_mod"+mods[im]+".tif");
+				imgs[incr++]=temp;
+			}			
+		}
+		ImagePlus result=Concatenator.run(imgs);
+		result.show();
+	}
+	
 	public static void testIsDense() {
 		ItkTransform tr=new ItkTransform();
 		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/testImg.tif");

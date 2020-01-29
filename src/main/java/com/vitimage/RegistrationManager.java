@@ -7,10 +7,18 @@ import java.awt.GridLayout;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.lang.management.ManagementFactory;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -27,6 +35,8 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTextArea;
+
+import org.jfree.chart.plot.ThermometerPlot;
 import org.scijava.java3d.Transform3D;
 import org.scijava.vecmath.Color3f;
 
@@ -40,6 +50,7 @@ import ij.plugin.frame.PlugInFrame;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import math3d.Point3d;
+import vib.oldregistration.RegistrationAlgorithm;
 
 /**
  * 
@@ -47,11 +58,9 @@ import math3d.Point3d;
  * TODO : describe Class and code articulation
  */
 /*TODO : v2 Already done non-regression tests :
-Undo is ok. Activate up to one step done, deactivate when last step removed. Close the contexts previously open, update both structures and interfaces
-Abort is ok.
-	
-TODO : Transformer image
-*	continuer le processing d une serie
+* Undo is ok. Activate up to one step done, deactivate when last step removed. Close the contexts previously open, update both structures and interfaces
+* Abort is ok.
+* One day : handle RegistrationAction with a specific object : a pile of to-do actions	
 * 
 * */
 
@@ -60,6 +69,11 @@ TODO : Transformer image
 
 public class RegistrationManager extends PlugInFrame implements ActionListener {
 	private boolean debugMode=true;
+	private boolean first2dmessage=true;
+	private boolean first3dmessage=true;
+	
+	private Color colorStdActivatedButton;
+	private Color colorGreenRunButton;
 	
 	//Flags for the kind of viewer
 	private static final int VIEWER_3D = 0;
@@ -68,8 +82,8 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	private static final String startPar="<p  width=\"650\" >";
 	private static final String nextPar="</p><p  width=\"650\" >";
 
-	private static final int MODE_TWO_IMAGES=1;
-	private static final int MODE_SERIE=2;
+	private static final int MODE_TWO_IMAGES=2;
+	private static final int MODE_SERIE=3;
 
 	//Flags for the "run" button tooltip
 	private static final int MAIN=81;
@@ -93,6 +107,8 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	private static final int FINISH=106;
 	private static final int SOS=107;
 
+
+	
 	//Identifiers for buttons of start window
 	private static final int RUNTWOIMG=111;
 	private static final int RUNSERIE=112;
@@ -100,6 +116,11 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	private static final int RUNTRANSCOMP=114;
 	private static final int SOSINIT=115;
 
+	//Identifiers for buttons of registration serie
+	private static final int RUNNEXTSTEP=131;
+	private static final int GOBACKSTEP=132;
+
+	
 	//Flags for the state of the registration manager
 	private static final int REGWINDOWTWOIMG=121;
 	private static final int REGWINDOWSERIEPROGRAMMING=122;
@@ -122,6 +143,8 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	private String[]textOptimizers=new String[] {"Block-Matching","ITK"};
 	private String[]textTransformsBM=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)","Vector field "};
 	private String[]textTransformsITK=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)"};
+	private String[]textTransformsMAN=new String[] {"Rigid (no deformations)",};
+	private String[]textTransformsALIGN=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)"};
 	private String[]textDisplayITK=new String[] {"0-Only at the end (faster)","1-Dynamic display (slower)"};
 	private String[]textDisplayBM=new String[] {"0-Only at the end (faster)","1-Dynamic display (slower)","2-Also display score map (slower+)"};
 	private String[]textDisplayMan=new String[] {"3d viewer (volume rendering)","2d viewer (classic slicer)"};
@@ -158,17 +181,16 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	private JButton transformButton = new JButton("Apply a computed transform to another image");
 	private JButton composeTransformsButton = new JButton("Compose successive transforms into a single one");
 	private JButton sos0Button =new JButton("Start this action");
-	private JButton runNextStepButton = new JButton("Register two 3d images (training mode)");
-	private JButton goBackStepButton = new JButton("Register 3d series (N-times and/or N-modalities)");
+	private JButton runNextStepButton = new JButton("Run next step");
+	private JButton goBackStepButton = new JButton("Coming soon...");
 
-	private JButton replaceActionButton = new JButton("Start this action");
-	private JButton removeSelectedButton = new JButton("Start this action");
-	private JButton validatePipelineButton = new JButton("Start this action");
+	private JButton addActionButton = new JButton("Add an action to pipeline");
+	private JButton removeSelectedButton = new JButton("Remove last action");
+	private JButton validatePipelineButton = new JButton("Approve inter-time pipeline");
 	
 	private JFrame registrationFrame;
-	private JTextArea logArea=new JTextArea("", 6,4);
+	private JTextArea logArea=new JTextArea("", 10,10);
 	private Color colorIdle;
-	private JScrollPane scrollPane;
 	private JFrame frameLaunch;
 
 	
@@ -178,7 +200,6 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	
 	//Structures for computation (model part);
 	private RegistrationAction currentRegAction;
-	private ArrayList<RegistrationAction>regActions=new ArrayList<RegistrationAction>();
 	private ArrayList<ItkTransform> trActions=new ArrayList<ItkTransform>();
 	ItkRegistrationManager itkManager;
 	BlockMatchingRegistration bmRegistration;
@@ -207,21 +228,17 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	private int[]imageParameters=new int[] {512,512,40};
 	public int maxAcceptableLevel=3;
 	private int nbCpu=1;
+	private int jvmMemory=1;
 	private int freeMemory=1;
+	private long memoryFullSize;
 	
-	private int maxImageSizeForRegistration=32;//In Mvoxels
 	private int mode=MODE_TWO_IMAGES;
-	private String serieOutputPath;
-	private String serieFjmFile;
-	private String serieInputPath;
-	private String[] times;
-	private String[] mods;
-	private String expression;
-	private int[] lastViewSizes=new int[] {500,500};
+	private volatile boolean pipelineValidated=false;
 
-	private boolean memorySavingMode=false;
+	private int nSteps;
 
-	private boolean pipelineValidated=false;
+	private boolean[] stepExecuted;
+	protected boolean comboBoxChanged=false;
 
 
 	
@@ -259,24 +276,31 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		int TESTHYPERIMG=4;
 		int TESTCOMPOSE=5;
 		int TESTNEWSERIE=6;
+		int TESTINTERFACEPROGRAMMING=7;
+		int TESTINTERFACERUNNING=8;
+	
 		int typeTest=TESTNEWSERIE;
+
 		if(typeTest==TESTTWOIMG) {
 			String path1="/home/fernandr/Bureau/Test/TWOIMG/imgRef.tif";
 			String path2="/home/fernandr/Bureau/Test/TWOIMG/imgMov.tif";
-			this.startTwoImagesRegistration(path1, path2);
+			this.setupTwoImagesRegistrationFromTwoPaths(path1, path2);
+			startTwoImagesRegistration();
+
 		}
 		else if(typeTest==TESTTWOIMG) {
 			String path1="/home/fernandr/Bureau/Test/TWOIMG/imgRef.tif";
 			String path2="/home/fernandr/Bureau/Test/TWOIMG/imgMov.tif";
-			this.startTwoImagesRegistration(path1, path2);
+			this.setupTwoImagesRegistrationFromTwoPaths(path1, path2);
+			startTwoImagesRegistration();
 		}
 		else if(typeTest==TESTLOAD) {
-			this.startFromSavedStateTwoImages("/home/fernandr/Bureau/Pouet/save_DATA_FJM/save.fjm");
+			this.loadFromFjmFile("/home/fernandr/Bureau/Pouet/save_DATA_FJM/save.fjm");
+			startTwoImagesRegistration();
 		}
 		else if(typeTest==TESTHYPERIMG) {
-			this.startTwoImagesRegistration(
-					"/home/fernandr/Bureau/testXYZCT.tif",
-					"/home/fernandr/Bureau/testXYZCT.tif");
+			this.setupTwoImagesRegistrationFromTwoPaths("/home/fernandr/Bureau/testXYZCT.tif", "/home/fernandr/Bureau/testXYZCT.tif");
+			startTwoImagesRegistration();
 		}
 		else if(typeTest==TESTTRANS){
 			runTransformImage();
@@ -285,7 +309,16 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 			runComposeTransforms();
 		}
 		else if(typeTest==TESTNEWSERIE) {
+			setupSerie();
 			startSerie();
+		}
+		else if(typeTest==TESTINTERFACEPROGRAMMING) {
+			this.registrationWindowMode=REGWINDOWSERIEPROGRAMMING;
+			this.startRegistrationInterface();
+		}
+		else if(typeTest==TESTINTERFACERUNNING) {
+			this.registrationWindowMode=REGWINDOWSERIERUNNING;
+			this.startRegistrationInterface();
 		}
 	}
 	
@@ -294,11 +327,10 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	
 	
 	
-	
-	/** Setup methods----------------------------------------------------------------------------------
+	/** Setup and start methods----------------------------------------------------------------------------------
 	 * 
 	 */
-	public void startTwoImagesRegistration(String pathToRef,String pathToMov) {
+	public void setupTwoImagesRegistrationFromTwoPaths(String pathToRef,String pathToMov) {
 		this.registrationWindowMode=REGWINDOWTWOIMG;
 		this.mode=MODE_TWO_IMAGES;
 		this.nTimes=1;
@@ -311,84 +343,95 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		this.paths[movTime][movMod]=pathToMov;
 		checkComputerCapacity();
 		openImagesAndCheckOversizing();
-		startRegistrationInterface();
-		addLog("Starting plugin. Mode=two images registration. ",0);
-		addLog("Available memory="+this.freeMemory+" MB. #Cpu threads="+this.nbCpu+".",0);
-		addLog("Checking image size. Reference image="+VitimageUtils.dou(this.imageSizes[refTime][refMod])+"Mvoxels. Estimating optimal parameters.",0);
-		currentRegAction.defineSettingsFromTwoImages(this.images[refTime][refMod],this.images[movTime][movMod],this,true);
-		addLog("Starting 2d viewer.  ",0);
-		updateViewTwoImages();
-		addLog("Activating user interface. ",2);
-		enable(new int[] {RUN,SETTINGS,SOS,BOXACT,BOXTRANS,BOXDISPMAN});		
-		addLog("",0);
-		addLog("Welcome to Fijiyama ! Choose the next action using the box-lists in the first panel, then click on \"Start this action\". ",0);
-		addLog("First trial with Fijiyama ? Click on \"Contextual help\" to get started",0);
-		addLog("",0);
 	}
 	
-	public void startSerie() {
-		System.out.println("StartSerie");
-		//Select outputPath
-		this.serieOutputPath=(debugMode) ? "/home/fernandr/Bureau/Pouet/Output_dir" : VitiDialogs.chooseDirectoryUI("Select an empty output directory to begin a new work, or select a directory containing a previous .fjm file","Select empty output dir...");
+	public void startTwoImagesRegistration() {
+		startRegistrationInterface();
+		openImagesAndCheckOversizing();
+		updateViewTwoImages();
+		currentRegAction.defineSettingsFromTwoImages(this.images[refTime][refMod],this.images[movTime][movMod],getRegistrationManager(),true);
+		enable(new int[] {RUN,SETTINGS,SOS,BOXACT,BOXTRANS,BOXDISPMAN});		
+		addLog("Welcome to Fijiyama ! First trial ? Click on \"Contextual help\" to get started",0);
+		addLog("Current mode : two-images registration. Choose the next action using the menus, then click on \"Start this action\"",0);
+		addLog("",0);
+		informAboutComputerCapabilities();
+		if(this.step>0)enable(new int[] {RUN,SAVE,UNDO,FINISH});
+	}
+	
+	public void setupSerie() {
+		System.out.println("Setup Serie");
+		this.serieOutputPath=(debugMode) ? "/home/fernandr/Bureau/Test/SERIE/OUTPUT_DIR" : VitiDialogs.chooseDirectoryUI("Select an empty output directory to begin a new work, or select a directory containing a previous .fjm file","Select empty output dir...");
 		if(this.serieOutputPath==null) {IJ.showMessage("No output path given. Abort");return ;}
 		this.serieFjmFile=null;
+		System.out.println("serieOutputPath="+this.serieOutputPath);
 		if(this.serieOutputPath==null)return;
 		String[]files=new File(this.serieOutputPath).list();
-		if(files.length==0)if(!createNewSerie())return;
+		if(files.length==0) {
+			if(!createNewSerie()) {
+				System.out.println("DEBUG 31");return;
+			}
+		}
 		else {
+			System.out.print("Output directory "+this.serieOutputPath+" is non empty. Looking for a .jfm config file...");
 			boolean found=false;
 			for(String str : files) {
 				if(str.substring(str.length()-4,str.length()).equals(".fjm")) {
-					this.serieFjmFile=str;
+					System.out.println("Found !");
+					this.name=str.substring(0,str.length()-4);
 					found=true;
 				}
 			}
-			if(!found) {IJ.showMessage("Error : opened a directory with random other files, but no .fjm configuration files. Please choose"+
-						" a fresh empty directory, or an existing Fijiyama directory, containing a .fjm file");return;}
-			openSerieFromFjmFile();
+			if(!found) {
+				System.out.println("Not found !");
+				IJ.showMessage("Error : opened a directory with random other files, but no .fjm configuration files. Please choose"+
+						" a fresh empty directory, or an existing Fijiyama directory, containing a .fjm file");return;
+			}
+			loadFromFjmFile(new File(this.serieOutputPath,this.name+".fjm").getAbsolutePath());
 		}
-		
+	}
+	
+	public void startSerie(){
 		this.mode =MODE_SERIE;
 		this.registrationWindowMode=REGWINDOWSERIERUNNING;
 		startRegistrationInterface();
-		addLog("Available memory="+this.freeMemory+" MB. #Cpu threads="+this.nbCpu+".",0);
-		addLog("Checking image size. Reference image="+VitimageUtils.dou(this.imageSizes[refTime][refMod])+"Mvoxels. Estimating optimal parameters.",0);
-
-		//TODO :
-//		enable(new int[] {RUN,SETTINGS,SOS,BOXACT,BOXTRANS,BOXDISPMAN});		
-		//		addLog("",0);
-		//addLog("Welcome to Fijiyama ! Modify (if needed) the next action using the box-lists in the first panel, then click on \"Start this action\". ",0);
-		//addLog("First trial with Fijiyama ? Click on \"Contextual help\" to get started",0);
-		//addLog("",0);
+		currentRegAction=this.regActions.get(this.step);
+		disable(new int[] {BOXOPT,BOXACT,BOXTIME,BOXTRANS,BOXDISP,BOXDISPMAN,SETTINGS});
+		enable(new int[] {RUNNEXTSTEP,GOBACKSTEP,SOS});	
+		addLog("Welcome to Fijiyama ! First trial ? Click on \"Contextual help\" to get started",0);
+		addLog("Current mode : serie processing. Click on \"Run next action\", or use the menu to modify it before. Series can be long. Keep clicking !",0);
+		addLog("",0);
+		informAboutComputerCapabilities();	
+		addLog("--> Waiting for you to start next action : "+currentRegAction.readableString(false),0);
 	}
 	
-	public void openSerieFromFjmFile() {
-		
-		checkComputerCapacity();
-		openImagesAndCheckOversizing();
-	}
-
 	public boolean createNewSerie() {
 		//Get input dir to collect images of serie
-		System.out.println("Starting new serie");
-		this.serieInputPath=(debugMode) ? "/home/fernandr/Bureau/Pouet/Input_dir" : VitiDialogs.chooseDirectoryUI("Select an input directory containing 3d images","Select input dir...");
+		this.name="Fijiyama_serie_"+new SimpleDateFormat("yyyy-MM-dd_hh-mm").format(new Date());
+		this.expression="img_t{Time}_mod{ModalityName}.tif";
+		String strTimes="1-3";
+		String strMods="MRI;RX";
+	
+		if(!debugMode)this.name=VitiDialogs.getStringUI("Choose a name for your serie (accepted characters : alphanumeric, underscore and minus)","Serie name",this.name,true);
+		System.out.println("Starting new serie "+this.name);
+		this.serieInputPath=(debugMode) ? "/home/fernandr/Bureau/Test/SERIE/INPUT_DIR" : VitiDialogs.chooseDirectoryUI("Select an input directory containing 3d images","Select input dir...");
 		if(this.serieInputPath==null){IJ.showMessage("Input path = null. Exit");return false;}
-		
 		//Get regular expression for image lookup
-		GenericDialog gd=new GenericDialog("Describe file names with a generic expression");
-		gd.addMessage("Write observation times. If no multiple times, leave blank. Example : 1-5 or 10;33;78 ");
-		gd.addStringField("Times=", "1-5", 40);
-		gd.addMessage("");
-		gd.addMessage("Write modalities. If no multiple modalities, leave blank. Example : RX;MRI;PHOTO ");
-		gd.addStringField("Modalities=", "RX;MRI", 40);
-		gd.addMessage("");
-		gd.addMessage("Write expression describing your files, with {ModalityName} for modalities and {Time} for times");
-		gd.addStringField("Generic expression", "img_{Time}_mod{ModalityName}.tif", 50);
-		gd.showDialog();
-		if(gd.wasCanceled()){IJ.showMessage("Dialog exited. Abort");return false;}
-		String strTimes=gd.getNextString();
-		String strMods=gd.getNextString();
-		this.expression=gd.getNextString();
+		if(!debugMode) {
+			GenericDialog gd=new GenericDialog("Describe file names with a generic expression");
+			gd.addMessage("Write observation times. If no multiple times, leave blank. Example : 1-5 or 10;33;78 ");
+			gd.addStringField("Times=", "1-3", 40);
+			gd.addMessage("");
+			gd.addMessage("Write modalities. If no multiple modalities, leave blank. Example : RX;MRI;PHOTO ");
+			gd.addStringField("Modalities=", "MRI;RX", 40);
+			gd.addMessage("");
+			gd.addMessage("Write expression describing your files, with {ModalityName} for modalities and {Time} for times");
+			gd.addStringField("Generic expression", this.expression, 50);
+			gd.showDialog();
+			if(gd.wasCanceled()){IJ.showMessage("Dialog exited. Abort");return false;}
+			strTimes=gd.getNextString();
+			strMods=gd.getNextString();
+			this.expression=gd.getNextString();
+		}
 		try {
 			this.times=parseTimes(strTimes);
 			this.mods=(strMods.length()==0 ? new String[] {""} : strMods.split(";"));
@@ -425,20 +468,21 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		for(int nm=this.nMods-1;nm>=0;nm--)if(numberPerMod[nm]==this.nTimes) {potentialRef[index]=mods[nm];potentialRefIndex[index++]=nm;}
 
 		//Select reference modality
-		GenericDialog gd2=new GenericDialog("Choose reference modality for registration");
-		gd2.addMessage("This modality will be the reference image for each time-point. Choose the easiest to compare with all the other ones.");
-		gd2.addMessage("The registration process is done with the dimensions of the reference image.\n--> If you choose a low resolution modality, registration can be unaccurate\n"+
-				"--> If you choose a high resolution modality, it will be subsampled to prevent memory overflow");
-		gd2.addMessage("");
-		gd2.addMessage("After reference modality, you will have to choose the reference time. The dirst one is the recommended choice");
-		gd2.addChoice("Reference modality", potentialRef, potentialRef[0]);
-		gd2.addChoice("Reference time", this.times, times[0]);
-		gd2.showDialog();
-		if(gd2.wasCanceled()){IJ.showMessage("Dialog exited. Abort");return false;}
-		int refInd=gd2.getNextChoiceIndex();
-		this.referenceModality=potentialRefIndex[refInd];
-		this.referenceTime=gd2.getNextChoiceIndex();
-		
+		if(!debugMode) {
+			GenericDialog gd2=new GenericDialog("Choose reference modality for registration");
+			gd2.addMessage("This modality will be the reference image for each time-point. Choose the easiest to compare with all the other ones.");
+			gd2.addMessage("The registration process is done with the dimensions of the reference image.\n--> If you choose a low resolution modality, registration can be unaccurate\n"+
+					"--> If you choose a high resolution modality, it will be subsampled to prevent memory overflow");
+			gd2.addMessage("");
+			gd2.addMessage("After reference modality, you will have to choose the reference time. The dirst one is the recommended choice");
+			gd2.addChoice("Reference modality", potentialRef, potentialRef[0]);
+			gd2.addChoice("Reference time", this.times, times[0]);
+			gd2.showDialog();
+			if(gd2.wasCanceled()){IJ.showMessage("Dialog exited. Abort");return false;}
+			int refInd=gd2.getNextChoiceIndex();
+			this.referenceModality=potentialRefIndex[refInd];
+			this.referenceTime=gd2.getNextChoiceIndex();
+		}		
 		
 		System.out.println("\nReference modality             : nb."+this.referenceModality+" = "+this.mods[this.referenceModality]);
 		System.out.println("Reference time                 : nb."+this.referenceTime+" = "+this.times[this.referenceTime]);
@@ -455,50 +499,69 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 			this.memorySavingMode=true;
 		}
 		
+		new File(this.serieOutputPath,"Registration_files").mkdirs();
+		new File(this.serieOutputPath,"Exported_data").mkdirs();
+		
 		checkComputerCapacity();
 		openImagesAndCheckOversizing();
 		defineSerieRegistrationPipeline();
+		saveSerieToFjmFile();
+		loadFromFjmFile(new File(this.serieOutputPath,this.name+".fjm").getAbsolutePath());
 		return true;
 	}
 
-	//The global pipeline is composed of steps to match :
-	//  - successive times together
-	//  - at each time point, modalities with the reference modalities
+	public void printRegActions(String name,ArrayList<RegistrationAction> listAct) {
+		System.out.println();
+		System.out.println(" # Reg actions "+name+", size="+listAct.size());
+		for(int i=0;i<listAct.size();i++) {
+			System.out.println(" # "+listAct.get(i));
+		}
+	}
+	
+	
 	public void defineSerieRegistrationPipeline() {
-		this.registrationWindowMode=REGWINDOWSERIERUNNING;
-		startRegistrationInterface();
+		this.registrationWindowMode=REGWINDOWSERIEPROGRAMMING;
 		ArrayList<RegistrationAction>interTimes=new ArrayList<RegistrationAction> ();
 		ArrayList<ArrayList<RegistrationAction>>interMods=new ArrayList<ArrayList<RegistrationAction> >();
 		//Define inter-time pipeline, if needed
+		System.out.println("Processing intertime pipeline");
 		if(this.nTimes>1) {
 			this.regActions=new ArrayList<RegistrationAction>();
 			this.regActions.add(RegistrationAction.createRegistrationAction(
 					images[referenceTime][referenceModality],images[referenceTime][referenceModality], this,RegistrationAction.TYPEACTION_MAN));
 			this.regActions.add(RegistrationAction.createRegistrationAction(
-					images[referenceTime][referenceModality],images[referenceTime][referenceModality],this,RegistrationAction.TYPEACTION_AUTO));
-			this.updateFieldsDisplay();
-			IJ.showMessage("Define registration pipeline to align images of the reference modality between two successive times.\n"+
+					images[referenceTime][referenceModality],images[referenceTime][referenceModality],this,RegistrationAction.TYPEACTION_AUTO).setStepTo(1));
+			startRegistrationInterface();
+			this.updateList();
+			validatePipelineButton.setText("Approve inter-time pipeline");
+			if(!debugMode)IJ.showMessage("Define registration pipeline to align images of the reference modality between two successive times.\n"+
 			"Click on an action in the bottom list, and modify it using the menus. Click on remove to delete the selected action, \n"+
 			"and click on add action to insert a new registration action just before the cursor\n\nOnce done, click on Validate pipeline.");
-			waitForValidaton();
+			waitForValidation();
 			interTimes=this.regActions;
 		}
+		printRegActions("Intertime pipeline", interTimes);
+
 		//Define inter-mods pipeline, if needed
+		System.out.println("Processing intermods pipelines");
 		if(this.nTimes>1) {
 			for(int curMod=0;curMod<this.nMods;curMod++) {
 				if(curMod == referenceModality) interMods.add(null);
 				else {
+					System.out.println("Doing for mod "+curMod);
 					this.regActions=new ArrayList<RegistrationAction>();
 					this.regActions.add(RegistrationAction.createRegistrationAction(
 							images[referenceTime][referenceModality],images[referenceTime][referenceModality], this,RegistrationAction.TYPEACTION_MAN));
 					this.regActions.add(RegistrationAction.createRegistrationAction(
-							images[referenceTime][referenceModality],images[referenceTime][referenceModality],this,RegistrationAction.TYPEACTION_AUTO));
-					this.updateFieldsDisplay();
-					IJ.showMessage("Define registration pipeline to align "+this.mods[referenceModality]+" with "+this.mods[curMod]+" from the same timepoint.\n"+
+							images[referenceTime][referenceModality],images[referenceTime][referenceModality],this,RegistrationAction.TYPEACTION_AUTO).setStepTo(1));
+					this.updateBoxesAndCurrentAction();
+					if(!debugMode)IJ.showMessage("Define registration pipeline to align "+this.mods[referenceModality]+" with "+this.mods[curMod]+" from the same timepoint.\n"+
 							"Click on an action in the bottom list, and modify it using the menus. Click on remove to delete the selected action, \n"+
 							"and click on add action to insert a new registration action just before the cursor\n\nOnce done, click on Validate pipeline.");
-					waitForValidaton();
+					validatePipelineButton.setText("Approve "+this.mods[curMod]+"->"+this.mods[referenceModality]+" pipeline");
+					waitForValidation();
 					interMods.add(this.regActions);
+					printRegActions("Intermod "+curMod+" pipeline", interMods.get(interMods.size()-1));
 				}
 			}
 		}
@@ -534,11 +597,17 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 						for(int regSt=0;regSt<interMods.get(movMod).size();regSt++) {
 							this.step++;
 							regActions.add(RegistrationAction.copyWithModifiedElements(interMods.get(movMod).get(regSt),refTime,refMod,movTime,movMod,step));
+							this.step++;
+							regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
 						}
 						this.step++;
 						regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
 					}
 				}
+			}
+			if(regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_VIEW) {
+				this.step++;
+				regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
 			}
 		}
 		//If pipeline is in human-time saving mode
@@ -557,46 +626,61 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 							regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(regSt),refTime,refMod,movTime,movMod,step));
 						}
 					}
+				}
+				if(regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_SAVE) {
 					this.step++;
 					regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
 				}
+				
 				System.out.println("Sequencing intermodal registrations");
-				for(int tRef=0;tRef<this.nTimes-1;tRef++) {
+				for(int tRef=0;tRef<this.nTimes;tRef++) {
 					refTime=tRef;refMod=referenceModality;
 					movTime=tRef;
 					for(int mMov=0;mMov<this.nMods;mMov++) {
 						movMod=mMov;
-						if(refMod != movMod) {
+						if(refMod != movMod && imageExists(movTime, movMod)) {
 							for(int regSt=0;regSt<interMods.get(movMod).size();regSt++) {
 								if(interMods.get(movMod).get(regSt).typeAction==type) {
 									this.step++;
 									regActions.add(RegistrationAction.copyWithModifiedElements(interMods.get(movMod).get(regSt),refTime,refMod,movTime,movMod,step));
 								}
 							}
-							this.step++;
-							regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
 						}
 					}
 				}
-				this.step++;
-				regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
+				if(regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_SAVE) {
+					this.step++;
+					regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
+				}
+				if(regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_VIEW) {
+					this.step++;
+					regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
+				}
 			}
 		}
 		this.step++;
-		regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
-		this.step++;
 		regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_ALIGN));
+		if(regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_SAVE) {
+			this.step++;
+			regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
+		}
+		if(regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_VIEW) {
+			this.step++;
+			regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
+		}
 		this.step++;
 		regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_EXPORT));
-
+		printRegActions("Global pipeline at export",regActions);
+		this.nSteps=this.step;
+		
 		this.step=0;
 	}
 
 	
-	public void waitForValidaton() {
-		while(!this.pipelineValidated)VitimageUtils.waitFor(500);
-		pipelineValidated=false;
-	}
+		
+//TODO : during Programming, only MAN and AUTO actions available
+	
+	
 	
 	
 	/** Helpers for setup ----------------------------------------------------------------------------
@@ -604,29 +688,43 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	 */
 	@SuppressWarnings("unchecked")
 	public void setupStructures(){
-		this.images=new ImagePlus[this.nTimes][this.nMods];
-		this.transforms=(ArrayList<ItkTransform>[][])new ArrayList[this.nTimes][this.nMods];
-		for(int nt=0;nt<this.nTimes;nt++)		for(int nm=0;nm<this.nMods;nm++)	this.transforms[nt][nm]=new ArrayList<ItkTransform>();
-		this.paths=new String[this.nTimes][this.nMods];
-		this.initDimensions=new int[this.nTimes][nMods][5];
-		this.dimensions=new int[this.nTimes][this.nMods][3];
-		this.initVoxs=new double[this.nTimes][this.nMods][3];
-		this.imageSizes=new double[this.nTimes][this.nMods];
-		this.imageRanges=new double[this.nTimes][this.nMods][2];
-		this.voxs=new double[this.nTimes][this.nMods][3];
+		regActions=new ArrayList<RegistrationAction>();
+		
 	}
 	
+	@SuppressWarnings("restriction")
 	public void checkComputerCapacity() {
 		int nbCpu=Runtime.getRuntime().availableProcessors();
-		System.out.println("Nb cores for multithreading = "+nbCpu);
-		this.freeMemory=(int)((new Memory().maxMemory() /(1024*1024)));//Java virtual machine available memory (in Megabytes)
-		System.out.println("Available memory in virtual machine = "+this.freeMemory+" MB");
+		//System.out.println("Nb cores for multithreading = "+nbCpu);
+		this.jvmMemory=(int)((new Memory().maxMemory() /(1024*1024)));//Java virtual machine available memory (in Megabytes)
+		this.freeMemory=(int)(Runtime.getRuntime().freeMemory() /(1024*1024));//Java virtual machine available memory (in Megabytes)
+		this.memoryFullSize=0;
+		try {
+			this.memoryFullSize = ( ((com.sun.management.OperatingSystemMXBean) ManagementFactory
+		        .getOperatingSystemMXBean()).getTotalPhysicalMemorySize() )/(1024*1024);
+		}	catch(Exception e) {}		
+		//System.out.println("Total available memory in virtual machine = "+this.jvmMemory+" MB");
+		//System.out.println("Actual free memory in virtual machine = "+this.jvmMemory+" MB");
+		//if(this.memoryFullSize>0)System.out.println("Total physical memory on this computer = "+this.memoryFullSize+" MB");
+		//else System.out.println("Total physical memory on this computer : cannot be measured");
 		this.nbCpu=nbCpu;
-		this.maxImageSizeForRegistration=this.freeMemory/(4*30);		
-		System.out.println("Suggested maximum image size for registration = "+this.maxImageSizeForRegistration+" MB.\n"+
-		"If given images are bigger, Fijiyama will ask you for the permission to subsample it before running registration.\nTherefore, alignment results will be computed using the full-size initial data during the export phase");
+		this.maxImageSizeForRegistration=this.jvmMemory/(4*30);		
+		//System.out.println("Suggested maximum image size for registration = "+this.maxImageSizeForRegistration+" MB.\n"+
+		////"If given images are bigger, Fijiyama will ask you for the permission to subsample it before running registration.\nTherefore, alignment results will be computed using the full-size initial data during the export phase");
 	}
 
+	public void informAboutComputerCapabilities() {
+		checkComputerCapacity();
+		addLog("System check. Available memory="+this.jvmMemory+" MB. #Available processor cores="+this.nbCpu+".",0);
+		if(this.memoryFullSize>this.jvmMemory*1.5) {
+			addLog("It seems that your computer have more memory : total memory="+(this.memoryFullSize)+" MB.",0);
+			addLog("Registration process is time and memory consuming. To give more memory and computation power to Fiji,"+
+					" close the plugin then use the Fiji menu \"Edit / Options / Memory & threads\". "+
+					"Let at least "+VitimageUtils.getSystemNeededMemory()+" unused to keep your "+VitimageUtils.getSystemName()+" stable and responsive.",0);
+		}
+	}
+
+	
 	public void openImagesAndCheckOversizing() {
 		ImagePlus img;
 		boolean thereIsBigImages=false;
@@ -649,7 +747,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 			for(int nt=0;nt<this.nTimes;nt++) {
 				for(int nm=0;nm<this.nMods;nm++) {
 					if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
-						System.out.println("Processing image t"+nt+" mod"+nm+" , size="+imageSizes[nt][nm]+" . No resizing");
+						//System.out.println("Processing image t"+nt+" mod"+nm+" , size="+imageSizes[nt][nm]+" . No resizing");
 						img=IJ.openImage(this.paths[nt][nm]);
 						if(this.initDimensions[nt][nm][3]*this.initDimensions[nt][nm][4]>1)img=VitimageUtils.stacksFromHyperstackFastBis(img)[0];
 						ImageProcessor ip=img.getStack().getProcessor(img.getStackSize()/2+1);
@@ -658,7 +756,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 						this.imageRanges[nt][nm][1]=ip.getMax();
 						this.images[nt][nm]=img;
 						this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0],this.imageRanges[nt][nm][1]);
-						System.out.println("Display range de "+nt+" "+nm+" = "+TransformUtils.stringVectorN(this.imageRanges[nt][nm], ""));
+						//System.out.println("Display range de "+nt+" "+nm+" = "+TransformUtils.stringVectorN(this.imageRanges[nt][nm], ""));
 					}
 				}
 			}
@@ -666,7 +764,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		else{
 			String recap="There is oversized images, which can lead to very slow computation, or memory overflow.\n"+
 					"Your computer capability has been detected to :\n"+
-					" -> "+this.freeMemory+" MB of RAM allowed for this plugin"+"\n -> "+this.nbCpu+" parallel threads for computation."+
+					" -> "+this.jvmMemory+" MB of RAM allowed for this plugin"+"\n -> "+this.nbCpu+" parallel threads for computation."+
 					"\nWith this configuration, the suggested maximal image size is set to "+this.maxImageSizeForRegistration+" Mvoxels";
 			recap+=" but one of your images (at least) is bigger.\nThis setup can lead to memory issues"+
 					" as registration is memory/computation intensive. \n.\nProposed solution : Fijiyama can use a subsampling strategy in order to compute registration on smaller images\n"+
@@ -691,7 +789,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 					for(int nm=0;nm<this.nMods;nm++) {
 						if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 							if(imageSizes[nt][nm]<=this.maxImageSizeForRegistration) {
-								System.out.println("Processing image t"+nt+" mod"+nm+" , size="+imageSizes[nt][nm]+" . No resizing");
+								//System.out.println("Processing image t"+nt+" mod"+nm+" , size="+imageSizes[nt][nm]+" . No resizing");
 								this.images[nt][nm]=IJ.openImage(this.paths[nt][nm]);
 							}
 							else {
@@ -723,10 +821,10 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 									else {factor=factorPow3;this.dimensions[nt][nm][0]/=factor;this.dimensions[nt][nm][1]/=factor;this.dimensions[nt][nm][2]/=factor;this.voxs[nt][nm][0]*=factor;this.voxs[nt][nm][1]*=factor;this.voxs[nt][nm][2]*=factor;
 									}					
 								}
-								System.out.println("Processing image t"+nt+" mod"+nm+" , size="+imageSizes[nt][nm]+" . Resizing.");
-								System.out.println(" -> Initial image : "+TransformUtils.stringVector(this.initDimensions[nt][nm], "dims")+TransformUtils.stringVector(this.initVoxs[nt][nm], "voxs"));
-								System.out.println(" -> Sampled image : "+TransformUtils.stringVector(this.dimensions[nt][nm], "dims")+TransformUtils.stringVector(this.voxs[nt][nm], "voxs")+ "final size="+((this.dimensions[nt][nm][0]*this.dimensions[nt][nm][1]*this.dimensions[nt][nm][2]/(1024.0*1024.0)))+" Mvoxs" );
-								System.out.println();
+								//System.out.println("Processing image t"+nt+" mod"+nm+" , size="+imageSizes[nt][nm]+" . Resizing.");
+								//System.out.println(" -> Initial image : "+TransformUtils.stringVector(this.initDimensions[nt][nm], "dims")+TransformUtils.stringVector(this.initVoxs[nt][nm], "voxs"));
+								//System.out.println(" -> Sampled image : "+TransformUtils.stringVector(this.dimensions[nt][nm], "dims")+TransformUtils.stringVector(this.voxs[nt][nm], "voxs")+ "final size="+((this.dimensions[nt][nm][0]*this.dimensions[nt][nm][1]*this.dimensions[nt][nm][2]/(1024.0*1024.0)))+" Mvoxs" );
+								//System.out.println();
 								img=IJ.openImage(this.paths[nt][nm]);if(this.initDimensions[nt][nm][3]*this.initDimensions[nt][nm][4]>1)img=VitimageUtils.stacksFromHyperstackFastBis(img)[0];
 								ImageProcessor ip=img.getStack().getProcessor(img.getStackSize()/2+1);
 								ip.resetMinAndMax();
@@ -734,7 +832,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 								this.imageRanges[nt][nm][1]=ip.getMax();
 								this.images[nt][nm]=ItkTransform.resampleImage(this.dimensions[nt][nm], this.voxs[nt][nm], img,false);
 								this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0],this.imageRanges[nt][nm][1]);
-								System.out.println("Display range de "+nt+" "+nm+" = "+TransformUtils.stringVectorN(this.imageRanges[nt][nm], ""));								
+								//System.out.println("Display range de "+nt+" "+nm+" = "+TransformUtils.stringVectorN(this.imageRanges[nt][nm], ""));								
 							}	
 						}
 					}
@@ -763,18 +861,39 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		}
 		return str.split(";");
 	}
-		
+	
+	public void waitForValidation() {
+		this.pipelineValidated=false;
+		while(!this.pipelineValidated)VitimageUtils.waitFor(500);
+		pipelineValidated=false;
+	}
+
+	public RegistrationManager getRegistrationManager() {
+		return this;
+	}
+
+	public boolean isHyperImage(int n,int m) {
+		System.out.println("Test pour savoir la hyperimagité de "+n+" "+m+" : "+(this.initDimensions[n][m][3]*this.initDimensions[n][m][4]>1));
+		return (this.initDimensions[n][m][3]*this.initDimensions[n][m][4]>1);
+	}
+	
+
+
 
 	
 	
 	
 	
 	
-	/** Action listener ----------------------------------------------------------------------------------------
+	/** Actions associated to the listener ----------------------------------------------------------------------------------------
  * 
  */
 	@Override
 	public void actionPerformed(ActionEvent e) {
+		if(!e.getActionCommand().equals("comboBoxChanged")){
+			System.out.println("Starting event : "+e.getActionCommand()+" , "+e.getID()+" with step="+step+" and current action ="+currentRegAction.readableString(false));
+		}
+		// Listeners for launching interface
 		if((e.getSource()==this.sos0Button || e.getSource()==this.runTwoImagesButton || e.getSource()==this.runSerieButton || e.getSource()==this.transformButton || e.getSource()==this.composeTransformsButton)
 				&& this.registrationFrame!=null && this.registrationFrame.isVisible()) {
 			IJ.showMessage("A Registration manager is running, with the corresponding interface open. Please close this interface before any other operation.");
@@ -787,7 +906,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 			startRegistrationInterface();
 			String path1=VitiDialogs.chooseOneRoiPathUI("Select your reference image", "Select your reference image");
 			String path2=VitiDialogs.chooseOneRoiPathUI("Select your moving image", "Select your moving image");
-			this.startTwoImagesRegistration(path1, path2);
+			this.setupTwoImagesRegistrationFromTwoPaths(path1, path2);
 		}
 		else if(e.getSource()==this.runSerieButton) {
 			this.registrationWindowMode=REGWINDOWSERIEPROGRAMMING;
@@ -801,22 +920,81 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		else if(e.getSource()==this.composeTransformsButton) {
 			runComposeTransforms();
 		}
+
+		
+		
+		// Listeners for serie programming interface
+		else if(e.getSource()==validatePipelineButton) {
+			this.pipelineValidated=true;
+		}
+		else if(e.getSource()==addActionButton) {
+			RegistrationAction regAct =new RegistrationAction(this);
+			regAct.step=regActions.size();
+			regActions.add(regAct);
+			this.step=regAct.step;
+			currentRegAction=regAct;
+			listActions.setSelectedIndex(regAct.step);
+			this.updateBoxesAndCurrentAction();
+		}
+		else if(e.getSource()==removeSelectedButton) {
+			if(regActions.size()>1) {
+				regActions.remove(regActions.size()-1);
+				listActions.setSelectedIndex(Math.min(regActions.size()-1, listActions.getSelectedIndex()));
+				currentRegAction=regActions.get( listActions.getSelectedIndex());
+				this.step=listActions.getSelectedIndex();
+				this.updateBoxesAndCurrentAction();
+			}
+		}
+
+		
+		
+		//Listeners for two image registration interface
 		final ExecutorService exec = Executors.newFixedThreadPool(1);
 		exec.submit(new Runnable() {
 			public void run() 
 			{
-				System.out.println("\n\n\nNEW ACTION. Step="+step);
-				if(registrationWindowMode>100000) {
-					runSos();
-				}
 				
 				/* Run button is the bigger part : it is the starter/stopper for the main functions*/
 				if(e.getSource()==runButton) {
-					if( (transforms[referenceTime][referenceModality].size() > 0) &&  (boxTypeAction.getSelectedIndex()!=2 ) ) {	
+					if(currentRegAction.isDone) {	
+						IJ.showMessage("Current action is already done. Nothing to do left.");
+						return;
+					}
+					if((registrationWindowMode==REGWINDOWTWOIMG) &&(transforms[referenceTime][referenceModality].size() > 0) &&  (boxTypeAction.getSelectedIndex()!=2 ) ) {	
 						IJ.showMessage("Registration steps cannot be added after an axis alignement step. Use UNDO to return before axis alignement");
 						return;
 					}
 					disable(RUN);
+					
+					
+					
+					if( (registrationWindowMode==REGWINDOWSERIERUNNING)&& 
+					( currentRegAction.typeAction==RegistrationAction.TYPEACTION_SAVE || currentRegAction.typeAction==RegistrationAction.TYPEACTION_EXPORT || currentRegAction.typeAction==RegistrationAction.TYPEACTION_VIEW ) ){
+						if(currentRegAction.typeAction==RegistrationAction.TYPEACTION_SAVE) {
+							System.out.println("Saving !");
+							currentRegAction.isDone=true;
+							step++;trActions.add(new ItkTransform());
+							saveSerieToFjmFile();
+							step--;trActions.remove(trActions.size()-1);}
+						else if(currentRegAction.typeAction==RegistrationAction.TYPEACTION_VIEW) {VitiDialogs.notYet("View NM Serie");}
+						else if(currentRegAction.typeAction==RegistrationAction.TYPEACTION_EXPORT) runExportNM();
+						addTransformAndAction(new ItkTransform(), 0, 0);
+						updateBoxesFromCurrentActionClicked();
+						disable(new int[] {BOXACT,BOXDISP,BOXDISPMAN,BOXOPT,BOXTRANS});
+						enable(RUN);
+						return;
+					}
+					
+					
+					
+					//TODO : quand il charge, il met automatiquement à MAN la premiere qui vient juste apres
+					//TODO : visualisation resultat
+					//TODO : export resultat
+					//TODO : verifier le bon fonctionnement de alignement
+					//TODO : verifier si two images marche toujours
+					//TODO : tester la chaine complete avec lancement depuis launching area
+					
+					
 					
 					//Automatic registration
 					if(((String)(boxTypeAction.getSelectedItem())).equals(textActions[1])){	
@@ -910,6 +1088,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 								setRunToolTip(MANUAL2D);								
 							}
 							enable(new int[] {ABORT,RUN});
+							runButton.setBackground(colorGreenRunButton);
 						}
 						
 						//Finish manual registration
@@ -924,6 +1103,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 								runButton.setText("Start this action");
 								setRunToolTip(MAIN);
 								enable(new int[] {FINISH,SAVE,SETTINGS,BOXACT,RUN,UNDO});
+								runButton.setBackground(colorStdActivatedButton);
 								return;
 							}
 							
@@ -940,6 +1120,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 					    	updateViewTwoImages();
 							runButton.setText("Start this action");
 							setRunToolTip(MAIN);
+							runButton.setBackground(colorStdActivatedButton);
 							enable(new int[] {UNDO,BOXACT,FINISH,SAVE,RUN});
 						}
 					}
@@ -987,6 +1168,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 								setRunToolTip(MANUAL2D);
 							}
 							enable(new int[] {ABORT,RUN});
+							runButton.setBackground(colorGreenRunButton);
 						}
 
 						//Finish axis alignment
@@ -1003,6 +1185,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 								runButton.setText("Start this action");
 								setRunToolTip(MAIN);
 								enable(new int[] {FINISH,SAVE,SETTINGS,BOXACT,RUN,UNDO});
+								runButton.setBackground(colorStdActivatedButton);
 								return;
 							}
 
@@ -1016,12 +1199,14 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 							if(boxDisplayMan.getSelectedIndex()==VIEWER_3D) {System.out.println("HERE JUSTE JUSTE AVANT");	tr=close3dInterface();}
 							else						 	tr=close2dInterface();
 							System.out.println("HERE JUSTE JUSTE JUSTEAVANT");							
+							currentRegAction.isDone=true;
 							addTransformToReference(tr);
 							System.out.println("HERE JUSTE JUSTE JUSTE APRES");							
 							updateViewTwoImages();
 							runButton.setText("Start this action");
 							setRunToolTip(MAIN);
 							enable(new int[] {UNDO,FINISH,SAVE,SETTINGS,BOXACT,RUN});
+							runButton.setBackground(colorStdActivatedButton);
 						}
 					}
 				}
@@ -1043,6 +1228,7 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 						runButton.setText("Start this action");
 						setRunToolTip(MAIN);
 						enable(new int[] {FINISH,SAVE,SETTINGS,BOXACT,BOXTRANS,RUN,UNDO});
+						runButton.setBackground(colorStdActivatedButton);
 					}
 					//Aborting automatic blockmatching registration, killing threads, and checking if threads are deads
 					else if(runButton.getText().equals("Running Blockmatching...")){
@@ -1080,29 +1266,20 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 				}
 				if(e.getSource()==settingsDefaultButton) {
 					currentRegAction.defineSettingsFromTwoImages(images[refTime][refMod],images[movTime][movMod],getRegistrationManager(),true);	
-					updateFieldsDisplay();
+					updateBoxesAndCurrentAction();
 					updateEstimatedTime();
 				}
 
-				if(e.getSource()==boxTypeAction) {		
-					setState(new int[] {BOXOPT,BOXTIME,BOXDISP },boxTypeAction.getSelectedIndex()==1);
-					setState(new int[] {BOXDISPMAN },boxTypeAction.getSelectedIndex()!=1);
-					updateFieldsDisplay();
-					currentRegAction.adjustSettingsFromManager(getRegistrationManager());
-					updateEstimatedTime();
-				}
-				
-				if(e.getSource()==boxOptimizer  || e.getSource()==boxTypeTrans || e.getSource()==boxDisplay || e.getSource()==boxDisplayMan) {
-					if(e.getSource()==boxOptimizer) {
-						updateFieldsDisplay();
-					}
-					currentRegAction.adjustSettingsFromManager(getRegistrationManager());
+				if(!comboBoxChanged && (e.getSource()==boxTypeAction || e.getSource()==boxOptimizer  || e.getSource()==boxTypeTrans || e.getSource()==boxDisplay || e.getSource()==boxDisplayMan)) {		
+					comboBoxChanged=true;
+					updateBoxesAndCurrentAction();
+					comboBoxChanged=false;
 					updateEstimatedTime();
 				}
 				
 				if(e.getSource()==finishButton  ||  e.getSource()==saveButton) {
 					disable(new int[] {RUN,FINISH,SAVE,UNDO});
-					if(e.getSource()==finishButton)runExport();
+					if(e.getSource()==finishButton)runExportTwoImages();
 					else runSave();
 					enable(new int[] {FINISH,SAVE,RUN});
 					enable(UNDO);
@@ -1122,15 +1299,12 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		System.gc();
 	}
 
-	public RegistrationManager getRegistrationManager() {
-		return this;
-	}
 
 	
 	
 	
 	
-	
+
 	
 	
 	
@@ -1138,24 +1312,44 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	 * 
 	 */
 	public void addTransformAndAction(ItkTransform tr,int nt,int nm) {
-		System.out.println("Add transform to "+nt+","+nm+" : "+tr.drawableString());
-		System.out.println("size of regActions before : "+regActions.size());
+		currentRegAction.isDone=true;
+		RegistrationAction tmpRegOld=currentRegAction;
 		tr.step=this.step;
 		currentRegAction.movMod=nm;
 		currentRegAction.movTime=nt;
+		currentRegAction.isDone=true;
 		this.transforms[nt][nm].add(tr);
 		this.trActions.add(tr);
-		step++;
-		RegistrationAction tmpAction=new RegistrationAction(currentRegAction);
-		tmpAction.step=currentRegAction.step+1;
-		currentRegAction=tmpAction;
-		this.regActions.add(currentRegAction);
-		this.listActions.setSelectedIndex(step);
-		System.out.println("Ending addTransform and action. Size of regActions after : "+regActions.size()+"going to step "+step);
-		this.updateList();
-		enable(UNDO);
+		if(registrationWindowMode==REGWINDOWTWOIMG) {
+			step++;
+			RegistrationAction tmpAction=new RegistrationAction(currentRegAction);
+			tmpAction.step=currentRegAction.step+1;
+			currentRegAction=tmpAction;
+			this.regActions.add(currentRegAction);
+			this.listActions.setSelectedIndex(step);
+			System.out.println("Ending addTransform and action. Size of regActions after : "+regActions.size()+"going to step "+step);
+			this.updateList();
+			enable(UNDO);
+		}
+		else if(registrationWindowMode==REGWINDOWSERIERUNNING) {
+			if(regActions.size()==(step+1)){
+				disable(RUN);
+				IJ.showMessage("Serie is finished !");
+			}
+			step++;
+			currentRegAction=regActions.get(step);
+			listActions.setSelectedIndex(step);
+			updateList();
+			addLog("Action finished : "+tmpRegOld.readableString(false),0);
+			addLog("",0);
+			addLog("--> Waiting for you to start next action : "+currentRegAction.readableString(false),0);
+		}
 	}
+	
+	
 
+	
+	
 	public void addTransformToReference(ItkTransform tr) {
 		addTransformAndAction(tr,this.referenceTime,this.referenceModality);
 	}
@@ -1189,12 +1383,79 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		if(this.imgView==null)updateViewTwoImages();
 	}
 	
-	public boolean isHyperImage(int n,int m) {
-		System.out.println("Test pour savoir la hyperimagité de "+n+" "+m+" : "+(this.initDimensions[n][m][3]*this.initDimensions[n][m][4]>1));
-		return (this.initDimensions[n][m][3]*this.initDimensions[n][m][4]>1);
+	
+	public void updateBoxesFromCurrentActionClicked() {
+		disable(new int[] {BOXACT,BOXDISP,BOXDISPMAN,BOXOPT,BOXTRANS,SETTINGS});
+		if(listActions.getSelectedIndex()>=regActions.size() || (!regActions.get(listActions.getSelectedIndex()).isTransformationAction()) ) {
+			System.out.println("Index "+listActions.getSelectedIndex()+" pas good. Voie 1");
+			return;
+		}
+		else {
+			System.out.println("Index "+listActions.getSelectedIndex()+" good. Voie 2");
+			this.currentRegAction=regActions.get(listActions.getSelectedIndex());
+			this.step=listActions.getSelectedIndex();
+		}
+		boxTypeAction.setSelectedIndex(currentRegAction.typeAction);
+		boxTypeTrans.setSelectedIndex(currentRegAction.typeTrans==Transform3DType.DENSE ? 2 : currentRegAction.typeTrans==Transform3DType.RIGID ? 0 : 1);
+		boxDisplay.setSelectedIndex(currentRegAction.typeAutoDisplay);
+		boxDisplayMan.setSelectedIndex(currentRegAction.typeManViewer);
+		boxOptimizer.setSelectedIndex(currentRegAction.typeOpt==OptimizerType.BLOCKMATCHING ? 0 : 1);
+		VitimageUtils.waitFor(20);
+		updateBoxFieldsToCoherence();
+		VitimageUtils.waitFor(20);
+		enable(new int[] {BOXACT,BOXTRANS,SETTINGS});
+		setState(new int[] {BOXOPT,BOXDISP },boxTypeAction.getSelectedIndex()==1);
+		setState(new int[] {BOXDISPMAN },boxTypeAction.getSelectedIndex()!=1);
 	}
 	
-	                                     
+	public void updateBoxesAndCurrentAction() {
+			setState(new int[] {BOXOPT,BOXTIME,BOXDISP,BOXTRANS,BOXACT},false);
+		updateBoxFieldsToCoherence();
+
+		currentRegAction.adjustSettingsFromManager(this);
+		updateList();
+		VitimageUtils.waitFor(5);
+		enable(new int[] {BOXACT,BOXTRANS});
+		setState(new int[] {BOXOPT,BOXDISP },boxTypeAction.getSelectedIndex()==1);
+		setState(new int[] {BOXDISPMAN },boxTypeAction.getSelectedIndex()!=1);
+	}
+		
+	
+
+	public void updateBoxFieldsToCoherence() {
+		int valDisp=boxDisplay.getSelectedIndex();		
+		int valTrans=boxTypeTrans.getSelectedIndex();		
+		DefaultComboBoxModel<String> listModelDisp = new DefaultComboBoxModel<String>();
+		DefaultComboBoxModel<String> listModelTrans = new DefaultComboBoxModel<String>();
+		if(boxTypeAction.getSelectedIndex()==1 && boxOptimizer.getSelectedIndex()==0) {
+	        for(int i=0;i<textDisplayBM.length;i++)listModelDisp.addElement(textDisplayBM[i]);
+	        for(int i=0;i<textTransformsBM.length;i++)listModelTrans.addElement(textTransformsBM[i]);
+			this.boxDisplay.setModel(listModelDisp);
+			this.boxDisplay.setSelectedIndex(valDisp);
+			this.boxTypeTrans.setModel(listModelTrans);
+			this.boxTypeTrans.setSelectedIndex(valTrans);
+		}
+		else if(boxTypeAction.getSelectedIndex()==1 && boxOptimizer.getSelectedIndex()==1) {
+			for(int i=0;i<textDisplayITK.length;i++)listModelDisp.addElement(textDisplayITK[i]);
+	        for(int i=0;i<textTransformsITK.length;i++)listModelTrans.addElement(textTransformsITK[i]);
+			this.boxDisplay.setModel(listModelDisp);
+			this.boxDisplay.setSelectedIndex(Math.min(valDisp,textDisplayITK.length-1));
+			this.boxTypeTrans.setModel(listModelTrans);
+			this.boxTypeTrans.setSelectedIndex(Math.min(valTrans,textTransformsITK.length-1));
+		}
+		else if(boxTypeAction.getSelectedIndex()==0) {
+	        for(int i=0;i<textTransformsMAN.length;i++)listModelTrans.addElement(textTransformsMAN[i]);
+			this.boxTypeTrans.setModel(listModelTrans);
+			this.boxTypeTrans.setSelectedIndex(Math.min(valTrans,textTransformsMAN.length-1));
+		}
+		else if(boxTypeAction.getSelectedIndex()==2) {
+	        for(int i=0;i<textTransformsALIGN.length;i++)listModelTrans.addElement(textTransformsALIGN[i]);
+			this.boxTypeTrans.setModel(listModelTrans);
+			this.boxTypeTrans.setSelectedIndex(Math.min(valTrans,textTransformsALIGN.length-1));
+		}
+	}
+
+                                     
 	
 	
 	
@@ -1224,12 +1485,15 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		ij3d.ImageJ3DViewer.select("refCopy");
 		ij3d.ImageJ3DViewer.lock();
 		ij3d.ImageJ3DViewer.select("movCopy");
-		universe.setSize(this.lastViewSizes[0], this.lastViewSizes[1]);
-		//universe.getWindow().setSize(this.lastViewSizes[0], this.lastViewSizes[1]);
-		System.out.println("En effet,lastViewSizes="+this.lastViewSizes[0]+" , "+this.lastViewSizes[1]);
-		VitimageUtils.adjustFrameOnScreenRelative((Frame)((JPanel)(this.universe.getCanvas().getParent())).getParent().getParent().getParent(),this.imgView.getWindow(),3,3,10);
-		if(!debugMode)IJ.showMessage("Move the green volume to match the red one\nWhen done, push the \""+runButton.getText()+"\" button to stop\n\nCommands : \n"+
+		if(this.registrationWindowMode==this.REGWINDOWTWOIMG) {
+			universe.setSize(this.lastViewSizes[0], this.lastViewSizes[1]);
+			VitimageUtils.adjustFrameOnScreenRelative((Frame)((JPanel)(this.universe.getCanvas().getParent())).getParent().getParent().getParent(),this.imgView.getWindow(),3,3,10);
+		}
+		else VitimageUtils.adjustFrameOnScreenRelative((Frame)((JPanel)(this.universe.getCanvas().getParent())).getParent().getParent().getParent(),this.registrationFrame,0,0,10);
+		if(!debugMode && first3dmessage)IJ.showMessage("Move the green volume to match the red one\nWhen done, push the \""+runButton.getText()+"\" button to stop\n\nCommands : \n"+
 				"mouse-drag the green object to turn the object\nmouse-drag the background to turn the scene\nCTRL-drag to translate the green object");
+		first3dmessage=false;
+		addLog(" Waiting for you to confirm position or to abort action...",0);
 	}
 	
 	public ItkTransform close3dInterface(){
@@ -1267,8 +1531,6 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 
 		
 		IJ.setTool("point");
-		IJ.showMessage("Examine images, identify correspondances between images and use the Roi manager to build a list of correspondances points. Points should be given this way : \n- Point A  in image 1\n- Correspondant of point A  in image 2\n- Point B  in image 1\n- Correspondant of point B  in image 2\netc...\n"+
-		"Once done (at least 5-15 couples of corresponding points), push the \""+runButton.getText()+"\" button to stop\n\n");
 		refCopy.show();refCopy.setSlice(refCopy.getStackSize()/2+1);refCopy.updateAndRepaintWindow();
 		VitimageUtils.adjustFrameOnScreen((Frame)WindowManager.getWindow("Image 1"), 0,2);
 		RoiManager rm=RoiManager.getRoiManager();
@@ -1276,6 +1538,10 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		VitimageUtils.adjustFrameOnScreenRelative((Frame)rm,(Frame)WindowManager.getWindow("Image 1"),2,1,2);
 		movCopy.show();movCopy.setSlice(movCopy.getStackSize()/2+1);movCopy.updateAndRepaintWindow();
 		VitimageUtils.adjustFrameOnScreenRelative((Frame)WindowManager.getWindow("Image 2"),rm,2,2,2);
+		if(!debugMode && first2dmessage)IJ.showMessage("Examine images, identify correspondances between images and use the Roi manager to build a list of correspondances points. Points should be given this way : \n- Point A  in image 1\n- Correspondant of point A  in image 2\n- Point B  in image 1\n- Correspondant of point B  in image 2\netc...\n"+
+		"Once done (at least 5-15 couples of corresponding points), push the \""+runButton.getText()+"\" button to stop\n\n");
+		first2dmessage=false;
+		addLog(" Waiting for you to confirm position or to abort action...",0);
 	}
 	
 	public ItkTransform close2dInterface(){
@@ -1320,10 +1586,145 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	
 	
 	
-	/** Export-Save routines for images and transforms----------------------------------------------------------------------------------
+	/** Export-Import-Save routines for Series, images and transforms----------------------------------------------------------------------------------
 	*
-	*/
-	public void runExport() {
+	*/	
+	public void saveSerieToFjmFile() {		
+		System.out.println("ENTERING WRITING and saving step ="+this.step);
+		//Read informations from ijm file : main fields
+		String str="";
+		str+="#Fijiyama save###\n";
+		str+="#Name="+this.name+"\n";
+		str+="#Mode=Serie\n";
+		str+="#Output path="+this.serieOutputPath+"\n";
+		str+="#Input path="+this.serieInputPath +"\n";
+		str+="#Reference Time="+this.referenceTime+"\n";
+		str+="#Reference Modality="+this.referenceModality +"\n";
+		str+="#Step="+ this.step+"\n";
+		str+="#"+""+"\n";
+		str+="#Nmods="+this.nMods+"\n";
+		for(int i=0;i<nMods;i++)str+="#Mod"+i+"="+this.mods[i]+"\n";
+		str+="#"+""+"\n";
+		str+="#Ntimes="+this.nTimes+"\n";
+		for(int i=0;i<nTimes;i++)str+="#Time"+i+"="+this.times[i]+"\n";
+		str+="#"+"" +"\n";
+		str+="#Expression="+this.expression +"\n";
+		str+="#Nsteps="+this.nSteps+"\n";
+		
+		//All RegistrationAction serialized .ser object, and associated transform for those already computed
+		System.out.println("Starting writing registration files");
+		File dirReg=new File(this.serieOutputPath,"Registration_files");		
+		for(int st=0;st<this.nSteps;st++) {
+			RegistrationAction regTemp=this.regActions.get(st);
+			System.out.print(" proceeding "+regTemp.readableString()+"  writing ser");
+			regTemp.writeToFile(new File(dirReg,"RegistrationAction_Step_"+st+".ser").getAbsolutePath());
+			str+="#"+regTemp.readableString()+"\n";
+			File f=new File(dirReg,"Transform_Step_"+st+".txt");
+			if(st<this.step) {
+				System.out.print(" writing transform also");
+				if(regTemp.typeTrans!=Transform3DType.DENSE) 					trActions.get(st).writeMatrixTransformToFile(f.getAbsolutePath());
+				else trActions.get(st).writeAsDenseField(f.getAbsolutePath(),this.images[regTemp.refTime][regTemp.refMod]);
+				System.out.println(" transform written");
+			}
+		}
+		str+="#"+""+"\n";		
+		VitimageUtils.writeStringInFile(str, new File(this.serieOutputPath,this.name+".fjm").getAbsolutePath());
+		System.out.println("Writing Fjm serie done.");
+	}
+
+	
+	public void loadFromFjmFile(String pathToFile) {
+		String []names;
+		System.out.println("Loading configuration from file "+pathToFile);
+		if(pathToFile==null || (!(new File(pathToFile).exists())) || (!(pathToFile.substring(pathToFile.length()-4,pathToFile.length())).equals(".fjm"))) {
+			names=VitiDialogs.openFileUI("Select a previous Fijiyama experiment","","fjm");
+			if(names==null || (!(new File(names[0],names[1]).exists())) || (!(names[1].substring(names[1].length()-4,names[1].length())).equals(".fjm") ) ) {
+				IJ.showMessage("Wrong file. Save cannot be done");
+				return;
+			}
+		}
+		else names=new String[] {new File(pathToFile).getParent(),new File(pathToFile).getName()};	
+		String modString=VitimageUtils.readStringFromFile(new File(names[0],names[1]).getAbsolutePath()).split("\n")[2].split("=")[1];
+		this.name=names[1].substring(0,names[1].length()-4);
+		this.serieOutputPath=names[0];
+		if(modString.charAt(0)=='S') {
+			loadFromSerieFjmFile();
+		}
+		else loadFromTwoImagesFjmFile();
+	}
+
+	
+	public void loadFromSerieFjmFile() {
+		//Open file and prepare structures
+		this.registrationWindowMode=REGWINDOWSERIEPROGRAMMING;
+		this.mode=MODE_SERIE;
+		
+		//Read informations from ijm file : main fields
+		String str=VitimageUtils.readStringFromFile(new File(this.serieOutputPath,this.name+".fjm").getAbsolutePath());
+		String[]lines=str.split("\n");
+		this.serieOutputPath=(lines[3].split("=")[1]);
+		this.serieInputPath=(lines[4].split("=")[1]);
+		this.referenceTime=Integer.parseInt(lines[5].split("=")[1]);
+		this.referenceModality=Integer.parseInt(lines[6].split("=")[1]);
+		this.step=Integer.parseInt(lines[7].split("=")[1]);
+
+		//Read modalities
+		this.nMods=Integer.parseInt(lines[9].split("=")[1]);
+		this.mods=new String[this.nMods];
+		for(int i=0;i<this.nMods;i++)this.mods[i]=lines[10+i].split("=")[1];
+		
+		//Read times and nSteps
+		this.nTimes=Integer.parseInt(lines[11+this.nMods].split("=")[1]);
+		this.times=new String[this.nTimes];
+		for(int i=0;i<this.nTimes;i++)this.times[i]=lines[12+this.nMods+i].split("=")[1];
+		this.expression=lines[13+this.nMods+this.nTimes].split("=")[1];
+		this.nSteps=Integer.parseInt(lines[14+this.nMods+this.nTimes].split("=")[1]);
+		this.stepExecuted=new boolean[this.nSteps];
+		//setupStructures
+		this.setupStructures();
+
+		//Affecter les paths
+		for(int nt=0;nt<this.nTimes;nt++) {
+			for(int nm=0;nm<this.nMods;nm++) {
+				File f=new File(this.serieInputPath,expression.replace("{Time}", times[nt]).replace("{ModalityName}",mods[nm]));
+				System.out.print("Checking existence of image "+f.getAbsolutePath());
+				if(f.exists()) {
+					System.out.println(" ... Found !");
+					this.paths[nt][nm]=f.getAbsolutePath();
+				}
+				else System.out.println(" ... not found !");
+			}
+		}
+		
+		//Check computer capacity and readImages
+		this.checkComputerCapacity();
+		this.openImagesAndCheckOversizing();
+
+		
+		//Read the steps : all RegistrationAction serialized .ser object, and associated transform for those already computed
+		File dirReg=new File(this.serieOutputPath,"Registration_files");
+		
+		for(int st=0;st<this.nSteps;st++) {
+			File f=new File(dirReg,"RegistrationAction_Step_"+st+".ser");
+			RegistrationAction regTemp=RegistrationAction.readFromFile(f.getAbsolutePath());
+			this.regActions.add(regTemp);
+			f=new File(dirReg,"Transform_Step_"+st+".txt");
+			if(st<this.step) {
+				ItkTransform trTemp;
+				if(regTemp.typeTrans!=Transform3DType.DENSE)trTemp=ItkTransform.readTransformFromFile(f.getAbsolutePath());
+				else trTemp=ItkTransform.readAsDenseField(f.getAbsolutePath());
+				addTransformAndAction(trTemp,regTemp.movTime,regTemp.movMod);
+			}
+		}
+		System.out.println("Reading actions and transforms done.");
+	}
+	
+	
+	public void runExportNM(){
+		VitiDialogs.notYet("RUN EXPORT NM");//TODO
+	}
+
+	public void runExportTwoImages() {
 		//Ask for target dimensions
 		ImagePlus refResult = null,movResult=null;
 		GenericDialog gd=new GenericDialog("Choose target dimensions...");
@@ -1395,45 +1796,27 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		System.out.println("Export finished.");
 	}
 	
-	public void startFromSavedStateTwoImages(String pathToFile) {
-		//Open file and prepare structures
-		String []names;
-		if(pathToFile==null) {
-			names=VitiDialogs.openFileUI("Select a file to load a plugin state","save","fjm");
-			if(names==null) {
-				IJ.showMessage("No file selected. Save cannot be done");
-				return;
-			}
-		}
-		else names=new String[] {new File(pathToFile).getParent(),new File(pathToFile).getName()};	
+	public void loadFromTwoImagesFjmFile() {
 		this.registrationWindowMode=REGWINDOWTWOIMG;
 		this.mode=MODE_TWO_IMAGES;
 		this.nTimes=1;
 		this.nMods=2;
 		setupStructures();
 		checkComputerCapacity();
-	
-		
 		
 		//Read informations in main file
-		String nameDir=names[0];
-		String filePath=new File(nameDir,names[1]).getAbsolutePath();
-		String str=VitimageUtils.readStringFromFile(filePath);
+		String str=VitimageUtils.readStringFromFile(new File(this.serieOutputPath,this.name+".fjm").getAbsolutePath());
 		String[]lines=str.split("\n");
-		this.mode=Integer.parseInt(lines[1].split("=")[1]);
-		String nameDataDir=(lines[2].split("=")[1]);
-		File dirReg=new File(nameDataDir,"Registration_files");
-		this.paths[refTime][refMod]=(lines[3].split("=")[1]);
-		this.paths[movTime][movMod]=(lines[4].split("=")[1]);
-		int tempStep=Integer.parseInt(lines[9].split("=")[1]);
+		this.serieOutputPath=(lines[3].split("=")[1]);
+		File dirReg=new File(this.serieOutputPath,"Registration_files");
+		this.paths[refTime][refMod]=(lines[4].split("=")[1]);
+		this.paths[movTime][movMod]=(lines[5].split("=")[1]);
+		int tempStep=Integer.parseInt(lines[6].split("=")[1]);
 
 		//Read the already executed steps : RegistrationAction serialized .ser object, and associated transform 
 		for(int st=0;st<tempStep;st++) {
 			File f=new File(dirReg,"RegistrationAction_Step_"+st+".ser");
-			System.out.println("HERE st="+st+"/"+tempStep);
 			RegistrationAction regTemp=RegistrationAction.readFromFile(f.getAbsolutePath());
-			System.out.println("THERE "+f.getAbsolutePath());
-			System.out.println("Read file RegistrationAction_Step_"+st+".ser : " +regTemp.readableString());
 			f=new File(dirReg,"Transform_Step_"+st+".txt");
 			ItkTransform trTemp;
 			if(regTemp.typeTrans!=Transform3DType.DENSE)trTemp=ItkTransform.readTransformFromFile(f.getAbsolutePath());
@@ -1442,102 +1825,55 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 			this.regActions.set(st, regTemp);
 			addTransformAndAction(trTemp,regTemp.movTime,regTemp.movMod);
 		}
-		System.out.println("Reading done from file = "+filePath);
-
-		
-		//Start interface
-		startRegistrationInterface();
-		addLog("Starting plugin. Mode=two images registration. ",0);
-		addLog("Available memory="+this.freeMemory+" MB. #Cpu threads="+this.nbCpu+".",0);
-		openImagesAndCheckOversizing();
-		updateViewTwoImages();
-		currentRegAction.defineSettingsFromTwoImages(this.images[refTime][refMod],this.images[movTime][movMod],getRegistrationManager(),true);
-		enable(new int[] {RUN,SETTINGS,SOS,BOXACT,BOXTRANS,BOXDISPMAN});		
-		addLog("",0);
-		addLog("Welcome to Fijiyama ! Choose the next action using the box-lists in the first panel, then click on \"Start this action\". ",0);
-		addLog("First trial with Fijiyama ? Click on \"Contextual help\" to get started",0);
-		addLog("",0);
-		if(this.step>0)enable(new int[] {RUN,SAVE,UNDO,FINISH});
+		System.out.println("Reading done.");
 	}
 	
 	public void runSave() {
 		System.out.println("DEBUG RUN SAVE mode ="+mode);
 		if(mode==MODE_TWO_IMAGES)runSaveTwoImages();
-		else runSaveNmImages();
+		else saveSerieToFjmFile();
 	}
 
-	public void runSaveNmImages() {
-		
-	}
 
 	public void runSaveTwoImages() {
-		String []names=VitiDialogs.openFileUI("Select a file to save the plugin state","save",".fjm");
-		System.out.println(names.length);
-		if(names[0]==null) {
-			IJ.showMessage("No file selected. Save cannot be done");
-			return;
-		}
-		System.out.println("Opened : path = "+names[0]+"  file="+names[1]);
-		String nameDir=names[0];
-		String nameFile=names[1];
-		System.out.println("Test split :");
-		System.out.println("Est null ? "+(names[1]==null));
-		System.out.println("Last index="+names[1].lastIndexOf('.'));
-		String nameWithNoExt=names[1].substring(0,names[1].lastIndexOf('.'));
-		File dirData=new File(nameDir,nameWithNoExt+"_DATA_FJM");
-		String nameDataDir=dirData.getAbsolutePath();
-		String filePath=new File(nameDir,names[1]).getAbsolutePath();
+		String mainDir=VitiDialogs.chooseDirectoryUI("Select a directory to save the plugin state", "This place");
+		if(mainDir==null ||(!(new File(mainDir).exists()))) {IJ.showMessage("Wrong file. Save cannot be done");return;}
+		this.name=VitiDialogs.getStringUI("Choose a name for your serie (accepted characters : alphanumeric, underscore and minus)","Serie name",this.name,true);
+		System.out.println("Name="+this.name);
+		this.serieOutputPath=new File(mainDir,this.name).getAbsolutePath();
 
 		//Write informations in filePath
 		String str="#Fijiyama save###\n"+
-				"#Mode="+MODE_TWO_IMAGES+"\n"+
-				"#output path="+nameDataDir+"\n"+
+				"#Mode="+(mode==MODE_TWO_IMAGES ? "Two_imgs" : "Serie")+"\n"+
+				"#Name="+this.name+"\n"+
+				"#Output path="+this.serieOutputPath+"\n"+
 				"#Path to reference image="+this.paths[refTime][refMod]+"\n"+
 				"#Path to moving image="+this.paths[movTime][movMod]+"\n"+
-				"#ReferenceTime=0\n"+
-				"#ReferenceMod=0\n"+
-				"#MovingTime=0\n"+
-				"#MovingMod=1\n"+
 				"#Step="+step+"\n"+
 				"#Previous actions=\n";
 		for(int indAct=0;indAct<this.regActions.size()-1;indAct++) {
 			str+="#"+regActions.get(indAct).readableString()+"\n";
-			System.out.println("Saved action : "+regActions.get(indAct).readableString());
 		}
 		str+="#\n";
-		VitimageUtils.writeStringInFile(str, filePath);
 		
 		//Save data in a directory
-		dirData.mkdirs();
-		File dirDataReg=new File(dirData,"Registration_files");
+		File dirDataReg=new File(this.serieOutputPath,"Registration_files");
 		dirDataReg.mkdirs();
-		VitimageUtils.writeStringInFile(str, new File(nameDataDir,nameFile).getAbsolutePath());
+		VitimageUtils.writeStringInFile(str, new File(this.serieOutputPath,this.name+".fjm").getAbsolutePath() );
 		for(int indAct=0;indAct<this.regActions.size()-1;indAct++) {
-			System.out.println(indAct+"-1");
 			RegistrationAction regTemp=regActions.get(indAct);
-			System.out.println(indAct+"-2");
 			int ntRef=regTemp.refTime;
-			System.out.println(indAct+"-3");
 			int nmRef=regTemp.refMod;
-			
-			System.out.println(indAct+"-4");
 			String fileName="RegistrationAction_Step_"+indAct+".ser";
-			System.out.println(indAct+"-5");
 			File out=new File(dirDataReg,fileName);
-			System.out.println(indAct+"-6");
 			regTemp.writeToFile(out.getAbsolutePath());
-			System.out.println(indAct+"-7");
 			ItkTransform tr=trActions.get(indAct);
-			System.out.println(indAct+"-8");
 			fileName="Transform_Step_"+indAct+(".txt");
-			System.out.println(indAct+"-9");
 			out=new File(dirDataReg,fileName);
-			System.out.println(indAct+"-10");
 			if(tr.isDense())tr.writeAsDenseField(out.getAbsolutePath(), images[ntRef][nmRef]);
 			else tr.writeMatrixTransformToFile(out.getAbsolutePath());
-			System.out.println(indAct+"-11");
 		}
-		System.out.println("Saving ok, in file : "+filePath);
+		System.out.println("Saving ok");
 	}
 	
 	public void runTransformImage() {
@@ -1576,29 +1912,33 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	
 	
 	
-	
+	public void listActionsHasBeenClicked() {
+		System.out.println("Click on list !");
+	}
 	
 	
 	
 	/** Registration Manager gui setup and update----------------------------------------------------- ----------------------------------
 	 */
 	public void startRegistrationInterface() {
-		 actualizeLaunchingInterface(false);         
+		actualizeLaunchingInterface(false);         
 		//Panel with console-style log informations and requests
 		JPanel consolePanel=new JPanel();
 		consolePanel.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));
 		consolePanel.setLayout(new GridLayout(1,1,0,0));
-		logArea=new JTextArea("", this.registrationWindowMode==REGWINDOWSERIERUNNING ? 10 : 6,4);
+		System.out.println("Before, logArea est null ?"+logArea==null);
+		System.out.println(logArea.getSize());
+		logArea.setSize(600,80);
+		System.out.println(logArea.getSize());
 		logArea.setBackground(new Color(10,10,10));
 		logArea.setForeground(new Color(245,255,245));
 		logArea.setFont(new Font(Font.DIALOG,Font.PLAIN,14));
-		scrollPane=new JScrollPane(logArea);
+		JScrollPane jscroll=new JScrollPane(logArea);
         logArea.setLineWrap(true);
         logArea.setWrapStyleWord(true);
-        logArea.setEditable(false);		
-        consolePanel.add(scrollPane);
-
-        //Panel with step settings, used for registration of two images, and when programming registration pipelines for series
+        logArea.setEditable(false);	
+        
+       //Panel with step settings, used for registration of two images, and when programming registration pipelines for series
 		JPanel stepSettingsPanel=new JPanel();
 		stepSettingsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));		
 		stepSettingsPanel.setLayout(new GridLayout(9,2,15,10));
@@ -1656,7 +1996,9 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 			finishButton.addActionListener(this);
 			saveButton.addActionListener(this);
 			sos1Button.addActionListener(this);
-
+			colorStdActivatedButton=runButton.getBackground();
+			colorGreenRunButton=new Color(100,255,100);
+			
 			abortButton.setToolTipText("<html><p width=\"500\">" +"Abort means killing a running operation and come back to the state before you clicked on Start this action."+
 									   "Automatic registration is harder to kill. Please insist on this button until its colour fades to gray"+"</p></html>");
 			finishButton.setToolTipText("<html><p width=\"500\">" +"Export aligned images and computed transforms"+"</p></html>");
@@ -1670,69 +2012,83 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 			
 			setRunToolTip(MAIN);
 			this.colorIdle=abortButton.getBackground();
-			disable(new int[] {RUN,ABORT,UNDO,SAVE,FINISH});
+			enable(new int[] {RUN,ABORT,UNDO,SAVE,FINISH,SETTINGS});
 		}
 
 		
 		else if(this.registrationWindowMode==REGWINDOWSERIEPROGRAMMING) {
 			buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
 			buttonsPanel.setLayout(new GridLayout(2,2,40,40));
-			buttonsPanel.add(replaceActionButton);
+			buttonsPanel.add(addActionButton);
 			buttonsPanel.add(removeSelectedButton);
 			buttonsPanel.add(validatePipelineButton);
 			buttonsPanel.add(sos1Button);
 
-			replaceActionButton.addActionListener(this);
+			addActionButton.addActionListener(this);
 			removeSelectedButton.addActionListener(this);
 			validatePipelineButton.addActionListener(this);
 			sos1Button.addActionListener(this);
 
-			replaceActionButton.setToolTipText("<html><p width=\"500\">" +"Click to replace the selected action (bottom list) with the defined configuration (upper menus)"+"</p></html>");
+			addActionButton.setToolTipText("<html><p width=\"500\">" +"Click to add an action (bottom list), and configure it using upper menus"+"</p></html>");
 			removeSelectedButton.setToolTipText("<html><p width=\"500\">" +"Remove the selected action (bottom list) from the global pipeline"+"</p></html>");
 			validatePipelineButton.setToolTipText("<html><p width=\"500\">" +"Validate the global processing pipeline, and go to next step"+"</p></html>");
 
-			disable(new int[] {});
+			enable(SETTINGS);
+			listActions.setSelectedIndex(0);
+			this.step=0;
+			currentRegAction=regActions.get(this.step);
 		}
 		
 		else if(this.registrationWindowMode==REGWINDOWSERIERUNNING) {
 			buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
 			buttonsPanel.setLayout(new GridLayout(1,3,40,40));
-			buttonsPanel.add(runNextStepButton);
-			buttonsPanel.add(goBackStepButton);
+			buttonsPanel.add(runButton);
+			buttonsPanel.add(abortButton);
+//			buttonsPanel.add(goBackStepButton);
 			buttonsPanel.add(sos1Button);
 
-			runNextStepButton.addActionListener(this);
-			goBackStepButton.addActionListener(this);
+			runButton.addActionListener(this);
+			abortButton.addActionListener(this);
 			sos1Button.addActionListener(this);
 
-			runNextStepButton.setToolTipText("<html><p width=\"500\">" +"Click here to run the next step in the global pipeline (see the black console log)"+"</p></html>");
-			goBackStepButton.setToolTipText("<html><p width=\"500\">" +"Use this function to compute again a step that went not as well as you expected"+"</p></html>");
+			runButton.setToolTipText("<html><p width=\"500\">" +"Click here to run the next step in the global pipeline (see the black console log)"+"</p></html>");
+//			goBackStepButton.setToolTipText("<html><p width=\"500\">" +"Use this function to compute again a step that went not as well as you expected"+"</p></html>");
+			printRegActions("REG ACTIONS AT START OF SERIE PROGRAMMING", regActions);
 
-			disable(new int[] {});
+			disable(new int[] {BOXOPT,BOXACT,BOXTIME,BOXTRANS,BOXDISP,BOXDISPMAN,SETTINGS,GOBACKSTEP});
+			currentRegAction=regActions.get(this.step);
 		}
 
 		//Panel with list of actions, used for registration of two images, and when programming registration pipelines for series
 		JPanel titleActionPanel=new JPanel();
 		titleActionPanel.setBorder(BorderFactory.createEmptyBorder(5,25,0,25));
 		titleActionPanel.setLayout(new GridLayout(1,1,10,10));
-		titleActionPanel.add(new JLabel(this.registrationWindowMode==REGWINDOWSERIEPROGRAMMING ?  "Global registration pipeline (select an action to remove or modify it)" : "List of previously executed actions"));
+		titleActionPanel.add(new JLabel(this.registrationWindowMode==REGWINDOWSERIEPROGRAMMING ?  "Global registration pipeline : add/remove an action, select an action to modify it (using the menus), then approve the pipeline)" : "Global registration pipeline "));
 		JPanel listActionPanel=new JPanel();
 		listActionPanel.setBorder(BorderFactory.createEmptyBorder(5,10,10,10));
 		listActionPanel.setLayout(new GridLayout(1,1,10,10));
 		listActionPanel.add(actionsPane);
-		updateList();
-		
-		
-		
+		listActions.addMouseListener(new MouseListener() {
+			@Override
+			public void mouseClicked(MouseEvent e) {	System.out.println("Gained !");
+            if(registrationWindowMode==REGWINDOWSERIEPROGRAMMING)updateBoxesFromCurrentActionClicked();						}
+			public void mousePressed(MouseEvent e) {		}
+			public void mouseReleased(MouseEvent e) {			}
+			public void mouseEntered(MouseEvent e) {			}
+			public void mouseExited(MouseEvent e) {			}
+		});
+
 		//Main frame and main panel
 		registrationFrame=new JFrame();
 		JPanel registrationPanelGlobal=new JPanel();
 		registrationPanelGlobal.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
 		registrationPanelGlobal.setLayout(new BoxLayout(registrationPanelGlobal, BoxLayout.Y_AXIS));
 		registrationPanelGlobal.add(new JSeparator());
-		registrationPanelGlobal.add(consolePanel);
-		registrationPanelGlobal.add(new JSeparator());
-		registrationPanelGlobal.add(stepSettingsPanel);
+		registrationPanelGlobal.add(jscroll);
+		if(this.registrationWindowMode!=REGWINDOWSERIERUNNING) {
+			registrationPanelGlobal.add(new JSeparator());
+			registrationPanelGlobal.add(stepSettingsPanel);
+		}
 		registrationPanelGlobal.add(new JSeparator());
 		registrationPanelGlobal.add(buttonsPanel);
 		registrationPanelGlobal.add(new JSeparator());
@@ -1753,15 +2109,21 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
                    actualizeLaunchingInterface(true);                   
              }
 		});
+		updateList();
+		updateBoxesAndCurrentAction();
+
 		registrationFrame.setVisible(true);
 		registrationFrame.repaint();
 		VitimageUtils.adjustFrameOnScreen(registrationFrame,2,0);		
+		logArea.setVisible(true);
+		logArea.repaint();
 	}
 		
 	public void addLog(String t,int level) {
 		logArea.append((level==0 ? "\n > ": (level==1) ? "\n " : " ")+t);
 		logArea.setCaretPosition(logArea.getDocument().getLength());
 	}
+
 	
 	public void displaySosMessage(int context){
 		if(context==SOS_CONTEXT_LAUNCH) {
@@ -1776,10 +2138,11 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		}
 	}
 
-	public void runSos() {
+	public void runSos(){
 		String textToDisplay="";
-
-		String mainWindowText="<b>Main window help : </b>Fijiyama is a versatile tool to perform 3d alignment of images, acquired at successive observation times, or with different imaging modalities. "+
+		String basicFijiText="<b>Main window help : </b>Fijiyama is a versatile tool to perform 3d alignment of images,"+
+				" acquired at successive observation times, or with different imaging modalities. ";
+		String mainWindowTextTwoImgs=basicFijiText+
 				"The most common registration strategy combine these steps :"+startPar+
 				" <b>1)   Manual registration with a rigid transform</b> : "+"rough correction of relative image position and orientation"+nextPar+
 				" <b>2-a) Automatic registration with a rigid transform : </b>using ITK if the problem is \"easy\" (accurate manual registration and object is dissymetric) or Blockmatching if more robustness is needed."+nextPar+
@@ -1789,6 +2152,18 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 				" The manual registration steps (1 and 3) can be done in a 2d or 3d viewer, depending of your images. Try the 3d viewer first, and if needed, use the  <b>\"Abort\"</b> button to come back to the main window, and choose the 2d viewer."+
 				"Automatic registration can be monitored, too. Set the monitoring level using the <b>\"Automatic registration display\"</b>box-list. No monitoring means hoping everything goes fine until the step finish, but it is really faster. Finally, "+
 				"automatic algorithms settings can be modified using the settings dialog ( <b>\"Advanced settings\"</b> button )."+saut+saut; 
+
+		String mainWindowTextProgramming=basicFijiText+
+				"You're actually running a serie registration. We assume that you trained on the \"Two images registration\" module,"+
+				" to understand the main concepts of the plugin, testing the provided functions on your data, and eventually to fine-tune the settings of algorithms."+
+				nextPar+"The serie registration process runs the following steps :"+startPar+
+				" <b>1)   Defining data directories :</b> input directory for image lookup, and output directory to save plugin state and exported images and transforms"+nextPar+
+				" <b>2-a) Defining the inter-time registration pipeline :</b> this pipeline describe the actions to run in order to align successive observations with the reference modality"+nextPar+
+				" <b>2-b) Defining the inter-modals registration pipelines :</b> these pipelines (one for each secondary modality) describe the actions to run in order to align secondary modalities with the reference modality"+nextPar+
+				" <b>3)   Running full pipeline :</b> During this last step, the actions defined in the inter-time and inter-modal pipelines are associated in a full registration pipeline, and applied until all data are aligned and can be combined."+
+				"The default order of the full pipeline is set to save your time. Manual operations are done first, then the automatic parts run autonomously."+nextPar+
+				"Once the full pipeline is running, You can ask to stop a running operation, change its settings, and ask to run it again (and also run again the direct following steps)"+
+				saut+saut; 
 		
 		String axisText=
 				"Axis alignment of the reference image onto the image XYZ axis, in order to set the object position in both results images that will be exported."+
@@ -1837,7 +2212,9 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		
 		disable(SOS);
 		if(this.runButton.getText().equals("Start this action")) {//Nothing running
-			textToDisplay="<html>"+saut+""+""+mainWindowText+saut+saut+"<b>Contextual help (current settings / parameters) :</b>";
+			textToDisplay="<html>"+saut+""+""+
+					( (this.registrationWindowMode==REGWINDOWTWOIMG) ? mainWindowTextTwoImgs : mainWindowTextProgramming )+
+			saut+saut+"<b>Contextual help (current settings / parameters) :</b>";
 			if(this.boxTypeAction.getSelectedIndex()==0)textToDisplay+=manualText;
 			else if(this.boxTypeAction.getSelectedIndex()==1)textToDisplay+=bmText;
 			else if(this.boxTypeAction.getSelectedIndex()==2) textToDisplay+=axisText;
@@ -1993,6 +2370,8 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 			case SOS:this.sos1Button.setEnabled(state);break;
 			case RUNTWOIMG:this.runTwoImagesButton.setEnabled(state);break;
 			case RUNSERIE:this.runSerieButton.setEnabled(state);break;
+			case RUNNEXTSTEP:this.runNextStepButton.setEnabled(state);break;
+			case GOBACKSTEP:this.goBackStepButton.setEnabled(state);break;
 			case SOSINIT:this.sos0Button.setEnabled(state);break;
 			case RUNTRANS:this.transformButton.setEnabled(state);break;
 			case RUNTRANSCOMP:this.composeTransformsButton.setEnabled(state);break;
@@ -2015,13 +2394,14 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 	
 	public void updateList() {
 		DefaultListModel<String> listModel = new DefaultListModel<String>();
-        for(int i=0;i<this.regActions.size()-1;i++) {
+        for(int i=0;i<this.regActions.size()-(this.registrationWindowMode==REGWINDOWTWOIMG ? 0 : 0);i++) {
         	listModel.addElement(regActions.get(i).readableString());
         }
         listModel.addElement("< Next action to come >");
 		this.listActions.setModel(listModel);
-		this.listActions.setSelectedIndex(this.regActions.size()-1);
-		ScrollUtil.scroll(listActions,ScrollUtil.BOTTOM);
+		this.listActions.setSelectedIndex(this.step);
+		ScrollUtil.scroll(listActions,ScrollUtil.SELECTED,new int[] {listActions.getSelectedIndex(),regActions.size()+1});
+		listActions.repaint();
 	}
 			
 	public void updateEstimatedTime() {
@@ -2045,11 +2425,11 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		int nbMin=this.estimatedTime/60;
 		int nbSec=this.estimatedTime%60;
 		this.labelTime2.setText(""+nbMin+" mn and "+nbSec+" s");
-		System.out.println("Actualisation : estimatedTime="+this.estimatedTime+" ");
 		this.labelTime2.setForeground(new Color(20,60,20));
 	}
 
 	public void updateViewTwoImages() {
+		if(this.registrationWindowMode!=REGWINDOWTWOIMG)return;
 		ImagePlus imgMovCurrentState,imgRefCurrentState;
 		ItkTransform trMov,trRef = null;
 		//Update views
@@ -2078,7 +2458,6 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		if(screenWidth>1920)screenWidth/=2;
 		imgView.show();imgView.setSlice(this.viewSlice);
 		double zoomFactor=  Math.min((screenHeight/2)/imgView.getHeight()  ,  (screenWidth/2)/imgView.getWidth()); 
-		System.out.println("Using zoom factor="+zoomFactor);
 		java.awt.Rectangle w = imgView.getWindow().getBounds();
 		
 		//If little image, enlarge it until its size is between half screen and full screen
@@ -2110,33 +2489,16 @@ public class RegistrationManager extends PlugInFrame implements ActionListener {
 		if (universe!=null) universe.close();
 	}	
 	
-	public void updateFieldsDisplay() {
-		System.out.println("Updating fields");
-		int valDisp=boxDisplay.getSelectedIndex();		
-		int valTrans=boxTypeTrans.getSelectedIndex();		
-		DefaultComboBoxModel<String> listModelDisp = new DefaultComboBoxModel<String>();
-		DefaultComboBoxModel<String> listModelTrans = new DefaultComboBoxModel<String>();
-		if(boxTypeAction.getSelectedIndex()==1 && boxOptimizer.getSelectedIndex()==0) {
-	        for(int i=0;i<textDisplayBM.length;i++)listModelDisp.addElement(textDisplayBM[i]);
-	        for(int i=0;i<textTransformsBM.length;i++)listModelTrans.addElement(textTransformsBM[i]);
-			this.boxDisplay.setModel(listModelDisp);
-			this.boxDisplay.setSelectedIndex(valDisp);
-			this.boxTypeTrans.setModel(listModelTrans);
-			this.boxTypeTrans.setSelectedIndex(valTrans);
-		}
-		else {
-			for(int i=0;i<textDisplayITK.length;i++)listModelDisp.addElement(textDisplayITK[i]);
-	        for(int i=0;i<textTransformsITK.length;i++)listModelTrans.addElement(textTransformsITK[i]);
-			this.boxDisplay.setModel(listModelDisp);
-			this.boxDisplay.setSelectedIndex(valDisp>=textDisplayITK.length ? textDisplayITK.length-1 : valDisp);
-			this.boxTypeTrans.setModel(listModelTrans);
-			this.boxTypeTrans.setSelectedIndex(valTrans>=textTransformsITK.length ? textTransformsITK.length : valTrans);
-		}
-		this.boxDisplay.repaint();
-		currentRegAction.adjustSettingsFromManager(getRegistrationManager());
+	public void updateBoxFieldsFromRegistrationAction(RegistrationAction reg) {
+		boxTypeAction.setSelectedIndex(reg.typeAction);
+		boxTypeTrans.setSelectedIndex(reg.typeTrans==Transform3DType.DENSE ? 2 : reg.typeTrans==Transform3DType.RIGID ? 0 : 1);
+		boxDisplay.setSelectedIndex(reg.typeAutoDisplay);
+		boxDisplayMan.setSelectedIndex(reg.typeManViewer);
+		boxOptimizer.setSelectedIndex(reg.typeOpt==OptimizerType.BLOCKMATCHING ? 0 : 1);
+		setState(new int[] {BOXOPT,BOXTIME,BOXDISP },boxTypeAction.getSelectedIndex()==1);
+		setState(new int[] {BOXDISPMAN },boxTypeAction.getSelectedIndex()!=1);
 	}
 
-	
 	
 	
 	/** Launching interface, at the very start

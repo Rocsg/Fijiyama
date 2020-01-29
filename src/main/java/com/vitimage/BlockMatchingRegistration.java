@@ -29,7 +29,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	//ItkTransform additionalTransform=new ItkTransform();
 	boolean returnComposedTransformationIncludingTheInitialTransformationGiven=true;
 	boolean viewFuseBigger=true;
-	boolean bmIsInterruptedSucceeded=false;
+	public volatile boolean bmIsInterruptedSucceeded=false;
 	public Thread[] threads;
 	public Thread mainThread;
 	boolean timingMeasurement=true;
@@ -37,7 +37,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	double[]refRange=new double[] {-1,-1};
 	double[]movRange=new double[] {-1,-1};
 	boolean flagRange=false;
-	public boolean bmIsInterrupted;
+	public volatile boolean bmIsInterrupted;
 	public boolean computeSummary=false;
 	int maxIter=1000;
 	int fontSize=12;
@@ -276,7 +276,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		int factorDiv=1;
 		for(int lev=levelMax;lev>=levelMin;lev--) {
 			if(lev>1)factorDiv=(int)Math.round(Math.pow(2, lev-1));
-			System.out.println("factorDiv="+factorDiv);
 			int nbBlocksX=(dims[0]>1) ? 1+(dims[0]/factorDiv-blockHalfSizes[0]-2*neighbourhoods[0]*strides[0])/strides[0] : 1;
 			int nbBlocksY=(dims[1]>1) ? 1+(dims[1]/factorDiv-blockHalfSizes[1]-2*neighbourhoods[1]*strides[1])/strides[1] : 1;
 			int nbBlocksZ=(dims[2]>1) ? 1+(dims[2]/(subsampleZ ? factorDiv : 1) -blockHalfSizes[2]-2*neighbourhoods[2]*strides[2])/strides[2] : 1;
@@ -291,7 +290,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	public static double estimateRegistrationDuration(int[]dims,int viewRegistrationLevel,int levelMin,int levelMax,int nIterations,Transform3DType transformType,
 													int []blockHalfSizes,int []strides,int []neighbourhoods,int nCpu,int percentageScoreSelect,int percentageVarianceSelect,int percentageRandomSelect,boolean subsampleZ,int higherAccuracy) {
 		if(higherAccuracy==1)levelMin=-1;
-		System.out.println("DEBUG\nDEBUG ESTIMATION");
 		int nVoxels=dims[0]*dims[1]*dims[2];
 		int nNeighbours=(1+2*neighbourhoods[0])*(1+2*neighbourhoods[1])*(1+2*neighbourhoods[2]);
 		int blockSize=(1+2*blockHalfSizes[0])*(1+2*blockHalfSizes[1])*(1+2*blockHalfSizes[2]);
@@ -303,13 +301,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		double sumLevels=0;
 		double sumLevels2=0;
 		double sumNbBlocks=0;
-		System.out.println("Nb blocks="+TransformUtils.stringVectorN(nBlocksPerLevel,""));
+//		System.out.println("Nb blocks="+TransformUtils.stringVectorN(nBlocksPerLevel,""));
 		for(int lev=levelMax;lev>=levelMin;lev--){
 			sumLevels+= (lev<=1) ? 1 : (1.0/lev);
 			sumLevels2+= (lev<=1) ? 1 : (1.0/Math.sqrt(lev+1));
 			sumNbBlocks+=nBlocksPerLevel[levelMax-lev];
 		}
-		System.out.println("Levmax="+levelMax);
+/*		System.out.println("Levmax="+levelMax);
 		System.out.println("Levmin="+levelMin);
 		System.out.println("N voxels of image="+nVoxels);
 		System.out.println("N neighbours="+nNeighbours);
@@ -318,7 +316,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		System.out.println("sumLevels="+sumLevels);
 		System.out.println("blocksize="+blockSize);
 		System.out.println("blocks per level="+TransformUtils.stringVectorN(nBlocksPerLevel, ""));
-		
+	*/	
 		double alphaTrans=1E-7;
 		double alphaGlob=1E-7;
 		double alphaLev=1E-7;
@@ -340,7 +338,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		double timeTransfoProduction=transTime*1.4*(1.9)*(nLevels*nIterations); // production of dense field		
 		double timeBonus=timeUpdatesView+timeVariance;
 		double totalTime=timeUpdatesView+timeTransRefAndMov+timeVariance+timeBlockMatching+(transformType==Transform3DType.DENSE ? timeTransfoProduction : 0)+timeBonus;
-
+/*
 		System.out.println("Trans time="+transTime);
 		System.out.println("timeUpdatesView="+ timeUpdatesView);
 		System.out.println("timeTransRefAndMov="+ timeTransRefAndMov);
@@ -350,7 +348,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		System.out.println("timeBonus="+ timeBonus);
 		System.out.println("Total time="+totalTime);
 		System.out.println("DEBUG\nDEBUG ESTIMATION");
-		
+	*/	
 		return totalTime;
 		/**Pas detail :
 		***************Global : 

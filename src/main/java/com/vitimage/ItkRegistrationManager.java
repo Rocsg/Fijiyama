@@ -77,8 +77,8 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 	private ArrayList<double[]> scales;
 	private int fontSize=12;
 	public Thread registrationThread;
-	protected boolean itkRegistrationInterrupted=false;
-	protected boolean itkIsInterruptedSucceeded=false;
+	public volatile boolean itkRegistrationInterrupted=false;
+	public volatile boolean itkIsInterruptedSucceeded=false;
 
 	public void freeMemory(){
 		if(registrationSummary.size()>0) {
@@ -158,10 +158,11 @@ public class ItkRegistrationManager implements ItkImagePlusInterface{
 		double bonusTime=factorInit*imageSize;
 		double displayTime=nbIter*factorView*(levelMax-levelMin+1)*viewRegistrationLevel*imageSize;
 		double processingTime=factorProcess*sumSize*nbIter;
-		System.out.println("Itk time estimation : bonusTime="+bonusTime);
+	/*	System.out.println("Itk time estimation : bonusTime="+bonusTime);
 		System.out.println("Itk time estimation : displayTime="+displayTime);
 		System.out.println("Itk time estimation : processingTime="+processingTime);
 		System.out.println("Itk time estimation : totalTime="+(processingTime+displayTime+bonusTime));
+		*/
 		return (int)Math.round(processingTime+displayTime+bonusTime);
 	}
 
