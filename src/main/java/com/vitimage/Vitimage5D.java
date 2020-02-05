@@ -15,9 +15,9 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.stream.Collectors;
 
-import com.vitimage.ItkImagePlusInterface.MetricType;
-import com.vitimage.ItkImagePlusInterface.OptimizerType;
-import com.vitimage.ItkImagePlusInterface.Transformation3DType;
+import com.vitimage.MetricType;
+import com.vitimage.OptimizerType;
+import com.vitimage.Transform3DType;
 import com.vitimage.TransformUtils.AngleComparator;
 import com.vitimage.TransformUtils.Geometry;
 import com.vitimage.TransformUtils.Misalignment;
@@ -168,11 +168,11 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 				for(int z=zMarginForComputation;z<dimZ-zMarginForComputation;z++) {
 					for(int corner=0;corner<nCorners;corner++) for(int echo=0;echo<nTr;echo++) valuesT1ForStats[nTr*corner+echo]=valuesT1[echo][corner][z];
 					statsTmp=VitimageUtils.statistics2D(valuesT1ForStats);
-					valRiceT1[z]=Acquisition.computeRiceSigmaFromBackgroundValuesStatic(statsTmp[0],statsTmp[1]);
+					valRiceT1[z]=RiceEstimator.computeRiceSigmaFromBackgroundValuesStatic(statsTmp[0],statsTmp[1]);
 
 					for(int corner=0;corner<nCorners;corner++)for(int echo=0;echo<nTe;echo++) valuesT2ForStats[nTe*corner+echo]=valuesT2[echo][corner][z];
 					statsTmp=VitimageUtils.statistics2D(valuesT2ForStats);
-					valRiceT2[z]=Acquisition.computeRiceSigmaFromBackgroundValuesStatic(statsTmp[0],statsTmp[1]);
+					valRiceT2[z]=RiceEstimator.computeRiceSigmaFromBackgroundValuesStatic(statsTmp[0],statsTmp[1]);
 				}
 				for(int z=0;z<zMarginForComputation;z++) {valRiceT1[z]=valRiceT1[zMarginForComputation];valRiceT2[z]=valRiceT2[zMarginForComputation];}
 				for(int z=dimZ-zMarginForComputation;z<dimZ;z++) {valRiceT1[z]=valRiceT1[dimZ-zMarginForComputation-1];valRiceT2[z]=valRiceT2[dimZ-zMarginForComputation-1];}
@@ -330,7 +330,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 					//System.out.println("       T1, processing echo "+indT1);
 					//Transform echoe using composition, then apply M0 based normalisation, then write text on it
 					imgEcho=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+tabDays[dd]+"/Source_data/MRI_T1_SEQ/Computed_data/1_RegisteredStacks/Recovery_"+(indT1+1)+".tif");
-					tabImgT1[dd*3+indT1]=transT14D.transformImage(imgEcho, imgEcho);
+					tabImgT1[dd*3+indT1]=transT14D.transformImage(imgEcho, imgEcho,false);
 					IJ.run(tabImgT1[dd*3+indT1],"32-bit","");
 					tabImgT1[dd*3+indT1]=VitimageUtils.makeOperationOnOneImage( tabImgT1[dd*3+indT1],3, normT1Value, false);
 					tabImgT1[dd*3+indT1]=tabImgT1[dd*3+indT1]=VitimageUtils.writeTextOnImage(subjects[sub]+"-"+tabDays[dd]+"-T1 echo "+indT1, tabImgT1[dd*3+indT1]=tabImgT1[dd*3+indT1],15,0);
@@ -347,7 +347,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 					//System.out.println("       T2, processing echo "+indT2);
 					//Transform echoe using composition, then apply M0 based normalisation, then write text on it
 					imgEcho=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subjects[sub]+"/Source_data/"+tabDays[dd]+"/Source_data/MRI_T2_SEQ/Computed_data/0_Stacks/Echo_"+(indT2+1)+".tif");
-					tabImgT2[dd*16+indT2]=transT24D.transformImage(imgEcho, imgEcho);
+					tabImgT2[dd*16+indT2]=transT24D.transformImage(imgEcho, imgEcho,false);
 					IJ.run(tabImgT2[dd*16+indT2],"32-bit","");
 					tabImgT2[dd*16+indT2]=VitimageUtils.makeOperationOnOneImage( tabImgT2[dd*16+indT2],3, normT2Value, false);
 					tabImgT2[dd*16+indT2]=tabImgT2[dd*16+indT2]=VitimageUtils.writeTextOnImage(subjects[sub]+"-"+tabDays[dd]+"-T2 echo "+indT2, tabImgT2[dd*16+indT2]=tabImgT2[dd*16+indT2],15,0);
@@ -873,7 +873,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 	public void writeRegisteredImage(int i,String step,ImagePlus imgMov) {
 		ImagePlus tempView=this.transformation.get(i).transformImage(
 				this.vitimage4D.get(0).getAcquisition(0).getImageForRegistration(),
-				imgMov);
+				imgMov,false);
 		tempView.getProcessor().resetMinAndMax();
 		IJ.saveAsTiff(tempView, this.sourcePath+slash+"Computed_data"+slash+"0_Registration"+slash+"imgRegistration_J"+this.successiveTimePoints[i]+"_step_"+step+".tif");
 	}
@@ -889,7 +889,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		for(int i=0;i<this.vitimage4D.size() ; i++) {
 			ImagePlus tempView=this.transformation.get(i).transformImage(
 					this.vitimage4D.get(0).getAcquisition(0).getImageForRegistrationWithoutCapillary(),
-					this.vitimage4D.get(i).getAcquisition(0).getImageForRegistrationWithoutCapillary());
+					this.vitimage4D.get(i).getAcquisition(0).getImageForRegistrationWithoutCapillary(),false);
 			tempView.getProcessor().resetMinAndMax();
 			IJ.saveAsTiff(tempView, this.sourcePath+slash+"Computed_data"+slash+"0_Registration"+slash+
 							"imgRegistration_J"+this.successiveTimePoints[i]+"_step_"+registrationStep+".tif");
@@ -1043,7 +1043,7 @@ public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{
 		//Load reference image
 		ImagePlus imgRef=vitimage4D.get(0).getAcquisition(2).getImageForRegistration();
 		ItkTransform transTemp=vitimage4D.get(0).transformation.get(2);
-		transTemp.transformImage(imgRef, imgRef);
+		transTemp.transformImage(imgRef, imgRef,false);
 		VitimageUtils.imageCheckingFast(imgRef,"Reference image Ge3d at J0");
 		
 

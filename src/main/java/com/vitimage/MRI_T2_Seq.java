@@ -14,9 +14,9 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import com.vitimage.ItkImagePlusInterface.MetricType;
-import com.vitimage.ItkImagePlusInterface.OptimizerType;
-import com.vitimage.ItkImagePlusInterface.Transformation3DType;
+import com.vitimage.MetricType;
+import com.vitimage.OptimizerType;
+import com.vitimage.Transform3DType;
 import com.vitimage.VitimageUtils.Capillary;
 import com.vitimage.VitimageUtils.ComputingType;
 import com.vitimage.VitimageUtils.SupervisionLevel;
@@ -527,8 +527,9 @@ mri.start();
 		for(int ech=0;ech<nEch;ech++) {
 			echoesForThisVoxel[ech]=getCapillaryValue(this.sourceData[ech], coordinates,4,3);
 		}
-		double[]estimatedParams=MRUtils.makeFit(this.Te, echoesForThisVoxel,fitType,algType,100,sigma);
-		double[]estimatedParams2=MRUtils.makeFit(this.Te, echoesForThisVoxel,fitType,algType,200,sigma);
+
+		double[]estimatedParams=MRUtils.makeFitSimple(this.Te, echoesForThisVoxel,fitType,algType,100,sigma);
+		double[]estimatedParams2=MRUtils.makeFitSimple(this.Te, echoesForThisVoxel,fitType,algType,200,sigma);
 		if( Math.abs((estimatedParams[0]-estimatedParams2[0])/estimatedParams2[0]) >0.01){
 			System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\nOula !");
 			System.out.println(TransformUtils.stringVectorN(estimatedParams,""));
@@ -614,7 +615,7 @@ mri.start();
 					for(int x=0;x<X;x++) {
 						int index=y*X+x;
 						for(int ech=0;ech<nEch;ech++)echoesForThisVoxel[ech]= tabData[ech][z][index];
-						estimatedParams=MRUtils.makeFit(threadTe, echoesForThisVoxel,fitType,algType,100,sigma);
+						estimatedParams=MRUtils.makeFitSimple(threadTe, echoesForThisVoxel,fitType,algType,100,sigma);
 						if((int)((byte)tabMask[z][index] &0xff) >0 ) {
 							tabThreadT2[index]=(float)estimatedParams[1];
 							tabThreadM0[index]=(float)estimatedParams[0];

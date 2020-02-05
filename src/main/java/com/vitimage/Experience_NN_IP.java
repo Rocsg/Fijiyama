@@ -233,7 +233,7 @@ public class Experience_NN_IP {
 		//Point3d[][]correspondancePoints=buildCorrespondanceTab(img,sigmaField,fieldX,fieldY,fieldZ,centerVect);
 		//globTrans.addTransform(new ItkTransform(new DisplacementFieldTransform( ItkTransform.computeDenseFieldFromSparseCorrespondancePoints(correspondancePoints,img,sigmaField))));
 		System.out.print("trans...");
-		ImagePlus img2=globTrans.transformImage(img, img);
+		ImagePlus img2=globTrans.transformImage(img, img,false);
 
 		
 		
@@ -299,7 +299,7 @@ public class Experience_NN_IP {
 				System.out.println("\nConstruction "+spec+"_"+day);
 				//Construire l'equivalent subsample en 64x64x64
 				img=IJ.openImage(sourceRep+spec+"_"+day+".tif");
-				img=identity.transformImage(imgRef, img);
+				img=identity.transformImage(imgRef, img,false);
 				if(res==0) {
 					img=VitimageUtils.cropImageShort(img,dimsEnd[0]/6,dimsEnd[1]/6,dimsEnd[2]/6,2*dimsEnd[0]/3,2*dimsEnd[1]/3,2*dimsEnd[2]/3);
 					IJ.saveAsTiff(img,outRep+spec+"_"+day+".tif");
@@ -378,7 +378,7 @@ public class Experience_NN_IP {
 				
 			
 				//resampling
-				img=trAdd.transformImage(img,img);
+				img=trAdd.transformImage(img,img,false);
 				VitimageUtils.imageChecking(img);
 				IJ.saveAsTiff(img, outRep+spec+"_"+day+".tif");
 			}

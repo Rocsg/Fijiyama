@@ -21,8 +21,8 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import com.vitimage.ItkImagePlusInterface.MetricType;
-import com.vitimage.ItkImagePlusInterface.Transformation3DType;
+import com.vitimage.MetricType;
+import com.vitimage.Transform3DType;
 
 import ij.IJ;
 import ij.ImageJ;
@@ -364,7 +364,7 @@ public class MRI_Clinical extends Acquisition implements Fit,ItkImagePlusInterfa
 				}
 			}	
 			/////////////TRANSFORMATIONS
-			tabSeqReg[i]=trTemp.transformImage(this.sourceData[0],this.sourceData[i]);
+			tabSeqReg[i]=trTemp.transformImage(this.sourceData[0],this.sourceData[i],false);
 			if(i<3 && makeNormalization) tabSeqReg[i].setDisplayRange(valBG[i], valCap[i]);
 			else tabSeqReg[i].setDisplayRange(0,this.normalizationValues[i]);
 			
@@ -596,13 +596,13 @@ public class MRI_Clinical extends Acquisition implements Fit,ItkImagePlusInterfa
 		int bSXY=6;		int bSZ=6;
 		int strideXY=2;		int strideZ=2;
 		ItkTransform transRet=null;
-		BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transformation3DType.DENSE,MetricType.SQUARED_CORRELATION,
-					0,sigma,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
-		bmRegistration.displayRegistration=false;
+		BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transform3DType.DENSE,MetricType.SQUARED_CORRELATION,
+					0,sigma,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighXY,neighZ,bSXY,neighXY,bSZ,strideXY,strideXY,strideZ);
+		bmRegistration.displayRegistration=0;
 		bmRegistration.displayR2=false;
 		bmRegistration.minBlockVariance=20;
 		bmRegistration.minBlockScore=0.20;
-		transRet=bmRegistration.runMultiThreaded(trInit);
+		transRet=bmRegistration.runBlockMatching(trInit);
 //		bmRegistration.closeLastImages();
 		bmRegistration.freeMemory();
 		return transRet;

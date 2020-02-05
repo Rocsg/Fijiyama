@@ -285,6 +285,13 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 
 	
+	public void writeToFileWithTypeDetection(String path,ImagePlus imgRef) {
+		if(this.isDense) {
+			this.writeAsDenseField(path, imgRef);
+		}
+		else this.writeMatrixTransformToFile(path);
+	}
+	
 	
 	//TODO : implement smoothingBeforeDownSampling.
 	public ImagePlus transformImage(ImagePlus imgRef, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
@@ -977,6 +984,56 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		imRead.setFileName(path);
 		return new ItkTransform(new DisplacementFieldTransform( imRead.execute() ));
 	}
+	
+	
+	
+	
+	
+	
+	
+	
+	public static void transformImageWithGui() {
+		ImagePlus imgMov=VitiDialogs.chooseOneImageUI("Select the image to transform (moving image)","Select the image to transform (moving image)");
+		if(imgMov==null) {IJ.showMessage("Moving image does not exist. Abort.");return;}
+		ImagePlus imgRef=VitiDialogs.chooseOneImageUI("Select the reference image, giving output dimensions (it can be the same)","Select the reference image, giving output dimensions (it can be the same)");
+		ItkTransform tr=VitiDialogs.chooseOneTransformsUI("Select the transform to apply , .txt for Itk linear and .transform.tif for Itk dense", "", false);
+		if(tr==null) {IJ.showMessage("No transform given. Abort");return;}
+		if(imgRef==null) {IJ.showMessage("No reference image provided. Moving image will be used as reference image.");imgRef=VitimageUtils.imageCopy(imgMov);}
+		ImagePlus result=tr.transformImage(imgRef, imgMov, false);
+		result.setTitle("Transformed image");
+		result.show();
+	}
+	
+	public static void composeTransformsWithGui() {
+		ArrayList<ItkTransform> listTr=new ArrayList<ItkTransform>();
+		boolean oneMore=true;
+		int num=1;
+		while(oneMore) {
+			ItkTransform tr=VitiDialogs.chooseOneTransformsUI("Select the transform #"+(num++)+" , .txt for Itk linear and .transform.tif for Itk dense", "", false);
+			if(tr==null) {tr=new ItkTransform();IJ.showMessage("Warning : you included a bad transform file. It was replaced by an identity transform\nin order the process is to be interrupted");}
+			listTr.add(tr);
+			oneMore=VitiDialogs.getYesNoUI("One more transform ?","One more transform ?");
+		}
+		ItkTransform trGlob=new ItkTransform();
+		for(int i=0;i<listTr.size();i++)trGlob.addTransform(listTr.get(i));
+		if(trGlob.isDense()) {
+			ImagePlus imgRef=VitiDialogs.chooseOneImageUI("Select the reference image, giving output space dimensions","Select the reference image, giving output space dimensions");
+			VitiDialogs.saveDenseFieldTransformUI(trGlob, "Save the resulting composed transform",false,"", "composed_transform.tif", imgRef);
+		}
+		else {
+			VitiDialogs.saveMatrixTransformUI(trGlob, "Save the resulting composed transform", false, "", "composed_transform.txt");
+		}
+		IJ.showMessage("Transform successfully saved.");
+	}
+
+	
+
+	
+	
+	
+	
+	
+	
 	
 	
 	

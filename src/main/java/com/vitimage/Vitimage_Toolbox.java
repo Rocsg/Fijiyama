@@ -1,59 +1,21 @@
 package com.vitimage;
 import ij.IJ;
-import ij.plugin.filter.Binary;
 import ij.plugin.filter.ThresholdToSelection;
 import ij.ImageJ;
 import ij.ImagePlus;
-import ij.ImageStack;
-import ij.Prefs;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
-import ij.gui.Overlay;
 import ij.gui.Roi;
-import ij.gui.TextRoi;
-import ij.io.OpenDialog;
-import ij.io.SaveDialog;
 import ij.plugin.Duplicator;
-import ij.plugin.ImageCalculator;
-import ij.plugin.Memory;
 import ij.plugin.PlugIn;
 import ij.plugin.frame.RoiManager;
-import ij.process.FloatPolygon;
-import ij.process.StackProcessor;
-import ij.plugin.RGBStackMerge;
-
-import java.awt.Color;
-import java.awt.FileDialog;
-import java.awt.Font;
-import java.awt.Frame;
 import java.awt.Rectangle;
 import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.Scanner;
-
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
-
-//import net.imglib2.type.numeric.RealType;
 import org.itk.simple.*;
-//import org.scijava.ItemIO;
-//import org.scijava.Priority;
-//import org.scijava.plugin.Parameter;
-//import org.scijava.plugin.Plugin;
-import org.itk.simple.ImageRegistrationMethod.MetricSamplingStrategyType;
-
-import com.sun.tools.extcheck.Main;
 import com.vitimage.MRUtils;
-import com.vitimage.ItkImagePlusInterface.Transformation3DType;
-
-import imagescience.transform.Transform;
-import math3d.JacobiDouble;
 import math3d.Point3d;
-import vib.FastMatrix;
 import com.vitimage.VitimageUtils;
 
 /**
@@ -263,17 +225,17 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 				titleMov=imgTab[0].getShortTitle();
 				titleRef=imgTab[1].getShortTitle();
 				globalTransform=VitiDialogs.chooseTransformsUI("Matrix path from moving to reference",SUPERVISED);
-				imgsOut[0]=globalTransform.transformImage(imgTab[0],imgTab[1]);
-				if(VitiDialogs.getYesNoUI("Compute mask ?")) {
+				imgsOut[0]=globalTransform.transformImage(imgTab[0],imgTab[1],false);
+				if(VitiDialogs.getYesNoUI("","Compute mask ?")) {
 					ImagePlus imTemp=new Duplicator().run(imgTab[0]);
 					imTemp.getProcessor().fill();
-					imgsOut[1]=globalTransform.transformImage(imTemp,imgTab[1]);
+					imgsOut[1]=globalTransform.transformImage(imTemp,imgTab[1],false);
 				}
-				if(VitiDialogs.getYesNoUI("Save the transformation and its inverse ?")) {
+				if(VitiDialogs.getYesNoUI("","Save the transformation and its inverse ?")) {
 					VitiDialogs.saveMatrixTransformUI(globalTransform,"Save transformation from moving to reference space ?",SUPERVISED,"","transformation_from_"+titleMov+"_to_"+titleRef);
 					VitiDialogs.saveMatrixTransformUI(new ItkTransform(globalTransform.getInverse()),"Save inverse transformation from reference to moving space ?",SUPERVISED,"","transformation_from_"+titleRef+"_to_"+titleMov);
 				}
-				if(VitiDialogs.getYesNoUI("Save the image (and the mask if so) ?")) {
+				if(VitiDialogs.getYesNoUI("","Save the image (and the mask if so) ?")) {
 					for(int i=0;i<imgsOut.length;i++) {VitiDialogs.saveImageUI(imgsOut[i],(i==0 ?"Registered image":"Mask image"),SUPERVISED,"",imgsOut[i].getTitle());}
 				}
 				resultTemp=imgsOut[0];
@@ -300,7 +262,7 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 				//	VitiDialogs.saveTransformUI(new ItkTransform(globalTransform.getInverse()),"Save inverse transformation from reference to moving space ?",SUPERVISED,"","transformation_from_z_axis_to_"+titleMov);
 				//}
 				
-				if(VitiDialogs.getYesNoUI("Save the image (and the mask if so) ?")) {
+				if(VitiDialogs.getYesNoUI("","Save the image (and the mask if so) ?")) {
 					for(int i=0;i<imgsOut.length;i++) {VitiDialogs.saveImageUI(imgsOut[i],(i==0 ?"Registered image":"Mask image"),SUPERVISED,"",imgsOut[i].getTitle());}
 				}				
 				resultTemp=imgsOut[0];
@@ -320,7 +282,7 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 			case TR3D_5_MANCAP_TR:VitiDialogs.notYet("Vitimage_Toolbox : TR3D_5_MANCAP_TR");break;
 			case TR3D_6_AUTOCAP_TR:VitiDialogs.notYet("Vitimage_Toolbox : TR3D_6_AUTOCAP_TR");break;
 		}
-		if(VitiDialogs.getYesNoUI("Le processus est terminé. \nVoulez-vous continuer à utiliser la tool box ?")){release();} 
+		if(VitiDialogs.getYesNoUI("","Le processus est terminé. \nVoulez-vous continuer à utiliser la tool box ?")){release();} 
 	}
 
 	/** Tool 2*/
@@ -364,7 +326,7 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 				sizeT2=VitiDialogs.chooseSizeUI(imgTab[1],"",AUTOMATIC);
 				voxSizeT1=VitiDialogs.chooseVoxSizeUI(imgTab[0],"",AUTOMATIC);
 				voxSizeT2=VitiDialogs.chooseVoxSizeUI(imgTab[1],"",AUTOMATIC);
-				MRICurveExplorerWindow explorer=new MRICurveExplorerWindow(imgTab[0],imgTab[1]);
+				VitiDialogs.notYet("MRI Curve explorer");
 				break;
 
 			case 10:
@@ -497,7 +459,7 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 		pInit[2]=new Point3d(refCenterX, 1 + refCenterY , refCenterZ     );//origine + dY
 		System.out.println("Image local basis 0 / 0Z / 0Y : \n"+pFin[0]+"\n"+pFin[1]+"\n"+pFin[2]+"");
 		ItkTransform trAdd=ItkTransform.estimateBestRigid3D(pFin, pInit);
-		ImagePlus test=trAdd.transformImage(img,img);
+		ImagePlus test=trAdd.transformImage(img,img,false);
 		
 		return(test);
 	}
@@ -743,7 +705,7 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 		ImagePlus masque=IJ.openImage(path+"masque.tif");
 		ItkRegistrationManager it=new ItkRegistrationManager();
 		ItkTransform res=it.runScenarioKhalifa2(new ItkTransform(),imgRef,imgMov,true,null);
-		ImagePlus result=res.transformImage(imgRef, imgMov);
+		ImagePlus result=res.transformImage(imgRef, imgMov,false);
 		result.show();
 		IJ.save(result,"/home/fernandr/Bureau/Test/TestKhalifa/test1.tif");
 		res.writeMatrixTransformToFile("/home/fernandr/Bureau/Test/TestKhalifa/test1.txt");
@@ -827,7 +789,7 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 
 		ItkTransform trans=new ItkTransform(new DisplacementFieldTransform( disJacob2 ));
 		ImagePlus imgGrid=VitimageUtils.getBinaryGrid(imgs[0], 10);
-		ImagePlus grid2=trans.transformImage(imgGrid, imgGrid);
+		ImagePlus grid2=trans.transformImage(imgGrid, imgGrid,false);
 		
 		disJacobIJ.show();
 		disJacobIJ.resetDisplayRange();
@@ -917,7 +879,7 @@ public class Vitimage_Toolbox implements PlugIn,ItkImagePlusInterface,VitiDialog
 		System.out.println("Calcul de la transformation achevé");
 		System.out.println(regMethod.getOptimizerStopConditionDescription());
 		ImagePlus grid=resultTrans.viewAsGrid3D(imgRef, 20);
-		ImagePlus resultFlo=new ItkTransform(resultTrans).transformImage(imgRef, imgFlo);
+		ImagePlus resultFlo=new ItkTransform(resultTrans).transformImage(imgRef, imgFlo,false);
 		IJ.run(grid,"32-bit","");
 		IJ.run(grid,"Multiply...","value=0.004 stack");
 		grid.getProcessor().resetMinAndMax();

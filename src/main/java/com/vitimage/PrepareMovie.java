@@ -16,8 +16,8 @@ import org.itk.simple.DisplacementFieldTransform;
 import org.itk.simple.Transform;
 //import org.python.core.packagecache.SysPackageManager;
 
-import com.vitimage.ItkImagePlusInterface.MetricType;
-import com.vitimage.ItkImagePlusInterface.Transformation3DType;
+import com.vitimage.MetricType;
+import com.vitimage.Transform3DType;
 import com.vitimage.VitimageUtils.AcquisitionType;
 
 import ij.IJ;
@@ -147,10 +147,10 @@ public class PrepareMovie {
 				tr03.writeAsDenseFieldWithITKExporter("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/samples/transSub"+""+dayI+""+dayIPlus+"_"+i+".mhd");
 				tr13.writeAsDenseFieldWithITKExporter("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/samples/transSub"+""+dayIPlus+""+dayI+"_"+i+".mhd");
 
-				ImagePlus test03=tr03.transformImage(img0, img0);
+				ImagePlus test03=tr03.transformImage(img0, img0,false);
 				IJ.run(test03,"Multiply...","value="+(1-fact*(i+1))+" stack");
 
-				ImagePlus test13=tr13.transformImage(img1, img1);
+				ImagePlus test13=tr13.transformImage(img1, img1,false);
 				IJ.run(test13,"Multiply...","value="+(fact*(i+1))+" stack");
 
 				ImagePlus imgSum=new ImageCalculator().run("Add create 32-bit stack",test03, test13) ;	
@@ -365,12 +365,12 @@ public class PrepareMovie {
 				tr0x_vip.addTransform(triP0);
 */
 				System.out.print("mult1...");
-				ImagePlus testix=tr0x_vi.transformImage(imgi, imgi);
+				ImagePlus testix=tr0x_vi.transformImage(imgi, imgi,false);
 //				IJ.saveAsTiff(testix,"/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/samples/d_"+dayI+""+dayIPlus+"_t"+i+"_samples_spline_for.tif");
 				IJ.run(testix,"Multiply...","value="+(1-fact*(i+1))+" stack");
 
 				System.out.print("mult2...");
-				ImagePlus testipx=tr0x_vip.transformImage(imgip, imgip);
+				ImagePlus testipx=tr0x_vip.transformImage(imgip, imgip,false);
 //				IJ.saveAsTiff(testipx,"/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/samples/d_"+dayI+""+dayIPlus+"_t"+i+"_samples_spline_back.tif");
 				IJ.run(testipx,"Multiply...","value="+(fact*(i+1))+" stack");
 
@@ -409,7 +409,7 @@ public class PrepareMovie {
 				System.out.print("Lecture 0x...");
 				System.out.print("ajout i0...");
 				ItkTransform tr=ItkTransform.readFromDenseFieldWithITKImporter("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/samples/transSubSpline"+""+dayI+""+(dayIPlus)+"_"+i+".mhd");
-				imgTab[incr++]=tr.transformImage(imgi, imgi);
+				imgTab[incr++]=tr.transformImage(imgi, imgi,false);
 				System.out.println();
 			}
 		}
@@ -504,7 +504,7 @@ public class PrepareMovie {
 				System.out.print("read transfo...");
 				ItkTransform trSample01=ItkTransform.readFromDenseFieldWithITKImporter("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/samples/transSub"+""+dayI+""+dayIPlus+"_"+i+".mhd");
 				System.out.print("transform I0...");
-				ImagePlus test01=trSample01.transformImage(img0, img0);
+				ImagePlus test01=trSample01.transformImage(img0, img0,false);
 				System.out.print("multiply I0...");
 				test01.setDisplayRange(0, 1);
 				IJ.run(test01,"8-bit","");
@@ -514,7 +514,7 @@ public class PrepareMovie {
 				System.out.print("read transfo...");
 				ItkTransform trSample10=ItkTransform.readFromDenseFieldWithITKImporter("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/samples/transSub"+""+dayIPlus+""+dayI+"_"+i+".mhd");
 				System.out.print("transform I0...");
-				ImagePlus test10=trSample10.transformImage(img1, img1);
+				ImagePlus test10=trSample10.transformImage(img1, img1,false);
 				System.out.print("multiply I0...");
 				test10.setDisplayRange(0, 1);
 				IJ.run(test10,"8-bit","");
@@ -915,7 +915,7 @@ public class PrepareMovie {
 				
 
 				System.out.print(" masque... ");
-				ImagePlus maskBothTmp=trCur.transformImage(imgMaskBoth,imgMaskBoth);
+				ImagePlus maskBothTmp=trCur.transformImage(imgMaskBoth,imgMaskBoth,false);
 				IJ.run(maskBothTmp, "Median...", "radius=2 stack");
 				ImagePlus tmpCamb=VitimageUtils.thresholdByteImage(maskBothTmp, 0.5, 1.5);
 				ImagePlus tmpVes=VitimageUtils.thresholdByteImage(maskBothTmp, 1.5, 2.5);
@@ -989,7 +989,7 @@ public class PrepareMovie {
 				System.out.print(" transfo build... ");
 				trCur=ItkTransform.readFromDenseFieldWithITKImporter("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/samples/transSubSpline"+""+dayI+""+(dayIPlus)+"_"+i+".mhd");
 				System.out.print(" masque... ");
-				ImagePlus maskBothTmp=trCur.transformImage(imgMaskBoth,imgMaskBoth);
+				ImagePlus maskBothTmp=trCur.transformImage(imgMaskBoth,imgMaskBoth,false);
 				IJ.run(maskBothTmp, "Median...", "radius=2 stack");
 				ImagePlus tmpCamb=VitimageUtils.thresholdByteImage(maskBothTmp, 0.5, 1.5);
 				ImagePlus tmpVes=VitimageUtils.thresholdByteImage(maskBothTmp, 1.5, 2.5);
@@ -1067,7 +1067,7 @@ public class PrepareMovie {
 				
 
 				System.out.print(" interpolation masque... ");
-				ImagePlus maskBothTmp=trCur.transformImage(imgMaskBoth,imgMaskBoth);
+				ImagePlus maskBothTmp=trCur.transformImage(imgMaskBoth,imgMaskBoth,false);
 				IJ.run(maskBothTmp, "Median...", "radius=2 stack");
 				ImagePlus tmpCamb=VitimageUtils.thresholdByteImage(maskBothTmp, 0.5, 1.5);
 				ImagePlus tmpVes=VitimageUtils.thresholdByteImage(maskBothTmp, 1.5, 2.5);
@@ -2294,7 +2294,7 @@ public class PrepareMovie {
 	
 			trAdd.simplify();
 			trAdd.writeMatrixTransformToFile("/home/fernandr/Bureau/Test/Visu2/Compute/transforms/transInocD"+d+".txt");
-			ImagePlus imgTrans=trAdd.transformImage(imgInit, imgInit);
+			ImagePlus imgTrans=trAdd.transformImage(imgInit, imgInit,false);
 			System.out.println("3");
 			IJ.saveAsTiff(imgTrans, "/home/fernandr/Bureau/Test/Visu2/Compute/D"+d+"_2_inoc.tif");
 			System.out.println("Fini !");
@@ -2327,7 +2327,7 @@ public class PrepareMovie {
 		for(int d=1;d<4;d++) {
 			System.out.println("d"+d);
 			ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/Visu2/Compute/D"+d+"_5_nocap.tif");
-			img=trs[d].transformImage(img,img);
+			img=trs[d].transformImage(img,img,false);
 			IJ.saveAsTiff(img, "/home/fernandr/Bureau/Test/Visu2/Compute/D"+d+"_6_registered.tif");
 		}		
 		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Test/Visu2/Compute/D0_5_nocap.tif");
@@ -2359,7 +2359,7 @@ public class PrepareMovie {
 			imgs[d]=IJ.openImage("/home/fernandr/Bureau/Test/Visu2/Compute/D"+d+"_5_nocap.tif");
 			imgs[d-1]=IJ.openImage("/home/fernandr/Bureau/Test/Visu2/Compute/D"+(d-1)+"_5_nocap.tif");
 			ItkTransform tr=BlockMatchingRegistration.setupAndRunRoughBlockMatchingWithoutFineParameterization(
-						imgs[d-1], imgs[d], imgMask, Transformation3DType.VERSOR ,MetricType.CORRELATION, 2, 2, 9, 3, 0.1, 0.2, 1, false, false,80,false);
+						imgs[d-1], imgs[d], imgMask, Transform3DType.VERSOR ,MetricType.CORRELATION, 2, 2, 9, 3, 0.1, 0.2, 1, false, false,80,false);
 			tr.simplify();
 			tr.writeMatrixTransformToFile("/home/fernandr/Bureau/Test/Visu2/Compute/transforms/trans_register_individual"+d+".txt");
 		}
@@ -2443,7 +2443,7 @@ public class PrepareMovie {
 			System.out.println(trAdd.drawableString());
 			trAdd.simplify();
 			trAdd.writeMatrixTransformToFile("/home/fernandr/Bureau/Test/Visu2/Compute/transforms/transAlignD"+d+".txt");
-			ImagePlus imgTrans=trAdd.transformImage(img, img);
+			ImagePlus imgTrans=trAdd.transformImage(img, img,false);
 			imgTrans.show();
 			img.show();
 		}
@@ -2451,7 +2451,7 @@ public class PrepareMovie {
 			System.out.println("Gestion cas "+d);
 			ImagePlus imgInit=IJ.openImage("/home/fernandr/Bureau/Test/Visu2/Compute/D"+d+"_hr.tif");
 			ItkTransform trAdd=ItkTransform.readTransformFromFile("/home/fernandr/Bureau/Test/Visu2/Compute/transforms/transAlignD"+d+".txt");
-			ImagePlus imgTrans=trAdd.transformImage(imgInit, imgInit);
+			ImagePlus imgTrans=trAdd.transformImage(imgInit, imgInit,false);
 			IJ.saveAsTiff(imgTrans, "/home/fernandr/Bureau/Test/Visu2/Compute/D"+d+"_1_aligned.tif");
 		}
 	}
@@ -2481,15 +2481,15 @@ public class PrepareMovie {
 			ImagePlus img0=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/Img_intermediary/D"+dayI+"_registered.tif");
 			ImagePlus img1=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/Img_intermediary/D"+dayIPlus+"_registered.tif");
 			System.out.print(" bm ");
-			ItkTransform tr10=BlockMatchingRegistration.setupAndRunRoughBlockMatchingWithoutFineParameterization(img0, img1, mask,Transformation3DType.DENSE, MetricType.CORRELATION,
+			ItkTransform tr10=BlockMatchingRegistration.setupAndRunRoughBlockMatchingWithoutFineParameterization(img0, img1, mask,Transform3DType.DENSE, MetricType.CORRELATION,
 					levMax, levMin, blockSize, neighSize, varMin, sigma, duration, displayRegistration, displayR2,percentageScore,dayI==0);
 			System.out.print(" write");
 			tr10.writeAsDenseFieldWithITKExporter("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/recalage_init/trans_"+dayIPlus+"_to_"+dayI+".mhd");
 			ItkTransform tr01=tr10.getInverseOfDenseField();
 			tr01.writeAsDenseFieldWithITKExporter("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/recalage_init/trans_"+dayI+"_to_"+dayIPlus+".mhd");
 			System.out.print(" transform");
-			ImagePlus res10=tr10.transformImage(img0, img1);
-			ImagePlus res01=tr01.transformImage(img0, img0);
+			ImagePlus res10=tr10.transformImage(img0, img1,false);
+			ImagePlus res01=tr01.transformImage(img0, img0,false);
 			System.out.print(" save");
 			IJ.saveAsTiff(res10, "/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/recalage_init/d"+dayIPlus+"_to_"+dayI+".tif");
 			IJ.saveAsTiff(res01, "/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/recalage_init/d"+dayI+"_to_"+dayIPlus+".tif");
@@ -2515,8 +2515,8 @@ public class PrepareMovie {
 		tr01.writeAsDenseFieldWithITKExporter("/home/fernandr/Bureau/tr01.mhd");
 		tr10.writeAsDenseFieldWithITKExporter("/home/fernandr/Bureau/tr10.mhd");		
 
-		ImagePlus d0_on_1=tr01.transformImage(img0, img0);
-		ImagePlus d1_on_0=tr10.transformImage(img1, img1);
+		ImagePlus d0_on_1=tr01.transformImage(img0, img0,false);
+		ImagePlus d1_on_0=tr10.transformImage(img1, img1,false);
 		System.out.println("3");
 		ImagePlus merge011=VitimageUtils.compositeOf(d0_on_1, img1,"011");
 		ImagePlus merge100=VitimageUtils.compositeOf(img0,d1_on_0,"100");
@@ -2528,8 +2528,8 @@ public class PrepareMovie {
 		ItkTransform tr01=ItkTransform.readFromDenseFieldWithITKImporter("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/recalage_init/trans_0_to_1.mhd");
 		ImagePlus img0=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/Img_intermediary/D0_registered.tif");
 		ItkTransform tr01Sub=VitimageUtils.Sub222Dense(tr01);
-		ImagePlus img01=tr01.transformImage(img0, img0);
-		ImagePlus img01sub=tr01Sub.transformImage(img0, img0);
+		ImagePlus img01=tr01.transformImage(img0, img0,false);
+		ImagePlus img01sub=tr01Sub.transformImage(img0, img0,false);
 		IJ.saveAsTiff(img01, "/home/fernandr/Bureau/d01.tif");
 		IJ.saveAsTiff(img01sub, "/home/fernandr/Bureau/d01_sub.tif");
 		img01sub.show();

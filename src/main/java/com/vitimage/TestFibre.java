@@ -56,7 +56,7 @@ public class TestFibre {
 
 			for(int i=-8;i<30;i+=1)for(int j=-30;j<30;j+=1) {
 				System.out.println("PROCESSING "+i+" "+j);
-				int[][]coords=getContactPoints(i, j)[num];
+				int[][]coords=VitimageUtils.getContactPoints(i, j)[num];
 				boolean feasible=true;
 				for(int p=0;p<coords.length;p++) {
 					if(img.getStack().getVoxel(coords[p][0], coords[p][1],coords[p][2]) !=1) {
@@ -187,7 +187,7 @@ public class TestFibre {
 		double targetVoxelSize=0.5;
 		double []initialVoxelSize= {0.7224,0.7224,1.0};
 		double []factors=TransformUtils.multiplyVector(initialVoxelSize,1/targetVoxelSize);
-		int[][][]contactPointsSain=getContactPoints(0,0);
+		int[][][]contactPointsSain=VitimageUtils.getContactPoints(0,0);
 		String []specimen= getSpecimens();
 		for(int num=0;num<12;num++) {
 			
@@ -328,7 +328,7 @@ public class TestFibre {
 	 * 
 	 */	
 	public static void testFibers(int numSpec,int i,int j,ImagePlus[]gradsOptions,ImagePlus distOptions) {		
-		int[][][]contactPointsSain=getContactPoints(i,j);
+		int[][][]contactPointsSain=VitimageUtils.getContactPoints(i,j);
 		String []specimen= getSpecimens();
 		int[]sliceRootStocks=new int[]{200+86 , 200+76 , 200+174 ,          200+65 , 200+97 , 200+108 ,        200+71  , 200+74 ,  200+68 ,       200+59 , 200+42  , 200+118}; 
 		

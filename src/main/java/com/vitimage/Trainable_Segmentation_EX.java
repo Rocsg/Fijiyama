@@ -404,7 +404,7 @@ public class Trainable_Segmentation_EX implements PlugIn
 	}
 	
 	public void saveExamplesInFile(PointRoi[][]prTab) {		
-		VitiDialogs.getYesNoUI("Warning : this routine will build a lot of Roi files, on for each slice represented."+ 
+		VitiDialogs.getYesNoUI("","Warning : this routine will build a lot of Roi files, on for each slice represented."+ 
 						"You should consider store them in a separate directory. Also, the 'no' and the 'cancel' answer are just here for the sake of politeness.");	
 		SaveDialog sd = new SaveDialog("Choose save file", "examples",".MROI");
 		if (sd.getFileName()==null)

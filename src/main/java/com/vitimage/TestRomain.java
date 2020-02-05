@@ -1,94 +1,45 @@
 package com.vitimage;
 
 import java.awt.Color;
-import java.awt.Point;
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.io.Writer;
-import java.lang.management.ManagementFactory;
-import java.nio.file.Path;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import javax.swing.JFrame;
-import javax.swing.JTextArea;
-
-import org.apache.commons.math.MathException;
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 import org.itk.simple.DisplacementFieldTransform;
-import org.itk.simple.GradientImageFilter;
-import org.itk.simple.Image;
-import org.itk.simple.ImageFileWriter;
-import org.itk.simple.InverseDisplacementFieldImageFilter;
-import org.itk.simple.ResampleImageFilter;
 import org.itk.simple.Transform;
-import org.itk.simple.VectorUInt32;
-import org.python.core.packagecache.SysPackageManager;
 import org.scijava.vecmath.Color3f;
 
 import com.vitimage.Vitimage4D.VineType;
-import com.vitimage.VitimageUtils.AcquisitionType;
 import com.vitimage.VitimageUtils.Capillary;
 import com.vitimage.VitimageUtils.ComputingType;
 import com.vitimage.VitimageUtils.SupervisionLevel;
 
-import Hough_Package.Hough_Circle;
-import distance.Correlation;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.WindowManager;
-import ij.gui.Overlay;
-import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.io.FileSaver;
 import ij.io.OpenDialog;
-import ij.io.Opener;
-import ij.io.SaveDialog;
 import ij.plugin.ChannelSplitter;
 import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
 import ij.plugin.FolderOpener;
-import ij.plugin.HyperStackConverter;
 import ij.plugin.ImageCalculator;
 import ij.plugin.RGBStackMerge;
 import ij.plugin.StackCombiner;
-import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
 import ij.process.ByteProcessor;
-import ij.process.FloatPolygon;
 import ij.process.ImageConverter;
-import inra.ijpb.binary.ChamferWeights3D;
-import inra.ijpb.binary.geodesic.GeodesicDistanceTransform3D;
 import inra.ijpb.binary.geodesic.GeodesicDistanceTransform3DFloat;
 import inra.ijpb.morphology.Morphology;
 import inra.ijpb.morphology.Strel3D;
 import math3d.Point3d;
-import mcib3d.image3d.ImageHandler;
-import mcib3d.image3d.distanceMap3d.EDT;
-import mcib3d.image3d.processing.CannyEdge3D;
-import mcib3d.image3d.processing.FastFilters3D;
-import mcib3d.image3d.processing.SymmetryFilter;
-import trainableSegmentation.FeatureStack;
-import trainableSegmentation.FeatureStackArray;
-import ij.measure.ResultsTable;
 
 public class TestRomain {
 
@@ -160,14 +111,8 @@ public class TestRomain {
 	
 		//testGrad();
 		//VitimageUtils.waitFor(100000);
-		JFrame fra=new JFrame();
-		JTextArea logArea=new JTextArea("", 10,10);
-		fra.add(logArea);
-		fra.pack();
-		fra.setVisible(true);
-		
-		VitimageUtils.waitFor(1000000);
 		makingData();
+		VitimageUtils.waitFor(1000000);
 		
 		testNewSchemeNoAlgo();
 
@@ -406,7 +351,7 @@ public class TestRomain {
 		transT14D.addTransform(transTall5D);
 		ImagePlus imgEcho=IJ.openImage("/home/fernandr/Bureau/Traitements/Bouture6D/Source_data/"+subject+"/Source_data/"+day+"/Source_data/MRI_T1_SEQ/Computed_data/1_RegisteredStacks/Recovery_1.tif");
 		IJ.saveAsTiff(imgEcho, "/home/fernandr/Bureau/imgInit.tif");
-		imgEcho=transT14D.transformImage(imgEcho, imgEcho);
+		imgEcho=transT14D.transformImage(imgEcho, imgEcho,false);
 		IJ.saveAsTiff(imgEcho, "/home/fernandr/Bureau/imgAfter.tif");
 		double[]voxS=VitimageUtils.getVoxelSizes(imgEcho);
 		System.out.println(TransformUtils.stringVectorN(voxS, "VoxelSizes"));
@@ -922,7 +867,7 @@ public class TestRomain {
 				repSpec+"/Source_data/MRI_CLINICAL/Computed_data/1_Transformations/transformation_2.txt")).getInverse());
 			transMRIfromMachine.addTransform(ItkTransform.itkTransformFromCoefs(new double[] {1,0,0,-175,0,1,0,-175,0,0,1,-153.6}));
 			int []dims=VitimageUtils.getDimensions(imgMRI);
-			transMod[i]=transMRIfromMachine.transformImage(VitimageUtils.uncropImageByte(VitimageUtils.switchAxis(imgMRI,2),100, 100, 100, dims[0]+200, dims[2]+200, dims[1]+200), imgMRI);
+			transMod[i]=transMRIfromMachine.transformImage(VitimageUtils.uncropImageByte(VitimageUtils.switchAxis(imgMRI,2),100, 100, 100, dims[0]+200, dims[2]+200, dims[1]+200), imgMRI,false);
 		}
 		ImagePlus glob=makeCombination3by4(transMod);
 		glob.show();
@@ -1193,7 +1138,7 @@ public class TestRomain {
 		ImagePlus imgT1=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/CEP011_AS1/Source_data/MRI_CLINICAL/Computed_data/3_HyperImage/stack_0.tif");
 		ImagePlus imgT2=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/CEP011_AS1/Source_data/MRI_CLINICAL/Computed_data/3_HyperImage/stack_1.tif");
 		ItkTransform trT2=MRI_Clinical.registerT1T2(imgT1,imgT2,null,2); 
-		ImagePlus imgT2Reg=trT2.transformImage(imgT1, imgT2);
+		ImagePlus imgT2Reg=trT2.transformImage(imgT1, imgT2,false);
 		IJ.saveAsTiff(imgT1, rep+"T1.tif");
 		IJ.saveAsTiff(imgT2, rep+"T2.tif");
 		IJ.saveAsTiff(imgT2Reg, rep+"T2REC.tif");		
@@ -1203,7 +1148,7 @@ public class TestRomain {
 		ImagePlus imgT1=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/CEP011_AS1/Source_data/MRI_CLINICAL/Computed_data/3_HyperImage/stack_0.tif");
 		ImagePlus imgM0=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/CEP011_AS1/Source_data/MRI_CLINICAL/Computed_data/3_HyperImage/stack_2.tif");
 		ItkTransform trM0=MRI_Clinical.registerT1T2(imgT1,imgM0,null,2); 
-		ImagePlus imgM0Reg=trM0.transformImage(imgT1, imgM0);
+		ImagePlus imgM0Reg=trM0.transformImage(imgT1, imgM0,false);
 		IJ.saveAsTiff(imgT1, rep+"T1.tif");
 		IJ.saveAsTiff(imgM0, rep+"M0.tif");
 		IJ.saveAsTiff(imgM0Reg, rep+"M0REC.tif");
@@ -1231,14 +1176,14 @@ public class TestRomain {
 			sigma=10;
 			levelMax=1;
 			levelMin=1;
-			BlockMatchingRegistration bmRegistration3=new BlockMatchingRegistration(imgRefSub,imgMovSub,Transformation3DType.DENSE,MetricType.CORRELATION,
-					0,sigma,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
-			bmRegistration3.displayRegistration=false;
+			BlockMatchingRegistration bmRegistration3=new BlockMatchingRegistration(imgRefSub,imgMovSub,Transform3DType.DENSE,MetricType.CORRELATION,
+					0,sigma,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
+			bmRegistration3.displayRegistration=0;
 			bmRegistration3.displayR2=false;
-			transRet=bmRegistration3.runMultiThreaded(null);
+			transRet=bmRegistration3.runBlockMatching(null);
 			//bmRegistration.closeLastImages();
 			bmRegistration3.freeMemory();
-			ImagePlus res3=transRet.transformImage(imgRef, imgMov);
+			ImagePlus res3=transRet.transformImage(imgRef, imgMov,false);
 			res3.setDisplayRange(0, 255);
 			IJ.run(res3,"8-bit","");
 			res3.show();
@@ -1251,14 +1196,14 @@ public class TestRomain {
 			sigma=15;
 			levelMax=1;
 			levelMin=1;
-			bmRegistration3=new BlockMatchingRegistration(imgRef,imgMov,Transformation3DType.DENSE,MetricType.SQUARED_CORRELATION,
-					0,sigma,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
-			bmRegistration3.displayRegistration=false;
+			bmRegistration3=new BlockMatchingRegistration(imgRef,imgMov,Transform3DType.DENSE,MetricType.SQUARED_CORRELATION,
+					0,sigma,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
+			bmRegistration3.displayRegistration=0;
 			bmRegistration3.displayR2=false;
-			transRet=bmRegistration3.runMultiThreaded(null);
+			transRet=bmRegistration3.runBlockMatching(null);
 			//bmRegistration.closeLastImages();
 			bmRegistration3.freeMemory();
-			res3=transRet.transformImage(imgRef, imgMov);
+			res3=transRet.transformImage(imgRef, imgMov,false);
 			res3.setDisplayRange(0, 255);
 			IJ.run(res3,"8-bit","");
 			res3.show();
@@ -1291,7 +1236,7 @@ public class TestRomain {
 			ImagePlus mri=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/mri_"+spec+".tif");
 			ImagePlus rx=IJ.openImage("/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/rx_"+spec+".tif");
 			System.out.println("transformation image");
-			ImagePlus mrTrans=trans.transformImage(mri, mri);
+			ImagePlus mrTrans=trans.transformImage(mri, mri,false);
 			System.out.println("composition images");
 			ImagePlus compAvant=VitimageUtils.compositeOf(rx,mri,"Avant");
 			ImagePlus compApres=VitimageUtils.compositeOf(rx,mrTrans,"Apres");
@@ -1301,8 +1246,8 @@ public class TestRomain {
 		}
 	}
 	
-	
-	public static void computeFieldBiasBasedOnMultipleCorrespondances(int iteration,boolean fixCenter,boolean gauss,double sigma) {
+	//TODO : modify because getCorrespondanceListAsImagePlus(Point) does not exist anymore
+/*	public static void computeFieldBiasBasedOnMultipleCorrespondances(int iteration,boolean fixCenter,boolean gauss,double sigma) {
 		String []specimen= {"CEP011_AS1","CEP012_AS2","CEP013_AS3","CEP014_RES1","CEP015_RES2","CEP016_RES3","CEP017_S1","CEP018_S2","CEP019_S3","CEP020_APO1","CEP021_APO2","CEP022_APO3"};
 		int nSpec=6;
 		
@@ -1374,7 +1319,7 @@ public class TestRomain {
 		trans.showAsGrid3D(imgRef, 10,"Field"+(fixCenter ? "_FIX" : "_NO")+(gauss ? "_GAUSS" : ""),100);
 	}
 	
-	
+	*/
 	
 	
 	public static void takeInputCorrespondanceForBiasEstimation() {
@@ -1422,8 +1367,8 @@ public class TestRomain {
 			transMRIfromMachine.addTransform(new ItkTransform(ItkTransform.readTransformFromFile(
 				repSpec+"/Source_data/MRI_CLINICAL/Computed_data/1_Transformations/transformation_0.txt")));
 			transMRIfromMachine.addTransform(transMRItoRX);
-			ImagePlus resAvecDef=transMRIfromMachine.transformImage(imgRX, imgMRI);
-			ImagePlus resSansDef=transMRItoRX.transformImage(imgRX, imgMRI);
+			ImagePlus resAvecDef=transMRIfromMachine.transformImage(imgRX, imgMRI,false);
+			ImagePlus resSansDef=transMRItoRX.transformImage(imgRX, imgMRI,false);
 		
 			ImagePlus compAvant=VitimageUtils.compositeOf(imgRX,resSansDef,"Avant");
 			ImagePlus compApres=VitimageUtils.compositeOf(imgRX,resAvecDef,"Apres");
@@ -1469,8 +1414,8 @@ public class TestRomain {
 			VitimageUtils.adjustImageCalibration(imgRef, imgMRI);
 			System.out.println(TransformUtils.stringVector(VitimageUtils.getVoxelSizes(imgMRI),""));
 			System.out.println("Trans 1");
-			imgRX=transRXtoMRI.transformImage(imgRef, imgRX);
-			imgMRI=transMRIfromMachine.transformImage(imgRef,imgMRI);
+			imgRX=transRXtoMRI.transformImage(imgRef, imgRX,false);
+			imgMRI=transMRIfromMachine.transformImage(imgRef,imgMRI,false);
 			ImagePlus comp=VitimageUtils.compositeOf(imgRX, imgMRI);
 			comp.setTitle(spec);
 			IJ.saveAsTiff(imgMRI, "/home/fernandr/Bureau/Traitements/Cep5D/FieldsBias/mri_"+spec+".tif");
@@ -1530,15 +1475,15 @@ public class TestRomain {
 				int bSXY=7;		int bSZ=7;
 				int strideXY=2;		int strideZ=3;
 				ItkTransform transRet=null;
-				BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transformation3DType.DENSE,MetricType.SQUARED_CORRELATION,
-							0,sigma,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
+				BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transform3DType.DENSE,MetricType.SQUARED_CORRELATION,
+							0,sigma,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
 		//		bmRegistration.flagSingleView=true;
-				bmRegistration.displayRegistration=false;
+				bmRegistration.displayRegistration=0;
 				bmRegistration.displayR2=false;
-				transRet=bmRegistration.runMultiThreaded(null);
+				transRet=bmRegistration.runBlockMatching(null);
 				//bmRegistration.closeLastImages();
 				bmRegistration.freeMemory();
-				ImagePlus res=transRet.transformImage(imgRefHigh, imgMovHigh);
+				ImagePlus res=transRet.transformImage(imgRefHigh, imgMovHigh,false);
 				res.setDisplayRange(0, 255);
 				IJ.run(res,"8-bit","");
 				tmp=spec+"RES_MAX_"+levelMax+"_MIN_"+levelMin+".tif";res.setTitle(tmp);IJ.saveAsTiff(res,dir+tmp);
@@ -2126,8 +2071,8 @@ mri.start();
 		imgTab2[2]=new Duplicator().run(img0);
 		ItkTransform tr2=new ItkTransform(new Transform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(imgTab2)));
 		
-		ImagePlus I1=tr1.transformImage(I0,I0);
-		ImagePlus I2=tr2.transformImage(I1,I1);
+		ImagePlus I1=tr1.transformImage(I0,I0,false);
+		ImagePlus I2=tr2.transformImage(I1,I1,false);
 		
 		ItkTransform tr1add2=new ItkTransform(tr1);
 		tr1add2.addTransform(new ItkTransform(tr2));
@@ -2135,8 +2080,8 @@ mri.start();
 		ItkTransform tr2add1=new ItkTransform(tr2);
 		tr2add1.addTransform(new ItkTransform(tr1));
 
-		ImagePlus I2_2add1=tr2add1.transformImage(I0,I0);
-		ImagePlus I2_1add2=tr1add2.transformImage(I0,I0);
+		ImagePlus I2_2add1=tr2add1.transformImage(I0,I0,false);
+		ImagePlus I2_1add2=tr1add2.transformImage(I0,I0,false);
 
 		I0.setTitle("I0");
 		I1.setTitle("I1");
@@ -2212,14 +2157,14 @@ mri.start();
 		ImagePlus imgD2=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/Img_intermediary/D2_registered.tif");
 		
 		System.out.println("transform...");
-		ImagePlus imgD0to2_v1=tr02v1.transformImage(imgD0, imgD0);
-		ImagePlus imgD0to2_v2=tr02v2.transformImage(imgD0, imgD0);
+		ImagePlus imgD0to2_v1=tr02v1.transformImage(imgD0, imgD0,false);
+		ImagePlus imgD0to2_v2=tr02v2.transformImage(imgD0, imgD0,false);
 		System.out.println("transform...");
-		ImagePlus imgD2to0_v1=tr20v1.transformImage(imgD2, imgD2);
-		ImagePlus imgD2to0_v2=tr20v2.transformImage(imgD2, imgD2);
+		ImagePlus imgD2to0_v1=tr20v1.transformImage(imgD2, imgD2,false);
+		ImagePlus imgD2to0_v2=tr20v2.transformImage(imgD2, imgD2,false);
 		System.out.println("transform...");
-		ImagePlus imgD0to0_v1=tr00v1.transformImage(imgD0, imgD0);
-		ImagePlus imgD0to0_v2=tr00v2.transformImage(imgD0, imgD0);
+		ImagePlus imgD0to0_v1=tr00v1.transformImage(imgD0, imgD0,false);
+		ImagePlus imgD0to0_v2=tr00v2.transformImage(imgD0, imgD0,false);
 	
 		
 		System.out.println("composite...");
@@ -2503,9 +2448,9 @@ mri.start();
 		ItkTransform tr20=ItkTransform.readFromDenseFieldWithITKImporter("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/recalage_init/trans_2_to_0_global.mhd");
 		ItkTransform tr30=ItkTransform.readFromDenseFieldWithITKImporter("/mnt/DD_COMMON/Data_VITIMAGE/Movie_maker_v2/champs/recalage_init/trans_3_to_0_global.mhd");
 		System.out.println("Here2");
-		ImagePlus imgRec1=tr10.transformImage(imgMovD1,imgMovD1);
-		ImagePlus imgRec2=tr20.transformImage(imgMovD2,imgMovD2);
-		ImagePlus imgRec3=tr30.transformImage(imgMovD3,imgMovD3);
+		ImagePlus imgRec1=tr10.transformImage(imgMovD1,imgMovD1,false);
+		ImagePlus imgRec2=tr20.transformImage(imgMovD2,imgMovD2,false);
+		ImagePlus imgRec3=tr30.transformImage(imgMovD3,imgMovD3,false);
 
 		imgMovD0.show();
 		imgRec1.show();
@@ -2532,12 +2477,12 @@ mri.start();
 		trFull.addTransform(tr12);
 		trFull.addTransform(tr23);
 		System.out.println("Here3");
-		ImagePlus imgTest1=trFull.transformImage(imgMov, imgMov);
+		ImagePlus imgTest1=trFull.transformImage(imgMov, imgMov,false);
 		System.out.println("Here4");
-		ImagePlus imgTest2=tr01.transformImage(imgMov, imgMov);
+		ImagePlus imgTest2=tr01.transformImage(imgMov, imgMov,false);
 		System.out.println("Here5");
-		imgTest2=tr12.transformImage(imgTest2,imgTest2);
-		imgTest2=tr23.transformImage(imgTest2,imgTest2);
+		imgTest2=tr12.transformImage(imgTest2,imgTest2,false);
+		imgTest2=tr23.transformImage(imgTest2,imgTest2,false);
 		System.out.println("Here6");
 		imgTest1.show();
 		imgTest2.show();
@@ -2550,7 +2495,7 @@ mri.start();
 		ImagePlus imgMov=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Visu2_keep/Img_intermediary/D1_registered.tif");
 		ItkTransform field=new ItkTransform(new DisplacementFieldTransform(
 				ItkTransform.computeDenseFieldFromSparseCorrespondancePoints(VitiDialogs.registrationPointsUI(10, imgRef,imgRef ,true), imgRef, 0.35, true)));
-		ImagePlus test=field.transformImage(imgRef,imgMov);
+		ImagePlus test=field.transformImage(imgRef,imgMov,false);
 		System.out.println("ComputeDense ok.");
 		
 		ImagePlus img=field.viewAsGrid3D(imgRef, 7);
@@ -2574,11 +2519,11 @@ mri.start();
 		
 		int dayI=0;
 		int dayIPlus=dayI+1;		
-		ItkTransform tr10=BlockMatchingRegistration.setupAndRunRoughBlockMatchingWithoutFineParameterization(imgRef, imgMov, mask,Transformation3DType.DENSE, MetricType.CORRELATION,
+		ItkTransform tr10=BlockMatchingRegistration.setupAndRunRoughBlockMatchingWithoutFineParameterization(imgRef, imgMov, mask,Transform3DType.DENSE, MetricType.CORRELATION,
 				levMax, levMin, blockSize, neighSize, varMin, sigma, duration, displayRegistration, displayR2,80,true);
 		tr10.writeAsDenseFieldWithITKExporter("/mnt/DD_COMMON/Data_VITIMAGE/Visu2_keep/champs/recalage_init/TEST_trans_"+dayIPlus+"_to_"+dayI+".mhd");
 		System.out.print(" transform");
-		ImagePlus res10=tr10.transformImage(imgRef, imgMov);
+		ImagePlus res10=tr10.transformImage(imgRef, imgMov,false);
 		IJ.saveAsTiff(res10, "/mnt/DD_COMMON/Data_VITIMAGE/Visu2_keep/champs/recalage_init/TESTd"+dayIPlus+"_to_"+dayI+".tif");
 		res10.show();
 			
@@ -2614,12 +2559,12 @@ mri.start();
 			ImagePlus imgRefSub=VitimageUtils.Sub222(imgRef);
 			ImagePlus imgMovSub=VitimageUtils.Sub222(imgMov);
 			System.out.print(" bm ");
-			ItkTransform tr10=BlockMatchingRegistration.setupAndRunRoughBlockMatchingWithoutFineParameterization(imgRefSub, imgMovSub, mask,Transformation3DType.DENSE, MetricType.CORRELATION,
+			ItkTransform tr10=BlockMatchingRegistration.setupAndRunRoughBlockMatchingWithoutFineParameterization(imgRefSub, imgMovSub, mask,Transform3DType.DENSE, MetricType.CORRELATION,
 					levMax, levMin, blockSize, neighSize, varMin, sigma, duration, displayRegistration, displayR2,80,false);
 			System.out.print(" write");
 			tr10.writeAsDenseFieldWithITKExporter("/mnt/DD_COMMON/Data_VITIMAGE/Visu2_keep/champs/recalage_init/trans_"+dayIPlus+"_to_"+dayI+".mhd");
 			System.out.print(" transform");
-			ImagePlus res=tr10.transformImage(imgRef, imgMov);
+			ImagePlus res=tr10.transformImage(imgRef, imgMov,false);
 			System.out.print(" save");
 			IJ.saveAsTiff(res, "/mnt/DD_COMMON/Data_VITIMAGE/Visu2_keep/champs/recalage_init/d"+dayIPlus+"_to_"+dayI+".tif");
 		}
@@ -2637,12 +2582,12 @@ mri.start();
 			ImagePlus imgRefSub=VitimageUtils.Sub222(imgRef);
 			ImagePlus imgMovSub=VitimageUtils.Sub222(imgMov); 
 			System.out.print(" bm");
-			ItkTransform tr01=BlockMatchingRegistration.setupAndRunRoughBlockMatchingWithoutFineParameterization(imgRefSub, imgMovSub, mask,Transformation3DType.DENSE, MetricType.CORRELATION,
+			ItkTransform tr01=BlockMatchingRegistration.setupAndRunRoughBlockMatchingWithoutFineParameterization(imgRefSub, imgMovSub, mask,Transform3DType.DENSE, MetricType.CORRELATION,
 					levMax, levMin, blockSize, neighSize, varMin, sigma, duration, displayRegistration, displayR2,80,false);
 			System.out.print(" write");
 			tr01.writeAsDenseFieldWithITKExporter("/mnt/DD_COMMON/Data_VITIMAGE/Visu2_keep/champs/recalage_init/trans_"+dayI+"_to_"+dayIPlus+".mhd");
 			System.out.print(" transform");
-			ImagePlus res=tr01.transformImage(imgRef, imgMov);
+			ImagePlus res=tr01.transformImage(imgRef, imgMov,false);
 			System.out.print(" save");
 			IJ.saveAsTiff(res, "/mnt/DD_COMMON/Data_VITIMAGE/Visu2_keep/champs/recalage_init/d"+dayI+"_to_"+dayIPlus+".tif");
 		}

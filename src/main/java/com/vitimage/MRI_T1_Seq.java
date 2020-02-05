@@ -515,7 +515,7 @@ mri.start();
 			for(int h=0;h<10;h++)System.out.println("COUCOU");
 			System.out.println("Le type devrait etre unsigned short, surement");
 			System.out.println("Et avant, le type est = "+sourceData[i].getBitDepth());
-			sourceData[i]=trTemp.transformImage(sourceData[i],sourceData[i]);
+			sourceData[i]=trTemp.transformImage(sourceData[i],sourceData[i],false);
 			sourceData[i]=VitimageUtils.convertFloatToShortWithoutDynamicChanges(sourceData[i]);
 			System.out.println("Et apres, le type est = "+sourceData[i].getBitDepth());
 			System.out.println("Recalage sequence numero "+i+" ok");
@@ -559,7 +559,7 @@ mri.start();
 		for(int ech=0;ech<nEch;ech++) {
 			echoesForThisVoxel[ech]=getCapillaryValue(this.sourceData[ech], coordinates,4,3);
 		}
-		double[]estimatedParams=MRUtils.makeFit(this.Tr, echoesForThisVoxel,fitType,algType,100,sigma);
+		double[]estimatedParams=MRUtils.makeFitSimple(this.Tr, echoesForThisVoxel,fitType,algType,100,sigma);
 		VitimageUtils.writeDoubleInFile(this.sourcePath+slash+".."+slash+".."+slash+"valT1Echo3.txt",echoesForThisVoxel[2]);
 		VitimageUtils.writeDoubleInFile(this.sourcePath+slash+".."+slash+".."+slash+"normT1.txt",estimatedParams[0]);
 		VitimageUtils.writeDoubleInFile(this.sourcePath+slash+".."+slash+".."+slash+"timeT1.txt",estimatedParams[1]);
@@ -630,7 +630,7 @@ mri.start();
 					for(int x=0;x<X;x++) {
 						int index=y*X+x;
 						for(int ech=0;ech<nEch;ech++)echoesForThisVoxel[ech]= tabData[ech][z][index];
-						estimatedParams=MRUtils.makeFit(threadTr, echoesForThisVoxel,fitType,algType,100,sigma);
+						estimatedParams=MRUtils.makeFitSimple(threadTr, echoesForThisVoxel,fitType,algType,100,sigma);
 						if((int)((byte)tabMask[z][index] &0xff) >0 ) {
 							tabThreadT1[index]=(float)estimatedParams[1];
 							tabThreadM0[index]=(float)estimatedParams[0];

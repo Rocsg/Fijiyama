@@ -8,34 +8,14 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.stream.Collectors;
-
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
-
-import com.sun.tools.extcheck.Main;
-import com.vitimage.ItkImagePlusInterface.MetricType;
-import com.vitimage.ItkImagePlusInterface.OptimizerType;
-import com.vitimage.ItkImagePlusInterface.Transformation3DType;
-import com.vitimage.TransformUtils.Geometry;
-import com.vitimage.TransformUtils.Misalignment;
 import com.vitimage.Vitimage4D.VineType;
-import com.vitimage.VitimageUtils.Capillary;
-import com.vitimage.VitimageUtils.ComputingType;
-import com.vitimage.VitimageUtils.SupervisionLevel;
-
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
-import ij.plugin.ImageCalculator;
-import math3d.Point3d;
 
 public class Cep4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	public static final int UNTIL_END=1000;
@@ -403,7 +383,7 @@ public class Cep4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	public void automaticFineRegistration() {
 		ImagePlus imgRef= this.transformation.get(0).transformImage(
 				this.acquisition.get(0).imageForRegistration,
-				this.acquisition.get(0).imageForRegistration);
+				this.acquisition.get(0).imageForRegistration,false);
 		imgRef.getProcessor().resetMinAndMax();
 		imgRef=VitimageUtils.removeCapillaryFromRandomMriImage(imgRef); 
 		imgRef=VitimageUtils.convertFloatToShortWithoutDynamicChanges(imgRef);
@@ -418,13 +398,13 @@ public class Cep4D implements VitiDialogs,TransformUtils,VitimageUtils{
 			if(this.acquisition.get(i).capillary == Capillary.HAS_CAPILLARY) {
 				imgMov= this.transformation.get(i).transformImage(
 					this.acquisition.get(0).imageForRegistration,
-					VitimageUtils.removeCapillaryFromRandomMriImage(this.acquisition.get(i).imageForRegistration));
+					VitimageUtils.removeCapillaryFromRandomMriImage(this.acquisition.get(i).imageForRegistration),false);
 					imgMov=VitimageUtils.convertFloatToShortWithoutDynamicChanges(imgMov);
 			}
 			else{
 				imgMov= this.transformation.get(i).transformImage(			
 					this.acquisition.get(0).imageForRegistration,
-					this.acquisition.get(i).imageForRegistration);
+					this.acquisition.get(i).imageForRegistration,false);
 			}
 			imgMov.getProcessor().resetMinAndMax();
 
@@ -448,7 +428,7 @@ public class Cep4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		for(int i=0;i<this.acquisition.size() ; i++) {
 			ImagePlus tempView=this.transformation.get(i).transformImage(
 					this.acquisition.get(0).getImageForRegistration(),
-					this.acquisition.get(i).getImageForRegistration());
+					this.acquisition.get(i).getImageForRegistration(),false);
 			tempView.getProcessor().resetMinAndMax();
 			IJ.saveAsTiff(tempView, this.sourcePath+slash+"Computed_data"+slash+"0_Registration"+slash+"imgRegistration_acq_"+i+"_step_"+registrationStep+".tif");
 		}
@@ -473,14 +453,14 @@ public class Cep4D implements VitiDialogs,TransformUtils,VitimageUtils{
 			hyp[0].hide();
 			
 			switch(acq.acquisitionType) {
-			case RX:imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[0]));break;
-			case MRI_T1_SEQ:imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[0]));
-							imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[1]));
-							imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[2]));break;
-			case MRI_T2_SEQ:imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[0]));
-							imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[1]));
-							imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[2]));break;			
-			case MRI_GE3D:imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[0]));break;			
+			case RX:imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[0],false));break;
+			case MRI_T1_SEQ:imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[0],false));
+							imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[1],false));
+							imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[2],false));break;
+			case MRI_T2_SEQ:imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[0],false));
+							imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[1],false));
+							imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[2],false));break;			
+			case MRI_GE3D:imgList.add( transformation.get(i).transformImage( acquisition.get(0).imageForRegistration ,hyp[0],false));break;			
 			}
 		}
 		if(imgList.size()<targetHyperSize) {

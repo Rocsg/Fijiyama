@@ -1,40 +1,7 @@
 package com.vitimage;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.stream.Collectors;
-
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
-
-import com.sun.tools.extcheck.Main;
-import com.vitimage.ItkImagePlusInterface.MetricType;
-import com.vitimage.ItkImagePlusInterface.OptimizerType;
-import com.vitimage.ItkImagePlusInterface.Transformation3DType;
-import com.vitimage.TransformUtils.Geometry;
-import com.vitimage.TransformUtils.Misalignment;
-import com.vitimage.VitimageUtils.Capillary;
-import com.vitimage.VitimageUtils.ComputingType;
-import com.vitimage.VitimageUtils.SupervisionLevel;
-
-import ij.IJ;
 import ij.ImageJ;
-import ij.ImagePlus;
-import ij.plugin.Concatenator;
-import ij.plugin.Duplicator;
-import ij.plugin.ImageCalculator;
-import math3d.Point3d;
 
 public class Vitimage4DGe3d  extends Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 	private double[] referenceVoxelSizeSmall;

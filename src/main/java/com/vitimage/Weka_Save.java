@@ -377,7 +377,7 @@ public class Weka_Save implements PlugIn
 			String spec= stringSpecimens[s];
 			String nomImg="/home/fernandr/Bureau/Traitements/Cep5D/"+spec+"/Source_data/PHOTOGRAPH/Computed_data/3_Hyperimage/hyperimage_THIN.tif";
 			System.out.println("STARTING SEGMENTATION ON "+nomImg);
-			String outputPath=debug ? "/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/" : VitiDialogs.chooseDirectoryUI("Choose a directory for image exportation");
+			String outputPath=debug ? "/home/fernandr/Bureau/ML_CEP/RESULTS/EXP_6_ON_STACKS/"+spec+"/" : VitiDialogs.chooseDirectoryUI("Choose a directory for image exportation", "Select");
 			new File(outputPath).mkdirs();
 			System.out.println("Load classifier...");
 			loadClassifierWithoutOtherActions(debug ? "/home/fernandr/Bureau/ML_CEP/MODELS/classifier.model":null);
@@ -4303,7 +4303,7 @@ public class Weka_Save implements PlugIn
 	public static void saveExamplesInFile(PointRoi[][]prTab,ImagePlus imageOfTargetSize,String[]classLabels,String fileOutput) {		
 		String fullPath="";
 		if(fileOutput==null) {
-			VitiDialogs.getYesNoUI("Warning : this routine will build a lot of Roi files, on for each slice represented."+ 
+			VitiDialogs.getYesNoUI("","Warning : this routine will build a lot of Roi files, on for each slice represented."+ 
 					"You should consider store them in a separate directory. Also, the 'no' and the 'cancel' answer are just here for the sake of politeness.");	
 			SaveDialog sd = new SaveDialog("Choose save file", "examples",".MROI");
 			if (sd.getFileName()==null)return;
@@ -5076,7 +5076,7 @@ public class Weka_Save implements PlugIn
 		//Si pas hyper, dire non et retourner
 		if(!this.isHyper) {VitiDialogs.notYet("Switch to 3D mode in wekaSave with image that is not hyper image : not yet implemented");return false;}
 		//Proposer de sauvegarder les settings
-		if(VitiDialogs.getYesNoUI("Do you want to save the settings (especially the 3D mode parameter) ?"))saveClassSetup(null);
+		if(VitiDialogs.getYesNoUI("","Do you want to save the settings (especially the 3D mode parameter) ?"))saveClassSetup(null);
 		return true;
 	}
 

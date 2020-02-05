@@ -2856,7 +2856,7 @@ public interface VitimageUtils {
 	}
 
 	public static void adjustFrameOnScreenRelative(Frame currentFrame,Frame referenceFrame,int xPosition,int yPosition,int distance) {
-        if(xPosition==3) {System.out.println("Position sur place");currentFrame.setLocation(referenceFrame.getLocationOnScreen().x,referenceFrame.getLocationOnScreen().y);return;}
+		if(xPosition==3) {currentFrame.setLocation(referenceFrame.getLocationOnScreen().x,referenceFrame.getLocationOnScreen().y);return;}
 		java.awt.Dimension currentScreen = Toolkit.getDefaultToolkit().getScreenSize();
         int screenX=(int)Math.round(currentScreen.width);
         int screenY=(int)Math.round(currentScreen.height);

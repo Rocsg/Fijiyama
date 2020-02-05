@@ -6,12 +6,10 @@ import java.util.ArrayList;
 import java.util.Date;
 
 import ij.IJ;
-import ij.ImageJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.gui.Roi;
 import ij.plugin.Duplicator;
-import ij.plugin.filter.Binary;
 import ij.plugin.filter.ThresholdToSelection;
 import ij.plugin.frame.RoiManager;
 import ij.process.FloatPolygon;
@@ -111,7 +109,7 @@ public abstract class Acquisition implements VitimageUtils{
 	}
 	
 	public ImagePlus getTransformedRegistrationImage() {
-		ImagePlus temp=this.transformation.transformImage(this.imageForRegistration, this.imageForRegistration);
+		ImagePlus temp=this.transformation.transformImage(this.imageForRegistration, this.imageForRegistration,false);
 		temp.getProcessor().setMinAndMax(this.valMinForCalibration,this.valMaxForCalibration);
 		return temp;		
 	}
@@ -245,7 +243,7 @@ public abstract class Acquisition implements VitimageUtils{
 	}
 	
 	public ImagePlus getTransformedRegistrationImage(ImagePlus imgReference) {
-		return this.transformation.transformImage(imgReference, this.imageForRegistration);		
+		return this.transformation.transformImage(imgReference, this.imageForRegistration,false);		
 	}
 	
 	public void computeNormalisationValues() {

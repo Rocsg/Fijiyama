@@ -376,6 +376,40 @@ public class MRUtils implements Fit{
 		return ret;
 	}
 
+	public static double[]makeFitSimple(double[]tabTimes, double[]tabData,int fitType,int algType,int nbIter,double sigma){
+		Random rand=new Random();
+		int nParams=(fitType==MRUtils.T2_RELAX_RICE || fitType==MRUtils.T1_RECOVERY_RICE || fitType==MRUtils.TWOPOINTS) ? 2 : (fitType==MRUtils.TRICOMP_RICE ) ? 6 : 4;
+		double[]tmpSimulatedData=new double[tabData.length];
+		double[]estimatedParams;
+		double[]simEstimatedParams;
+		double[]estimatedSigmas=new double[nParams];
+		double[]estimatedMeans=new double[nParams];
+		double sigmaZero;
+		if(algType==TWOPOINTS){
+			TwoPointsCurveFitterNoBias twopointsfitter=new TwoPointsCurveFitterNoBias(tabTimes, tabData,fitType, sigma);
+			twopointsfitter.doFit();
+			estimatedParams=twopointsfitter.getParams();
+		}
+		else if(algType==LM){
+			LMCurveFitterNoBias lmfitter=new LMCurveFitterNoBias(tabTimes,tabData,fitType,sigma,false);
+		 	lmfitter.configLMA(LMCurveFitterNoBias.lambda,LMCurveFitterNoBias.minDeltaChi2,nbIter);
+		 	lmfitter.doFit();
+			estimatedParams=lmfitter.getParams();
+		}
+		else {
+			SimplexCurveFitterNoBias simpfitter=new SimplexCurveFitterNoBias(tabTimes,tabData,fitType,sigma);
+		 	simpfitter.config(nbIter);
+		 	simpfitter.doFit();
+			estimatedParams=simpfitter.getParams();
+		}
+		if(false)System.out.println("Verite terrain : "+TransformUtils.stringVectorN(estimatedParams, ""));
+		if(false)System.out.println("Means  terrain : "+TransformUtils.stringVectorN(estimatedMeans, ""));
+		if(false)System.out.println("Deviation std  : "+TransformUtils.stringVectorN(estimatedSigmas, ""));
+		double [][]ret=new double[2][nParams];
+		return estimatedParams;
+
+	}
+
 
 	public static double dou(double d){
 		if (d<0.0001)return 0;

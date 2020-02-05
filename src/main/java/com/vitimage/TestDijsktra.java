@@ -256,7 +256,7 @@ public class TestDijsktra {
 			System.out.println("DistanceTotale="+distanceTotale);
 			System.out.println("DistanceMri="+distanceMri);
 		}
-		showSexyFibers(imgMri,imgObject,list);
+		showSexyFibers(imgMri,imgObject,list, 5);
 	}
 
 

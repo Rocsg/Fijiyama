@@ -1,19 +1,16 @@
 package com.vitimage;
 
-import com.vitimage.ItkImagePlusInterface.CenteringStrategy;
-import com.vitimage.ItkImagePlusInterface.MetricType;
-import com.vitimage.ItkImagePlusInterface.OptimizerType;
-import com.vitimage.ItkImagePlusInterface.SamplingStrategy;
-import com.vitimage.ItkImagePlusInterface.ScalerType;
-import com.vitimage.ItkImagePlusInterface.Transformation3DType;
+import com.vitimage.CenteringStrategy;
+import com.vitimage.MetricType;
+import com.vitimage.OptimizerType;
+import com.vitimage.SamplingStrategy;
+import com.vitimage.ScalerType;
+import com.vitimage.Transform3DType;
 
-import ij.IJ;
-import ij.ImageJ;
 import ij.ImagePlus;
 import ij.gui.GenericDialog;
 import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
-import ij.plugin.HyperStackConverter;
 import ij.plugin.PlugIn;
 
 public class APLIM_Studio  implements PlugIn,ItkImagePlusInterface,VitiDialogs,VitimageUtils {
@@ -133,12 +130,12 @@ public class APLIM_Studio  implements PlugIn,ItkImagePlusInterface,VitiDialogs,V
 		manager.setViewSlice(imgRef.getStackSize()/2);
 		manager.setMetric(MetricType.CORRELATION);
 //		OptimizerType opt=OptimizerType.AMOEBA;
-		OptimizerType opt=OptimizerType.GRADIENT_LINE_SEARCH;
+		OptimizerType opt=OptimizerType.ITK_AMOEBA;
 		SamplingStrategy samplStrat=SamplingStrategy.NONE;
 
 		
 		//Registration steps setup
-		manager.addStepToQueue( 2 ,   2    ,     0    ,   20 , 0.4   ,       Transformation3DType.TRANSLATION,    null,
+		manager.addStepToQueue( 2 ,   2    ,     0    ,   20 , 0.4   ,       Transform3DType.TRANSLATION,    null,
 				opt  , ScalerType.SCALER_PHYSICAL, null ,
 		true,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
@@ -151,7 +148,7 @@ public class APLIM_Studio  implements PlugIn,ItkImagePlusInterface,VitiDialogs,V
 		//Results handling
 		ItkTransform resTrans=manager.getCurrentTransform();
 		
-		ImagePlus result=resTrans.transformImage(imgRef,imgMov);
+		ImagePlus result=resTrans.transformImage(imgRef,imgMov,false);
 		if(nbSlicesMov==1) {
 			result=new Duplicator().run(result,1,1);
 			imgMov=new Duplicator().run(imgMov,1,1);
@@ -163,12 +160,12 @@ public class APLIM_Studio  implements PlugIn,ItkImagePlusInterface,VitiDialogs,V
 		result.getProcessor().setMinAndMax(imgMov.getProcessor().getMin(),imgMov.getProcessor().getMax());
 		result.show();
 		System.out.println("Result transformation : \n"+resTrans.drawableString());
-		if(VitiDialogs.getYesNoUI("Do you want to save the computed transformation ?"))VitiDialogs.saveMatrixTransformUI(
+		if(VitiDialogs.getYesNoUI("","Do you want to save the computed transformation ?"))VitiDialogs.saveMatrixTransformUI(
 											resTrans, "Save the computed transformation", SUPERVISED, "", "Mat_transform_"+movTitle+"_to_"+refTitle);
-		if(VitiDialogs.getYesNoUI("Do you want to save the resulting transformed image ?"))VitiDialogs.saveImageUI(
+		if(VitiDialogs.getYesNoUI("","Do you want to save the resulting transformed image ?"))VitiDialogs.saveImageUI(
 											result,"Save the result image",SUPERVISED,"", "Result image_"+movTitle+"_to_"+refTitle+".tif"); 
 	
-		if(VitiDialogs.getYesNoUI("Do you want to visualize the Before/After composite image ?")){
+		if(VitiDialogs.getYesNoUI("","Do you want to visualize the Before/After composite image ?")){
 
 			ImagePlus refDup=new Duplicator().run(imgRef);
 			ImagePlus movDup=new Duplicator().run(imgMov);
@@ -194,10 +191,10 @@ public class APLIM_Studio  implements PlugIn,ItkImagePlusInterface,VitiDialogs,V
 	public void runTransformFriendImage() {		
 		ImagePlus[]imgs=VitiDialogs.chooseTwoImagesUI("Choose reference image and moving image","Reference (used as reference image space)","Moving image (to be transformed)");
 		ItkTransform trans=VitiDialogs.chooseOneTransformsUI("Choose transform to apply","", SUPERVISED);
-		ImagePlus result=trans.transformImage(imgs[0],imgs[1]);
+		ImagePlus result=trans.transformImage(imgs[0],imgs[1],false);
 		result.getProcessor().setMinAndMax(imgs[1].getProcessor().getMin(),imgs[0].getProcessor().getMax());
 		result.show();
-		if(VitiDialogs.getYesNoUI("Do you want to save the resulting transformed image ?"))VitiDialogs.saveImageUI(
+		if(VitiDialogs.getYesNoUI("","Do you want to save the resulting transformed image ?"))VitiDialogs.saveImageUI(
 				result,"Save the result image",SUPERVISED,"", "Result image.tif"); 
 
 	}

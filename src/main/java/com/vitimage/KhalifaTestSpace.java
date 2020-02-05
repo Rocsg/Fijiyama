@@ -51,7 +51,7 @@ public class KhalifaTestSpace {
 			ItkTransform trans=ItkTransform.estimateBestRigid3D(pMov,pRef);
 			transGlobal.addTransform(trans);
 			System.out.println("Transformation calculée ="+transGlobal);
-			ImagePlus result=transGlobal.transformImage(imgReference, imgMovingSave);	
+			ImagePlus result=transGlobal.transformImage(imgReference, imgMovingSave,false);	
 			result.getProcessor().resetMinAndMax();
 			result.setTitle("Result");
 			result.show();
@@ -69,7 +69,7 @@ public class KhalifaTestSpace {
 		System.out.println("Recalage automatique");
 		ItkRegistrationManager manager=new ItkRegistrationManager();
 		ItkTransform transformAutomatic=manager.runScenarioKhalifa(new ItkTransform(),imgRef, imgMov);
-		ImagePlus result=transformAutomatic.transformImage(imgRef, imgMov);
+		ImagePlus result=transformAutomatic.transformImage(imgRef, imgMov,false);
 		System.out.println("Recalage ok.");
 		result.getProcessor().resetMinAndMax();
 		result.show();

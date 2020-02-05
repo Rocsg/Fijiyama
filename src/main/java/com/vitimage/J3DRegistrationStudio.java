@@ -28,8 +28,8 @@ import org.scijava.java3d.Transform3D;
 import org.scijava.java3d.TransformGroup;
 import org.scijava.vecmath.Color3f;
 
-import com.vitimage.ItkImagePlusInterface.MetricType;
-import com.vitimage.ItkImagePlusInterface.Transformation3DType;
+import com.vitimage.MetricType;
+import com.vitimage.Transform3DType;
 
 import fiji.util.gui.OverlayedImageCanvas;
 import ij.IJ;
@@ -362,7 +362,7 @@ public class J3DRegistrationStudio implements PlugIn {
 		ij3d.ImageJ3DViewer.lock();
 		ij3d.ImageJ3DViewer.select("imgMov");
 		ij3d.ImageJ3DViewer.setThreshold("50");
-		VitiDialogs.getYesNoUI("Red volume is fixed, green volume can move.\n Use the 3d viewer to adjust the green volume with the red volume using the mouse.\n Click-drag=rotate , Shift+Click-drag=translate.");
+		VitiDialogs.getYesNoUI("","Red volume is fixed, green volume can move.\n Use the 3d viewer to adjust the green volume with the red volume using the mouse.\n Click-drag=rotate , Shift+Click-drag=translate.");
 		stopButton.setEnabled(true);
 		this.setButtonLocked(true);
     }
@@ -391,11 +391,11 @@ public class J3DRegistrationStudio implements PlugIn {
     }
         
 	public void loadCustomMask() {
-		if(VitiDialogs.getYesNoUI("Loading mask image. Is your image ready ?"))this.imgMask=IJ.openImage();
+		if(VitiDialogs.getYesNoUI("","Loading mask image. Is your image ready ?"))this.imgMask=IJ.openImage();
 	}
 	
 	public void runAutomaticRegistration() {
-		Transformation3DType transType;
+		Transform3DType transType;
 		int method;
 		int duration;
 		MetricType metr;
@@ -422,12 +422,12 @@ public class J3DRegistrationStudio implements PlugIn {
         method=gd.getNextChoiceIndex();
 
         switch(gd.getNextChoiceIndex()) {
-        case 0 : transType=Transformation3DType.TRANSLATION;break;
-        case 1 : transType=Transformation3DType.VERSOR;break;
-        case 2 : transType=Transformation3DType.SIMILARITY;break;
-        case 3 : transType=Transformation3DType.AFFINE;break;
-        case 4 : transType=Transformation3DType.DENSE;break;
-        default : transType=Transformation3DType.VERSOR;break;
+        case 0 : transType=Transform3DType.TRANSLATION;break;
+        case 1 : transType=Transform3DType.VERSOR;break;
+        case 2 : transType=Transform3DType.SIMILARITY;break;
+        case 3 : transType=Transform3DType.AFFINE;break;
+        case 4 : transType=Transform3DType.DENSE;break;
+        default : transType=Transform3DType.VERSOR;break;
         }
         
         switch(gd.getNextChoiceIndex()) {
@@ -452,7 +452,7 @@ public class J3DRegistrationStudio implements PlugIn {
         	double sigma=0.8;
  //       	if(transType==Transformation3DType.DENSE)sigma=VitiDialogs.getYesNoUI("Use the assistant for spatial field smoothing factor determination ?") ? runAssistantSigma() : VitiDialogs.getDoubleUI("Set smoothing factor","smoothing",0.05);
         	this.transResults.add(BlockMatchingRegistration.setupAndRunRoughBlockMatchingWithoutFineParameterization(imgRef, imgResult, imgMask, transType,metr,levelMax,levelMin,blockSize,neighSize,varMin,sigma,duration,displayRegistration,displayR2,100, false));
-        	if(transType==Transformation3DType.DENSE)thereIsDenseField=true;
+        	if(transType==Transform3DType.DENSE)thereIsDenseField=true;
         }
         if(method==1) {
         	this.transResults.add(new ItkTransform());VitiDialogs.notYet("Not yet implemented : ITK iconic registration scheme access from J3DRegistration");
@@ -464,7 +464,7 @@ public class J3DRegistrationStudio implements PlugIn {
 	
 	
 	 public void saveRegisteredImages() {
-		 if( VitiDialogs.getYesNoUI("Do you want to export images and transform in a reference geometry ?\n A reference geometry is a standard setup to uniformize your data \nto make future experiments and publications easier.\n\n"+
+		 if( VitiDialogs.getYesNoUI("","Do you want to export images and transform in a reference geometry ?\n A reference geometry is a standard setup to uniformize your data \nto make future experiments and publications easier.\n\n"+
 				 					"In plant science, common setups are to align plant axis with x, y or z :\n -> Geometry 1 make plants appearing with axis aligned with the z axis...\n -> Geometry 2 make plants appearing with axis aligned with x axis"+
 				 "\n -> Geometry 3 make plants appearing with axis aligned with the y axis...")) {
 			 computePostReferenceGeometryAndExport();
@@ -472,10 +472,10 @@ public class J3DRegistrationStudio implements PlugIn {
 		 }
 		 
 		 VitiDialogs.saveImageUI(imgResult, "Save registered moving image as tif...",false , "", "imgMov_after_registration.tif");
-		 if(VitiDialogs.getYesNoUI("Also save reference image ? (useful if you switched ref and mov, or if you used the function \"set reference geometry\")"))	{
+		 if(VitiDialogs.getYesNoUI("","Also save reference image ? (useful if you switched ref and mov, or if you used the function \"set reference geometry\")"))	{
 				 VitiDialogs.saveImageUI(imgRef, "Save reference image as tif...",false , "", "imgRef_after_registration.tif");
 		 }
-		 if(VitiDialogs.getYesNoUI("Save transform, by the way ? (useful to reproduce results easily)"))	{
+		 if(VitiDialogs.getYesNoUI("","Save transform, by the way ? (useful to reproduce results easily)"))	{
 			if(this.thereIsDenseField) VitiDialogs.saveDenseFieldTransformUI(this.currentGlobalTransform.flattenDenseField(imgRef), "Save transform as a dense field in a file *.transform.tif", false, "","result_transform", this.imgRef);
 			else VitiDialogs.saveMatrixTransformUI(this.currentGlobalTransform.simplify(), "Save transform as a ITK matrix in a file *.txt", false, "","result_transform");
 		 }
@@ -505,7 +505,7 @@ public class J3DRegistrationStudio implements PlugIn {
 		        	Point3d[] ptsBefore=new Point3d[] { centerPointBefore,centerPointBefore.plus(plusX),centerPointBefore.plus(plusY),centerPointBefore.plus(plusZ) };
 		        	Point3d[] ptsAfter=new Point3d[] { centerPointAfter,centerPointAfter.plus(plusX),centerPointAfter.plus(plusY),centerPointAfter.plus(plusZ) };
 		        	tr.addTransform(ItkTransform.estimateBestRigid3D(ptsBefore,ptsAfter));
-		        	imgTemp=tr.transformImage(imgRef, imgRef);
+		        	imgTemp=tr.transformImage(imgRef, imgRef,false);
 	        		imgTemp.setTitle("Reference point is set. Computing Z axis");
 
 		        	
@@ -518,7 +518,7 @@ public class J3DRegistrationStudio implements PlugIn {
 	        		ptsBefore=new Point3d[] { centerPointBefore,centerPointBefore.plus(plusX),centerPointBefore.plus(vectZ) };
 	        		ptsAfter=new Point3d[] { centerPointBefore,centerPointBefore.plus(plusX),centerPointBefore.plus(plusZ) };		        	
 		        	tr.addTransform(ItkTransform.estimateBestRigid3D(ptsBefore,ptsAfter));
-		        	imgTemp=tr.transformImage(imgRef, imgRef);
+		        	imgTemp=tr.transformImage(imgRef, imgRef,false);
 	
 		        	
 		        	//Step 2 : align radial
@@ -530,17 +530,17 @@ public class J3DRegistrationStudio implements PlugIn {
 	        		ptsBefore=new Point3d[] { centerPointBefore,centerPointBefore.plus(plusZ),centerPointBefore.plus(vectY) };
 	        		ptsAfter=new Point3d[] { centerPointBefore,centerPointBefore.plus(plusZ),centerPointBefore.plus(plusY) };		        	
 		        	tr.addTransform(ItkTransform.estimateBestRigid3D(ptsBefore,ptsAfter));
-		        	imgTemp=tr.transformImage(imgRef, imgRef);
+		        	imgTemp=tr.transformImage(imgRef, imgRef,false);
 		        	
 		        	VitimageUtils.imageChecking(imgTemp);
 		        	imgTemp.show();
-		        	geometryIsOk=VitiDialogs.getYesNoUI("Confirm geometry ?");
+		        	geometryIsOk=VitiDialogs.getYesNoUI("","Confirm geometry ?");
 	        	}while(!geometryIsOk);
 	        	imgTemp.close();
 	        	ItkTransform glob=new ItkTransform(this.currentGlobalTransform);
 	        	glob.addTransform(tr);	        	
-	        	VitiDialogs.saveImageUI(glob.transformImage(imgRef, imgMov), "Save registered moving image in reference geometry as tif...",false , "", "imgMov_after_registration_in_reference_geometry.tif");
-	        	VitiDialogs.saveImageUI(tr.transformImage(imgRef, imgRef), "Save reference image in reference geometry as tif...",false , "", "imgRef_after_registration_in_reference_geometry.tif");
+	        	VitiDialogs.saveImageUI(glob.transformImage(imgRef, imgMov,false), "Save registered moving image in reference geometry as tif...",false , "", "imgMov_after_registration_in_reference_geometry.tif");
+	        	VitiDialogs.saveImageUI(tr.transformImage(imgRef, imgRef,false), "Save reference image in reference geometry as tif...",false , "", "imgRef_after_registration_in_reference_geometry.tif");
 	        	if(this.thereIsDenseField) {
 	        		VitiDialogs.saveDenseFieldTransformUI(this.currentGlobalTransform.flattenDenseField(imgRef), "Save transform from mov to ref in a file *.transform.tif", false, "","mov_to_ref", this.imgRef);
 	        		VitiDialogs.saveDenseFieldTransformUI(glob.flattenDenseField(imgRef), "Save transform from mov to ref then reference as a dense field in a file *.transform.tif", false, "","mov_to_ref_then_reference_geometry", this.imgRef);
@@ -588,7 +588,7 @@ public class J3DRegistrationStudio implements PlugIn {
 		
 		this.currentGlobalTransform=tr;
 		System.out.println("Current transform="+tr.simplify().drawableString());
-		this.imgResult=this.currentGlobalTransform.transformImage(this.imgRef, this.imgMov);
+		this.imgResult=this.currentGlobalTransform.transformImage(this.imgRef, this.imgMov,false);
 	}
 	
 	

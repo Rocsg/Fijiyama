@@ -5,10 +5,8 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.GraphicsConfiguration;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.Scrollbar;
 import java.awt.TextField;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -24,7 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JPanel;
 
-import fiji.statistics.RoiStatistics;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -33,13 +30,11 @@ import ij.gui.ImageCanvas;
 import ij.gui.Overlay;
 import ij.gui.Plot;
 import ij.gui.PlotCanvas;
-import ij.gui.PlotWindow;
 import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.io.Opener;
 import ij.plugin.frame.PlugInFrame;
 import ij.plugin.frame.RoiManager;
-import ij.process.LUT;
 
 /**
  * TODO
@@ -72,7 +67,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 			MRI_HyperCurvesExplorer explorer=new MRI_HyperCurvesExplorer(echoesT1, echoesT2);
 		}
 		else {
-			String rep=VitiDialogs.chooseDirectoryUI("Select hyperT1 image ");
+			String rep=VitiDialogs.chooseDirectoryUI("Select hyperT1 image ","Select");
 			System.out.println("Directory selected = "+rep);
 			File dir=new File(rep);
 			String[] listImg=dir.list();

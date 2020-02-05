@@ -210,9 +210,20 @@ public interface VitiDialogs {
 		return null;
 	}
 
-	public static String[] openFileUI(String strGuess,String fileName,String extension){
-		SaveDialog sd=new SaveDialog(strGuess, fileName, extension);
+	public static String openJFileUI(String strGuess,String dirName,String extension){
+		JFileChooser jf;
+		if(dirName!=null)jf=new JFileChooser(dirName);
+		else jf=new JFileChooser();
+		
+		jf.setFileSelectionMode(JFileChooser.FILES_ONLY);
+		jf.setDialogTitle(strGuess);
+		jf.setApproveButtonText("Choose this file");
+		if (jf.showOpenDialog(null) == JFileChooser.APPROVE_OPTION)return jf.getSelectedFile().getAbsolutePath(); 
+		return null;
+/*
+		OpenDialog sd=new OpenDialog(strGuess, fileName, extension);
 		return(new String[] {sd.getDirectory(),sd.getFileName()});
+		*/
 	 }
 
 	
