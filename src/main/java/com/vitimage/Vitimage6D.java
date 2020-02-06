@@ -2,7 +2,6 @@ package com.vitimage;
 
 import java.io.File;
 
-import com.vitimage.Vitimage4D.VineType;
 import com.vitimage.VitimageUtils.ComputingType;
 
 import ij.ImageJ;

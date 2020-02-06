@@ -1,5 +1,5 @@
 package com.vitimage;
-
+//TODO : common
 import java.awt.Rectangle;
 
 import javax.swing.JComponent;

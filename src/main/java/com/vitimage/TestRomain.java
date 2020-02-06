@@ -1,6 +1,8 @@
 package com.vitimage;
 
 import java.awt.Color;
+import java.awt.FileDialog;
+import java.awt.Frame;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -13,7 +15,6 @@ import org.itk.simple.DisplacementFieldTransform;
 import org.itk.simple.Transform;
 import org.scijava.vecmath.Color3f;
 
-import com.vitimage.Vitimage4D.VineType;
 import com.vitimage.VitimageUtils.Capillary;
 import com.vitimage.VitimageUtils.ComputingType;
 import com.vitimage.VitimageUtils.SupervisionLevel;
@@ -22,8 +23,10 @@ import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.ImageStack;
+import ij.Macro;
 import ij.WindowManager;
 import ij.gui.Roi;
+import ij.io.DirectoryChooser;
 import ij.io.FileSaver;
 import ij.io.OpenDialog;
 import ij.plugin.ChannelSplitter;
@@ -46,7 +49,9 @@ public class TestRomain {
 	
 	public static void main(String[]args) {
 		ImageJ ij=new ImageJ();
-//		produceTestForSplineField();
+		
+
+		//		produceTestForSplineField();
 		//testFields();
 //		produceIntermediary();
 		//		testSpline0();
@@ -59,6 +64,7 @@ public class TestRomain {
 		//makeAllAssistedDetections();
 		//finishAll4D();
 //		makeAll5D();
+		
 //		makeAllTiImport();
 		//testSuccessiveRegistration();		//enormeChiasse();
 		//produceStackTestForPhoto();
@@ -91,6 +97,7 @@ public class TestRomain {
 		computeFieldBiasBasedOnMultipleCorrespondances(0,fixCenter,gauss,sigma);
 		chia(0,fixCenter,gauss,sigma);
 */
+		
 		//computeFieldBiasBasedOnMultipleCorrespondances();//takeInputCorrespondanceForBiasEstimation();
 //		computeImageForClinicalMRIBiasEstimation();
 		//pequenaJala();
@@ -111,7 +118,11 @@ public class TestRomain {
 	
 		//testGrad();
 		//VitimageUtils.waitFor(100000);
-		makingData();
+		ImagePlus imgMov=IJ.openImage("/home/fernandr/Bureau/Test/TWOIMG/OUTPUT_DIR/Exported_data/img_moving_after_registration.tif");
+		imgMov=VitimageUtils.getBinaryGrid(imgMov, 17, true, true);
+		IJ.run(imgMov,"8-bit","");
+		imgMov.show();
+		VitimageUtils.showImageIn3D(imgMov,false);
 		VitimageUtils.waitFor(1000000);
 		
 		testNewSchemeNoAlgo();
@@ -122,7 +133,6 @@ public class TestRomain {
 		System.out.println(str.substring(str.length()-4,str.length()));
 		System.out.println(str.substring(str.length()-4,str.length()).equals(".fjm"));
 		VitimageUtils.waitFor(1000000000);
-		ImagePlus imgMov=IJ.openImage("/home/fernandr/Bureau/testXYZCT.tif");
 		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/testXYZCT.tif");
 		ImagePlus imgTrans=new ItkTransform().transformHyperImage(imgRef, imgMov);
 		imgMov.show();
@@ -674,7 +684,7 @@ public class TestRomain {
 	
 	
 	
-	
+	/*
 	
 	public static ImagePlus skeletonize3D(ImagePlus imRef) {
 		Skeletonize3D_ skel=new Skeletonize3D_();
@@ -694,7 +704,7 @@ public class TestRomain {
 		return new ImagePlus("",skel.inputImage);
 	}
 
-	
+	*/
 	
 	public static ImagePlus makeSexyRayX(int mod) {
 		String specimen="CEP020_APO1";

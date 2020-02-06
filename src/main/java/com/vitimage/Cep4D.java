@@ -10,7 +10,6 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Date;
-import com.vitimage.Vitimage4D.VineType;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;

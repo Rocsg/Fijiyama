@@ -1,4 +1,5 @@
 package com.vitimage;
+//TODO common
 
 public enum CenteringStrategy {
 	NONE,

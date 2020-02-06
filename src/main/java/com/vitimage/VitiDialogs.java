@@ -1,11 +1,12 @@
 package com.vitimage;
-
+//TODO : common
 import javax.swing.JFileChooser;
 
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
+import ij.io.DirectoryChooser;
 import ij.io.OpenDialog;
 import ij.io.Opener;
 import ij.io.SaveDialog;
@@ -201,6 +202,19 @@ public interface VitiDialogs {
 		 }
 	}
 
+	public static String chooseDirectoryNiceUI(String strGuess,String strApproveButton){
+		DirectoryChooser dc=new DirectoryChooser(strGuess);
+		
+		JFileChooser jf=new JFileChooser();
+		jf.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+		jf.setDialogTitle(strGuess);
+		jf.setApproveButtonText(strApproveButton);
+		if (jf.showOpenDialog(null) == JFileChooser.APPROVE_OPTION)return jf.getSelectedFile().getAbsolutePath(); 
+		return null;
+	}
+
+	
+	
 	public static String chooseDirectoryUI(String strGuess,String strApproveButton){
 		JFileChooser jf=new JFileChooser();
 		jf.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);

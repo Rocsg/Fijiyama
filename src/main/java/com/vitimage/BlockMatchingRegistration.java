@@ -1,4 +1,5 @@
 package com.vitimage;
+//TODO common
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -121,7 +122,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	private String info="";
 	private static final double EPSILON=1E-8;
 	public static void callDebugDef() {
-		System.out.println("Debug production method. Start...");
 		//Lecture image initiale et champ et construction grille
 		ImagePlus imgMov=IJ.openImage("/home/fernandr/Bureau/Test/TestBM/imgMov_Ttest.tif");
 		ItkTransform trans=ItkTransform.readAsDenseField("/home/fernandr/Bureau/Test/TestBM/testField.tif");
@@ -160,7 +160,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		///CALCUL DU BLOCKMATCHING
 		
 		//COMPUTE THE REGISTRATION, RIGID-BODY, then DENSE
-		System.out.println("Running registration. ");
 		
 		ItkTransform tr1=BlockMatchingRegistration.testSetupAndRunStandardBlockMatchingWithoutFineParameterization(
 												VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgRef),
@@ -259,8 +258,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 //		if(dims[0]<512)this.zoomFactor=(int)Math.round(800/dims[0]);
 		this.viewHeight=(int)(this.imgRef.getHeight()*zoomFactor);
 		this.viewWidth=(int)(this.imgRef.getWidth()*zoomFactor);
-		System.out.println("Min block variance="+this.minBlockVariance);
-		System.out.println("Min block score="+this.minBlockScore);
+		handleOutput("Min block variance="+this.minBlockVariance);
+		handleOutput("Min block score="+this.minBlockScore);
 
 	}
 
@@ -320,22 +319,11 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		double sumLevels=0;
 		double sumLevels2=0;
 		double sumNbBlocks=0;
-//		System.out.println("Nb blocks="+TransformUtils.stringVectorN(nBlocksPerLevel,""));
 		for(int lev=levelMax;lev>=levelMin;lev--){
 			sumLevels+= (lev<=1) ? 1 : (1.0/lev);
 			sumLevels2+= (lev<=1) ? 1 : (1.0/Math.sqrt(lev+1));
 			sumNbBlocks+=nBlocksPerLevel[levelMax-lev];
 		}
-/*		System.out.println("Levmax="+levelMax);
-		System.out.println("Levmin="+levelMin);
-		System.out.println("N voxels of image="+nVoxels);
-		System.out.println("N neighbours="+nNeighbours);
-		System.out.println("nLevel="+nLevels);
-		System.out.println("nIterations="+nIterations);
-		System.out.println("sumLevels="+sumLevels);
-		System.out.println("blocksize="+blockSize);
-		System.out.println("blocks per level="+TransformUtils.stringVectorN(nBlocksPerLevel, ""));
-	*/	
 		double alphaTrans=1E-7;
 		double alphaGlob=1E-7;
 		double alphaLev=1E-7;
@@ -357,18 +345,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		double timeTransfoProduction=transTime*1.4*(1.9)*(nLevels*nIterations); // production of dense field		
 		double timeBonus=timeUpdatesView+timeVariance;
 		double totalTime=timeUpdatesView+timeTransRefAndMov+timeVariance+timeBlockMatching+(transformType==Transform3DType.DENSE ? timeTransfoProduction : 0)+timeBonus;
-/*
-		System.out.println("Trans time="+transTime);
-		System.out.println("timeUpdatesView="+ timeUpdatesView);
-		System.out.println("timeTransRefAndMov="+ timeTransRefAndMov);
-		System.out.println("timeVariance="+ timeVariance);
-		System.out.println("timeBlockMatching="+ timeBlockMatching);
-		System.out.println("timeTransfoProduction="+ timeTransfoProduction);
-		System.out.println("timeBonus="+ timeBonus);
-		System.out.println("Total time="+totalTime);
-		System.out.println("DEBUG\nDEBUG ESTIMATION");
-	*/	
-		return totalTime*3.5;
+		return totalTime*4;
 		/**Pas detail :
 		***************Global : 
 		* First update view : 2.24 s   prop to (alpha + nvox image) * nbimagesconsideredfor debug
@@ -559,7 +536,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 									blX*levelStrideX+this.neighbourhoodSizeX*strideMoving,                blY*levelStrideY+this.neighbourhoodSizeY*strideMoving,                blZ*levelStrideZ+this.neighbourhoodSizeZ*strideMoving,
 									blX*levelStrideX+this.blockSizeX+this.neighbourhoodSizeX*strideMoving-1,blY*levelStrideY+this.blockSizeY+this.neighbourhoodSizeY*strideMoving-1,blZ*levelStrideZ+this.blockSizeZ+this.neighbourhoodSizeZ*strideMoving-1);
 							double[]stats=VitimageUtils.statistics1D(valsBlock);
-							//if(stats[0]>0.001)System.out.println("On en tient un : block "+blX+" , "+blY+" , "+blZ+" et vals="+stats[0]+","+stats[1]);
 							blocksRefTmp[indexTab++]=new double[] {stats[1],blX*levelStrideX+this.neighbourhoodSizeX*strideMoving,       blY*levelStrideY+this.neighbourhoodSizeY*strideMoving,     blZ*levelStrideZ+this.neighbourhoodSizeZ*strideMoving};
 						}
 					}
@@ -578,7 +554,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				for(int bl=0;bl<lastRemoval;bl++)blocksRefTmp[bl][0]=-1;
 				meanVar=0;
 				for(int i=lastRemoval;i<blocksRefTmp.length;i++)meanVar+=blocksRefTmp[i][0];
-				handleOutput("Tri par variance : elimination des blocs de 0 à  "+lastRemoval+" / "+blocksRefTmp.length);
+				handleOutput("Sorting blocks using variance : eliminating blocks from 0 to  "+lastRemoval+" / "+blocksRefTmp.length);
 				nbBlocksTotal=0;
 				for(int bl=0;bl<blocksRefTmp.length;bl++)if(blocksRefTmp[bl][0]>=this.minBlockVariance)nbBlocksTotal++;
 				double[][] blocksRef=new double[nbBlocksTotal][4];
@@ -659,7 +635,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 												if(flagA<1) {
 													handleOutput("THREAD ALERT");
 													handleOutput("SCORE > 10E20 between ("+x0+","+y0+","+z0+") and ("+(x0+xPlus*stepFactorX)+","+(y0+yPlus*stepFactorY)+","+(z0+zPlus*stepFactorZ)+")");
-													System.out.println("En effet, corr="+correlationCoefficient(valsFixedBlock, valsMovingBlock));
+													handleOutput("Corr="+correlationCoefficient(valsFixedBlock, valsMovingBlock));
 													handleOutput(TransformUtils.stringVectorN(valsFixedBlock, "Vals fixed"));
 													handleOutput(TransformUtils.stringVectorN(valsMovingBlock, "Vals moving"));
 													System.exit(0);//
@@ -688,7 +664,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 									nbKeep++;
 								}
 							}
-							if(numThread==0)handleOutput("Tri par score > "+minBS+" , before="+nbProc*correspondancesThread.length+" and after="+nbProc*nbKeep);
+							if(numThread==0)handleOutput("Sorting blocks using correspondance score. Threshold= "+minBS+" . Nb blocks before="+nbProc*correspondancesThread.length+" and after="+nbProc*nbKeep);
 	
 							correspondances[numThread]=correspondancesThread2; 
 						} catch(Exception ie) {}
@@ -743,7 +719,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 					}
 					timesIter[lev][iter][11]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 					if(correspondancePoints[1].length<5) {
-						System.out.println("Warning : less than 5 correspondance points. Setting up identity transform in replacement");
+						handleOutput("Warning : less than 5 correspondance points. Setting up identity transform in replacement");
 						transEstimated=new ItkTransform();
 					}
 					
@@ -754,7 +730,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 						listCorrespondances=(ArrayList<double[][]>) ret[2];
 						this.lastValueBlocksCorr=(Double)ret[1];
 						int nbPts3=listCorrespondances.size();
-						System.out.println("Nb correspondances : "+nbPts1 +" , after score selection : "+nbPts2+" , after LTS selection : "+nbPts3);
+						handleOutput("Nb correspondances : "+nbPts1 +" , after score selection : "+nbPts2+" , after LTS selection : "+nbPts3);
 						
 						transEstimated=null;
 						switch(this.transformationType) {
@@ -782,7 +758,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 						handleOutput("Global transform after this step =\n"+this.currentTransform.drawableString());
 					}
 					else {
-						System.out.println("Last transformation computed was identity. Convergence seems to be attained. Going to next level");
+						handleOutput("Last transformation computed was identity. Convergence seems to be attained. Going to next level");
 						iter=nbIterations;
 						continue;
 					}
@@ -813,19 +789,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				}
 				this.updateViews(lev,iter,(this.levelMax-lev)>=1 ? 0 : (1-this.levelMax+lev),this.transformationType==Transform3DType.DENSE ? null : this.currentTransform.drawableString());
 				timesIter[lev][iter][17]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
-				System.out.println("HERE 01");
 			}// Back for another iteration
-			System.out.println("HERE 02");
 			timesLev[lev][4]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 		} // Back for another level
-		System.out.println("HERE 02");
 		timesGlob[3]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 		handleOutput(new Date().toString());
-
-		System.out.println("HERE 1");
 		if(this.transformationType!=Transform3DType.DENSE)handleOutput("\nMatrice finale block matching : \n"+this.currentTransform.drawableString());
 		if(false && this.transformationType==Transform3DType.DENSE)this.sliceJacobian.hide();
-		System.out.println("HERE 2");
 
 		
 		if(displayR2) {
@@ -837,8 +807,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		
 		
 		if(this.timingMeasurement) {
-			System.out.println("\n\n\n\n\n###################################################\n\nDebrief timing");
-			System.out.println("Parametres : ");
+			handleOutput("\n\n\n\n\n###################################################\n\nDebrief timing");
+			handleOutput("Parametres : ");
 			handleOutput(" |--* Transformation type = "+this.transformationType);
 			handleOutput(" |--* Metric type = "+this.metricType);
 			handleOutput(" |--* Min block variance = "+this.minBlockVariance);
@@ -860,37 +830,37 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			handleOutput(" |--* Successive sigma for dense field interpolation = "+TransformUtils.stringVectorN(this.successiveDenseFieldSigma, ""));
 			handleOutput(" |--* Successive sigma for image resampling = "+TransformUtils.stringVectorN(this.successiveSmoothingSigma, ""));
 			handleOutput(" |--* Successive sigma for image resampling = "+ TransformUtils.stringVectorN(this.successiveSmoothingSigma, ""));
-			System.out.println("\n\n");
-			System.out.println("Times globaux : start="+timesGlob[0]+"  fin update view="+timesGlob[1]+"  fin prepa="+timesGlob[2]+"  fin levels="+timesGlob[3]+"  fin return="+timesGlob[3] );
+			handleOutput("\n\n");
+			handleOutput("Times globaux : start="+timesGlob[0]+"  fin update view="+timesGlob[1]+"  fin prepa="+timesGlob[2]+"  fin levels="+timesGlob[3]+"  fin return="+timesGlob[3] );
 			for(int lev=0;lev<this.nbLevels;lev++) {
-				System.out.println("    Times level "+lev+" : start="+timesLev[lev][0]+"  fin gaussRef="+timesLev[lev][1]+"  fin transRef="+timesLev[lev][2]+"  fin prepa3="+timesLev[lev][3]+"fin iters="+timesLev[lev][4] );
+				handleOutput("    Times level "+lev+" : start="+timesLev[lev][0]+"  fin gaussRef="+timesLev[lev][1]+"  fin transRef="+timesLev[lev][2]+"  fin prepa3="+timesLev[lev][3]+"fin iters="+timesLev[lev][4] );
 				
 			}
 			
-			System.out.println("Bilan time");
+			handleOutput("Bilan time");
 			double d=0;double dSum=0;
 			d+=(timesGlob[1]-timesGlob[0]);
 			for(int lev=0;lev<this.nbLevels;lev++) 				for(int it=0;it<this.nbIterations;it++) 			d+=(timesIter[lev][it][17]-timesIter[lev][it][14]);
-			System.out.println("timeUpdatesView="+d);
+			handleOutput("timeUpdatesView="+d);
 
 			d=0;
 			for(int lev=0;lev<this.nbLevels;lev++)			d+=(timesLev[lev][2]-timesLev[lev][1]);
 			for(int lev=0;lev<this.nbLevels;lev++) 				for(int it=0;it<this.nbIterations;it++) 			d+=(timesIter[lev][it][1]-timesIter[lev][it][0]);
-			System.out.println("timeTransRefAndMov="+d);dSum+=d;
+			handleOutput("timeTransRefAndMov="+d);dSum+=d;
 	
 			d=0;
 			for(int lev=0;lev<this.nbLevels;lev++) 				for(int it=0;it<this.nbIterations;it++) 			d+=(timesIter[lev][it][3]-timesIter[lev][it][2]);
-			System.out.println("timeVariance="+d);dSum+=d;
+			handleOutput("timeVariance="+d);dSum+=d;
 
 			d=0;
 			for(int lev=0;lev<this.nbLevels;lev++) 				for(int it=0;it<this.nbIterations;it++) 			d+=(timesIter[lev][it][8]-timesIter[lev][it][7]);
-			System.out.println("timeBlockMatching="+d);dSum+=d;
+			handleOutput("timeBlockMatching="+d);dSum+=d;
 			
 			
 			d=timesGlob[3]-timesGlob[0]-dSum;
-			System.out.println("timeBonus="+d);
+			handleOutput("timeBonus="+d);
 			
-			System.out.println("Total time="+(timesGlob[3]-timesGlob[0]));
+			handleOutput("Total time="+(timesGlob[3]-timesGlob[0]));
 			
 		}
 		//glob       0               1            2               3
@@ -1043,7 +1013,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	public void updateViewsSingle() {
 		this.sliceMov=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(this.imgRef,this.imgMov,false)),this.sliceInt);
 		if(sliceRef==null) {
-			System.out.print("Starting graphical following tool...");
+			handleOutput("Starting graphical following tool...");
 			this.sliceRef=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.imgRef),this.sliceInt);
 			ImagePlus tempImg=new Duplicator().run(imgRef);
 			IJ.run(tempImg,"32-bit","");
@@ -1081,10 +1051,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	}
 
 	public void updateViews(int level,int iteration,int subpixellic,String textTrans) {
-		System.out.println("Levelmax="+this.levelMax);
-		System.out.println("Levelmin="+this.levelMin);
-		System.out.println("Level="+level);
-		System.out.println("Subpixellic="+subpixellic);
 		String textIter=String.format("Niveau=%1d/%1d - Iter=%3d/%3d - %s",
 				level+1,this.levelMax-this.levelMin+1,
 				iteration+1,this.nbIterations,subpixellic>0 ? ("subpixellic 1/"+(1+subpixellic)+" pixel") :""
@@ -1094,7 +1060,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			if(this.summary!=null)this.summary.hide();
 			return;
 		}
-		System.out.print("Updating the views...");
+		handleOutput("Updating the views...");
 		this.sliceMov=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(this.imgRef,this.imgMov,false)),this.sliceInt);
 		if(flagRange)this.sliceMov.setDisplayRange(movRange[0], movRange[1]);
 		IJ.run(this.sliceMov,"8-bit","");
@@ -1102,7 +1068,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		if(textTrans!=null)this.sliceMov=VitimageUtils.writeTextOnImage(textTrans,this.sliceMov,this.fontSize,1);
 
 		if(sliceRef==null) {
-			System.out.print("Starting graphical following tool...");
+			handleOutput("Starting graphical following tool...");
 			this.sliceRef=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.imgRef),this.sliceInt);
 			if(flagRange)this.sliceRef.setDisplayRange(refRange[0], refRange[1]);
 			IJ.run(this.sliceRef,"8-bit","");
@@ -1113,13 +1079,10 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			else this.sliceFuse=flagRange ? VitimageUtils.compositeNoAdjustOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info) : 
 				VitimageUtils.compositeOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info);
 			this.sliceFuse.show();
-			System.out.println("SIZE BEF FUSE = "+this.sliceFuse.getWindow().getSize().getWidth()+" x "+this.sliceFuse.getWindow().getSize().getHeight());
 			this.sliceFuse.getWindow().setSize(this.viewWidth*(viewFuseBigger?2:1),this.viewHeight*(viewFuseBigger?2:1));
 			this.sliceFuse.getCanvas().fitToWindow();
 			this.sliceFuse.setSlice(this.sliceInt);
-			System.out.println("SIZE PEND FUSE = "+this.sliceFuse.getWindow().getSize().getWidth()+" x "+this.sliceFuse.getWindow().getSize().getHeight());
 			VitimageUtils.adjustImageOnScreen(this.sliceFuse,0,0);
-			System.out.println("SIZE AFT  FUSE = "+this.sliceFuse.getWindow().getSize().getWidth()+" x "+this.sliceFuse.getWindow().getSize().getHeight());
 			
 			if(displayRegistration>1) {
 				ImagePlus tempImg=VitimageUtils.getBinaryGrid(this.imgRef, 10);
@@ -1289,8 +1252,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	}
 	
 	public double correlationCoefficient(double X[], double Y[]) { 
-		//System.out.println("En effet, X.length="+X.length);
-		//System.out.println("En effet, Y.length="+Y.length);
 		double epsilon=10E-20;
 		if(X.length !=Y.length )IJ.log("In correlationCoefficient in BlockMatching, blocks length does not match");
 		int n=X.length;

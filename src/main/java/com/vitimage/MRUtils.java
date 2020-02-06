@@ -1,23 +1,49 @@
 package com.vitimage;
 
-import java.awt.Rectangle;
+
 import java.util.Random;
 
+import org.apache.commons.math3.distribution.ChiSquaredDistribution;
+
 import ij.IJ;
-import ij.ImageJ;
 import ij.ImagePlus;
-import ij.ImageStack;
-import ij.gui.Roi;
-import ij.plugin.Duplicator;
-import ij.plugin.filter.Binary;
-import ij.plugin.filter.ThresholdToSelection;
-import ij.plugin.frame.RoiManager;
-import ij.process.FloatPolygon;
+public class MRUtils  {
+	public static final int RICE=100;
+	public static final int BIAS=1000;
+	public static final int SIGMA=10000;
+	public static final int MULTI=100000;
+    public static final int ALL_AVAILABLE_FIT=1000000;
+	public static final int TRI=100000000;
 
-import org.apache.commons.math.MathException;
-import org.apache.commons.math.distribution.ChiSquaredDistributionImpl;
+	public static final int STRAIGHT_LINE=0,EXPONENTIAL=STRAIGHT_LINE+4,EXP_RECOVERY=STRAIGHT_LINE+13;
+	public static final int T2_RELAX = EXP_RECOVERY +3; //offset 3
+    public static final int T2_RELAX_BIAS = T2_RELAX+BIAS; //offset 3
+    public static final int T2_RELAX_SIGMA = T2_RELAX+SIGMA; //offset 3
+    public static final int T2_RELAX_RICE = T2_RELAX+RICE; //offset 3
+	public static final int MULTICOMP=T2_RELAX+MULTI;
+    public static final int MULTICOMP_BIAS=T2_RELAX+MULTI+BIAS;
+    public static final int MULTICOMP_SIGMA=T2_RELAX+MULTI+SIGMA;
+    public static final int MULTICOMP_RICE=T2_RELAX+MULTI+RICE;
+    public static final int TRICOMP_RICE=T2_RELAX+TRI+RICE;
+ 	public static final int T1_RECOVERY = 500; //offset 3
+	public static final int T1_RECOVERY_RICE = 501; //offset 3
+	public static final int T1_RECOVERY_RICE_NORMALIZED = 504; //offset 3
+	public static final int GAUSSIAN=17;
+	public static final int ERROR_VALUE= 0;
+	public static final int SIMPLEX = 1;
+    public static final int LM=2;
+    public static final int TWOPOINTS=3; 	   
+    public static final int MSEC=3;
+    public static final int SEC=0;
 
-public class MRUtils implements Fit{
+    public final static String[] timeunits={"ms", "s"};
+    public final static int[] timeitems={MSEC, SEC};
+    public final static String[] fititems2={"Simplex","Levenberg-Marquardt"};
+    public final static int[] constitems2={SIMPLEX,LM};
+
+	
+	static float stdValMaxIRM=50000;
+	static float stdSigmaIRM=159;
 	
 	public MRUtils() {
 		
@@ -207,19 +233,19 @@ public class MRUtils implements Fit{
 		for(int indT=0;indT<tEchos.length;indT++){
 			techo=tEchos[indT];
 			switch(fitType){
-				case T2_RELAX: tab[indT]=(double)(param[0]* (double)Math.exp(-(techo / param[1])));break;
-				case T2_RELAX_SIGMA: tab[indT]=(double)(param[0]* (double)Math.exp(-(techo / param[1])));break;
-			 	case T2_RELAX_BIAS: tab[indT]=(double)(param[0]* (double)Math.exp(-(techo / param[1]))+param[2]);break;
-				case T2_RELAX_RICE: tab[indT]=(double)(RiceEstimator.besFunkCost(param[0]* (double)Math.exp(-(techo / param[1])),sigma));break;
+				case MRUtils.T2_RELAX: tab[indT]=(double)(param[0]* (double)Math.exp(-(techo / param[1])));break;
+				case MRUtils.T2_RELAX_SIGMA: tab[indT]=(double)(param[0]* (double)Math.exp(-(techo / param[1])));break;
+			 	case MRUtils.T2_RELAX_BIAS: tab[indT]=(double)(param[0]* (double)Math.exp(-(techo / param[1]))+param[2]);break;
+				case MRUtils.T2_RELAX_RICE: tab[indT]=(double)(RiceEstimator.besFunkCost(param[0]* (double)Math.exp(-(techo / param[1])),sigma));break;
 
-				case T1_RECOVERY: tab[indT]=(double)(param[0]* (double)(1-Math.exp(-(techo / param[1]))));break;
-				case T1_RECOVERY_RICE: tab[indT]=(double)(RiceEstimator.besFunkCost(param[0]* (double)(1-Math.exp(-(techo / param[1]))) , sigma));break;
-			 	case T1_RECOVERY_RICE_NORMALIZED: tab[indT]=(double)(RiceEstimator.besFunkCost( (double)(1-Math.exp(-(techo / param[0]))) , sigma));break;
+				case MRUtils.T1_RECOVERY: tab[indT]=(double)(param[0]* (double)(1-Math.exp(-(techo / param[1]))));break;
+				case MRUtils.T1_RECOVERY_RICE: tab[indT]=(double)(RiceEstimator.besFunkCost(param[0]* (double)(1-Math.exp(-(techo / param[1]))) , sigma));break;
+			 	case MRUtils.T1_RECOVERY_RICE_NORMALIZED: tab[indT]=(double)(RiceEstimator.besFunkCost( (double)(1-Math.exp(-(techo / param[0]))) , sigma));break;
 
-				case MULTICOMP: tab[indT]=(double)(param[0]* (double)Math.exp(-(techo / param[1]))+param[2]* (double)Math.exp(-(techo / param[3])));break;
-				case MULTICOMP_BIAS: tab[indT]=(double)(param[0]* (double)Math.exp(-(techo / param[1]))+param[2]* (double)Math.exp(-(techo / param[3]))+param[4]);break;
-				case MULTICOMP_RICE: tab[indT]=(double)(RiceEstimator.besFunkCost(param[0]* (double)Math.exp(-(techo / param[1]))+param[2]* (double)Math.exp(-(techo / param[3])),sigma));break;
-				case TRICOMP_RICE: tab[indT]=(double)(RiceEstimator.besFunkCost(param[0]* (double)Math.exp(-(techo / param[1]))+param[2]* (double)Math.exp(-(techo / param[3])+param[4]* (double)Math.exp(-(techo / param[5]))),sigma) );break;
+				case MRUtils.MULTICOMP: tab[indT]=(double)(param[0]* (double)Math.exp(-(techo / param[1]))+param[2]* (double)Math.exp(-(techo / param[3])));break;
+				case MRUtils.MULTICOMP_BIAS: tab[indT]=(double)(param[0]* (double)Math.exp(-(techo / param[1]))+param[2]* (double)Math.exp(-(techo / param[3]))+param[4]);break;
+				case MRUtils.MULTICOMP_RICE: tab[indT]=(double)(RiceEstimator.besFunkCost(param[0]* (double)Math.exp(-(techo / param[1]))+param[2]* (double)Math.exp(-(techo / param[3])),sigma));break;
+				case MRUtils.TRICOMP_RICE: tab[indT]=(double)(RiceEstimator.besFunkCost(param[0]* (double)Math.exp(-(techo / param[1]))+param[2]* (double)Math.exp(-(techo / param[3])+param[4]* (double)Math.exp(-(techo / param[5]))),sigma) );break;
 			}
 		}
 		return tab;
@@ -268,15 +294,14 @@ public class MRUtils implements Fit{
 	
 
 	public static double getPvalue(double khi2,int freedomDegrees){
-		ChiSquaredDistributionImpl x2 = new ChiSquaredDistributionImpl( freedomDegrees );
+		ChiSquaredDistribution x2 = new ChiSquaredDistribution( freedomDegrees );
 		try {
 			return(x2.cumulativeProbability(khi2));
-		} catch (MathException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		return -1;
 	}
-
 
 	
 
@@ -306,7 +331,7 @@ public class MRUtils implements Fit{
 		double[]estimatedSigmas=new double[nParams];
 		double[]estimatedMeans=new double[nParams];
 		double sigmaZero;
-		if(algType==TWOPOINTS){
+		if(algType==MRUtils.TWOPOINTS){
 			TwoPointsCurveFitterNoBias twopointsfitter=new TwoPointsCurveFitterNoBias(tabTimes, tabData,fitType, sigma);
 			twopointsfitter.doFit();
 			estimatedParams=twopointsfitter.getParams();
@@ -385,7 +410,7 @@ public class MRUtils implements Fit{
 		double[]estimatedSigmas=new double[nParams];
 		double[]estimatedMeans=new double[nParams];
 		double sigmaZero;
-		if(algType==TWOPOINTS){
+		if(algType==MRUtils.TWOPOINTS){
 			TwoPointsCurveFitterNoBias twopointsfitter=new TwoPointsCurveFitterNoBias(tabTimes, tabData,fitType, sigma);
 			twopointsfitter.doFit();
 			estimatedParams=twopointsfitter.getParams();

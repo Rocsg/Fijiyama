@@ -1,7 +1,5 @@
 package com.vitimage;
 
-import org.apache.commons.math.distribution.ChiSquaredDistributionImpl;
-
 public class RiceEstimator {
 
 	public static void main(String[]args) {

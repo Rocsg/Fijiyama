@@ -8,5 +8,4 @@ public enum MetricType {
 	MATTES,
 	ANTS,
 	DEMONS
-
 }

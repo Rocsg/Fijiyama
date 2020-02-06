@@ -11,29 +11,15 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.stream.Collectors;
-
-import com.vitimage.MetricType;
-import com.vitimage.OptimizerType;
-import com.vitimage.Transform3DType;
-import com.vitimage.TransformUtils.AngleComparator;
-import com.vitimage.TransformUtils.Geometry;
-import com.vitimage.TransformUtils.Misalignment;
-import com.vitimage.Vitimage4D.VineType;
-import com.vitimage.VitimageUtils.Capillary;
-import com.vitimage.VitimageUtils.ComputingType;
-import com.vitimage.VitimageUtils.SupervisionLevel;
 
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
-import ij.WindowManager;
 import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
 import ij.plugin.HyperStackConverter;
-import ij.plugin.ImageCalculator;
 import math3d.Point3d;
 
 public class Vitimage5D implements VitiDialogs,TransformUtils,VitimageUtils{

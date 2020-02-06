@@ -34,11 +34,7 @@ import ij.plugin.ImageCalculator;
 import math3d.Point3d;
 
 public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
-	public enum VineType{
-		GRAFTED_VINE,
-		VINE,
-		CUTTING
-	}
+	
 	public static final int UNTIL_END=1000;
 	public final static String slash=File.separator;
 	public ComputingType computingType;
@@ -882,3 +878,9 @@ public class Vitimage4D implements VitiDialogs,TransformUtils,VitimageUtils{
 		return normalizedHyperImage;
 	}
 }
+class Vitimage4DComparator implements java.util.Comparator {
+	   public int compare(Object o1, Object o2) {
+	      return ( new Integer( ((Vitimage4D) o1).dayAfterExperience) .compareTo(new Integer( ((Vitimage4D) o2).dayAfterExperience)));
+	   }
+	}
+

@@ -1,8 +1,10 @@
 package com.vitimage;
+//TODO common
 
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Frame;
+import java.awt.List;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
@@ -31,10 +33,10 @@ import org.itk.simple.RecursiveGaussianImageFilter;
 import org.itk.simple.ResampleImageFilter;
 import org.scijava.java3d.Transform3D;
 import org.scijava.vecmath.Color3f;
+import org.scijava.vecmath.Point3f;
 
 import com.vitimage.TransformUtils.AngleComparator;
 import com.vitimage.TransformUtils.VolumeComparator;
-import com.vitimage.Vitimage4D.VineType;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
@@ -64,6 +66,7 @@ import mcib3d.image3d.ImageHandler;
 import mcib3d.image3d.processing.CannyEdge3D;
 import trainableSegmentation.FeatureStack;
 import trainableSegmentation.WekaSegmentation;
+import vib.BenesNamedPoint;
 
 public interface VitimageUtils {
 	//Four constants from http://www.tomgibara.com/computer-vision/CannyEdgeDetector.java
@@ -71,7 +74,7 @@ public interface VitimageUtils {
 	public final static float MAGNITUDE_SCALE = 100F;
 	public final static float MAGNITUDE_LIMIT = 1000F;
 	public final static int MAGNITUDE_MAX = (int) (MAGNITUDE_SCALE * MAGNITUDE_LIMIT);
-
+	public final static double EPSILON=0.00001;
 	public static int OP_ADD=1;
 	public static int OP_MULT=2;
 	public static int OP_DIV=3;
@@ -188,6 +191,13 @@ public interface VitimageUtils {
 		if(os.indexOf("nux") >= 0)return "Linux system";
 		return "System";
 	}
+
+	public static boolean isWindowsOS(){
+		String os=System.getProperty("os.name").toLowerCase();
+		return (os.indexOf("win") >= 0);
+	}
+
+	
 	public static String getSystemNeededMemory(){
 		String os=System.getProperty("os.name").toLowerCase();
 		if(os.indexOf("win") >= 0)return "3000 MB";
@@ -3211,11 +3221,15 @@ public interface VitimageUtils {
 
 	
 	
-	public static void showImageIn3D(ImagePlus img) {
+	public static void showImageIn3D(ImagePlus img,boolean orthoSlice) {
     	ij3d.Image3DUniverse univ=new ij3d.Image3DUniverse();
 		univ.show();
-//		univ.addContent(imgRef, new Color3f(Color.red),"imgRef",50,new boolean[] {true,true,true},1,0 );
-		univ.addVoltex(img,1);
+		if(orthoSlice) {
+			univ.addOrthoslice(img, new Color3f(Color.white),"ref",50,new boolean[] {true,true,true},1);
+		}
+		else univ.addContent(img, new Color3f(Color.red),"ref",50,new boolean[] {true,true,true},1,0 );
+		ij3d.ImageJ3DViewer.select("ref");
+		univ.getSelected().showCoordinateSystem(true);
 	}
 		
     public static ItkTransform manualRegistrationIn3D(ImagePlus imRef,ImagePlus imMov) {
@@ -3348,12 +3362,19 @@ public interface VitimageUtils {
 	}
 
 	public static ImagePlus writeTextOnImage(String text, ImagePlus img,int fontSize,int numLine,double value) {
+		return writeTextOnImage(text,  img, fontSize,numLine,value,10.0/512, 10.0/512);
+	}
+
+	public static ImagePlus writeWhiteOnImage(String text, ImagePlus img,int fontSize,int numLine) {
+		return writeTextOnImage(text,  img, fontSize,numLine,EPSILON,10.0/512, 10.0/512);
+	}
+	public static ImagePlus writeTextOnImage(String text, ImagePlus img,int fontSize,int numLine,double value,double xCoordRatio,double yCoordRatio) {
 		double valMin=img.getProcessor().getMin();
 		double valMax=img.getProcessor().getMax();
 		ImagePlus ret=new Duplicator().run(img);
-		ret.getProcessor().setMinAndMax(valMin, value);
+		if(value!=EPSILON)ret.getProcessor().setMinAndMax(valMin, value);
 		Font font = new Font("SansSerif", Font.PLAIN, fontSize);
-		TextRoi roi = new TextRoi(10*img.getWidth()*1.0/512,10*img.getWidth()*1.0/512+numLine*fontSize*2, text, font);
+		TextRoi roi = new TextRoi( xCoordRatio*img.getWidth(),yCoordRatio*img.getWidth()+numLine*fontSize*2, text, font);
 		roi.setStrokeColor(Color.white);
 		Overlay overlay = new Overlay();
 		overlay.add(roi);
@@ -3364,7 +3385,7 @@ public interface VitimageUtils {
 			IJ.run(ret, "Draw", "stack");
 			ret.setRoi((Roi)null);
 		}
-		ret.getProcessor().setMinAndMax(valMin, valMax);
+		if(value!=EPSILON)ret.getProcessor().setMinAndMax(valMin, valMax);
 		return ret;
 	}
 
@@ -4156,10 +4177,10 @@ public interface VitimageUtils {
 	}
 
 	public static ImagePlus getBinaryGrid(ImagePlus img,int pixelSpacing) {
-		return getBinaryGrid(img, pixelSpacing,true);
+		return getBinaryGrid(img, pixelSpacing,true,false);
 	}
 	
-	public static ImagePlus getBinaryGrid(ImagePlus img,int pixelSpacing,boolean doubleSizeEveryFive) {
+	public static ImagePlus getBinaryGrid(ImagePlus img,int pixelSpacing,boolean doubleSizeEveryFive,boolean displayTextBorder) {
 		boolean doDouble=false;
 		if(pixelSpacing<2)pixelSpacing=2;
 		if(pixelSpacing>5)doDouble=true;
@@ -4189,6 +4210,29 @@ public interface VitimageUtils {
 				}
 			}
 		}	
+		if(displayTextBorder) {
+			int fontSize=(dimX+dimY+dimZ)/20;
+			//On XY slices, Write X+, X- , Y+ and Y- 
+			ret=VitimageUtils.writeTextOnImage("Y-", ret,fontSize,1,EPSILON,0.4,0.05);
+			ret=VitimageUtils.writeTextOnImage("Y+", ret,fontSize,1,EPSILON,0.4,0.9);
+			ret=VitimageUtils.writeTextOnImage("X-", ret,fontSize,1,EPSILON,0.05,0.4);
+			ret=VitimageUtils.writeTextOnImage("X+", ret,fontSize,1,EPSILON,0.9,0.4);
+			//On XZ slices, Write X+, X- , Z+ and Z- 
+			ret=VitimageUtils.switchAxis(ret, 2);//switch Y and Z
+			ret=VitimageUtils.writeTextOnImage("Z-", ret,fontSize,1,EPSILON,0.4,0.05);
+			ret=VitimageUtils.writeTextOnImage("Z+", ret,fontSize,1,EPSILON,0.4,0.9);
+			ret=VitimageUtils.writeTextOnImage("X-", ret,fontSize,1,EPSILON,0.05,0.4);
+			ret=VitimageUtils.writeTextOnImage("X+", ret,fontSize,1,EPSILON,0.9,0.4);
+			ret=VitimageUtils.switchAxis(ret, 2);//switch Y and Z
+			//On YZ slices, Write Y+, Y- , Z+ and Z- 
+			ret=VitimageUtils.switchAxis(ret, 1);//switch X and Z
+			ret=VitimageUtils.writeTextOnImage("Y-", ret,fontSize,1,EPSILON,0.4,0.05);
+			ret=VitimageUtils.writeTextOnImage("Y+", ret,fontSize,1,EPSILON,0.4,0.9);
+			ret=VitimageUtils.writeTextOnImage("Z-", ret,fontSize,1,EPSILON,0.05,0.4);
+			ret=VitimageUtils.writeTextOnImage("Z+", ret,fontSize,1,EPSILON,0.9,0.4);
+			ret=VitimageUtils.switchAxis(ret, 1);//switch Y and Z
+		}
+
 		return ret;
 	}
 	 
@@ -5228,6 +5272,13 @@ public interface VitimageUtils {
 		return new int[] {img.getWidth(),img.getHeight(),img.getStackSize()};
 	}
 
+	public static double[]getDimensionsRealSpace(ImagePlus img){
+		int[]dims=getDimensions(img);
+		double[]voxs=getVoxelSizes(img);
+		double[]ret=new double[] {dims[0]*voxs[0],dims[1]*voxs[1],dims[2]*voxs[2]};
+		return ret;
+	}
+
 	public static int[]getDimensionsXYZCT(ImagePlus img){
 		int[]tab1=img.getDimensions();
 		return new int[] {tab1[0],tab1[1],tab1[3],tab1[2],tab1[4]};
@@ -5507,11 +5558,6 @@ public interface VitimageUtils {
 		return tabRet;
 	}
 
-	class Vitimage4DComparator implements java.util.Comparator {
-	   public int compare(Object o1, Object o2) {
-	      return ( new Integer( ((Vitimage4D) o1).dayAfterExperience) .compareTo(new Integer( ((Vitimage4D) o2).dayAfterExperience)));
-	   }
-	}
 
 	
 	

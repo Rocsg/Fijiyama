@@ -253,7 +253,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	double statusRoi;
 	int[][]correspondanceCanvas;
 	int[]actualDay;
-	private int fitAlgorithm=Fit.SIMPLEX;
+	private int fitAlgorithm=MRUtils.SIMPLEX;
 	private ArrayList<int[]> rangeRoiPoints;
 
 
@@ -949,12 +949,12 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 			displayFitsAgain();
 		}
 		if (e.getKeyChar()=='l') {
-			if(this.fitAlgorithm==Fit.LM) {
-				this.fitAlgorithm=Fit.SIMPLEX;
+			if(this.fitAlgorithm==MRUtils.LM) {
+				this.fitAlgorithm=MRUtils.SIMPLEX;
 				System.out.println("Switching to SIMPLEX");
 			}
-			else if(this.fitAlgorithm==Fit.SIMPLEX) {
-				this.fitAlgorithm=Fit.LM;
+			else if(this.fitAlgorithm==MRUtils.SIMPLEX) {
+				this.fitAlgorithm=MRUtils.LM;
 				System.out.println("Switching to Levenberg-Marquardt");
 			}
 			actualizeMriObservationsBasedOnData();
@@ -2279,7 +2279,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	 		if(tim==tCor)IJ.log("    T1 MRI times = "+TransformUtils.stringVectorNDou(t1Times, "")+" with sigma rice = "+VitimageUtils.dou(sigmaT1)+" equivalent to mean="+statsT1[0]+" , std="+statsT1[1]
 	 				+"\n    T1 MRI data = "+TransformUtils.stringVectorNDou(dataTimelapseT1[tim-1], ""));
 			fitType=tabFitT1[0];algType=tabAlgT1[0];
-			estimation=MRUtils.makeFit(t1Times, dataTimelapseT1[tim-1],fitType,algType,100+(algType==Fit.LM ? 500 : 0),sigmaT1,nRepetMonteCarlo,this.nPtsCur,debugLM,this.riceEstimator);
+			estimation=MRUtils.makeFit(t1Times, dataTimelapseT1[tim-1],fitType,algType,100+(algType==MRUtils.LM ? 500 : 0),sigmaT1,nRepetMonteCarlo,this.nPtsCur,debugLM,this.riceEstimator);
 			estimatedParams=estimation[0];
 			estimatedSigmas=estimation[1];
 	 		this.tabFittenT1[tim-1]=MRUtils.fittenRelaxationCurve(t1Times,estimatedParams,sigmaT1,fitType);
@@ -2301,7 +2301,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	 		if(tim==tCor)IJ.log("    T2 MRI times = "+TransformUtils.stringVectorNDou(t2Times, "")+" with sigma rice = "+VitimageUtils.dou(sigmaT2)+" equivalent to mean="+statsT2[0]+" , std="+statsT2[1]
 	 		+"\n    T2 MRI data = "+TransformUtils.stringVectorNDou(dataTimelapseT2[tim-1], ""));
 			fitType=tabFitT2[0];algType=tabAlgT2[0];
-			estimation=MRUtils.makeFit(t2Times, dataTimelapseT2[tim-1],fitType,algType,100+(algType==Fit.LM ? 0 : 0),sigmaT2,nRepetMonteCarlo,this.nPtsCur,debugLM,this.riceEstimator);
+			estimation=MRUtils.makeFit(t2Times, dataTimelapseT2[tim-1],fitType,algType,100+(algType==MRUtils.LM ? 0 : 0),sigmaT2,nRepetMonteCarlo,this.nPtsCur,debugLM,this.riceEstimator);
 			estimatedParams=estimation[0];
 			estimatedSigmas=estimation[1];
 			this.tabFittenT2Mono[tim-1]=MRUtils.fittenRelaxationCurve(t2Times,estimatedParams,sigmaT2,fitType);
@@ -2319,7 +2319,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	 		
 	 		//Estimer T2 bicomposante
 			fitType=tabFitT2[1];algType=tabAlgT2[1];
-			estimation=MRUtils.makeFit(t2Times, dataTimelapseT2[tim-1],fitType,algType,100+(algType==Fit.LM ? 0 : 0),sigmaT2,nRepetMonteCarlo,this.nPtsCur,debugLM,this.riceEstimator);
+			estimation=MRUtils.makeFit(t2Times, dataTimelapseT2[tim-1],fitType,algType,100+(algType==MRUtils.LM ? 0 : 0),sigmaT2,nRepetMonteCarlo,this.nPtsCur,debugLM,this.riceEstimator);
 			estimatedParams=estimation[0];
 			estimatedSigmas=estimation[1];
 			this.tabFittenT2Bicomp[tim-1]=MRUtils.fittenRelaxationCurve(t2Times,estimatedParams,sigmaT2,fitType);
@@ -2348,7 +2348,7 @@ public class MRI_HyperCurvesExplorer extends PlugInFrame implements ActionListen
 	 		
 	 		if(this.do3comp) {//Estimer T2 tricomposante
 				fitType=tabFitT2[2];algType=tabAlgT2[2];
-				estimation=MRUtils.makeFit(t2Times, dataTimelapseT2[tim-1],fitType,algType,100+(algType==Fit.LM ? 0 : 0),sigmaT2,nRepetMonteCarlo,this.nPtsCur,debugLM,this.riceEstimator);
+				estimation=MRUtils.makeFit(t2Times, dataTimelapseT2[tim-1],fitType,algType,100+(algType==MRUtils.LM ? 0 : 0),sigmaT2,nRepetMonteCarlo,this.nPtsCur,debugLM,this.riceEstimator);
 				estimatedParams=estimation[0];
 				estimatedSigmas=estimation[1];
 				this.tabFittenT2Tricomp[tim-1]=MRUtils.fittenRelaxationCurve(t2Times,estimatedParams,sigmaT2,fitType);

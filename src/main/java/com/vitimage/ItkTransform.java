@@ -1,4 +1,5 @@
 package com.vitimage;
+//TODO common
 
 import java.util.ArrayList;
 
@@ -17,6 +18,7 @@ import org.itk.simple.SimpleITKJNI;
 import org.itk.simple.Transform;
 import org.itk.simple.VectorDouble;
 import org.itk.simple.VectorIndexSelectionCastImageFilter;
+import org.scijava.java3d.Transform3D;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -96,7 +98,21 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 	
 
-	
+
+	public static imagescience.transform.Transform itkTransformToIjTransform(ItkTransform tr) {
+		double[][]tab=tr.toAffineArrayRepresentation();
+		imagescience.transform.Transform ret=new imagescience.transform.Transform();
+		ret.set(tab);
+		return ret;
+	}
+
+	public static Transform3D itkTransformToIj3dTransform(ItkTransform tr) {
+		double[]tab=tr.toAffineArrayMonolineRepresentation();
+		Transform3D ret=new Transform3D();
+		ret.set(tab);
+		return ret;
+	}
+
 	
 	public static ItkTransform ijTransformToItkTransform(imagescience.transform.Transform tr) {
 		org.itk.simple.AffineTransform aff=new org.itk.simple.AffineTransform(
@@ -1164,6 +1180,14 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 
 	
+	public double[] toAffineArrayMonolineRepresentation() {
+		double [][]tabTemp=toAffineArrayRepresentation();
+		return new double[] {   tabTemp[0][0] , tabTemp[0][1] , tabTemp[0][2] , tabTemp[0][3] , 
+								tabTemp[1][0] , tabTemp[1][1] , tabTemp[1][2] , tabTemp[1][3] , 
+								tabTemp[2][0] , tabTemp[2][1] , tabTemp[2][2] , tabTemp[2][3] , 
+								tabTemp[3][0] , tabTemp[3][1] , tabTemp[3][2] , tabTemp[3][3] };
+	}
+
 	public double[][] toAffineArrayRepresentation() {
 		Point3d pt0=new Point3d(0,0,0);
 		Point3d pt0Tr=this.transformPoint(pt0);

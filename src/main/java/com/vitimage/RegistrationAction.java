@@ -7,6 +7,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
+import ij.IJ;
 import ij.ImagePlus;
 
 public class RegistrationAction implements Serializable{
@@ -57,7 +58,7 @@ public class RegistrationAction implements Serializable{
 	public OptimizerType itkOptimizerType=OptimizerType.ITK_AMOEBA;
 	public double learningRate=0.3;
 
-	public RegistrationAction(FijiyamaGUI fijiyamaGui,RegistrationManager regManager) {
+	public RegistrationAction(Fijiyama_GUI fijiyamaGui,RegistrationManager regManager) {
 		adjustSettings(fijiyamaGui,regManager);
 	}
 	
@@ -107,7 +108,7 @@ public class RegistrationAction implements Serializable{
 
 	
 	
-	public void adjustSettings(FijiyamaGUI fijiyamaGui,RegistrationManager regManager) {
+	public void adjustSettings(Fijiyama_GUI fijiyamaGui,RegistrationManager regManager) {
 			this.typeAction=fijiyamaGui.boxTypeAction.getSelectedIndex();
 			this.typeTrans=fijiyamaGui.boxTypeTrans.getSelectedIndex()==0 ? Transform3DType.RIGID : fijiyamaGui.boxTypeTrans.getSelectedIndex()==1 ? Transform3DType.SIMILARITY : Transform3DType.DENSE;
 			this.typeOpt=fijiyamaGui.boxOptimizer.getSelectedIndex()==0 ? OptimizerType.BLOCKMATCHING : OptimizerType.ITK_AMOEBA;
@@ -153,7 +154,6 @@ public class RegistrationAction implements Serializable{
 			levelMin=Math.max(Math.max(dimsLog2[0], dimsLog2[1]), dimsLog2[2]);	
 			if(levelMin>levelMax)levelMin=levelMax;
 			subsampleZ=1;
-			System.out.println("\n\n\n\nDEBUG : dimsLog2="+dimsLog2[0]+","+dimsLog2[1]+","+dimsLog2[2]+" , levelMin="+levelMin+"   leveMax="+levelMax);
 			higherAcc=levelMin<1 ? 1 : 0;
 			levelMin=levelMin<1 ? 1 : levelMin;
 			levelMax= levelMax<levelMin ? levelMin : levelMax;
@@ -164,14 +164,11 @@ public class RegistrationAction implements Serializable{
 			int []dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-minSubResolutionImageSizeLog2),
 		              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-minSubResolutionImageSizeLog2) };
 			levelMax=Math.min(dimsLog2[0], dimsLog2[1]);
-			System.out.println(Math.log(dimsTemp[0])/Math.log(2));
-			System.out.println(Math.log(dimsTemp[0])/Math.log(2));
 			dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-maxSubResolutionImageSizeLog2),
 			    (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-maxSubResolutionImageSizeLog2)};
 			levelMin=Math.max(dimsLog2[0], dimsLog2[1]);	
 			if(levelMin>levelMax)levelMin=levelMax;
 			subsampleZ=0;
-			System.out.println("\n\n\n\nDEBUG : dimsLog2="+dimsLog2[0]+","+dimsLog2[1]+" , levelMin="+levelMin+"   leveMax="+levelMax);
 			higherAcc=levelMin<1 ? 1 : 0;
 			levelMin=levelMin<1 ? 1 : levelMin;
 			levelMax= levelMax<levelMin ? levelMin : levelMax;
@@ -210,7 +207,7 @@ public class RegistrationAction implements Serializable{
 		this.typeOpt=(optimizerSelectedIndex==0 ? OptimizerType.BLOCKMATCHING : OptimizerType.ITK_AMOEBA);
 		this.typeAutoDisplay=displaySelectedIndex;
 		this.typeManViewer=viewerManSelectedIndex;
-		if(modeWindow==FijiyamaGUI.WINDOWTWOIMG) {
+		if(modeWindow==Fijiyama_GUI.WINDOWTWOIMG) {
 			if(this.typeAction==TYPEACTION_ALIGN) {
 				this.movMod=0;
 				this.movTime=0;
@@ -294,7 +291,7 @@ public class RegistrationAction implements Serializable{
 	}
 
 
-	public static RegistrationAction createRegistrationAction(ImagePlus imgRef, ImagePlus imgMov, FijiyamaGUI fijiyamaGui,RegistrationManager regManager,int typeAction2) {
+	public static RegistrationAction createRegistrationAction(ImagePlus imgRef, ImagePlus imgMov, Fijiyama_GUI fijiyamaGui,RegistrationManager regManager,int typeAction2) {
 		RegistrationAction reg=new RegistrationAction(fijiyamaGui,regManager);
 		reg.defineSettingsFromTwoImages(imgRef, imgMov, regManager, false);
 		reg.typeAction=typeAction2;
@@ -329,8 +326,7 @@ public class RegistrationAction implements Serializable{
 	        out.writeObject(this); 
 	        out.close(); 
 	        file.close(); 
-	    }    catch(IOException ex) {         System.out.println("IOException is caught");     } 
-	    System.out.println("Writing Action ok .");
+	    }    catch(IOException ex) {         IJ.log("IOException has been caught during writing to "+path);     } 
 	}
 
 	public static RegistrationAction readFromFile(String path) {
@@ -341,8 +337,8 @@ public class RegistrationAction implements Serializable{
 	        reg = (RegistrationAction)in.readObject();        
 	        in.close(); 
 	        file.close(); 
-	    }       catch(IOException ex)     {         System.out.println("IOException is caught");     } 
-	    		catch(ClassNotFoundException ex)     {         System.out.println("ClassNotFoundException is caught");     } 
+	    }       catch(IOException ex)     {      IJ.log("IOException has been caught during reading from "+path);    } 
+	    		catch(ClassNotFoundException ex)     {        IJ.log("ClassNotFoundException has been caught during reading from "+path);    } 
 	    return reg;
 	}
 	

@@ -17,7 +17,7 @@ public class TwoPointsCurveFitterNoBias implements Fit{
 		this.yData = yData;
 		this.yDataSave = new double[xData.length];
 		this.numPoints = xData.length;
-		this.numParams= (fitType==T2_RELAX_BIAS ? 3 : 2);
+		this.numParams= (fitType==MRUtils.T2_RELAX_BIAS ? 3 : 2);
 		this.params= new double[this.numParams];
 		this.fit=fitType;
 
@@ -32,29 +32,29 @@ public class TwoPointsCurveFitterNoBias implements Fit{
 
 
 	public double gozeM0(double T2){
-		if(T2==0)return ERROR_VALUE;
+		if(T2==0)return MRUtils.ERROR_VALUE;
 		return yData[0]*Math.exp(xData[0]/T2);
 	}
 
 	public double gozeT2(){
-		if(yData[0]==yData[2])return ERROR_VALUE;
+		if(yData[0]==yData[2])return MRUtils.ERROR_VALUE;
 		return((-xData[0]+xData[2])/Math.log(yData[0]/yData[2]));
 	}
 
 	public double gozeT1(){
-		if(yData[0]>=yData[1])return ERROR_VALUE;
+		if(yData[0]>=yData[1])return MRUtils.ERROR_VALUE;
 		double a=1;
 		double b=-yData[1]/yData[0];
 		double c=yData[1]/yData[0]-1;
 		double delta=b*b-4*a*c;
 		double deltaSq=Math.sqrt(delta);
 		double ret=-xData[0]/Math.log( (-b-deltaSq)/(2*a) );
-		ret=ret<=0 ? ERROR_VALUE : ret;
+		ret=ret<=0 ? MRUtils.ERROR_VALUE : ret;
 		return ret;
 	}
 
 	public double gozeM0OfT1(double T1){
-		if(T1==ERROR_VALUE)return ERROR_VALUE;
+		if(T1==MRUtils.ERROR_VALUE)return MRUtils.ERROR_VALUE;
 		return yData[1]/(1-Math.exp(-xData[1]/T1));
 	}
 
@@ -70,18 +70,18 @@ public class TwoPointsCurveFitterNoBias implements Fit{
 
 		fit = fitType;
 		switch (fit) {
-		case T1_RECOVERY:
+		case MRUtils.T1_RECOVERY:
 			params[1]=gozeT1();
 			params[0]=gozeM0OfT1(params[1]);
 			break;
-		case T2_RELAX_SIGMA:
+		case MRUtils.T2_RELAX_SIGMA:
 			for(int i =0;i<numPoints;i++){yDataSave[i]=yData[i];yData[i]=sigmaWay(yData[i],sigma);}
 			params[1]=gozeT2();
 			params[0]=Math.sqrt(gozeM0(params[1]));
 			params[1]=params[1]*2;
 			for(int i =0;i<numPoints;i++){yData[i]=yDataSave[i];}
 			break;
-		case T2_RELAX:
+		case MRUtils.T2_RELAX:
 			params[1]=gozeT2();
 			params[0]=gozeM0(params[1]);
 			break;
@@ -94,9 +94,9 @@ public class TwoPointsCurveFitterNoBias implements Fit{
 	/** Get number of parameters for current fit formula */
 	public int getNumParams(int fitType) {
 		switch (fitType) {
-		case T2_RELAX:  return 2;
-		case T2_RELAX_RICE:  return 2;
-		case T2_RELAX_SIGMA:  return 2;
+		case MRUtils.T2_RELAX:  return 2;
+		case MRUtils.T2_RELAX_RICE:  return 2;
+		case MRUtils.T2_RELAX_SIGMA:  return 2;
 		}
 		return 0;
 	}

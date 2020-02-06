@@ -4,7 +4,7 @@ import ij.macro.Interpreter;
 import ij.macro.Program;
 import ij.macro.Tokenizer;
 
-public class SimplexCurveFitterNoBias implements Fit{
+public class SimplexCurveFitterNoBias{
 	private static final int CUSTOM = 21;
 	
 	public static  int IterFactor = 500;
@@ -89,7 +89,7 @@ public class SimplexCurveFitterNoBias implements Fit{
         numPoints = xData.length;
         this.fit=fitType;
         
-        if (fit<STRAIGHT_LINE )
+        if (fit<MRUtils.STRAIGHT_LINE )
             throw new IllegalArgumentException("Invalid fit type");
       
         initialize(fit);
@@ -234,7 +234,7 @@ public class SimplexCurveFitterNoBias implements Fit{
         double xmean = (firstx+lastx)/2.0;
         double ymean = (firsty+lasty)/2.0;
         double miny=firsty, maxy=firsty;
-        if (fit==GAUSSIAN) {
+        if (fit==MRUtils.GAUSSIAN) {
             for (int i=1; i<numPoints; i++) {
               if (yData[i]>maxy) maxy = yData[i];
               if (yData[i]<miny) miny = yData[i];
@@ -250,20 +250,20 @@ public class SimplexCurveFitterNoBias implements Fit{
         restarts = defaultRestarts;
         nRestarts = 0;
         switch (fit) {
-            case STRAIGHT_LINE:
+            case MRUtils.STRAIGHT_LINE:
                 simp[0][0] = yintercept;
                 simp[0][1] = slope;
                 break;
-            case EXPONENTIAL:
+            case MRUtils.EXPONENTIAL:
                 simp[0][0] = 0.1;
                 simp[0][1] = 0.01;
                 break;
-           case EXP_RECOVERY:
+           case MRUtils.EXP_RECOVERY:
                 simp[0][0] = 0.1;
                 simp[0][1] = 0.01;
                 simp[0][2] = 0.1;
                 break;            
-            case GAUSSIAN:
+            case MRUtils.GAUSSIAN:
                 simp[0][0] = miny;   // a0
                 simp[0][1] = maxy;   // a1
                 simp[0][2] = xmean;  // x0
@@ -280,54 +280,54 @@ public class SimplexCurveFitterNoBias implements Fit{
                 		simp[0][i] = 1.0;
                 }
                 break;
-           case T1_RECOVERY:
+           case MRUtils.T1_RECOVERY:
                simp[0][0] = lasty;
                simp[0][1] = 1000.0;
                break;
-           case T1_RECOVERY_RICE:
+           case MRUtils.T1_RECOVERY_RICE:
                simp[0][0] = lasty;
                simp[0][1] = 1000.0;
                break;
-           case T1_RECOVERY_RICE_NORMALIZED:
+           case MRUtils.T1_RECOVERY_RICE_NORMALIZED:
                simp[0][1] = 1000.0;
                break;
-           case T2_RELAX_BIAS:
+           case MRUtils.T2_RELAX_BIAS:
                simp[0][0] = firsty;
                simp[0][1] = 50.0;
                simp[0][2] = 0.0;
                break;
-           case T2_RELAX_RICE:
+           case MRUtils.T2_RELAX_RICE:
                simp[0][0] = firsty;
                simp[0][1] = 50.0;
                break;
-           case T2_RELAX_SIGMA:
+           case MRUtils.T2_RELAX_SIGMA:
                simp[0][0] = firsty;
                simp[0][1] = 50.0;
                break;
-           case T2_RELAX:
+           case MRUtils.T2_RELAX:
                simp[0][0] = firsty;
                simp[0][1] = 50.0;
                break;
-          case MULTICOMP_BIAS:
+          case MRUtils.MULTICOMP_BIAS:
         	   simp[0][0] = firsty/2;
         	   simp[0][1] = 20;
         	   simp[0][2] = firsty/2;
         	   simp[0][3] = 60;
         	   simp[0][4] = 0;
                break;
-           case MULTICOMP:
+           case MRUtils.MULTICOMP:
         	   simp[0][0] = firsty/2;
         	   simp[0][1] = 20;
         	   simp[0][2] = firsty/2;
         	   simp[0][3] = 60;
                break;
-           case MULTICOMP_RICE:
+           case MRUtils.MULTICOMP_RICE:
         	   simp[0][0] = firsty/2;
         	   simp[0][1] = 20;
         	   simp[0][2] = firsty/2;
         	   simp[0][3] = 60;
                break;
-           case TRICOMP_RICE:
+           case MRUtils.TRICOMP_RICE:
         	   simp[0][0] = firsty/3;
         	   simp[0][1] = 40;
         	   simp[0][2] = firsty/3;
@@ -388,26 +388,26 @@ public class SimplexCurveFitterNoBias implements Fit{
     /** Get number of parameters for current fit formula */
     public int getNumParams(int fitType) {
         switch (fitType) {
-            case STRAIGHT_LINE: return 2;
-            case EXPONENTIAL: return 2;
-            case GAUSSIAN: return 4;
-            case EXP_RECOVERY: return 3;
+            case MRUtils.STRAIGHT_LINE: return 2;
+            case MRUtils.EXPONENTIAL: return 2;
+            case MRUtils.GAUSSIAN: return 4;
+            case MRUtils.EXP_RECOVERY: return 3;
             case CUSTOM: return customParamCount;
 
-			case T1_RECOVERY: return 2;
-			case T1_RECOVERY_RICE: return 2;
-			case T1_RECOVERY_RICE_NORMALIZED: return 1;
+			case MRUtils.T1_RECOVERY: return 2;
+			case MRUtils.T1_RECOVERY_RICE: return 2;
+			case MRUtils.T1_RECOVERY_RICE_NORMALIZED: return 1;
 
-			case T2_RELAX:  return 2;
-			case T2_RELAX_BIAS:  return 3;
-			case T2_RELAX_RICE:  return 2;
-			case T2_RELAX_SIGMA:  return 2;
+			case MRUtils.T2_RELAX:  return 2;
+			case MRUtils.T2_RELAX_BIAS:  return 3;
+			case MRUtils.T2_RELAX_RICE:  return 2;
+			case MRUtils.T2_RELAX_SIGMA:  return 2;
 
-			case MULTICOMP_BIAS:  return 5;
-			case MULTICOMP:  return 4;
-			case MULTICOMP_RICE:  return 4;
-			case TRICOMP_RICE:  return 6;
-			case MULTICOMP_SIGMA:  return 4;
+			case MRUtils.MULTICOMP_BIAS:  return 5;
+			case MRUtils.MULTICOMP:  return 4;
+			case MRUtils.MULTICOMP_RICE:  return 4;
+			case MRUtils.TRICOMP_RICE:  return 6;
+			case MRUtils.MULTICOMP_SIGMA:  return 4;
         }
         return 0;
     }
@@ -431,35 +431,35 @@ public class SimplexCurveFitterNoBias implements Fit{
     public double f(int fit, double[] p, double x) {
     	double y;
         switch (fit) {
-            case STRAIGHT_LINE:
+            case MRUtils.STRAIGHT_LINE:
                 return p[0] + p[1]*x;
-            case EXPONENTIAL:
+            case MRUtils.EXPONENTIAL:
                 return p[0]*Math.exp(p[1]*x);
-            case EXP_RECOVERY:
+            case MRUtils.EXP_RECOVERY:
                 return p[0]*(1-Math.exp(-p[1]*x))+p[2];
-            case GAUSSIAN:
+            case MRUtils.GAUSSIAN:
                 return p[0]+(p[1]-p[0])*Math.exp(-(x-p[2])*(x-p[2])/(2.0*p[3]*p[3]));
-			case T2_RELAX_BIAS:
+			case MRUtils.T2_RELAX_BIAS:
                 return p[0]*Math.exp(-(x / p[1]) )+ p[2]; // p[1] - echo times
-            case T2_RELAX:
+            case MRUtils.T2_RELAX:
                 return p[0]*Math.exp(-(x / p[1]) ); // p[1] - echo times
-            case T2_RELAX_SIGMA:
+            case MRUtils.T2_RELAX_SIGMA:
                 return sigmaWay(p[0]*Math.exp(-(x / p[1]) ),sigma); // p[1] - echo times
-			case T2_RELAX_RICE:
+			case MRUtils.T2_RELAX_RICE:
                 return besFunkCost(p[0]*Math.exp(-(x / p[1]) ),sigma); // p[1] - echo times
-            case T1_RECOVERY:
+            case MRUtils.T1_RECOVERY:
             	return p[0]*(1 - Math.exp(-(x / p[1])));
-            case T1_RECOVERY_RICE:
+            case MRUtils.T1_RECOVERY_RICE:
             	return besFunkCost(p[0]*(1 - Math.exp(-(x / p[1]))),sigma);
-            case T1_RECOVERY_RICE_NORMALIZED:
+            case MRUtils.T1_RECOVERY_RICE_NORMALIZED:
             	return besFunkCost((1 - Math.exp(-(x / p[0]))),sigma);
-            case MULTICOMP_BIAS:
+            case MRUtils.MULTICOMP_BIAS:
             	return  p[0]* Math.exp(-(x / p[1])) + p[2]* Math.exp(-(x / p[3]))+p[4]; // a[1] - echo times
-            case MULTICOMP:
+            case MRUtils.MULTICOMP:
             	return  p[0]* Math.exp(-(x / p[1])) + p[2]* Math.exp(-(x / p[3])); // a[1] - echo times
-            case MULTICOMP_RICE:
+            case MRUtils.MULTICOMP_RICE:
             	return  besFunkCost(p[0]* Math.exp(-(x / p[1])) + p[2]* Math.exp(-(x / p[3])),sigma); // a[1] - echo times
-            case TRICOMP_RICE:
+            case MRUtils.TRICOMP_RICE:
             	return  besFunkCost(p[0]* Math.exp(-(x / p[1])) + p[2]* Math.exp(-(x / p[3]) ) + p[4]* Math.exp(-(x / p[5]) ) ,sigma); // a[1] - echo times
             default:
                 return 0.0;

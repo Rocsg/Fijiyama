@@ -13,7 +13,6 @@ import java.nio.file.Paths;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import com.vitimage.Vitimage4D.VineType;
 
 import com.vitimage.VitimageUtils.Capillary;
 import com.vitimage.VitimageUtils.SupervisionLevel;
@@ -67,7 +66,7 @@ public class RX extends Acquisition{
 	 * Constructors, factory and top level functions
 	 */
 
-	public RX(String sourcePath,Capillary cap,SupervisionLevel sup,String title,com.vitimage.Vitimage4D.VineType cutting) {
+	public RX(String sourcePath,Capillary cap,SupervisionLevel sup,String title,VineType cutting) {
 		super(AcquisitionType.RX, sourcePath,cap,sup);
 		this.vineType=vineType;
 		this.title=title;

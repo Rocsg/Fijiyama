@@ -1,4 +1,6 @@
 package com.vitimage;
+//TODO : common
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;

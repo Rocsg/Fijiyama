@@ -6,9 +6,9 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.vitimage</groupId>
-	<artifactId>Fijiyama</artifactId>
-	<version>1.0.0</version>
-	<name>Fijiyama</name>
+	<artifactId>Fijiyama_GUI</artifactId>
+	<version>4.0.0</version>
+	<name>Fijiyama_GUI</name>
 	<packaging>jar</packaging>
 	<description>Fijiyama : a versatile registration tool for 3D multimodal time-lapse monitoring of biological tissues in Fiji</description>
 	<inceptionYear>2019</inceptionYear>
@@ -72,7 +72,7 @@
 	<properties>
 		<package-name>com.vitimage</package-name>
 		<license.licenseName>bsd_2</license.licenseName>
-		<main-class>Weka_Save</main-class>
+		<main-class>Fijiyama_GUI</main-class>
 		<license.copyrightOwners>vitimage</license.copyrightOwners>
   	    <maven.compiler.source>1.8</maven.compiler.source>
 	    <maven.compiler.target>1.8</maven.compiler.target>
@@ -172,7 +172,27 @@
 		    <artifactId>jgrapht</artifactId>
 		    <version>0.7.3</version>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core -->
+		<dependency>
+		    <groupId>org.jgrapht</groupId>
+		    <artifactId>jgrapht-core</artifactId>
+		    <version>1.3.1</version>
+		</dependency>
 		
+		<!-- https://mvnrepository.com/artifact/org.jgrapht/jgrapht-opt -->
+		<dependency>
+		    <groupId>org.jgrapht</groupId>
+		    <artifactId>jgrapht-opt</artifactId>
+		    <version>1.3.1</version>
+		</dependency>
+		
+		
+		<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-math3 -->
+		<dependency>
+		    <groupId>org.apache.commons</groupId>
+		    <artifactId>commons-math3</artifactId>
+		    <version>3.6.1</version>
+		</dependency>
 		
 
 		

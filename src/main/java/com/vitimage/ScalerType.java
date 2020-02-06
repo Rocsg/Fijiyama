@@ -1,5 +1,5 @@
 package com.vitimage;
-
+//TODO : common
 public enum ScalerType {
 	NONE,
 	MANUAL,

@@ -14,9 +14,6 @@ import java.nio.file.Paths;
 import java.util.Date;
 import java.util.stream.Collectors;
 
-import com.vitimage.MetricType;
-import com.vitimage.Transform3DType;
-import com.vitimage.Vitimage4D.VineType;
 import Hough_Package.Hough_Circle;
 import ij.IJ;
 import ij.ImageJ;
@@ -31,7 +28,7 @@ import inra.ijpb.morphology.Morphology;
 import inra.ijpb.morphology.Strel3D;
 
 
-public class Photo_Slicing_Seq extends Acquisition implements Fit,ItkImagePlusInterface {
+public class Photo_Slicing_Seq extends Acquisition implements  ItkImagePlusInterface {
 	public static final int UNTIL_END=1000;
 	public static final double epsilon=0.00000001;
 	double []surfacePVC= {160*3.2,15*15,10*10,6*6};//Surface du tube, de la petite tige, de la moyenne tige, de l epaisse tige

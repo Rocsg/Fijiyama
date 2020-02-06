@@ -57,7 +57,7 @@ public class FibersEstimator {
 //			imgB.show();
 //			VitimageUtils.showImageIn3D(imgA);
 			//			VitimageUtils.showImageIn3D(imgB);
-			VitimageUtils.showImageIn3D(imgA);
+			VitimageUtils.showImageIn3D(imgA,false);
 //			VitimageUtils.showImageIn3D(imgMRI);
 //			VitimageUtils.showImageIn3D(imgNECR);
 	//		VitimageUtils.showImageIn3D(imgAMAD);

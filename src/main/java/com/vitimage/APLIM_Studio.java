@@ -1,6 +1,5 @@
 package com.vitimage;
 
-import com.vitimage.CenteringStrategy;
 import com.vitimage.MetricType;
 import com.vitimage.OptimizerType;
 import com.vitimage.SamplingStrategy;

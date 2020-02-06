@@ -3,13 +3,13 @@ import lma.LMAFunction;
 import lma.LMAMatrix.InvertException;
 import lma.implementations.LMA;
 
-public class LMCurveFitterNoBias implements Fit{
+public class LMCurveFitterNoBias {
 
 	public boolean debugLM=false;
 	public final static String[] timeunits={"ms", "s"};
-	public final static int[] timeitems={MSEC, SEC};
+	public final static int[] timeitems={MRUtils.MSEC, MRUtils.SEC};
 	public final static String[] fititems2={"Simplex","Levenberg-Marquardt"};
-	public final static int[] constitems2={SIMPLEX,LM};
+	public final static int[] constitems2={MRUtils.SIMPLEX,MRUtils.LM};
 
 
 	protected int fit;                // Number of curve type to fit
@@ -86,7 +86,7 @@ public class LMCurveFitterNoBias implements Fit{
 	public LMCurveFitterNoBias (double[] xData, double[] yData, int fitType,double sigma,boolean debugLM) {
 		this.fit=fitType;
 		this.debugLM=debugLM;
-		if (fit<STRAIGHT_LINE)
+		if (fit<MRUtils.STRAIGHT_LINE)
 			throw new IllegalArgumentException("Invalid fit type");
 		int xlength=xData.length;
 		int ylength=yData.length;
@@ -121,19 +121,19 @@ public class LMCurveFitterNoBias implements Fit{
 		double yintercept = firsty - slope * firstx;
 
 		switch (fit) {
-		case STRAIGHT_LINE:
+		case MRUtils.STRAIGHT_LINE:
 			inparameters[0] = slope;
 			inparameters[1] = yintercept;
 			lma = new LMA(new Line(),inparameters,data);
 			break;
-		case T1_RECOVERY:
+		case MRUtils.T1_RECOVERY:
 			inparameters[0] = lasty;
 			inparameters[1] = 1000.0;
 			T1Recovery t1r=new T1Recovery();
 			t1r.setSigma(sigma);
 			lma = new LMA(t1r,inparameters,data);
 			break;
-		case T1_RECOVERY_RICE:
+		case MRUtils.T1_RECOVERY_RICE:
 			inparameters[0] = lasty;
 			inparameters[1] = 1000.0;
 			T1RecoveryRice t1rr=new T1RecoveryRice();
@@ -142,7 +142,7 @@ public class LMCurveFitterNoBias implements Fit{
 			lma = new LMA(t1rr,inparameters,data);
 			break;
 
-		case T2_RELAX_RICE:
+		case MRUtils.T2_RELAX_RICE:
 			inparameters[0] = val;
 			inparameters[1] = 40;//tHope;
 			T2RelaxRice t2rr=new T2RelaxRice();
@@ -151,7 +151,7 @@ public class LMCurveFitterNoBias implements Fit{
 			lma = new LMA(t2rr,inparameters,data);
 			break;
 
-		case MULTICOMP:
+		case MRUtils.MULTICOMP:
 			inparameters[0] = val/2;
 			inparameters[1] = 30;//tHope;
 			inparameters[2] = val/2;
@@ -160,7 +160,7 @@ public class LMCurveFitterNoBias implements Fit{
 					new TMulticomp(),inparameters,
 					data);
 			break;
-		case MULTICOMP_RICE:
+		case MRUtils.MULTICOMP_RICE:
 			inparameters[0] = val/2;
 			inparameters[1] = 20;//tHope;
 			inparameters[2] = val/3;
@@ -170,7 +170,7 @@ public class LMCurveFitterNoBias implements Fit{
 			t2mcr.setLM(this);
 			lma = new LMA(t2mcr,inparameters,data);
 			break;
-		case TRICOMP_RICE:
+		case MRUtils.TRICOMP_RICE:
 			inparameters[0] = val/3;
 			inparameters[1] = 15;//tHope;
 			inparameters[2] = val/4;
@@ -201,7 +201,7 @@ public class LMCurveFitterNoBias implements Fit{
 			gfit=lma.chi2Goodness();
 
 		} catch (InvertException e) {
-			for(int i=0;i<parameters.length;i++)parameters[i]=ERROR_VALUE;
+			for(int i=0;i<parameters.length;i++)parameters[i]=MRUtils.ERROR_VALUE;
 		}
 	}
 
@@ -211,7 +211,7 @@ public class LMCurveFitterNoBias implements Fit{
 			parameters=lma.parameters;
 			gfit=lma.chi2Goodness();
 		} catch (InvertException e) {
-			for(int i=0;i<parameters.length;i++)parameters[i]=ERROR_VALUE;}
+			for(int i=0;i<parameters.length;i++)parameters[i]=MRUtils.ERROR_VALUE;}
 	}
 
 	public double[] getParams() {
@@ -225,13 +225,13 @@ public class LMCurveFitterNoBias implements Fit{
 	/** Get number of parameters for current fit formula */
 	public static int getNumParams(int fitType) {
 		switch (fitType) {
-		case STRAIGHT_LINE: return Line.Nparams  ;
-		case T1_RECOVERY: return T1Recovery.Nparams ;  
-		case T1_RECOVERY_RICE: return T1RecoveryRice.Nparams ;  
-		case T2_RELAX_RICE:  return  T2RelaxRice.Nparams  ;
-		case MULTICOMP:  return  TMulticomp.Nparams  ;
-		case MULTICOMP_RICE:  return  TMulticompRice.Nparams  ;
-		case TRICOMP_RICE:  return  TTricompRice.Nparams  ;
+		case MRUtils.STRAIGHT_LINE: return Line.Nparams  ;
+		case MRUtils.T1_RECOVERY: return T1Recovery.Nparams ;  
+		case MRUtils.T1_RECOVERY_RICE: return T1RecoveryRice.Nparams ;  
+		case MRUtils.T2_RELAX_RICE:  return  T2RelaxRice.Nparams  ;
+		case MRUtils.MULTICOMP:  return  TMulticomp.Nparams  ;
+		case MRUtils.MULTICOMP_RICE:  return  TMulticompRice.Nparams  ;
+		case MRUtils.TRICOMP_RICE:  return  TTricompRice.Nparams  ;
 		}
 		return 0;
 	}

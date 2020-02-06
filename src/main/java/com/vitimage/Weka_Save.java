@@ -14,7 +14,6 @@ import ij.gui.ImageWindow;
 import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.gui.ScrollbarWithLabel;
-import ij.gui.ShapeRoi;
 import ij.gui.StackWindow;
 
 import ij.io.DirectoryChooser;
@@ -83,7 +82,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Vector;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -100,7 +98,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 
-import com.itextpdf.text.log.SysoCounter;
 import com.vitimage.VitiDialogs;
 
 import weka.classifiers.AbstractClassifier;
