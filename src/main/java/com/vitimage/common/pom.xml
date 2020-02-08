@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+		http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+
+	<groupId>com.vitimage</groupId>
+	<artifactId>Fijiyama_GUI</artifactId>
+	<version>5.0.0</version>
+	<name>Fijiyama_GUI</name>
+	<packaging>pom</packaging>
+	<description>Fijiyama : a versatile registration tool for 3D multimodal time-lapse monitoring of biological tissues in Fiji</description>
+	<inceptionYear>2019</inceptionYear>
+	<organization>
+		<name>Vitimage</name>
+		<url>https://www.plan-deperissement-vigne.fr/travaux-de-recherche/programmes-de-recherche/vitimage</url>
+	</organization>
+	<licenses>
+		<license>
+			<name>Simplified BSD License</name>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+	<developers>
+		<developer>
+			<id>Rocsg</id>
+			<name>Romain Fernandez</name>
+			<url>https://imagej.net/User:Rocsg</url>
+			<roles>
+				<role>lead</role>
+			</roles>
+		</developer>
+	</developers>
+	<contributors>
+	  	<contributor>
+			<name>Khalifa Diouf</name>
+			<properties>
+				<id>khalifa</id>
+			</properties>
+		</contributor>
+	</contributors>
+	
+	<mailingLists>
+		<mailingList>
+			<name>Image.sc Forum</name>
+			<archive>https://forum.image.sc/</archive>
+		</mailingList>
+	</mailingLists>
+
+	<scm>
+		<connection>scm:git:git://github.com/Rocsg/vitimage</connection>
+		<developerConnection>scm:git:git@github.com:Rocsg/vitimage</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/Rocsg/vitimage</url>
+	</scm>
+	<issueManagement>
+		<system>GitHub Issues</system>
+		<url>https://github.com/Rocsg/vitimage/issues</url>
+	</issueManagement>
+	<ciManagement>
+		<system>None</system>
+	</ciManagement>
+
+	<properties>
+		<package-name>com.vitimage.common</package-name>
+		<license.licenseName>bsd_2</license.licenseName>
+		<main-class>Fijiyama_GUI</main-class>
+		<license.copyrightOwners>vitimage</license.copyrightOwners>
+  	    <maven.compiler.source>1.8</maven.compiler.source>
+	    <maven.compiler.target>1.8</maven.compiler.target>
+	</properties>
+	<repositories>
+	  <repository>
+	   	  <id>imagej.public</id>
+	      <url>http://maven.imagej.net/content/groups/public</url>
+      </repository>
+	</repositories>
+	<dependencies>
+		<!-- https://mvnrepository.com/artifact/net.imagej/ij -->
+		<dependency>
+		    <groupId>net.imagej</groupId>
+		    <artifactId>ij</artifactId>
+		    <version>1.52p</version>
+		</dependency>
+		<dependency>
+			<groupId>sc.fiji</groupId>
+			<artifactId>imagescience</artifactId>
+			<version>3.0.0</version>
+		</dependency>
+		<dependency>
+		    <groupId>sc.fiji</groupId>
+		    <artifactId>VIB-lib</artifactId>
+		    <version>2.1.2</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/sc.fiji/Trainable_Segmentation -->
+		<dependency>
+		    <groupId>sc.fiji</groupId>
+		    <artifactId>Trainable_Segmentation</artifactId>
+		    <version>3.2.2</version>
+		</dependency>
+		
+		
+
+		<!-- https://mvnrepository.com/artifact/org.scijava/scijava-java3d -->
+		<dependency>
+		    <groupId>org.scijava</groupId>
+		    <artifactId>scijava-java3d</artifactId>
+		    <version>0.1.0</version>
+		</dependency>
+
+
+		<!-- https://mvnrepository.com/artifact/com.github.mcib3d/mcib3d-core -->
+		<dependency>
+		    <groupId>com.github.mcib3d</groupId>
+		    <artifactId>mcib3d-core</artifactId>
+		    <version>master-47119b6729-1</version>
+		</dependency>
+
+
+
+		<!-- https://mvnrepository.com/artifact/fr.inra.ijpb/MorphoLibJ_ -->
+		<dependency>
+		    <groupId>fr.inra.ijpb</groupId>
+		    <artifactId>MorphoLibJ_</artifactId>
+		    <version>1.3.6</version>
+		</dependency>
+		
+		<!-- https://mvnrepository.com/artifact/org.itk.simple/simpleitk -->
+		<dependency>
+		    <groupId>org.itk.simple</groupId>
+		    <artifactId>simpleitk</artifactId>
+		    <version>0.9.0</version>
+		    <type>jar</type>
+		</dependency>
+		
+		<dependency>
+		    <groupId>ij3d</groupId>
+		    <artifactId>ImageJ3DViewer</artifactId>
+		    <version>1</version>
+		    <scope>system</scope>
+   	   	    <systemPath>/home/fernandr/Programmes/Fiji.app/plugins/3D_Viewer-4.0.2.jar</systemPath>
+		</dependency>
+		
+		
+		<dependency>
+		    <groupId>lma</groupId>
+		    <artifactId>lma</artifactId>
+		    <version>1</version>
+		    <scope>system</scope>
+   	   	    <systemPath>/home/fernandr/Programmes/LIB_EXT/JAR/lma.jar</systemPath>
+		</dependency>
+		
+		
+
+		
+	</dependencies>
+</project>

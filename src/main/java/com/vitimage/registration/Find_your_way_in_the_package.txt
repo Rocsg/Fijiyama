@@ -1,0 +1,14 @@
+Find you way in the package
+***************************
+
+registration define classes and functions to perform registration of 3d/4d/5d images
+- ItkTransform is extended from org.itk.simple.Transform , and extend some of its function (viewing of dense transforms on grids).
+Some functions of Transform are rewritten since the binaries of org.itk.simple distributed with ImageJ tends to be uncomplete. These
+functions are mainly around reading/writing transforms, flattening dense fields, and inverting dense fields
+- BlockMatchingRegistration contains setup methods for a two 3d-images registration using BlockMatching algorithm, and run it with multi-threading
+- ItkRegistration encapsulate the org.itk.simple.RegistrationManager to help ImageJ users to setup and run Iconic registration with Itk
+- Transform3DType is an enumeration of the common transformation families handled by the two algorithms
+- The other classes are useful enumerations to define a registration strategy
+
+TODO : Fix the threading.interrupt issues with both in order to make the Fijiyama "Abort" button definitely safe
+

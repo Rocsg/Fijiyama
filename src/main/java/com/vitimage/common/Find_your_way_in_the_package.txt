@@ -1,0 +1,15 @@
+Find you way in the package
+***************************
+
+Common contains helper classes and interfaces commonly used in the vitimage project.
+
+- ItkImagePlusInterface provides I/O methods between the Itk "Image" format, and the IJ "ImagePlus" format
+- TransformUtils provides some definitions linked to 4 x 4 linear transforms. Most of them are unused since ItkTransform encapsulate most of them
+- VitiDialogs provides some helpers dialog to open transforms, images, directories, confirm messages..
+- VitimageUtils holds many many helpers and should be refactored in many classes
+
+
+TODO : Conversion ImagePlus / ItkImage can be optimized, with a gross copy of raw data. This modification could save time when transforming image,
+as this transformation lies in the Itk Image space
+
+TODO : Refactor VitimageUtils in smaller coherent blocks

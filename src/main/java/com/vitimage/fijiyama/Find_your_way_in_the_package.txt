@@ -1,0 +1,15 @@
+Find you way in the package
+***************************
+
+Fijiyama package contains the interface for Fijiyama plugin (https://imagej.net/Fijiyama) and the registration manager used to pipeline registration sequences
+The plugin is roughly structured following the MVC pattern
+- Fijiyama_GUI is the GUI of the plugin, hosting the frame definition, buttons, and associated actionPerformed
+- RegistrationAction is a small object used to hold parameters of an action of registration between two images
+- RegistrationManager is partly model and controller of the plugin : it manages data reading and action sequencing
+- ScrollUtil is a helper class found on the web, useful to scroll a JScrollPane to the current object, or to the bottom of the list
+
+
+TODO : Best split of functions : set the runnables and manual registration interfaces in RegistrationAction
+TODO : during Programming, only MAN and AUTO actions should be available
+TODO : when loading, the first action after becomes MAN	
+

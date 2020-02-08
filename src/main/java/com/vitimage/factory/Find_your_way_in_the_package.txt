@@ -1,0 +1,7 @@
+Find you way in the package
+***************************
+
+Factory package is a mess of unordered and unused classes.
+
+
+TODO : Remove unused ones 

@@ -1,0 +1,16 @@
+Find you way in the package
+***************************
+
+vitimage package content is structured into subpackages :
+- common holds common classes and enumerations, used by other packages
+- factory is a mess of unused classes that should be ordered
+- fijiyama define the Fijiyama plugin (https://imagej.net/Fijiyama) using sort-of-a-MVC pattern
+- hyperweka is a fork of weka for hyperimage machine learning (under progress)
+- mrutils define helper to handle MRI images, such as t1 / t2 parameter maps, and Rice noise estimation (under progress)
+- ndimaging defines import / processing functions associated with common imaging devices
+- registration define registration algorithms, and 3d transforms for 3d/4d/5d in ImageJ
+
+
+TODO : define separated poms
+
+
