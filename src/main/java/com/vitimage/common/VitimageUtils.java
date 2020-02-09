@@ -37,7 +37,6 @@ import org.scijava.vecmath.Point3f;
 
 import com.vitimage.common.TransformUtils.AngleComparator;
 import com.vitimage.common.TransformUtils.VolumeComparator;
-import com.vitimage.ndimaging.Acquisition;
 import com.vitimage.registration.ItkTransform;
 
 import ij.IJ;
@@ -162,6 +161,18 @@ public interface VitimageUtils {
 	}
 
 	
+	public static double[]getColumnOfTab(double[][]tab,int column){
+		double[]ret=new double[tab.length];
+		for(int i=0;i<tab.length;i++)ret[i]=tab[i][column];
+		return ret;
+	}
+	
+	public static double[][]transposeTab(double[][]tab){
+		double[][]ret=new double[tab[0].length][tab.length];
+		for(int i=0;i<tab.length;i++)for(int j=0;j<tab[0].length;j++)ret[j][i]=tab[i][j];
+		return ret;
+	}
+
 	public static int[][] readIntArrayFromFile(String file,int nbDimsPerLine) {
 		File fParam=new File(file);
 		int nData;
@@ -1951,7 +1962,7 @@ public interface VitimageUtils {
 		return out;
 	}
 	
-	
+	/*
 	public static Point3d[] detectAxis(Acquisition acq,int delayForReacting){
 		ImagePlus img=null;
 		img=acq.getImageForRegistration();
@@ -2129,7 +2140,7 @@ public interface VitimageUtils {
 		Point3d ptRight= new Point3d(origine.x + vectX[0]   ,  origine.y + vectX[1] , origine.z + vectX[2]);
 		return new Point3d[] {origine,ptUp,ptRight};
 	}
-	
+	*/
 	
 	
 	
@@ -2157,7 +2168,7 @@ public interface VitimageUtils {
 	
 	
 	
-	
+	/*
 	public static ImagePlus smoothContourOfPlant(ImagePlus img2,int slice) {
 		int zMax=img2.getStackSize();
 		double vX=img2.getCalibration().pixelWidth;
@@ -2209,7 +2220,7 @@ public interface VitimageUtils {
 		imgMask.getProcessor().resetMinAndMax();
 		return VitimageUtils.getBinaryMask(imgMask, 210);		
 	}
-	
+	*/
 	
 	public static Point3d[] detectInoculationPointManually(ImagePlus img, Point3d inocPoint) {
 		boolean ghetto=true;
@@ -2681,7 +2692,36 @@ public interface VitimageUtils {
 	
 	
 	
+	public static double[] caracterizeBackgroundOfImage(ImagePlus img) {
+		int samplSize=Math.min(15,img.getWidth()/10);
+		int x0=samplSize;
+		int y0=samplSize;
+		int x1=img.getWidth()-samplSize;
+		int y1=img.getHeight()-samplSize;
+		int z01=img.getStackSize()/2;
+		double[][] vals=new double[4][2];
+		vals[0]=VitimageUtils.valuesOfImageAround(img,x0,y0,z01,samplSize/2);
+		vals[1]=VitimageUtils.valuesOfImageAround(img,x0,y1,z01,samplSize/2);
+		vals[2]=VitimageUtils.valuesOfImageAround(img,x1,y0,z01,samplSize/2);
+		vals[3]=VitimageUtils.valuesOfImageAround(img,x1,y1,z01,samplSize/2);		
+		//System.out.println("");
+		double [][]stats=new double[4][2];
+		double []globStats=VitimageUtils.statistics2D(vals);
+		//System.out.println("Background statistics averaged on the four corners = ( "+globStats[0]+" , "+globStats[1]+" ) ");
+		for(int i=0;i<4;i++) {
+			stats[i]=(VitimageUtils.statistics1D(vals[i]));
+			//System.out.println("  --> Stats zone "+i+" =  ( "+stats[i][0]+" , "+stats[i][1]+")");
+			if( (Math.abs(stats[i][0]-globStats[0])/globStats[0]>0.3)){
+				System.out.println("Warning : noise computation  There should be an object in the supposed background\nthat can lead to misestimate background values. Detected at slice "+samplSize/2+"at "+
+							(i==0 ?"Up-left corner" : i==1 ? "Down-left corner" : i==2 ? "Up-right corner" : "Down-right corner")+
+							". Mean values of squares="+globStats[0]+". Outlier value="+vals[i][0]+" you should inspect the image and run again.");
+				//img.show();
+			}
+		}
+		return new double[] {globStats[0],globStats[1]};
+	}
 	
+
 	
 	
 	/*
@@ -2711,6 +2751,7 @@ public interface VitimageUtils {
 	}
 */
 
+	/*
 	public static ImagePlus areaOfPertinentMRIMapComputation (ImagePlus img2,double sigmaGaussMapInPixels){
 		double voxVolume=VitimageUtils.getVoxelVolume(img2);
 		int nbThreshObjects=100;
@@ -2727,7 +2768,7 @@ public interface VitimageUtils {
 		ImagePlus imgMask2=VitimageUtils.getBinaryMask(imgMask1,1);
 		return imgMask2;
 	}
-	
+	*/
 	
 
 	public static ImagePlus restrictionMaskForFadingHandling (ImagePlus img,int marginOut){

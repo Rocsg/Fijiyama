@@ -138,10 +138,22 @@ public interface VitiDialogs {
 	}
 
 	
+	public static void saveTextFileUI(String text,String strGuess,String suggestedDir,String title,String extension){
+		SaveDialog sd=new SaveDialog(strGuess,title,extension);
+		if(sd.getDirectory()==null ||  sd.getFileName()==null)return;
+		String pathSave=sd.getDirectory()+""+sd.getFileName();
+		VitimageUtils.writeStringInFile(text, pathSave);
+		System.out.println("Contenu ecrit dans "+pathSave);
+	}
+
+	
+	
+	
 	public static double getDoubleUI(String strGuess,String parameter,double value) {
 		double ret=0;
 		GenericDialog gd = new GenericDialog(strGuess);
 		gd.addNumericField(parameter+" :",value,1);
+		
         gd.showDialog();
         if (gd.wasCanceled()) {return value;}
  

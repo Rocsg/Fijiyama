@@ -13,3 +13,36 @@ TODO : Conversion ImagePlus / ItkImage can be optimized, with a gross copy of ra
 as this transformation lies in the Itk Image space
 
 TODO : Refactor VitimageUtils in smaller coherent blocks
+
+
+
+
+
+
+
+
+
+
+	<build>
+	<plugins>
+	<plugin>
+	    <groupId>com.vitimage</groupId>
+	    <artifactId>Fijiyama_GUI</artifactId>
+	    <version>4.0.0</version>
+	    <executions>
+	        <execution>
+	            <id>default-jar</id>
+	            <phase>package</phase>
+	            <goals>
+	                <goal>jar</goal>
+	            </goals>
+	            <configuration>
+	                <excludes>
+	                    <exclude>hyperweka</exclude>
+	                </excludes>
+	            </configuration>
+	        </execution>
+	    </executions>
+	</plugin>		
+	</plugins>
+	</build>

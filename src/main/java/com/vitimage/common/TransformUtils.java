@@ -13,8 +13,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.stream.Collectors;
 
-import com.vitimage.factory.Vitimage_Toolbox;
-import com.vitimage.factory.Vitimage_Toolbox.VolumeComparator;
 import com.vitimage.registration.ItkTransform;
 
 import ij.IJ;
@@ -1069,10 +1067,6 @@ public interface TransformUtils {
 		matrixProduct(Tinter,P2,intermediaryRes);
 		matrixProduct(P1,intermediaryRes,result);
 		System.out.println("Double basis change");
-		Vitimage_Toolbox.anna.rememberMatrix("P1, Passage from initial space to registration space : ",ItkTransform.stringMatrix("",P1));
-		Vitimage_Toolbox.anna.rememberMatrix("T, Initial transformation matrix for registration : ",ItkTransform.stringMatrix("",Tinter));
-		Vitimage_Toolbox.anna.rememberMatrix("P2, Passage from registration space to visualization space : ",ItkTransform.stringMatrix("",P2));
-		Vitimage_Toolbox.anna.rememberMatrix("Global transformation = P1 x T x P2",ItkTransform.stringMatrix("",result));
 
 		printMatrix("P1, Passage from initial space to registration space : ",P1);
 		printMatrix("T, Initial transformation matrix for registration : ",Tinter);

@@ -1,6 +1,0 @@
-Find you way in the package
-***************************
-
-hyper weka package is under building. It is a fork of weka used for hyperimage machine learning
-
-TODO : Meeting with CM and ASS to define user scenario

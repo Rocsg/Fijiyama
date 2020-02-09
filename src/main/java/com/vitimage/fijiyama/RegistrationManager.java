@@ -194,7 +194,8 @@ public class RegistrationManager{
 			RegistrationAction regTemp=RegistrationAction.readFromTxtFile(f.getAbsolutePath());
 			if(regTemp.isDone()) {
 				f=new File(dirReg,"Transform_Step_"+st+".txt");
-				if(regTemp.typeTrans!=Transform3DType.DENSE)trTemp=ItkTransform.readTransformFromFile(f.getAbsolutePath());
+				System.out.println("LOOKING FOR "+f);
+				if(regTemp.typeTrans!=Transform3DType.DENSE || regTemp.typeAction>=3)trTemp=ItkTransform.readTransformFromFile(f.getAbsolutePath());
 				else trTemp=ItkTransform.readAsDenseField(f.getAbsolutePath());				
 			}
 			addTransformAndActionBlindlyForBuilding(trTemp,regTemp);
@@ -1135,80 +1136,82 @@ public class RegistrationManager{
 	}
 	
 	public ItkTransform finish2dEvaluation(){
-		System.out.println("Finish 01 2d evaluate "+this.currentRegAction);
 		RoiManager rm=RoiManager.getRoiManager();
-		System.out.println("Finish 02 2d evaluate "+this.currentRegAction);
 		Point3d[][]pointTabImg=convertLandmarksToPoints(WindowManager.getImage(fijiyamaGui.displayedNameImage1),WindowManager.getImage(fijiyamaGui.displayedNameImage2),false);
-		System.out.println("Finish 03 2d evaluate "+this.currentRegAction);
-		Point3d[][]pointTabReal=convertLandmarksToPoints(WindowManager.getImage(fijiyamaGui.displayedNameImage1),WindowManager.getImage(fijiyamaGui.displayedNameImage2),true);
-		System.out.println("Finish 04 2d evaluate "+this.currentRegAction);
+		double []voxSizes=VitimageUtils.getVoxelSizes(getCurrentRefImage());
 		WindowManager.getImage(fijiyamaGui.displayedNameImage1).changes=false;
 		WindowManager.getImage(fijiyamaGui.displayedNameImage2).changes=false;
 		WindowManager.getImage(fijiyamaGui.displayedNameImage1).close();
 		WindowManager.getImage(fijiyamaGui.displayedNameImage2).close();
 		rm.close();
-		System.out.println("Finish 05 2d evaluate "+this.currentRegAction);
 
 		
 		IJ.log("Registration evaluation : computing distance between corresponding points.");
 		int nCouples=pointTabImg[0].length;
-		System.out.println("Finish 06 2d evaluate "+this.currentRegAction);
-		double[][]distancesImageSpace=new double[4][nCouples];//dx, dy, dz, sqrt(dx*dx + dy*dy + dz*dz)
-		double[][]distancesRealSpace=new double[4][nCouples];
-		double[][]statsImageSpace=new double[4][4];//mean, std, min, max
-		double[][]statsRealSpace=new double[4][4];//mean, std, min, max
-		System.out.println("Finish 07 2d evaluate "+this.currentRegAction);
-		System.out.println("En effet, taille des tableaux : "+pointTabImg[0].length+" "+pointTabImg[1].length+" "+pointTabReal[0].length+" "+pointTabReal[1].length+" "+nCouples);
+		double[][]dataExport=new double[nCouples][3+3+3+3+2];//coordIntRef, coordIntMov,DistanceImg,distanceReal,GlobDistImg,GlobDistReal
+		double[][]dataStats=new double[4][3+3+3+3+2];//coordIntRef, coordIntMov,DistanceImg,distanceReal,GlobDistImg,GlobDistReal
+		double[]data;
 		for(int i=0;i<nCouples;i++) {
+			//Coordinates of reference point
+			dataExport[i][0]=pointTabImg[0][i].x;
+			dataExport[i][1]=pointTabImg[0][i].y;
+			dataExport[i][2]=pointTabImg[0][i].z;
+
+			//Coordinates of corresponding point in moving image
+			dataExport[i][3+0]=pointTabImg[1][i].x;
+			dataExport[i][3+1]=pointTabImg[1][i].y;
+			dataExport[i][3+2]=pointTabImg[1][i].z;
+
+			//Distance in voxels and in real space (unit), along each dimension
 			for(int dim=0;dim<3;dim++) {
-				System.out.println("Finish 08 "+i+"-"+dim+" 2d evaluate "+this.currentRegAction);
-				distancesImageSpace[0][i]=Math.abs(pointTabImg[0][i].x-pointTabImg[1][i].x);
-				distancesImageSpace[1][i]=Math.abs(pointTabImg[0][i].y-pointTabImg[1][i].y);
-				distancesImageSpace[2][i]=Math.abs(pointTabImg[0][i].z-pointTabImg[1][i].z);
-				distancesImageSpace[3][i]=Math.sqrt(distancesImageSpace[0][i]*distancesImageSpace[0][i]+distancesImageSpace[1][i]*distancesImageSpace[1][i]+distancesImageSpace[2][i]*distancesImageSpace[2][i]);
-				System.out.println("Finish 09 "+i+"-"+dim+" 2d evaluate "+this.currentRegAction);
-				
-				distancesRealSpace[0][i]=Math.abs(pointTabReal[0][i].x-pointTabReal[1][i].x);
-				distancesRealSpace[1][i]=Math.abs(pointTabReal[0][i].y-pointTabReal[1][i].y);
-				distancesRealSpace[2][i]=Math.abs(pointTabReal[0][i].z-pointTabReal[1][i].z);
-				distancesRealSpace[3][i]=Math.sqrt(distancesRealSpace[0][i]*distancesRealSpace[0][i]+distancesRealSpace[1][i]*distancesRealSpace[1][i]+distancesRealSpace[2][i]*distancesRealSpace[2][i]);
-				System.out.println("Finish 10 "+i+"-"+dim+" 2d evaluate "+this.currentRegAction);
+				dataExport[i][6+dim]= Math.abs(  dataExport[i][0+dim] - dataExport[i][3+dim]);
+				dataExport[i][9+dim]= dataExport[i][6+dim]*voxSizes[dim];
 			}
-			System.out.println("Finish 11 2d evaluate "+this.currentRegAction);
-			IJ.log("");
-			IJ.log("Point "+i+" : Mismatch in pixels =  ("                                                
-					+ VitimageUtils.dou(distancesImageSpace[0][i])+", "+ VitimageUtils.dou(distancesImageSpace[1][i])+", "+ VitimageUtils.dou(distancesImageSpace[2][i])+" ). Norm="+VitimageUtils.dou(distancesImageSpace[3][i]));
-			System.out.println("Finish 12 2d evaluate "+this.currentRegAction);
-			IJ.log("              in real space ("+getCurrentRefImage().getCalibration().getUnit()+") =  ("
-					+ VitimageUtils.dou(distancesRealSpace[0][i])+", "+ VitimageUtils.dou(distancesRealSpace[1][i])+", "+ VitimageUtils.dou(distancesRealSpace[2][i])+" ). Norm="+VitimageUtils.dou(distancesRealSpace[3][i]));
-			System.out.println("Finish 13 2d evaluate "+this.currentRegAction);
 			
+			dataExport[i][12]=Math.sqrt(dataExport[i][6]*dataExport[i][6] + dataExport[i][6+1]*dataExport[i][6+1] + dataExport[i][6+2]*dataExport[i][6+2]);
+			dataExport[i][13]=Math.sqrt(dataExport[i][9]*dataExport[i][9] + dataExport[i][9+1]*dataExport[i][9+1] + dataExport[i][9+2]*dataExport[i][9+2]);
 		}
+
+		double[][]transposedData=VitimageUtils.transposeTab(dataExport);
+		for(int i=0;i<3+3+3+3+2;i++) {
+			dataStats[0][i]=VitimageUtils.min(transposedData[i]);
+			dataStats[1][i]=VitimageUtils.max(transposedData[i]);
+			dataStats[2][i]=VitimageUtils.statistics1D(transposedData[i])[0];
+			dataStats[3][i]=VitimageUtils.statistics1D(transposedData[i])[1];
+		}
+
 		
-		System.out.println("Finish 14 2d evaluate "+this.currentRegAction);
-		IJ.log("");                                                
-		for(int dim=0;dim<4;dim++) {
-			System.out.println("Finish 15"+dim+" 2d evaluate "+this.currentRegAction);
-			statsImageSpace[dim][0]=VitimageUtils.dou(VitimageUtils.statistics1D(distancesImageSpace[dim])[0]);
-			statsImageSpace[dim][1]=VitimageUtils.dou(VitimageUtils.statistics1D(distancesImageSpace[dim])[1]);
-			statsImageSpace[dim][2]=VitimageUtils.dou(VitimageUtils.min(distancesImageSpace[dim]));
-			statsImageSpace[dim][3]=VitimageUtils.dou(VitimageUtils.max(distancesImageSpace[dim]));
-			statsRealSpace[dim][0]=VitimageUtils.dou(VitimageUtils.statistics1D(distancesRealSpace[dim])[0]);
-			statsRealSpace[dim][1]=VitimageUtils.dou(VitimageUtils.statistics1D(distancesRealSpace[dim])[1]);
-			statsRealSpace[dim][2]=VitimageUtils.dou(VitimageUtils.min(distancesRealSpace[dim]));
-			statsRealSpace[dim][3]=VitimageUtils.dou(VitimageUtils.max(distancesRealSpace[dim]));
-			System.out.println("Finish 16"+dim+" 2d evaluate "+this.currentRegAction);
-		}
-		System.out.println("Finish 17 2d evaluate "+this.currentRegAction);
-		IJ.log("Distance in pixels along X axis. Mean="+statsImageSpace[0][0]+ ", Std="+ statsImageSpace[0][1]+", Min="+statsImageSpace[0][2]+", Max="+statsImageSpace[0][3]);                                              
-		IJ.log("                         along Y axis. Mean="+statsImageSpace[1][0]+ ", Std="+ statsImageSpace[1][1]+", Min="+statsImageSpace[1][2]+", Max="+statsImageSpace[1][3]);                                              
-		IJ.log("                           along Z axis. Mean="+statsImageSpace[2][0]+ ", Std="+ statsImageSpace[2][1]+", Min="+statsImageSpace[2][2]+", Max="+statsImageSpace[2][3]);                                              
-		IJ.log("                             (norm)      . Mean="+statsImageSpace[3][0]+ ", Std="+ statsImageSpace[3][1]+", Min="+statsImageSpace[3][2]+", Max="+statsImageSpace[3][3]);                                              
+		//Set in shape of a CSV
+		String unit=getCurrentRefImage().getCalibration().getUnit();
+		String s="#Point,Ref_pt._X,Ref_pt._Y,Ref_pt._Z,"+     "Mov_pt._X,Mov_pt._Y,Mov_pt._Z,"+
+				 "deltaX(pixels),deltaY(pixels),deltaZ(pixels),"+     "deltaX("+unit+"),deltaY("+unit+"),deltaZ("+unit+"),"+
+				 "Distance(pixels),Distance("+unit+")\n";
+		for(int pt=0;pt<nCouples;pt++) {
+			s+="Point_"+pt;
+			for(int dat=0;dat<3+3+3+3+2;dat++)s+=","+dataExport[pt][dat];
+			s+="\n";
+		}		
+		String[]measurements= {"Min","Max","Mean","Std"};
+		for(int pt=0;pt<4;pt++) {
+			s+=measurements[pt];
+			for(int dat=0;dat<3+3+3+3+2;dat++)s+=","+dataStats[pt][dat];
+			s+="\n";
+		}		
+		IJ.log("Saving file to output path "+this.serieOutputPath);
+		String nameMeasureTxt=new File(this.serieOutputPath,"measurements"+new SimpleDateFormat("yyyy-MM-dd_hh-mm").format(new Date())+".csv").getAbsolutePath();
+		VitimageUtils.writeStringInFile(s, nameMeasureTxt);
+		
+		for(int i=0;i<dataStats.length;i++)for(int j=0;j<dataStats.length;j++)dataStats[i][j]=VitimageUtils.dou(dataStats[i][j]);
+		IJ.showMessage("Your data have been written as a CSV file (excel-friendly) in the output directory : \n"+nameMeasureTxt+"\nCheck the ImageJ log for an overview of mismatch measurements (mean, std, min, max)");
+		IJ.log("Distance in pixels along X axis. Mean="+dataStats[2][0+6]+ ", Std="+ dataStats[3][0+6]+", Min="+dataStats[0][ 6]+", Max="+dataStats[1][ 6 ]);                                              
+		IJ.log("                             along Y axis. Mean="+dataStats[2][0+7]+ ", Std="+  dataStats[3][ 7 ]+", Min="+dataStats[0][ 7 ]+", Max="+dataStats[1][ 7 ]);                                              
+		IJ.log("                              along Z axis. Mean="+dataStats[2][0+8]+ ", Std="+ dataStats[3][ 8 ]+", Min="+dataStats[0][ 8 ]+", Max="+dataStats[1][ 8 ]);                                              
+		IJ.log("                               (norm)      . Mean="+dataStats[2][0+12]+ ", Std="+ dataStats[3][ 12 ]+", Min="+dataStats[0][ 12 ]+", Max="+dataStats[1][ 12 ]);                                              
 		System.out.println("Finish 18 2d evaluate "+this.currentRegAction);
-		IJ.log("Distance in real space ("+getCurrentRefImage().getCalibration().getUnit()+") along X axis. Mean="+statsRealSpace[0][0]+ ", Std="+ statsRealSpace[0][1]+", Min="+statsRealSpace[0][2]+", Max="+statsRealSpace[0][3]);                                              
-		IJ.log("                                    along Y axis. Mean="+statsRealSpace[1][0]+ ", Std="+ statsRealSpace[1][1]+", Min="+statsRealSpace[1][2]+", Max="+statsRealSpace[1][3]);                                              
-		IJ.log("                                      along Z axis. Mean="+statsRealSpace[2][0]+ ", Std="+ statsRealSpace[2][1]+", Min="+statsRealSpace[2][2]+", Max="+statsRealSpace[2][3]);                                              
-		IJ.log("                                        (norm)      . Mean="+statsRealSpace[3][0]+ ", Std="+ statsRealSpace[3][1]+", Min="+statsRealSpace[3][2]+", Max="+statsRealSpace[3][3]);                                              
+		IJ.log("Distance in real space ("+unit+") along X axis. Mean="+dataStats[2][0+9]+ ", Std="+dataStats[3][ 9 ]+", Min="+dataStats[0][ 9 ]+", Max="+dataStats[1][ 9 ]);                                              
+		IJ.log("                                           along Y axis. Mean="+dataStats[2][0+10]+ ", Std="+ dataStats[3][ 10 ]+", Min="+dataStats[0][ 10 ]+", Max="+dataStats[1][ 10 ]);                                              
+		IJ.log("                                           along Z axis. Mean="+dataStats[2][0+11]+ ", Std="+ dataStats[3][ 11 ]+", Min="+dataStats[0][ 11 ]+", Max="+dataStats[1][ 11 ]);                                              
+		IJ.log("                                              (norm)      . Mean="+dataStats[2][0+13]+ ", Std="+ dataStats[3][ 13 ]+", Min="+dataStats[0][ 13 ]+", Max="+dataStats[1][ 13 ]);                                              
 		System.out.println("Finish 19 2d evaluate "+this.currentRegAction);
 		return new ItkTransform();		
 	}

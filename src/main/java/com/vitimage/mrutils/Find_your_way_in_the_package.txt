@@ -1,6 +1,0 @@
-Find you way in the package
-***************************
-
-mrutils is under work. It defines utilities to explore MRI data, and compute t1 and t2 parameters
-
-TODO : Meeting with CM and ASS to define user scenario

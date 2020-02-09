@@ -67,6 +67,7 @@ import ij.plugin.frame.RoiManager;
 
 
 public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
+	public String versionFlag="acacia";
 	public ImagePlus imgView;
 	private boolean debugMode=true;
 	private boolean autoRep=false;
@@ -139,7 +140,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 	
 	//Registration interface attributes
-	private String[]textActions=new String[] {"1- Manual registration","2- Automatic registration","3- Align both images with XYZ axis"," "," "," ","-- Evaluate alignment"};
+	private String[]textActions=new String[] {"1- Manual registration","2- Automatic registration","3- Align both images with XYZ axis"," "," "," ","-- Evaluate mismatch"};
 	private String[]textOptimizers=new String[] {"Block-Matching","ITK"};
 	private String[]textTransformsBM=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)","Vector field "};
 	private String[]textTransformsITK=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)"};
@@ -578,6 +579,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		somethingPanel.setBorder(BorderFactory.createEmptyBorder(15,15,15,15));		
 		somethingPanel.setLayout(new GridLayout(1,1,20,20));
 		JLabel jlab=new JLabel("Fijiyama : a versatile 3d registration tool for Fiji",JLabel.CENTER);
+		JLabel jlab2=new JLabel("Version "+versionFlag,JLabel.CENTER);
+		somethingPanel.add(jlab);
 		somethingPanel.add(jlab);
 		JPanel buttonPanel=new JPanel();
 		buttonPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));		

@@ -21,7 +21,6 @@ import org.itk.simple.VersorRigid3DTransform;
 import com.vitimage.common.ItkImagePlusInterface;
 import com.vitimage.common.VitiDialogs;
 import com.vitimage.common.VitimageUtils;
-import com.vitimage.mrutils.MRUtils;
 
 import org.itk.simple.RecursiveGaussianImageFilter;
 
@@ -1058,7 +1057,7 @@ class IterationUpdate  extends Command {
 				st+="Level "+(mem-1)+" finished. Going to next level\n\n\n\n";
 				for(int i=0;i<mem;i++)st+="     ";
 			}
-			st+="Level "+(mem+1)+" / "+tabShrink.length+" .\n Sigma for smoothing = "+(MRUtils.dou(tabSigma[mem]))+" mm . Subsampling factor = "+tabShrink[(int) mem]+
+			st+="Level "+(mem+1)+" / "+tabShrink.length+" .\n Sigma for smoothing = "+(VitimageUtils.dou(tabSigma[mem]))+" mm . Subsampling factor = "+tabShrink[(int) mem]+
 					" .  Image size = "+tabSizes[mem][0]+" x "+tabSizes[mem][1]+" x "+tabSizes[mem][2]+" . Execution with "+method.getNumberOfThreads()+" threads. Starting.\n";
 			for(int i=0;i<mem;i++)st+="     ";
 			st+="----------";		  

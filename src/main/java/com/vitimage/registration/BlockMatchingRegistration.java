@@ -18,7 +18,6 @@ import com.vitimage.common.TransformUtils;
 import com.vitimage.common.VitiDialogs;
 import com.vitimage.common.VitimageUtils;
 import com.vitimage.fijiyama.RegistrationAction;
-import com.vitimage.ndimaging.Acquisition;
 
 import ij.IJ;
 import ij.ImageJ;
@@ -231,8 +230,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		this.successiveVoxSizes=imageVoxSizesAtSuccessiveLevels(VitimageUtils.getVoxelSizes(imgRef),subScaleFactors);
 		this.successiveSmoothingSigma=sigmaFactorsAtSuccessiveLevels(VitimageUtils.getVoxelSizes(imgRef),this.subScaleFactors,smoothingSigmaInPixels); 
 		this.successiveDenseFieldSigma=sigmaDenseFieldAtSuccessiveLevels(this.subScaleFactors,denseFieldSigma); 
-		this.imgMovDefaultValue=(Acquisition.caracterizeBackgroundOfImage(imgMov))[0];
-		this.imgRefDefaultValue=(Acquisition.caracterizeBackgroundOfImage(imgRef))[0];
+		this.imgMovDefaultValue=(VitimageUtils.caracterizeBackgroundOfImage(imgMov))[0];
+		this.imgRefDefaultValue=(VitimageUtils.caracterizeBackgroundOfImage(imgRef))[0];
 		int[]dims=VitimageUtils.getDimensions(imgRef);
 		this.fontSize=Math.min(dims[0]/40, dims[1]/40);
 		if(this.fontSize<5)this.fontSize=0;

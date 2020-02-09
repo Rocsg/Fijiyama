@@ -4,24 +4,41 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
 		http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-
 	<groupId>com.vitimage</groupId>
 	<artifactId>Fijiyama_GUI</artifactId>
-	<version>4.0.0</version>
-	<name>Fijiyama_GUI</name>
-	<packaging>jar</packaging>
-	<description>Fijiyama : a versatile registration tool for 3D multimodal time-lapse monitoring of biological tissues in Fiji</description>
-	<inceptionYear>2019</inceptionYear>
-	<organization>
-		<name>Vitimage</name>
-		<url>https://www.plan-deperissement-vigne.fr/travaux-de-recherche/programmes-de-recherche/vitimage</url>
-	</organization>
-	<licenses>
-		<license>
-			<name>Simplified BSD License</name>
-			<distribution>repo</distribution>
-		</license>
-	</licenses>
+
+
+
+
+	<scm>
+		<connection>scm:git:git://github.com/Rocsg/Fijiyama</connection>
+		<developerConnection>scm:git:git@github.com:Rocsg/Fijiyama</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/Rocsg/Fijiyama</url>
+	</scm>
+	<issueManagement>
+		<system>GitHub Issues</system>
+		<url>https://github.com/Rocsg/vitimage/issues</url>
+	</issueManagement>
+	<ciManagement>
+		<system>None</system>
+	</ciManagement>
+
+	<properties>
+		<package-name>com.vitimage</package-name>
+		<license.licenseName>bsd_2</license.licenseName>
+		<main-class>Fijiyama_GUI</main-class>
+		<license.copyrightOwners>vitimage</license.copyrightOwners>
+  	    <maven.compiler.source>1.8</maven.compiler.source>
+	    <maven.compiler.target>1.8</maven.compiler.target>
+	    
+	</properties>
+	<repositories>
+	  <repository>
+	   	  <id>imagej.public</id>
+	      <url>http://maven.imagej.net/content/groups/public</url>
+      </repository>
+	</repositories>
 
 	<developers>
 		<developer>
@@ -45,55 +62,42 @@
 			<archive>https://forum.image.sc/</archive>
 		</mailingList>
 	</mailingLists>
+	<version>4.0.0</version>
+	<name>Fijiyama_GUI</name>
+	<packaging>jar</packaging>
+	<description>Fijiyama : a versatile registration tool for 3D multimodal time-lapse monitoring of biological tissues in Fiji</description>
+	<inceptionYear>2019</inceptionYear>
+	<organization>
+		<name>Vitimage</name>
+		<url>https://www.plan-deperissement-vigne.fr/travaux-de-recherche/programmes-de-recherche/vitimage</url>
+	</organization>
+	<licenses>
+		<license>
+			<name>Simplified BSD License</name>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
 
-	<scm>
-		<connection>scm:git:git://github.com/Rocsg/vitimage</connection>
-		<developerConnection>scm:git:git@github.com:Rocsg/vitimage</developerConnection>
-		<tag>HEAD</tag>
-		<url>https://github.com/Rocsg/vitimage</url>
-	</scm>
-	<issueManagement>
-		<system>GitHub Issues</system>
-		<url>https://github.com/Rocsg/vitimage/issues</url>
-	</issueManagement>
-	<ciManagement>
-		<system>None</system>
-	</ciManagement>
+<!--	<build>-->
+<!--	<plugins>-->
+<!--	<plugin>-->
+<!--	<groupId>com.vitimage</groupId>-->
+<!--	<artifactId>Fijiyama_GUI</artifactId>-->
+<!--	<configuration>-->
+<!-- 	<excludePackageNames>com.vitimage.hyperweka:com.vitimage.factory:com.vitimage.mrutils</excludePackageNames>-->
+<!--	<includes>-->
+<!--	<include>com.vitimage.common</include>-->
+<!--	<include>com.vitimage.registration</include>-->
+<!--	<include>com.vitimage.fijiyama</include>-->
+	
+<!--	</includes>-->
+<!--	</configuration>	-->
+	
 
-	<properties>
-		<package-name>com.vitimage</package-name>
-		<license.licenseName>bsd_2</license.licenseName>
-		<main-class>Fijiyama_GUI</main-class>
-		<license.copyrightOwners>vitimage</license.copyrightOwners>
-  	    <maven.compiler.source>1.8</maven.compiler.source>
-	    <maven.compiler.target>1.8</maven.compiler.target>
-	</properties>
-	<repositories>
-	  <repository>
-	   	  <id>imagej.public</id>
-	      <url>http://maven.imagej.net/content/groups/public</url>
-      </repository>
-	</repositories>
+
+
+	
 	<dependencies>
-	    <dependency>
-	      <groupId>com.vitimage</groupId>
-	      <artifactId>Fijiyama_GUI</artifactId>
-	      <version>4.0.0</version>
-	      <exclusions>
-	        <exclusion>  <!-- declare the exclusion here -->
-	          <groupId>com.vitimage.factory</groupId>
-	        </exclusion>
-	        <exclusion>  <!-- declare the exclusion here -->
-	          <groupId>com.vitimage.hyperweka</groupId>
-	        </exclusion>
-	        <exclusion>  <!-- declare the exclusion here -->
-	          <groupId>com.vitimage.mrutils</groupId>
-	        </exclusion>
-	        <exclusion>  <!-- declare the exclusion here -->
-	          <groupId>com.vitimage.ndimaging</groupId>
-	        </exclusion>
-	      </exclusions> 
-	    </dependency>
 		<dependency>
 		    <groupId>net.imagej</groupId>
 		    <artifactId>ij</artifactId>
@@ -206,4 +210,11 @@
 
 		
 	</dependencies>
+<!-- 		</plugin> -->
+	<!--</plugins> -->
+	
+	
+	<!--</build> -->
+	
+	
 </project>

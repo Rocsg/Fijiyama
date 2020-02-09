@@ -1,8 +1,0 @@
-Find you way in the package
-***************************
-
-ndimaging define classes associated with different imaging devices and the associated import functions.
-The parent class, Acquisition, provides common definitions about the dimensionality
-the values of background and object, the presence or no of a reference object (capillary)...
-
-TODO : 

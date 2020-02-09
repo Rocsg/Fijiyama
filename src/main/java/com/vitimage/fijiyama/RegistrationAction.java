@@ -226,7 +226,7 @@ public class RegistrationAction implements Serializable{
 				this.refTime=0;
 			}
 		}
-		System.out.println("Cur reg action a pris action="+this.typeAction+" visavis de "+RegistrationAction.TYPEACTION_EVALUATE);
+		//System.out.println("Cur reg action a pris action="+this.typeAction+" visavis de "+RegistrationAction.TYPEACTION_EVALUATE);
 		
 	}
 
