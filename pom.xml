@@ -38,15 +38,6 @@
 			</roles>
 		</developer>
 	</developers>
-	<contributors>
-	  	<contributor>
-			<name>Mark Hiner</name>
-			<url>http://imagej.net/User:Hinerm</url>
-			<properties>
-				<id>hinerm</id>
-			</properties>
-		</contributor>
-	</contributors>
 	
 	<mailingLists>
 		<mailingList>
@@ -84,7 +75,25 @@
       </repository>
 	</repositories>
 	<dependencies>
-		<!-- https://mvnrepository.com/artifact/net.imagej/ij -->
+	    <dependency>
+	      <groupId>com.vitimage</groupId>
+	      <artifactId>Fijiyama_GUI</artifactId>
+	      <version>4.0.0</version>
+	      <exclusions>
+	        <exclusion>  <!-- declare the exclusion here -->
+	          <groupId>com.vitimage.factory</groupId>
+	        </exclusion>
+	        <exclusion>  <!-- declare the exclusion here -->
+	          <groupId>com.vitimage.hyperweka</groupId>
+	        </exclusion>
+	        <exclusion>  <!-- declare the exclusion here -->
+	          <groupId>com.vitimage.mrutils</groupId>
+	        </exclusion>
+	        <exclusion>  <!-- declare the exclusion here -->
+	          <groupId>com.vitimage.ndimaging</groupId>
+	        </exclusion>
+	      </exclusions> 
+	    </dependency>
 		<dependency>
 		    <groupId>net.imagej</groupId>
 		    <artifactId>ij</artifactId>

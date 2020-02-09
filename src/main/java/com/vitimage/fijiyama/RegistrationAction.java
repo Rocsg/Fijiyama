@@ -29,6 +29,7 @@ public class RegistrationAction implements Serializable{
 	public static final int TYPEACTION_VIEW=3;
 	public static final int TYPEACTION_SAVE=4;
 	public static final int TYPEACTION_EXPORT=5;
+	public static final int TYPEACTION_EVALUATE=6;
 	public static final int STD_BM_ITER=8;//6
 	public static final int STD_ITK_ITER=200;
 	public OptimizerType typeOpt=OptimizerType.BLOCKMATCHING;
@@ -46,8 +47,8 @@ public class RegistrationAction implements Serializable{
 	public int higherAcc=0;
 	public int iterationsBM=STD_BM_ITER;
 	public int iterationsITK=STD_ITK_ITER;
-	public int neighX=3;
-	public int neighY=3;
+	public int neighX=2;
+	public int neighY=2;
 	public int neighZ=0;
 	public int bhsX=7;
 	public int bhsY=7;
@@ -143,9 +144,9 @@ public class RegistrationAction implements Serializable{
 		boolean subZ=false;
 		iterationsBM=STD_BM_ITER;
 		iterationsITK=STD_ITK_ITER;
-		neighX=3;
-		neighY=3;
-		neighZ=3;
+		neighX=2;
+		neighY=2;
+		neighZ=2;
 		if((dimsTemp[2]>=5) && (anisotropyVox<1.5)) {//Cas 3D pur
 			subZ=true;
 			int []dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-minSubResolutionImageSizeLog2),
@@ -225,6 +226,8 @@ public class RegistrationAction implements Serializable{
 				this.refTime=0;
 			}
 		}
+		System.out.println("Cur reg action a pris action="+this.typeAction+" visavis de "+RegistrationAction.TYPEACTION_EVALUATE);
+		
 	}
 
 	public boolean isDone() {
@@ -271,6 +274,7 @@ public class RegistrationAction implements Serializable{
 		case TYPEACTION_VIEW: str+="View results  ";break;
 		case TYPEACTION_SAVE: str+="Save actions and results  ";break;
 		case TYPEACTION_EXPORT: str+="Export results  ";break;
+		case TYPEACTION_EVALUATE: str+="Evaluate alignment  ";break;
 		default : str+="Unknown operation  ";break;
 		}
 		if (this.isTransformationAction()) {

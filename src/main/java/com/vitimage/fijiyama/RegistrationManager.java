@@ -85,7 +85,7 @@ public class RegistrationManager{
 	private double[][][]voxs;
 	public ImagePlus[][]images;
 	private double[][]imageSizes;//In Mvoxels
-	private int maxImageSizeForRegistration=16;//In Mvoxels
+	private int maxImageSizeForRegistration=12;//In Mvoxels
 	public String unit="mm";//TODO Start it with the reference image
 	private int[]imageParameters=new int[] {512,512,40};
 	public int maxAcceptableLevel=3;
@@ -613,7 +613,12 @@ public class RegistrationManager{
 					initVoxs[nt][nm]=VitimageUtils.getVoxelSizes(imgTemp);
 					voxs[nt][nm]=VitimageUtils.getVoxelSizes(imgTemp);
 					imageSizes[nt][nm]=VitimageUtils.dou(((1.0*initDimensions[nt][nm][0]*initDimensions[nt][nm][1]*initDimensions[nt][nm][2])/(1024.0*1024.0)));
-					if(imageSizes[nt][nm]>this.maxImageSizeForRegistration)thereIsBigImages=true;
+					if(imageSizes[nt][nm]>this.maxImageSizeForRegistration) {
+						thereIsBigImages=true;
+						this.isSubSampled[nt][nm]=true;
+					}
+					else this.isSubSampled[nt][nm]=false;
+
 					IJ.log("Image "+nt+"-"+nm+" : size="+imageSizes[nt][nm]+" Mvoxels");
 				}
 			}
@@ -660,10 +665,11 @@ public class RegistrationManager{
 				for(int nt=0;nt<this.nTimes;nt++) {
 					for(int nm=0;nm<this.nMods;nm++) {
 						if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
-							IJ.log("Processing image "+nt+"-"+nm);
+							IJ.log("Processing image "+nt+"-"+nm+" . Initial voxel size="+VitimageUtils.dou(this.initVoxs[nt][nm][0])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][1])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][0])+" and dims="+this.dimensions[nt][nm][0]+"x"+this.dimensions[nt][nm][1]+"x"+this.dimensions[nt][nm][2]);
 							if(imageSizes[nt][nm]<=this.maxImageSizeForRegistration) {
 								this.images[nt][nm]=IJ.openImage(this.paths[nt][nm]);
 								this.isSubSampled[nt][nm]=false;
+								IJ.log("   -> target voxel size="+VitimageUtils.dou(this.initVoxs[nt][nm][0])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][1])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][0])+" and dims="+this.dimensions[nt][nm][0]+"x"+this.dimensions[nt][nm][1]+"x"+this.dimensions[nt][nm][2]);
 							}
 							else {
 								this.isSubSampled[nt][nm]=true;
@@ -702,6 +708,7 @@ public class RegistrationManager{
 								this.imageRanges[nt][nm][1]=ip.getMax();
 								this.images[nt][nm]=ItkTransform.resampleImage(this.dimensions[nt][nm], this.voxs[nt][nm], img,false);
 								this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0],this.imageRanges[nt][nm][1]);
+								IJ.log("   -> target voxel size="+VitimageUtils.dou(this.voxs[nt][nm][0])+"x"+VitimageUtils.dou(this.voxs[nt][nm][1])+"x"+VitimageUtils.dou(this.voxs[nt][nm][0])+" and dims="+this.dimensions[nt][nm][0]+"x"+this.dimensions[nt][nm][1]+"x"+this.dimensions[nt][nm][2]);
 							}	
 						}
 					}
@@ -1109,7 +1116,7 @@ public class RegistrationManager{
 
 	public ItkTransform finish2dManualRegistration(){
 		RoiManager rm=RoiManager.getRoiManager();
-		Point3d[][]pointTab=convertLandmarksToRealSpacePoints(WindowManager.getImage(fijiyamaGui.displayedNameImage1),WindowManager.getImage(fijiyamaGui.displayedNameImage2));
+		Point3d[][]pointTab=convertLandmarksToPoints(WindowManager.getImage(fijiyamaGui.displayedNameImage1),WindowManager.getImage(fijiyamaGui.displayedNameImage2),true);
 		WindowManager.getImage(fijiyamaGui.displayedNameImage1).changes=false;
 		WindowManager.getImage(fijiyamaGui.displayedNameImage2).changes=false;
 		WindowManager.getImage(fijiyamaGui.displayedNameImage1).close();
@@ -1127,8 +1134,86 @@ public class RegistrationManager{
     	return trans;		
 	}
 	
+	public ItkTransform finish2dEvaluation(){
+		System.out.println("Finish 01 2d evaluate "+this.currentRegAction);
+		RoiManager rm=RoiManager.getRoiManager();
+		System.out.println("Finish 02 2d evaluate "+this.currentRegAction);
+		Point3d[][]pointTabImg=convertLandmarksToPoints(WindowManager.getImage(fijiyamaGui.displayedNameImage1),WindowManager.getImage(fijiyamaGui.displayedNameImage2),false);
+		System.out.println("Finish 03 2d evaluate "+this.currentRegAction);
+		Point3d[][]pointTabReal=convertLandmarksToPoints(WindowManager.getImage(fijiyamaGui.displayedNameImage1),WindowManager.getImage(fijiyamaGui.displayedNameImage2),true);
+		System.out.println("Finish 04 2d evaluate "+this.currentRegAction);
+		WindowManager.getImage(fijiyamaGui.displayedNameImage1).changes=false;
+		WindowManager.getImage(fijiyamaGui.displayedNameImage2).changes=false;
+		WindowManager.getImage(fijiyamaGui.displayedNameImage1).close();
+		WindowManager.getImage(fijiyamaGui.displayedNameImage2).close();
+		rm.close();
+		System.out.println("Finish 05 2d evaluate "+this.currentRegAction);
 
-	public Point3d[][] convertLandmarksToRealSpacePoints(ImagePlus imgRef,ImagePlus imgMov){
+		
+		IJ.log("Registration evaluation : computing distance between corresponding points.");
+		int nCouples=pointTabImg[0].length;
+		System.out.println("Finish 06 2d evaluate "+this.currentRegAction);
+		double[][]distancesImageSpace=new double[4][nCouples];//dx, dy, dz, sqrt(dx*dx + dy*dy + dz*dz)
+		double[][]distancesRealSpace=new double[4][nCouples];
+		double[][]statsImageSpace=new double[4][4];//mean, std, min, max
+		double[][]statsRealSpace=new double[4][4];//mean, std, min, max
+		System.out.println("Finish 07 2d evaluate "+this.currentRegAction);
+		System.out.println("En effet, taille des tableaux : "+pointTabImg[0].length+" "+pointTabImg[1].length+" "+pointTabReal[0].length+" "+pointTabReal[1].length+" "+nCouples);
+		for(int i=0;i<nCouples;i++) {
+			for(int dim=0;dim<3;dim++) {
+				System.out.println("Finish 08 "+i+"-"+dim+" 2d evaluate "+this.currentRegAction);
+				distancesImageSpace[0][i]=Math.abs(pointTabImg[0][i].x-pointTabImg[1][i].x);
+				distancesImageSpace[1][i]=Math.abs(pointTabImg[0][i].y-pointTabImg[1][i].y);
+				distancesImageSpace[2][i]=Math.abs(pointTabImg[0][i].z-pointTabImg[1][i].z);
+				distancesImageSpace[3][i]=Math.sqrt(distancesImageSpace[0][i]*distancesImageSpace[0][i]+distancesImageSpace[1][i]*distancesImageSpace[1][i]+distancesImageSpace[2][i]*distancesImageSpace[2][i]);
+				System.out.println("Finish 09 "+i+"-"+dim+" 2d evaluate "+this.currentRegAction);
+				
+				distancesRealSpace[0][i]=Math.abs(pointTabReal[0][i].x-pointTabReal[1][i].x);
+				distancesRealSpace[1][i]=Math.abs(pointTabReal[0][i].y-pointTabReal[1][i].y);
+				distancesRealSpace[2][i]=Math.abs(pointTabReal[0][i].z-pointTabReal[1][i].z);
+				distancesRealSpace[3][i]=Math.sqrt(distancesRealSpace[0][i]*distancesRealSpace[0][i]+distancesRealSpace[1][i]*distancesRealSpace[1][i]+distancesRealSpace[2][i]*distancesRealSpace[2][i]);
+				System.out.println("Finish 10 "+i+"-"+dim+" 2d evaluate "+this.currentRegAction);
+			}
+			System.out.println("Finish 11 2d evaluate "+this.currentRegAction);
+			IJ.log("");
+			IJ.log("Point "+i+" : Mismatch in pixels =  ("                                                
+					+ VitimageUtils.dou(distancesImageSpace[0][i])+", "+ VitimageUtils.dou(distancesImageSpace[1][i])+", "+ VitimageUtils.dou(distancesImageSpace[2][i])+" ). Norm="+VitimageUtils.dou(distancesImageSpace[3][i]));
+			System.out.println("Finish 12 2d evaluate "+this.currentRegAction);
+			IJ.log("              in real space ("+getCurrentRefImage().getCalibration().getUnit()+") =  ("
+					+ VitimageUtils.dou(distancesRealSpace[0][i])+", "+ VitimageUtils.dou(distancesRealSpace[1][i])+", "+ VitimageUtils.dou(distancesRealSpace[2][i])+" ). Norm="+VitimageUtils.dou(distancesRealSpace[3][i]));
+			System.out.println("Finish 13 2d evaluate "+this.currentRegAction);
+			
+		}
+		
+		System.out.println("Finish 14 2d evaluate "+this.currentRegAction);
+		IJ.log("");                                                
+		for(int dim=0;dim<4;dim++) {
+			System.out.println("Finish 15"+dim+" 2d evaluate "+this.currentRegAction);
+			statsImageSpace[dim][0]=VitimageUtils.dou(VitimageUtils.statistics1D(distancesImageSpace[dim])[0]);
+			statsImageSpace[dim][1]=VitimageUtils.dou(VitimageUtils.statistics1D(distancesImageSpace[dim])[1]);
+			statsImageSpace[dim][2]=VitimageUtils.dou(VitimageUtils.min(distancesImageSpace[dim]));
+			statsImageSpace[dim][3]=VitimageUtils.dou(VitimageUtils.max(distancesImageSpace[dim]));
+			statsRealSpace[dim][0]=VitimageUtils.dou(VitimageUtils.statistics1D(distancesRealSpace[dim])[0]);
+			statsRealSpace[dim][1]=VitimageUtils.dou(VitimageUtils.statistics1D(distancesRealSpace[dim])[1]);
+			statsRealSpace[dim][2]=VitimageUtils.dou(VitimageUtils.min(distancesRealSpace[dim]));
+			statsRealSpace[dim][3]=VitimageUtils.dou(VitimageUtils.max(distancesRealSpace[dim]));
+			System.out.println("Finish 16"+dim+" 2d evaluate "+this.currentRegAction);
+		}
+		System.out.println("Finish 17 2d evaluate "+this.currentRegAction);
+		IJ.log("Distance in pixels along X axis. Mean="+statsImageSpace[0][0]+ ", Std="+ statsImageSpace[0][1]+", Min="+statsImageSpace[0][2]+", Max="+statsImageSpace[0][3]);                                              
+		IJ.log("                         along Y axis. Mean="+statsImageSpace[1][0]+ ", Std="+ statsImageSpace[1][1]+", Min="+statsImageSpace[1][2]+", Max="+statsImageSpace[1][3]);                                              
+		IJ.log("                           along Z axis. Mean="+statsImageSpace[2][0]+ ", Std="+ statsImageSpace[2][1]+", Min="+statsImageSpace[2][2]+", Max="+statsImageSpace[2][3]);                                              
+		IJ.log("                             (norm)      . Mean="+statsImageSpace[3][0]+ ", Std="+ statsImageSpace[3][1]+", Min="+statsImageSpace[3][2]+", Max="+statsImageSpace[3][3]);                                              
+		System.out.println("Finish 18 2d evaluate "+this.currentRegAction);
+		IJ.log("Distance in real space ("+getCurrentRefImage().getCalibration().getUnit()+") along X axis. Mean="+statsRealSpace[0][0]+ ", Std="+ statsRealSpace[0][1]+", Min="+statsRealSpace[0][2]+", Max="+statsRealSpace[0][3]);                                              
+		IJ.log("                                    along Y axis. Mean="+statsRealSpace[1][0]+ ", Std="+ statsRealSpace[1][1]+", Min="+statsRealSpace[1][2]+", Max="+statsRealSpace[1][3]);                                              
+		IJ.log("                                      along Z axis. Mean="+statsRealSpace[2][0]+ ", Std="+ statsRealSpace[2][1]+", Min="+statsRealSpace[2][2]+", Max="+statsRealSpace[2][3]);                                              
+		IJ.log("                                        (norm)      . Mean="+statsRealSpace[3][0]+ ", Std="+ statsRealSpace[3][1]+", Min="+statsRealSpace[3][2]+", Max="+statsRealSpace[3][3]);                                              
+		System.out.println("Finish 19 2d evaluate "+this.currentRegAction);
+		return new ItkTransform();		
+	}
+
+	public Point3d[][] convertLandmarksToPoints(ImagePlus imgRef,ImagePlus imgMov,boolean computeCoordinatesInRealSpaceUsingCalibration){
 		RoiManager rm=RoiManager.getRoiManager();
 		int nbCouples=rm.getCount()/2;
 		Point3d[]pRef=new Point3d[nbCouples];
@@ -1137,12 +1222,13 @@ public class RegistrationManager{
 		for(int indP=0;indP<rm.getCount()/2;indP++){
 			pRef[indP]=new Point3d(rm.getRoi(indP*2 ).getXBase() , rm.getRoi(indP * 2).getYBase() ,  rm.getRoi(indP * 2).getZPosition());
 			pMov[indP]=new Point3d(rm.getRoi(indP*2 +1 ).getXBase() , rm.getRoi(indP * 2 +1 ).getYBase() ,  rm.getRoi(indP * 2 +1 ).getZPosition());
-			pRef[indP]=TransformUtils.convertPointToRealSpace(pRef[indP],imgRef);
-			pMov[indP]=TransformUtils.convertPointToRealSpace(pMov[indP],imgMov);
+			if(computeCoordinatesInRealSpaceUsingCalibration) {
+				pRef[indP]=TransformUtils.convertPointToRealSpace(pRef[indP],imgRef);
+				pMov[indP]=TransformUtils.convertPointToRealSpace(pMov[indP],imgMov);
+			}
 		}
 		return new Point3d[][] {pRef,pMov};
 	}
-
 
 
 
@@ -1193,6 +1279,16 @@ public class RegistrationManager{
 		Concatenator con=new Concatenator();
 		con.setIm5D(true);
 		ImagePlus hyperImage=HyperStackConverter.toHyperStack(con.concatenate(hyperImg,false), nMods, referenceGeometryForTransforms.getStackSize(),nTimes,"xyztc","Grayscale");
+
+/*
+ * 	Chez ASS	n thread "Run$_AWT-EventQueue-0" java.lang.IllegalArgumentException: C*Z*T not equal stack size
+ 
+		at ij.plugin.HyperStackConverter.toHyperStack(HyperStackConverter.java:63)
+		at com.vitimage.fijiyama.RegistrationManager.getViewOfImagesTransformedAndSuperposedSerieWithThisReference(RegistrationManager.java:1202)
+		at com.vitimage.fijiyama.RegistrationManager.exportImagesAndComposedTransforms(RegistrationManager.java:843)
+		at com.vitimage.fijiyama.Fijiyama_GUI.actionPerformed(Fijiyama_GUI.java:744)
+		at javax.swing.AbstractButton.fireActionPerformed(AbstractButton.java:2022)
+*/		
 		hyperImage.show();
 		VitimageUtils.waitFor(4000);
 		hyperImage.setTitle(fijiyamaGui.displayedNameCombinedImage);

@@ -139,7 +139,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 	
 	//Registration interface attributes
-	private String[]textActions=new String[] {"1- Manual registration","2- Automatic registration","3- Align both images with XYZ axis"," "," "," "," "};
+	private String[]textActions=new String[] {"1- Manual registration","2- Automatic registration","3- Align both images with XYZ axis"," "," "," ","-- Evaluate alignment"};
 	private String[]textOptimizers=new String[] {"Block-Matching","ITK"};
 	private String[]textTransformsBM=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)","Vector field "};
 	private String[]textTransformsITK=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)"};
@@ -273,8 +273,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		int TESTNEWSERIE=7;
 		int TESTINTERFACEPROGRAMMING=8;
 		int TESTINTERFACERUNNING=9;
-	
-		int typeTest=TESTLOADTWOIMG;
+		int TESTDEPLOY=20;
+		
+		int typeTest=TESTDEPLOY;
 
 		if(typeTest==TESTTRANS){
 			ItkTransform.transformImageWithGui();
@@ -311,6 +312,14 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		else if(typeTest==TESTLOADTWOIMG) {
 			this.mode=MODE_TWO_IMAGES;
 			String fjmFile=findFjmFileInDir("/home/fernandr/Bureau/Test/TWOIMG/OUTPUT_DIR/");
+			if(fjmFile==null)regManager.setupFromTwoImages();
+			else regManager.setupFromFjmFile(fjmFile);
+			startTwoImagesRegistration();
+			this.modeWindow=WINDOWTWOIMG;
+		}		
+		else if(typeTest==TESTDEPLOY) {
+			this.mode=MODE_TWO_IMAGES;
+			String fjmFile=findFjmFileInDir("/home/fernandr/Bureau/Data_test_Fijiyama/Case_01_toy_case_with_two_imgs/Output_data");
 			if(fjmFile==null)regManager.setupFromTwoImages();
 			else regManager.setupFromFjmFile(fjmFile);
 			startTwoImagesRegistration();
@@ -779,8 +788,12 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			updateBoxFieldsToCoherenceAndApplyToRegistrationAction();
 		}
 
-		if(!comboBoxChanged && (e.getSource()==boxTypeAction || e.getSource()==boxOptimizer  || e.getSource()==boxTypeTrans || e.getSource()==boxDisplay || e.getSource()==boxDisplayMan)) {		
-			if(modeWindow==WINDOWTWOIMG && boxTypeAction.getSelectedIndex()>2) {boxTypeAction.setSelectedIndex(0);}
+		if(!comboBoxChanged && (e.getSource()==boxTypeAction || e.getSource()==boxOptimizer  ||
+				e.getSource()==boxTypeTrans || e.getSource()==boxDisplay || e.getSource()==boxDisplayMan)) {		
+	
+			if(modeWindow==WINDOWTWOIMG && (boxTypeAction.getSelectedIndex()>2) && (boxTypeAction.getSelectedIndex()!=RegistrationAction.TYPEACTION_EVALUATE)) {
+				boxTypeAction.setSelectedIndex(0);
+			}
 			comboBoxChanged=true;
 			boxClikedInGui();
 			updateEstimatedTime();
@@ -1044,6 +1057,76 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 					}
 					
 				
+					//Evaluate alignment
+					else if(regManager.getCurrentAction().typeAction==RegistrationAction.TYPEACTION_EVALUATE){
+						if(boxDisplayMan.getSelectedIndex()==RegistrationAction.VIEWER_3D) {
+							IJ.showMessage("Please select the 2d viewer for this action");enable(new int[] {FINISH,SAVE,SETTINGS,BOXACT,RUN,UNDO});
+							return;
+						}
+						disable(new int[] {RUN,RUNALL,UNDO});
+						//Starting manual registration
+						if(runButton.getText().equals("Start this action")) {
+							addLog("Starting evaluation...", 1);
+							disable(new int[] {BOXACT,RUN,RUNALL,UNDO});
+							runButton.setText("Position ok");
+							ImagePlus imgMovCurrentState=regManager.getCurrentMovComposedTransform().transformImage(regManager.getCurrentRefImage(),regManager.getCurrentMovImage(),false);
+							imgMovCurrentState.setDisplayRange(regManager.getCurrentMovRange()[0],regManager.getCurrentMovRange()[1]);
+							if(regManager.getCurrentAction().typeManViewer==RegistrationAction.VIEWER_3D) {
+								regManager.start3dManualRegistration(regManager.getCurrentRefImage(),imgMovCurrentState);
+								setRunToolTip(MANUAL3D);
+							}
+							else {
+								regManager.start2dManualRegistration(regManager.getCurrentRefImage(),imgMovCurrentState);
+								setRunToolTip(MANUAL2D);								
+								
+							}
+							enable(new int[] {ABORT,RUN});
+							runButton.setBackground(colorGreenRunButton);
+							addLog("Waiting for user to confirm points for evaluation...", 1);
+						}
+						
+						//Finish manual registration
+						else {
+							//Window verifications and wild abort if needed
+							if( ( (boxDisplayMan.getSelectedIndex()==RegistrationAction.VIEWER_3D) || 
+							( (boxDisplayMan.getSelectedIndex()==RegistrationAction.VIEWER_2D) && ( ( RoiManager.getInstance()==null) || (WindowManager.getImage(displayedNameImage1)==null) || (WindowManager.getImage(displayedNameImage2)==null) ) ) ) ) {
+								disable(new int[] {RUN,RUNALL,ABORT});
+								if((WindowManager.getImage(displayedNameImage1)!=null)) WindowManager.getImage(displayedNameImage1).close();
+								if((WindowManager.getImage(displayedNameImage2)!=null)) WindowManager.getImage(displayedNameImage2).close();
+								if(RoiManager.getInstance()!=null)RoiManager.getInstance().close();
+								runButton.setText("Start this action");
+								setRunToolTip(MAIN);
+								enable(new int[] {FINISH,SAVE,SETTINGS,BOXACT,RUN,UNDO});
+								runButton.setBackground(colorStdActivatedButton);
+								actionAborted=false;
+								addLog("Evaluation took a wild abort exception (images may have been closed during the run)...", 1);
+								return;
+							}
+							
+							//Verify number of landmarks, and return if the number of couples is < 5
+							if((regManager.getCurrentAction().typeManViewer==RegistrationAction.VIEWER_2D) && (RoiManager.getInstance().getCount()<10 ) ) {IJ.showMessage("Please identify at least 10 points (5 correspondance couples)");enable(new int[] {RUN,RUNALL});return;}
+							
+							//Closing manual registration
+							disable(new int[] {ABORT,RUN,RUNALL});
+							actionAborted=false;
+							ItkTransform tr=new ItkTransform();
+								
+							regManager.finish2dEvaluation();
+							regManager.finishCurrentAction(tr);
+							updateView();
+							runButton.setText("Start this action");
+							setRunToolTip(MAIN);
+							runButton.setBackground(colorStdActivatedButton);
+							actionAborted=false;
+							enable(new int[] {UNDO,BOXACT,FINISH,SAVE,RUN});
+							enableChainIfPossible();							
+							addLog("Manual registration finished.", 1);
+						}
+					}
+					
+				
+
+					
 					//Axis alignment
 					else if(regManager.getCurrentAction().typeAction==RegistrationAction.TYPEACTION_ALIGN){						
 						disable(new int[] {RUN,RUNALL});
@@ -1261,7 +1344,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
  
 	public void updateBoxFieldsFromRegistrationAction(RegistrationAction reg) {
 		if(modeWindow==WINDOWTWOIMG && (!reg.isTransformationAction())) {reg.typeAction=RegistrationAction.TYPEACTION_MAN;reg.typeTrans=Transform3DType.RIGID ;}
-		boxTypeAction.setSelectedIndex(reg.typeAction < 3 ? reg.typeAction : 0);
+		boxTypeAction.setSelectedIndex(((reg.typeAction < 3)||(reg.typeAction==RegistrationAction.TYPEACTION_EVALUATE)) ? reg.typeAction : 0);
 		boxTypeTrans.setSelectedIndex(reg.typeTrans==Transform3DType.DENSE ? 2 : reg.typeTrans==Transform3DType.RIGID ? 0 : 1);
 		boxDisplay.setSelectedIndex(reg.typeAutoDisplay);
 		boxDisplayMan.setSelectedIndex(reg.typeManViewer);
@@ -1479,9 +1562,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        gd.addChoice("Higher accuracy (subpixellic level)", new String[] {"Yes","No"},regManager.getCurrentAction().higherAcc==1 ? "Yes":"No");
 
 	        gd.addMessage("Blocks dimensions. Blocks are image subparts\nCompared to establish correspondances between ref and mov images");
-	        gd.addNumericField("Block half-size along X", regManager.getCurrentAction().bhsX, 0, 3, "original pixels");
-	        gd.addNumericField("... along Y", regManager.getCurrentAction().bhsY, 0, 3, "original pixels");
-	        gd.addNumericField("... along Z", regManager.getCurrentAction().bhsZ, 0, 3, "original pixels");
+	        gd.addNumericField("Block half-size along X", regManager.getCurrentAction().bhsX, 0, 3, "subsampled pixels");
+	        gd.addNumericField("... along Y", regManager.getCurrentAction().bhsY, 0, 3, "subsampled pixels");
+	        gd.addNumericField("... along Z", regManager.getCurrentAction().bhsZ, 0, 3, "subsampled pixels");
 
 	        gd.addMessage("Maximal distance between matching points (at each iteration)");
 	        gd.addNumericField("Block neighbourhood along X", regManager.getCurrentAction().neighX, 0, 3, "subsampled pixels");

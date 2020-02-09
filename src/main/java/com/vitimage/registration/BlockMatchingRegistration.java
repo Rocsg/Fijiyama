@@ -1258,7 +1258,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 	public double correlationCoefficient(double X[], double Y[]) { 
 		double epsilon=10E-20;
-		if(X.length !=Y.length )IJ.log("In correlationCoefficient in BlockMatching, blocks length does not match");
+		if(X.length !=Y.length ) {return 0;}
 		int n=X.length;
 		boolean flag=false;
 		double sum_X = 0, sum_Y = 0, sum_XY = 0; 

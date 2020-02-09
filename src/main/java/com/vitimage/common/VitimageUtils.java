@@ -1635,6 +1635,17 @@ public interface VitimageUtils {
 		return min;
 	}
 	
+	public static double min(double[]tab){
+		if(tab.length==0) {
+			IJ.log("In VitimageUtils.min, tab is null. Return 0");
+			return 0;
+		}
+		double min=tab[0];
+		for(int i=1;i<tab.length;i++) {
+			if(tab[i]<min)min=tab[i];
+		}
+		return min;
+	}
 	
 	
 	
