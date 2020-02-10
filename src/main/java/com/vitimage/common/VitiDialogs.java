@@ -1,5 +1,4 @@
 package com.vitimage.common;
-//TODO : common
 import javax.swing.JFileChooser;
 
 import com.vitimage.registration.ItkTransform;
