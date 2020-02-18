@@ -41,6 +41,11 @@ import net.imglib2.img.ImgView;
 //TODO : adapter saveSerie pour qu il fasse le taf quelle que soit la serie
 
 public class RegistrationManager{
+	int recursiveCalls=0;
+	public int stepBuild=0;
+	public int ENDING_STEP=10000;
+	ArrayList<ArrayList<RegistrationAction> >interMods=new ArrayList<ArrayList<RegistrationAction> >();
+	ArrayList<RegistrationAction>interTimes;
 	private Fijiyama_GUI fijiyamaGui;
 	public ij3d.Image3DUniverse universe;
 	private int nbCpu=1;
@@ -57,7 +62,7 @@ public class RegistrationManager{
 	private boolean first2dmessageHasBeenViewed=true;
 	private boolean first3dmessageHasBeenViewed=false;
 	
-	private boolean isSerie=false;
+	public boolean isSerie=false;
 	private String serieOutputPath;
 	private String serieFjmFile;
 	private String serieInputPath;
@@ -76,7 +81,7 @@ public class RegistrationManager{
 	private int step=0;
 	private int nSteps=0;
 	
-	private String[][]paths;
+	public String[][]paths;
 	private int[][][]initDimensions;
 	private int[][][]dimensions;
 	private boolean isSubSampled[][];
@@ -139,8 +144,9 @@ public class RegistrationManager{
 		this.serieInputPath=(lines[4].split("=")[1]);
 		this.step=Integer.parseInt(lines[7].split("=")[1]);
 		this.nSteps=Integer.parseInt(lines[8].split("=")[1]);
-
+		
 		if(! isSerie) {
+			fijiyamaGui.mode=Fijiyama_GUI.MODE_TWO_IMAGES;
 			this.nTimes=1;
 			this.nMods=2;
 			this.referenceTime=0;this.referenceModality=0;
@@ -152,18 +158,25 @@ public class RegistrationManager{
 			fijiyamaGui.modeWindow=Fijiyama_GUI.WINDOWTWOIMG;
 		}
 		else {
+			fijiyamaGui.mode=Fijiyama_GUI.MODE_SERIE;
 			fijiyamaGui.modeWindow=Fijiyama_GUI.WINDOWSERIERUNNING;
 			this.referenceTime=Integer.parseInt(lines[5].split("=")[1]);
 			this.referenceModality=Integer.parseInt(lines[6].split("=")[1]);
 			//Read modalities
 			this.nMods=Integer.parseInt(lines[10].split("=")[1]);
-			this.mods=new String[this.nMods];
-			for(int i=0;i<this.nMods;i++)this.mods[i]=lines[11+i].split("=")[1];
-
+			if(this.nMods>1) {
+				this.mods=new String[this.nMods];
+				for(int i=0;i<this.nMods;i++)this.mods[i]=lines[11+i].split("=")[1];
+			}
+			
 			//Read times and nSteps
 			this.nTimes=Integer.parseInt(lines[12+this.nMods].split("=")[1]);
-			this.times=new String[this.nTimes];
-			for(int i=0;i<this.nTimes;i++)this.times[i]=lines[13+this.nMods+i].split("=")[1];
+			if(this.nTimes>1) {
+				this.times=new String[this.nTimes];
+				for(int i=0;i<this.nTimes;i++) {
+					this.times[i]=lines[13+this.nMods+i].split("=")[1];
+				}
+			}
 			this.expression=lines[14+this.nMods+this.nTimes].split("=")[1];
 
 			this.setupStructures();
@@ -172,14 +185,15 @@ public class RegistrationManager{
 			for(int nt=0;nt<this.nTimes;nt++) {
 				for(int nm=0;nm<this.nMods;nm++) {
 					File f=new File(this.serieInputPath,expression.replace("{Time}", times[nt]).replace("{ModalityName}",mods[nm]));
-					IJ.log("Serie images lookup : checking existence of image "+f.getAbsolutePath());
+					IJ.log("Series images lookup : checking existence of image "+f.getAbsolutePath());
 					if(f.exists()) {
-						IJ.log(" ... Found !");
+						IJ.log("       Found.");
 						this.paths[nt][nm]=f.getAbsolutePath();
 					}
-					else IJ.log(" ... not found !");
+					else IJ.log("      Not found.");
 				}
 			}
+			IJ.log("");
 		}
 	
 		//Check computer capacity and get a working copy of images
@@ -194,7 +208,7 @@ public class RegistrationManager{
 			RegistrationAction regTemp=RegistrationAction.readFromTxtFile(f.getAbsolutePath());
 			if(regTemp.isDone()) {
 				f=new File(dirReg,"Transform_Step_"+st+".txt");
-				System.out.println("LOOKING FOR "+f);
+				IJ.log("Transformation lookup : "+f);
 				if(regTemp.typeTrans!=Transform3DType.DENSE || regTemp.typeAction>=3)trTemp=ItkTransform.readTransformFromFile(f.getAbsolutePath());
 				else trTemp=ItkTransform.readAsDenseField(f.getAbsolutePath());				
 			}
@@ -227,19 +241,31 @@ public class RegistrationManager{
 		return true;
 	}
 	
-	public void setupSerieFromScratch(){
-		
+	public void startSetupSerieFromScratch(){
 		if(!createOutputPathAndFjmFile())return;
 		if(!defineInputData())return;
 		this.isSerie=true;
 		checkComputerCapacity();
 		openImagesAndCheckOversizing();
+		this.stepBuild=0;
 		defineSerieRegistrationPipeline();
+	}
+
+	public void endSetupSerieFromScratch(){
 		step=0;
 		this.updateNbSteps();
+	
 		currentRegAction=regActions.get(0);
 		String fjmFile=saveSerieToFjmFile();
 		setupFromFjmFile(fjmFile);
+		fijiyamaGui.modeWindow=fijiyamaGui.WINDOWSERIERUNNING;
+		
+		fijiyamaGui.startSerie();
+		fijiyamaGui.frameLaunch.setVisible(false);
+		step=0;
+		currentRegAction=regActions.get(step);
+		this.updateNbSteps();
+		fijiyamaGui.updateList();
 	}
 	
 
@@ -249,11 +275,14 @@ public class RegistrationManager{
 	
 	/*Setup helpers ********************************************************************************************************************/
 	public String[] getRefAndMovPaths() {
-		String pathToRef=VitiDialogs.openJFileUI("Choose a reference (fixed) image", "", "");
+		String pathToRef;
+		try{pathToRef=VitiDialogs.openJFileUI("Choose a reference (fixed) image", "", "");} catch (Exception e) {return null;}
+		if(pathToRef==null)return null;
 		String dirRef=new File(pathToRef).getParent();
 		VitimageUtils.waitFor(200);
-		String pathToMov=VitiDialogs.openJFileUI("Choose a moving image to align with the reference image", dirRef, "");
-		if((pathToRef==null) || (pathToMov==null))return null;
+		String pathToMov;
+		try{pathToMov=VitiDialogs.openJFileUI("Choose a moving image to align with the reference image", dirRef, "");} catch (Exception e) {return null;}
+		if( (pathToMov==null))return null;
 		else return (new String[] {pathToRef,pathToMov}  );
 	}
 		
@@ -262,7 +291,7 @@ public class RegistrationManager{
 			if(fijiyamaGui.currentContextIsSerie())this.serieOutputPath="/home/fernandr/Bureau/Test/SERIE/OUTPUT_DIR";
 			else this.serieOutputPath="/home/fernandr/Bureau/Test/TWOIMG/OUTPUT_DIR";
 		}
-		else this.serieOutputPath=VitiDialogs.chooseDirectoryUI("Select this output directory for your work","Select an empty output directory to begin a new work");
+		else this.serieOutputPath=VitiDialogs.chooseDirectoryUI("Select an output directory for your work","Select an empty output directory to begin a new work");
 		if(this.serieOutputPath==null) {IJ.showMessage("No output path given. Abort");return false ;}
 		this.serieFjmFile=null;
 		String[]files=new File(this.serieOutputPath).list();
@@ -276,9 +305,9 @@ public class RegistrationManager{
 	}
 	
 	public boolean defineInputData() {
-		this.expression="img_t{Time}_mod{ModalityName}.tif";
-		String strTimes="1-3";
-		String strMods="MRI;RX";
+		this.expression="img_t{Time}_mod{ModalityName}.tif";//"{ModalityName}.tif";//
+		String strTimes="1-3";//"";//
+		String strMods="MRI;RX";//"PHOTO;
 	
 		this.serieInputPath=(fijiyamaGui.getAutoRepMode()) ? "/home/fernandr/Bureau/Test/SERIE/INPUT_DIR" : VitiDialogs.chooseDirectoryUI("Select an input directory containing 3d images","Select input dir...");
 		if(this.serieInputPath==null){IJ.showMessage("Input path = null. Exit");return false;}
@@ -286,10 +315,10 @@ public class RegistrationManager{
 		if(!fijiyamaGui.getAutoRepMode()) {
 			GenericDialog gd=new GenericDialog("Describe file names with a generic expression");
 			gd.addMessage("Write observation times. If no multiple times, leave blank. Example : 1-5 or 10;33;78 ");
-			gd.addStringField("Times=", "1-3", 40);
+			gd.addStringField("Times=", strTimes, 40);
 			gd.addMessage("");
 			gd.addMessage("Write modalities. If no multiple modalities, leave blank. Example : RX;MRI;PHOTO ");
-			gd.addStringField("Modalities=", "MRI;RX", 40);
+			gd.addStringField("Modalities=", strMods, 40);
 			gd.addMessage("");
 			gd.addMessage("Write expression describing your files, with {ModalityName} for modalities and {Time} for times");
 			gd.addStringField("Generic expression", this.expression, 50);
@@ -305,7 +334,7 @@ public class RegistrationManager{
 			this.nTimes=this.times.length;
 			this.nMods=this.mods.length;
 			setupStructures();			
-		}catch(Exception e) {IJ.showMessage("Exception when reading parameters. Abort");return false;}
+		}catch(Exception e) {IJ.showMessage("Exception when reading parameters. Abort");e.printStackTrace();return false;}
 		int []numberPerTime=new int[this.nTimes];
 		int []numberPerMod=new int[this.nMods];
 		int nbTot=0;
@@ -340,16 +369,14 @@ public class RegistrationManager{
 			gd2.addMessage("");
 			gd2.addMessage("After reference modality, you will have to choose the reference time. The dirst one is the recommended choice");
 			gd2.addChoice("Reference modality", potentialRef, potentialRef[0]);
-			gd2.addChoice("Reference time", this.times, times[0]);
 			gd2.showDialog();
 			if(gd2.wasCanceled()){IJ.showMessage("Dialog exited. Abort");return false;}
 			int refInd=gd2.getNextChoiceIndex();
 			this.referenceModality=potentialRefIndex[refInd];
-			this.referenceTime=gd2.getNextChoiceIndex();
+			this.referenceTime=0;
 		}		
 		
 		IJ.log("\nReference modality             : nb."+this.referenceModality+" = "+this.mods[this.referenceModality]);
-		IJ.log("Reference time                 : nb."+this.referenceTime+" = "+this.times[this.referenceTime]);
 		IJ.log("Serie input path               : "+this.serieInputPath);
 		IJ.log("Serie output path              : "+this.serieOutputPath);
 		IJ.log("Times                          : "+strTimes);
@@ -367,12 +394,16 @@ public class RegistrationManager{
 
 	
 	public void defineSerieRegistrationPipeline() {
-		fijiyamaGui.modeWindow=Fijiyama_GUI.WINDOWSERIEPROGRAMMING;
-		ArrayList<RegistrationAction>interTimes=new ArrayList<RegistrationAction> ();
-		ArrayList<ArrayList<RegistrationAction>>interMods=new ArrayList<ArrayList<RegistrationAction> >();
-
-		//Define inter-time pipeline, if needed
-		if(this.nTimes>1) {
+		recursiveCalls++;
+		if(recursiveCalls>50)return;
+		if(this.stepBuild==0) {
+			fijiyamaGui.modeWindow=Fijiyama_GUI.WINDOWSERIEPROGRAMMING;
+			ArrayList<ArrayList<RegistrationAction>>interMods=new ArrayList<ArrayList<RegistrationAction> >();
+			if(this.nTimes<=1)this.stepBuild=3;
+			else this.stepBuild=1;
+		}
+		
+		if(this.stepBuild==1) {
 			this.regActions=new ArrayList<RegistrationAction>();
 			this.regActions.add(RegistrationAction.createRegistrationAction(
 					images[referenceTime][referenceModality],images[referenceTime][referenceModality],
@@ -383,154 +414,145 @@ public class RegistrationManager{
 			this.currentRegAction=regActions.get(0);
 			this.nSteps=2;
 			fijiyamaGui.startRegistrationInterface();
+			fijiyamaGui.interfaceIsRunning=true;
 			this.currentRegAction=this.regActions.get(0);
 			fijiyamaGui.updateBoxFieldsFromRegistrationAction(currentRegAction);
 			fijiyamaGui.validatePipelineButton.setText("Approve inter-time pipeline");
 			if(!fijiyamaGui.getAutoRepMode())IJ.showMessage("Define registration pipeline to align images of the reference modality between two successive times.\n"+
 			"Click on an action in the bottom list, and modify it using the menus. Click on remove to delete the selected action, \n"+
 			"and click on add action to insert a new registration action just before the cursor\n\nOnce done, click on Validate pipeline.");
-			fijiyamaGui.waitForValidation();
-			interTimes=this.regActions;
+			this.stepBuild++;
+			return;
 		}
-		if(fijiyamaGui.developerMode)printRegActions("Intertime pipeline", interTimes);
-		fijiyamaGui.registrationFrame.setVisible(false);
-		VitimageUtils.waitFor(300);
-		fijiyamaGui.registrationFrame.setVisible(true);
+
+		if(this.stepBuild==2) {		
+			interTimes=this.regActions;
+			if(fijiyamaGui.developerMode)printRegActions(" comIntertime pipeline", interTimes);
+			fijiyamaGui.registrationFrame.setVisible(false);
+			VitimageUtils.waitFor(150);
+			fijiyamaGui.registrationFrame.setVisible(true);
+			this.stepBuild=3;
+			defineSerieRegistrationPipeline();
+		}
 		
 		
 		//Define inter-mods pipeline, if needed
-		if(this.nTimes>1) {
-			for(int curMod=0;curMod<this.nMods;curMod++) {
-				if(curMod == referenceModality) interMods.add(null);
-				else {
-					this.regActions=new ArrayList<RegistrationAction>();
-					this.regActions.add(RegistrationAction.createRegistrationAction(
-							images[referenceTime][referenceModality],images[referenceTime][referenceModality],  this.fijiyamaGui,this,RegistrationAction.TYPEACTION_MAN));
-					this.regActions.add(RegistrationAction.createRegistrationAction(
-							images[referenceTime][referenceModality],images[referenceTime][referenceModality], this.fijiyamaGui,this,RegistrationAction.TYPEACTION_AUTO).setStepTo(1));
-					this.currentRegAction=this.regActions.get(0);
-					this.nSteps=2;
-					fijiyamaGui.updateBoxFieldsFromRegistrationAction(currentRegAction);
-					if(!fijiyamaGui.getAutoRepMode())IJ.showMessage("Define registration pipeline to align "+this.mods[referenceModality]+" with "+this.mods[curMod]+" from the same timepoint.\n"+
-							"Click on an action in the bottom list, and modify it using the menus. Click on remove to delete the selected action, \n"+
-							"and click on add action to insert a new registration action just before the cursor\n\nOnce done, click on Validate pipeline.");
-					fijiyamaGui.validatePipelineButton.setText("Approve "+this.mods[curMod]+"->"+this.mods[referenceModality]+" pipeline");
-					fijiyamaGui.waitForValidation();
-					interMods.add(this.regActions);
-					if(fijiyamaGui.developerMode)printRegActions("Intermod "+curMod+" pipeline", interMods.get(interMods.size()-1));
-				}
-			}
+		if(this.stepBuild!=ENDING_STEP && this.nMods<2) {
+			this.stepBuild=ENDING_STEP;defineSerieRegistrationPipeline();return;
 		}
-		fijiyamaGui.registrationFrame.setVisible(false);
-		fijiyamaGui.registrationFrame.dispose();
-		sequenceStepsOfTheCreatedPipeline(interTimes, interMods);
+		if(this.stepBuild<ENDING_STEP && this.stepBuild>=3 && ((this.stepBuild%2)==1)){
+			int curMod=(this.stepBuild-3)/2;
+			if(curMod>=this.nMods) {this.stepBuild=ENDING_STEP;defineSerieRegistrationPipeline();return;}
+			if(curMod == referenceModality) { interMods.add(null);this.stepBuild+=2;defineSerieRegistrationPipeline();return;}
+			else {
+
+				this.regActions=new ArrayList<RegistrationAction>();
+				this.regActions.add(RegistrationAction.createRegistrationAction(
+						images[referenceTime][referenceModality],images[referenceTime][referenceModality],  this.fijiyamaGui,this,RegistrationAction.TYPEACTION_MAN));
+				this.regActions.add(RegistrationAction.createRegistrationAction(
+						images[referenceTime][referenceModality],images[referenceTime][referenceModality], this.fijiyamaGui,this,RegistrationAction.TYPEACTION_AUTO).setStepTo(1));
+				this.currentRegAction=this.regActions.get(0);
+				this.nSteps=2;
+				if(!fijiyamaGui.interfaceIsRunning) {fijiyamaGui.startRegistrationInterface();fijiyamaGui.interfaceIsRunning=true;}
+				else {
+					fijiyamaGui.registrationFrame.setVisible(false);
+					VitimageUtils.waitFor(150);
+					fijiyamaGui.registrationFrame.setVisible(true);
+				}
+				fijiyamaGui.updateBoxFieldsFromRegistrationAction(currentRegAction);
+				if(!fijiyamaGui.getAutoRepMode()) {
+					VitiDialogs.getYesNoUI("","Define registration pipeline to align "+this.mods[referenceModality]+" with "+this.mods[curMod]+" from the same timepoint.\n"+
+						"Click on an action in the bottom list, and modify it using the menus. Click on remove to delete the selected action, \n"+
+						"and click on add action to insert a new registration action just before the cursor\n\nOnce done, click on Validate pipeline.");
+					
+				}
+				fijiyamaGui.validatePipelineButton.setText("Approve "+this.mods[curMod]+"->"+this.mods[referenceModality]+" pipeline");
+				fijiyamaGui.validatePipelineButton.setEnabled(true);
+			}
+			this.stepBuild++;
+			return;				
+		}
+				
+		//Define inter-mods pipeline, if needed
+		if(this.stepBuild<ENDING_STEP && this.stepBuild>=3 && this.stepBuild%2==0){
+			int curMod=(this.stepBuild-3)/2;
+			interMods.add(this.regActions);
+			if(fijiyamaGui.developerMode)printRegActions("Intermod "+curMod+" pipeline", interMods.get(interMods.size()-1));
+			this.stepBuild++;
+			defineSerieRegistrationPipeline();
+		}
+
 		
+		
+		if(this.stepBuild==ENDING_STEP) {		
+			fijiyamaGui.registrationFrame.setVisible(false);
+			fijiyamaGui.registrationFrame.dispose();
+			sequenceStepsOfTheCreatedPipeline(interTimes, interMods);
+			this.stepBuild++;
+			endSetupSerieFromScratch();
+		}
 	}
 	
 
 	public void sequenceStepsOfTheCreatedPipeline(ArrayList<RegistrationAction>interTimes,ArrayList<ArrayList<RegistrationAction> >interMods) {
-		
-			//Build sequence of steps
-		boolean sequenceRegistrationSaveHumanTime=true;/*VitiDialogs.getYesNoUI("Sequencing order tradeoff", "Do you want the sequence to be fit to save human time ? \n"+
-				"The \"No\" option means you prefer the sequence being stuck on the logical order of the serie,\n"+
-				" alternating automatic steps with manual steps where human presence is compulsory. ");*/
-		
-		//If pipeline is in logical order
-		if(!sequenceRegistrationSaveHumanTime) {
-			this.step=-1;
-			this.regActions=new ArrayList<RegistrationAction>();
+		this.step=-1;
+		this.regActions=new ArrayList<RegistrationAction>();
+		int[]typeSuccessives=new int[] {0,1};//MAn then AUTO
+		for(int type : typeSuccessives) {
 			for(int tRef=0;tRef<this.nTimes-1;tRef++) {
 				refTime=tRef;refMod=referenceModality;
 				movTime=tRef+1;movMod=referenceModality;
 				for(int regSt=0;regSt<interTimes.size();regSt++) {
-					this.step++;
-					regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(regSt),refTime,refMod,movTime,movMod,step));
+					if(interTimes.get(regSt).typeAction==type) {
+						this.step++;
+						regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(regSt),refTime,refMod,movTime,movMod,step));
+					}
 				}
+			}
+			if(regActions.size()>0 && regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_SAVE) {
+				this.step++;
 				regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
 			}
-			for(int tRef=0;tRef<this.nTimes-1;tRef++) {
+			
+			for(int tRef=0;tRef<this.nTimes;tRef++) {
 				refTime=tRef;refMod=referenceModality;
 				movTime=tRef;
 				for(int mMov=0;mMov<this.nMods;mMov++) {
 					movMod=mMov;
-					if(refMod != movMod) {
+					if(refMod != movMod && imageExists(movTime, movMod)) {
 						for(int regSt=0;regSt<interMods.get(movMod).size();regSt++) {
-							this.step++;
-							regActions.add(RegistrationAction.copyWithModifiedElements(interMods.get(movMod).get(regSt),refTime,refMod,movTime,movMod,step));
-							this.step++;
-							regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
-						}
-						this.step++;
-						regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
-					}
-				}
-			}
-			if(regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_VIEW) {
-				this.step++;
-				regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
-			}
-		}
-		//If pipeline is in human-time saving mode
-		else {
-			this.step=-1;
-			this.regActions=new ArrayList<RegistrationAction>();
-			int[]typeSuccessives=new int[] {0,1};//MAn then AUTO
-			for(int type : typeSuccessives) {
-				for(int tRef=0;tRef<this.nTimes-1;tRef++) {
-					refTime=tRef;refMod=referenceModality;
-					movTime=tRef+1;movMod=referenceModality;
-					for(int regSt=0;regSt<interTimes.size();regSt++) {
-						if(interTimes.get(regSt).typeAction==type) {
-							this.step++;
-							regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(regSt),refTime,refMod,movTime,movMod,step));
-						}
-					}
-				}
-				if(regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_SAVE) {
-					this.step++;
-					regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
-				}
-				
-				for(int tRef=0;tRef<this.nTimes;tRef++) {
-					refTime=tRef;refMod=referenceModality;
-					movTime=tRef;
-					for(int mMov=0;mMov<this.nMods;mMov++) {
-						movMod=mMov;
-						if(refMod != movMod && imageExists(movTime, movMod)) {
-							for(int regSt=0;regSt<interMods.get(movMod).size();regSt++) {
-								if(interMods.get(movMod).get(regSt).typeAction==type) {
-									this.step++;
-									regActions.add(RegistrationAction.copyWithModifiedElements(interMods.get(movMod).get(regSt),refTime,refMod,movTime,movMod,step));
-								}
+							if(interMods.get(movMod).get(regSt).typeAction==type) {
+								this.step++;
+								regActions.add(RegistrationAction.copyWithModifiedElements(interMods.get(movMod).get(regSt),refTime,refMod,movTime,movMod,step));
 							}
 						}
 					}
 				}
-				if(regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_VIEW) {
-					this.step++;
-					regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
-				}
-				if(regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_SAVE) {
-					this.step++;
-					regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
-				}
+			}
+			if(regActions.size()>0 && regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_VIEW) {
+				this.step++;
+				
+				regActions.add(new RegistrationAction().setActionTo(RegistrationAction.TYPEACTION_VIEW).setStepTo(step));
+			}
+			if(regActions.size()>0 && regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_SAVE) {
+				this.step++;
+				regActions.add(new RegistrationAction().setActionTo(RegistrationAction.TYPEACTION_SAVE).setStepTo(step));
 			}
 		}
 		this.step++;
-		regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_ALIGN));
-		if(regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_VIEW) {
+		regActions.add(RegistrationAction.copyWithModifiedElements(RegistrationAction.copyWithModifiedElements(regActions.get(0),refTime,refMod,movTime,movMod,step),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_ALIGN));
+		if(regActions.size()>0 && regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_VIEW) {
 			this.step++;
-			regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
+			regActions.add(RegistrationAction.copyWithModifiedElements(RegistrationAction.copyWithModifiedElements(regActions.get(0),refTime,refMod,movTime,movMod,step),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
 		}
-		if(regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_SAVE) {
+		if(regActions.size()>0 && regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_SAVE) {
 			this.step++;
-			regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
+			regActions.add(RegistrationAction.copyWithModifiedElements(RegistrationAction.copyWithModifiedElements(regActions.get(0),refTime,refMod,movTime,movMod,step),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
 		}
 		this.step++;
-		regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_EXPORT));
+		regActions.add(RegistrationAction.copyWithModifiedElements(RegistrationAction.copyWithModifiedElements(regActions.get(0),refTime,refMod,movTime,movMod,step),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_EXPORT));
 		if(fijiyamaGui.developerMode)printRegActions("Global pipeline at export",regActions);
 		this.nSteps=this.step;
-		
 		this.step=0;
 	}
 	
@@ -629,6 +651,7 @@ public class RegistrationManager{
 				for(int nm=0;nm<this.nMods;nm++) {
 					if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 						img=IJ.openImage(this.paths[nt][nm]);
+						if(img.getType()==ImagePlus.COLOR_RGB)IJ.run(img,"8-bit","");
 						if(this.initDimensions[nt][nm][3]*this.initDimensions[nt][nm][4]>1)img=VitimageUtils.stacksFromHyperstackFastBis(img)[0];
 						ImageProcessor ip=img.getStack().getProcessor(img.getStackSize()/2+1);
 						ip.resetMinAndMax();
@@ -736,6 +759,13 @@ public class RegistrationManager{
 		img=null;
 		for(int nt=0;nt<this.nTimes;nt++)for(int nm=0;nm<this.nMods;nm++) if(imageExists(nt,nm)) {
 			if(this.transforms[nt][nm]==null) {transforms[nt][nm]=new ArrayList<ItkTransform>();}
+			if(this.images[nt][nm].getType()==ImagePlus.COLOR_RGB) {
+				IJ.run(this.images[nt][nm],"8-bit","");
+				ImageProcessor ip=this.images[nt][nm].getStack().getProcessor(this.images[nt][nm].getStackSize()/2+1);
+				ip.resetMinAndMax();
+				this.imageRanges[nt][nm][0]=ip.getMin();
+				this.imageRanges[nt][nm][1]=ip.getMax();
+			}
 		}
 		System.gc();
 		fijiyamaGui.viewSlice=images[0][0].getStackSize()/2+1;
@@ -774,7 +804,13 @@ public class RegistrationManager{
 		if(fijiyamaGui.modeWindow==Fijiyama_GUI.WINDOWSERIEPROGRAMMING) {
 			str+="#Step="+ (Math.min(this.getNbSteps()-1, this.step))+"\n";
 		}
-		else str+="#Step="+ (Math.min(this.getNbSteps()-1, this.step+((fijiyamaGui.modeWindow==Fijiyama_GUI.WINDOWSERIERUNNING && this.getStep()>0) ? 0 : 1)))+"\n";
+		else if(fijiyamaGui.modeWindow==Fijiyama_GUI.WINDOWSERIERUNNING) {
+			if(this.getStep()>0)str+="#Step="+ (Math.min(this.getNbSteps()-1, this.step))+"\n";
+			else str+="#Step="+ (Math.min(this.getNbSteps()-1, this.step+1))+"\n";		
+		}
+		else {
+			str+="#Step="+ (Math.min(this.getNbSteps()-1, this.step+ 1))+"\n";
+		}
 		str+="#NbSteps="+ this.nSteps+"\n";
 		str+="#"+""+"\n";
 		if(isSerie) {			
@@ -869,6 +905,7 @@ public class RegistrationManager{
 		if(fijiyamaGui.modeWindow==Fijiyama_GUI.MODE_TWO_IMAGES )fijiyamaGui.addLog("Waiting for you to "+"set and start next action : Step "+currentRegAction.step,0);
 		else fijiyamaGui.addLog("Waiting for you to "+ "start"+" next action : "+currentRegAction.readableString(false),0);
 		fijiyamaGui.updateList();
+		fijiyamaGui.updateEstimatedTime();
 	}
 		
 	public RegistrationAction switchToFollowingAction(){
@@ -890,7 +927,7 @@ public class RegistrationManager{
 		else {
 			this.step++;
 			currentRegAction=regActions.get(step);
-			if(currentRegAction.isTransformationAction())fijiyamaGui.updateBoxFieldsFromRegistrationAction(currentRegAction);
+			if(currentRegAction.isTransformationAction() && (!isSerie))fijiyamaGui.updateBoxFieldsFromRegistrationAction(currentRegAction);
 			return currentRegAction;
 		}
 	}
@@ -921,9 +958,12 @@ public class RegistrationManager{
 		tr.step=this.step;// ? TODO : Investigate why is it needed that the transform know its step ? Is it for a future lookup ?
 		this.transforms[nt][nm].add(tr);
 		this.trActions.add(tr);
-		if(regActions.size()==(step+1) && fijiyamaGui.isRunningSerie()){
-			fijiyamaGui.serieIsFinished();
+		if(fijiyamaGui.isRunningSerie()){
+			if(regActions.size()==(step+1)) {
+				fijiyamaGui.serieIsFinished();
 			return false;
+			}
+			else currentRegAction=regActions.get(step+1);
 		}
 		return true;
 	}
@@ -1022,8 +1062,8 @@ public class RegistrationManager{
 		universe.getSelected().showCoordinateSystem(true);
 		if(fijiyamaGui.isRunningTwoImagesTraining()) {
 			universe.setSize(fijiyamaGui.lastViewSizes[0], fijiyamaGui.lastViewSizes[1]);
-			VitimageUtils.adjustFrameOnScreenRelative((Frame)((JPanel)(this.universe.getCanvas().getParent())).getParent().getParent().getParent(),fijiyamaGui.imgView.getWindow(),3,3,10);
-		}
+			VitimageUtils.adjustFrameOnScreenRelative((Frame)((JPanel)(this.universe.getCanvas().getParent())).getParent().getParent().getParent(),fijiyamaGui.registrationFrame,3,3,10);
+			}
 		else VitimageUtils.adjustFrameOnScreenRelative((Frame)((JPanel)(this.universe.getCanvas().getParent())).getParent().getParent().getParent(),fijiyamaGui.registrationFrame,0,0,10);
 		if(!fijiyamaGui.getAutoRepMode() && (!first3dmessageHasBeenViewed)) {
 			String mess=sentence+"\nWhen done, push the \""+fijiyamaGui.getRunButtonText()+"\" button to stop.\n.\nControls : \n";
@@ -1037,10 +1077,9 @@ public class RegistrationManager{
 				"For accurate translations, use the numerical keypad (4 & 6 for X axis, 2 & 8 for Y axis, 0 & 5 for Z axis)\n";				
 			}
 			mess+="- To zoom / unzoom, scroll with the mouse or use pageup and pagedown";
-
 			IJ.showMessage(mess);			
-		}
-       
+			}
+
 		first3dmessageHasBeenViewed=true;
 		fijiyamaGui.addLog(" Waiting for you to confirm position or to abort action...",0);
 	}
@@ -1089,7 +1128,7 @@ public class RegistrationManager{
 		refCopy.setTitle(fijiyamaGui.displayedNameImage1);
 		if(imgMov!=null) {
 			movCopy=VitimageUtils.imageCopy(imgMov);		
-			movCopy.resetDisplayRange();
+			//movCopy.resetDisplayRange();
 			IJ.run(movCopy,"8-bit","");
 			movCopy.setTitle(fijiyamaGui.displayedNameImage2);
 		}
@@ -1114,6 +1153,38 @@ public class RegistrationManager{
 		fijiyamaGui.addLog(" Waiting for you to confirm position or to abort action...",0);
 	}
 	
+	public void start2dManualRegistrationThreeFold(ImagePlus imgRef,ImagePlus imgMov,ImagePlus imgMov2) {
+		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
+		ImagePlus movCopy=null;
+		ImagePlus movCopyOpt=null;
+		IJ.run(refCopy,"8-bit","");
+		refCopy.setTitle(fijiyamaGui.displayedNameImage1);
+		movCopy=VitimageUtils.imageCopy(imgMov);		
+		IJ.run(movCopy,"8-bit","");
+		movCopy.setTitle(fijiyamaGui.displayedNameImage2);
+
+		movCopyOpt=VitimageUtils.imageCopy(imgMov2);		
+		IJ.run(movCopyOpt,"8-bit","");
+		movCopyOpt.setTitle(fijiyamaGui.displayedNameImage3);
+		
+		IJ.setTool("point");
+		refCopy.show();refCopy.setSlice(refCopy.getStackSize()/2+1);refCopy.updateAndRepaintWindow();
+		VitimageUtils.adjustFrameOnScreen((Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage1), 0,2);
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		VitimageUtils.adjustFrameOnScreenRelative((Frame)rm,(Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage1),2,1,2);
+
+		movCopy.show();movCopy.setSlice(movCopy.getStackSize()/2+1);movCopy.updateAndRepaintWindow();
+		VitimageUtils.adjustFrameOnScreenRelative((Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage2),rm,2,2,2);
+
+		movCopyOpt.show();movCopyOpt.setSlice(movCopyOpt.getStackSize()/2+1);movCopyOpt.updateAndRepaintWindow();
+		VitimageUtils.adjustFrameOnScreenRelative((Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage3),rm,2,2,2);
+
+		if(!fijiyamaGui.getAutoRepMode() && first2dmessageHasBeenViewed)IJ.showMessage("Examine images, identify correspondances between images and use the Roi manager to build a list of correspondances points. Points should be given this way : \n- Point A  in image 1\n- Correspondant of point A  in image 2\n- Correspondant of point A  in image 3\n- Point B  in image 1\n- Correspondant of point B  in image 2\n- Correspondant of point B  in image 3\netc...\n"+
+		"Once done (at least 5-15 couples of corresponding points), push the \""+fijiyamaGui.getRunButtonText()+"\" button to stop\n\n");
+		first2dmessageHasBeenViewed=false;
+		fijiyamaGui.addLog(" Waiting for you to confirm position or to abort action...",0);
+	}
 
 	public ItkTransform finish2dManualRegistration(){
 		RoiManager rm=RoiManager.getRoiManager();
@@ -1138,7 +1209,8 @@ public class RegistrationManager{
 	public ItkTransform finish2dEvaluation(){
 		RoiManager rm=RoiManager.getRoiManager();
 		Point3d[][]pointTabImg=convertLandmarksToPoints(WindowManager.getImage(fijiyamaGui.displayedNameImage1),WindowManager.getImage(fijiyamaGui.displayedNameImage2),false);
-		double []voxSizes=VitimageUtils.getVoxelSizes(getCurrentRefImage());
+		double []voxSizesReg=VitimageUtils.getVoxelSizes(getCurrentRefImage());
+		double []voxSizesEvaluate=VitimageUtils.getVoxelSizes(WindowManager.getImage(fijiyamaGui.displayedNameImage1));
 		WindowManager.getImage(fijiyamaGui.displayedNameImage1).changes=false;
 		WindowManager.getImage(fijiyamaGui.displayedNameImage2).changes=false;
 		WindowManager.getImage(fijiyamaGui.displayedNameImage1).close();
@@ -1148,8 +1220,8 @@ public class RegistrationManager{
 		
 		IJ.log("Registration evaluation : computing distance between corresponding points.");
 		int nCouples=pointTabImg[0].length;
-		double[][]dataExport=new double[nCouples][3+3+3+3+2];//coordIntRef, coordIntMov,DistanceImg,distanceReal,GlobDistImg,GlobDistReal
-		double[][]dataStats=new double[4][3+3+3+3+2];//coordIntRef, coordIntMov,DistanceImg,distanceReal,GlobDistImg,GlobDistReal
+		double[][]dataExport=new double[nCouples][3+3+3+3+1];//coordIntRef, coordIntMov,DistanceImg,distanceReal,GlobDistReal
+		double[][]dataStats=new double[4][3+3+3+3+1];//coordIntRef, coordIntMov,DistanceImg,distanceReal,GlobDistReal
 		double[]data;
 		for(int i=0;i<nCouples;i++) {
 			//Coordinates of reference point
@@ -1162,18 +1234,16 @@ public class RegistrationManager{
 			dataExport[i][3+1]=pointTabImg[1][i].y;
 			dataExport[i][3+2]=pointTabImg[1][i].z;
 
-			//Distance in voxels and in real space (unit), along each dimension
+			//Distance in voxels in the registration image space and in real space (unit), along each dimension
 			for(int dim=0;dim<3;dim++) {
-				dataExport[i][6+dim]= Math.abs(  dataExport[i][0+dim] - dataExport[i][3+dim]);
-				dataExport[i][9+dim]= dataExport[i][6+dim]*voxSizes[dim];
-			}
-			
-			dataExport[i][12]=Math.sqrt(dataExport[i][6]*dataExport[i][6] + dataExport[i][6+1]*dataExport[i][6+1] + dataExport[i][6+2]*dataExport[i][6+2]);
-			dataExport[i][13]=Math.sqrt(dataExport[i][9]*dataExport[i][9] + dataExport[i][9+1]*dataExport[i][9+1] + dataExport[i][9+2]*dataExport[i][9+2]);
+				dataExport[i][6+dim]= Math.abs(  dataExport[i][0+dim] - dataExport[i][3+dim])*voxSizesReg[dim]/voxSizesEvaluate[dim];
+				dataExport[i][9+dim]= dataExport[i][6+dim]*voxSizesEvaluate[dim];
+			}			
+			dataExport[i][12]=Math.sqrt(dataExport[i][9]*dataExport[i][9] + dataExport[i][9+1]*dataExport[i][9+1] + dataExport[i][9+2]*dataExport[i][9+2]);
 		}
 
 		double[][]transposedData=VitimageUtils.transposeTab(dataExport);
-		for(int i=0;i<3+3+3+3+2;i++) {
+		for(int i=0;i<3+3+3+3+1;i++) {
 			dataStats[0][i]=VitimageUtils.min(transposedData[i]);
 			dataStats[1][i]=VitimageUtils.max(transposedData[i]);
 			dataStats[2][i]=VitimageUtils.statistics1D(transposedData[i])[0];
@@ -1185,16 +1255,16 @@ public class RegistrationManager{
 		String unit=getCurrentRefImage().getCalibration().getUnit();
 		String s="#Point,Ref_pt._X,Ref_pt._Y,Ref_pt._Z,"+     "Mov_pt._X,Mov_pt._Y,Mov_pt._Z,"+
 				 "deltaX(pixels),deltaY(pixels),deltaZ(pixels),"+     "deltaX("+unit+"),deltaY("+unit+"),deltaZ("+unit+"),"+
-				 "Distance(pixels),Distance("+unit+")\n";
+				 "Distance("+unit+")\n";
 		for(int pt=0;pt<nCouples;pt++) {
 			s+="Point_"+pt;
-			for(int dat=0;dat<3+3+3+3+2;dat++)s+=","+dataExport[pt][dat];
+			for(int dat=0;dat<3+3+3+3+1;dat++)s+=","+dataExport[pt][dat];
 			s+="\n";
 		}		
 		String[]measurements= {"Min","Max","Mean","Std"};
 		for(int pt=0;pt<4;pt++) {
 			s+=measurements[pt];
-			for(int dat=0;dat<3+3+3+3+2;dat++)s+=","+dataStats[pt][dat];
+			for(int dat=0;dat<3+3+3+3+1;dat++)s+=","+dataStats[pt][dat];
 			s+="\n";
 		}		
 		IJ.log("Saving file to output path "+this.serieOutputPath);
@@ -1206,14 +1276,96 @@ public class RegistrationManager{
 		IJ.log("Distance in pixels along X axis. Mean="+dataStats[2][0+6]+ ", Std="+ dataStats[3][0+6]+", Min="+dataStats[0][ 6]+", Max="+dataStats[1][ 6 ]);                                              
 		IJ.log("                             along Y axis. Mean="+dataStats[2][0+7]+ ", Std="+  dataStats[3][ 7 ]+", Min="+dataStats[0][ 7 ]+", Max="+dataStats[1][ 7 ]);                                              
 		IJ.log("                              along Z axis. Mean="+dataStats[2][0+8]+ ", Std="+ dataStats[3][ 8 ]+", Min="+dataStats[0][ 8 ]+", Max="+dataStats[1][ 8 ]);                                              
-		IJ.log("                               (norm)      . Mean="+dataStats[2][0+12]+ ", Std="+ dataStats[3][ 12 ]+", Min="+dataStats[0][ 12 ]+", Max="+dataStats[1][ 12 ]);                                              
-		System.out.println("Finish 18 2d evaluate "+this.currentRegAction);
 		IJ.log("Distance in real space ("+unit+") along X axis. Mean="+dataStats[2][0+9]+ ", Std="+dataStats[3][ 9 ]+", Min="+dataStats[0][ 9 ]+", Max="+dataStats[1][ 9 ]);                                              
 		IJ.log("                                           along Y axis. Mean="+dataStats[2][0+10]+ ", Std="+ dataStats[3][ 10 ]+", Min="+dataStats[0][ 10 ]+", Max="+dataStats[1][ 10 ]);                                              
 		IJ.log("                                           along Z axis. Mean="+dataStats[2][0+11]+ ", Std="+ dataStats[3][ 11 ]+", Min="+dataStats[0][ 11 ]+", Max="+dataStats[1][ 11 ]);                                              
-		IJ.log("                                              (norm)      . Mean="+dataStats[2][0+13]+ ", Std="+ dataStats[3][ 13 ]+", Min="+dataStats[0][ 13 ]+", Max="+dataStats[1][ 13 ]);                                              
-		System.out.println("Finish 19 2d evaluate "+this.currentRegAction);
+		IJ.log("                                              (norm)      . Mean="+dataStats[2][0+12]+ ", Std="+ dataStats[3][ 12 ]+", Min="+dataStats[0][ 12 ]+", Max="+dataStats[1][ 12 ]);                                              
 		return new ItkTransform();		
+	}
+
+	public ItkTransform finish2dEvaluationThreeFold(){
+		RoiManager rm=RoiManager.getRoiManager();
+		Point3d[][]pointTabImg=convertLandmarksToPointsThreeFold(WindowManager.getImage(fijiyamaGui.displayedNameImage1),WindowManager.getImage(fijiyamaGui.displayedNameImage2),false);
+		double []voxSizesReg=VitimageUtils.getVoxelSizes(getCurrentRefImage());
+		double []voxSizesEvaluate=VitimageUtils.getVoxelSizes(WindowManager.getImage(fijiyamaGui.displayedNameImage1));
+		WindowManager.getImage(fijiyamaGui.displayedNameImage1).changes=false;
+		WindowManager.getImage(fijiyamaGui.displayedNameImage2).changes=false;
+		WindowManager.getImage(fijiyamaGui.displayedNameImage3).changes=false;
+		WindowManager.getImage(fijiyamaGui.displayedNameImage1).close();
+		WindowManager.getImage(fijiyamaGui.displayedNameImage2).close();
+		WindowManager.getImage(fijiyamaGui.displayedNameImage3).close();
+		rm.close();
+
+		String nameMeasureTxt=new File(this.serieOutputPath,"measurements"+new SimpleDateFormat("yyyy-MM-dd_hh-mm").format(new Date())+".csv").getAbsolutePath();
+		String nameMeasureTxtOpt=new File(this.serieOutputPath,"measurements"+new SimpleDateFormat("yyyy-MM-dd_hh-mm").format(new Date())+"_Second.csv").getAbsolutePath();
+		
+		computeMismatches(new Point3d[][] {pointTabImg[0],pointTabImg[1]},voxSizesReg,voxSizesEvaluate,nameMeasureTxt);
+		computeMismatches(new Point3d[][] {pointTabImg[0],pointTabImg[2]},voxSizesReg,voxSizesEvaluate,nameMeasureTxtOpt);
+		return new ItkTransform();
+	}
+	
+	public void computeMismatches(Point3d[][]pointTabImg,double[]voxSizesReg,double[]voxSizesEvaluate,String nameFile) {		
+		IJ.log("Registration evaluation : computing distance between corresponding points.");
+		int nCouples=pointTabImg[0].length;
+		double[][]dataExport=new double[nCouples][3+3+3+3+1];//coordIntRef, coordIntMov,DistanceImg,distanceReal,GlobDistReal
+		double[][]dataStats=new double[4][3+3+3+3+1];//coordIntRef, coordIntMov,DistanceImg,distanceReal,GlobDistReal
+		double[]data;
+		for(int i=0;i<nCouples;i++) {
+			//Coordinates of reference point
+			dataExport[i][0]=pointTabImg[0][i].x;
+			dataExport[i][1]=pointTabImg[0][i].y;
+			dataExport[i][2]=pointTabImg[0][i].z;
+
+			//Coordinates of corresponding point in moving image
+			dataExport[i][3+0]=pointTabImg[1][i].x;
+			dataExport[i][3+1]=pointTabImg[1][i].y;
+			dataExport[i][3+2]=pointTabImg[1][i].z;
+	
+			//Distance in voxels in the registration image space and in real space (unit), along each dimension
+			for(int dim=0;dim<3;dim++) {
+				dataExport[i][6+dim]= Math.abs(  dataExport[i][0+dim] - dataExport[i][3+dim])*voxSizesReg[dim]/voxSizesEvaluate[dim];
+				dataExport[i][9+dim]= dataExport[i][6+dim]*voxSizesEvaluate[dim];
+			}			
+			dataExport[i][12]=Math.sqrt(dataExport[i][9]*dataExport[i][9] + dataExport[i][9+1]*dataExport[i][9+1] + dataExport[i][9+2]*dataExport[i][9+2]);
+		}
+
+		double[][]transposedData=VitimageUtils.transposeTab(dataExport);
+		for(int i=0;i<3+3+3+3+1;i++) {
+			dataStats[0][i]=VitimageUtils.min(transposedData[i]);
+			dataStats[1][i]=VitimageUtils.max(transposedData[i]);
+			dataStats[2][i]=VitimageUtils.statistics1D(transposedData[i])[0];
+			dataStats[3][i]=VitimageUtils.statistics1D(transposedData[i])[1];
+		}
+
+		
+		//Set in shape of a CSV
+		String unit=getCurrentRefImage().getCalibration().getUnit();
+		String s="#Point,Ref_pt._X,Ref_pt._Y,Ref_pt._Z,"+     "Mov_pt._X,Mov_pt._Y,Mov_pt._Z,"+
+				 "deltaX(pixels),deltaY(pixels),deltaZ(pixels),"+     "deltaX("+unit+"),deltaY("+unit+"),deltaZ("+unit+"),"+
+				 "Distance("+unit+")\n";
+		for(int pt=0;pt<nCouples;pt++) {
+			s+="Point_"+pt;
+			for(int dat=0;dat<3+3+3+3+1;dat++)s+=","+dataExport[pt][dat];
+			s+="\n";
+		}		
+		String[]measurements= {"Min","Max","Mean","Std"};
+		for(int pt=0;pt<4;pt++) {
+			s+=measurements[pt];
+			for(int dat=0;dat<3+3+3+3+1;dat++)s+=","+dataStats[pt][dat];
+			s+="\n";
+		}		
+		IJ.log("Saving file to output path "+this.serieOutputPath);
+		VitimageUtils.writeStringInFile(s, nameFile);
+		
+		for(int i=0;i<dataStats.length;i++)for(int j=0;j<dataStats.length;j++)dataStats[i][j]=VitimageUtils.dou(dataStats[i][j]);
+		IJ.showMessage("Your data have been written as a CSV file (excel-friendly) in the output directory : \n"+nameFile+"\nCheck the ImageJ log for an overview of mismatch measurements (mean, std, min, max)");
+		IJ.log("Distance in pixels along X axis. Mean="+dataStats[2][0+6]+ ", Std="+ dataStats[3][0+6]+", Min="+dataStats[0][ 6]+", Max="+dataStats[1][ 6 ]);                                              
+		IJ.log("                             along Y axis. Mean="+dataStats[2][0+7]+ ", Std="+  dataStats[3][ 7 ]+", Min="+dataStats[0][ 7 ]+", Max="+dataStats[1][ 7 ]);                                              
+		IJ.log("                              along Z axis. Mean="+dataStats[2][0+8]+ ", Std="+ dataStats[3][ 8 ]+", Min="+dataStats[0][ 8 ]+", Max="+dataStats[1][ 8 ]);                                              
+		IJ.log("Distance in real space ("+unit+") along X axis. Mean="+dataStats[2][0+9]+ ", Std="+dataStats[3][ 9 ]+", Min="+dataStats[0][ 9 ]+", Max="+dataStats[1][ 9 ]);                                              
+		IJ.log("                                           along Y axis. Mean="+dataStats[2][0+10]+ ", Std="+ dataStats[3][ 10 ]+", Min="+dataStats[0][ 10 ]+", Max="+dataStats[1][ 10 ]);                                              
+		IJ.log("                                           along Z axis. Mean="+dataStats[2][0+11]+ ", Std="+ dataStats[3][ 11 ]+", Min="+dataStats[0][ 11 ]+", Max="+dataStats[1][ 11 ]);                                              
+		IJ.log("                                              (norm)      . Mean="+dataStats[2][0+12]+ ", Std="+ dataStats[3][ 12 ]+", Min="+dataStats[0][ 12 ]+", Max="+dataStats[1][ 12 ]);                                              
 	}
 
 	public Point3d[][] convertLandmarksToPoints(ImagePlus imgRef,ImagePlus imgMov,boolean computeCoordinatesInRealSpaceUsingCalibration){
@@ -1233,6 +1385,26 @@ public class RegistrationManager{
 		return new Point3d[][] {pRef,pMov};
 	}
 
+
+	public Point3d[][] convertLandmarksToPointsThreeFold(ImagePlus imgRef,ImagePlus imgMov,boolean computeCoordinatesInRealSpaceUsingCalibration){
+		RoiManager rm=RoiManager.getRoiManager();
+		int nbCouples=rm.getCount()/3;
+		Point3d[]pRef=new Point3d[nbCouples];
+		Point3d[]pMov=new Point3d[nbCouples];
+		Point3d[]pMov2=new Point3d[nbCouples];
+//		IJ.setTool("point");
+		for(int indP=0;indP<rm.getCount()/3;indP++){
+			pRef[indP]=new Point3d(rm.getRoi(indP*3 ).getXBase() , rm.getRoi(indP * 3).getYBase() ,  rm.getRoi(indP * 3).getZPosition());
+			pMov[indP]=new Point3d(rm.getRoi(indP*3 +1 ).getXBase() , rm.getRoi(indP * 3 +1 ).getYBase() ,  rm.getRoi(indP * 3 +1 ).getZPosition());
+			pMov2[indP]=new Point3d(rm.getRoi(indP*3 +2 ).getXBase() , rm.getRoi(indP * 3 +1 ).getYBase() ,  rm.getRoi(indP * 3 +1 ).getZPosition());
+			if(computeCoordinatesInRealSpaceUsingCalibration) {
+				pRef[indP]=TransformUtils.convertPointToRealSpace(pRef[indP],imgRef);
+				pMov[indP]=TransformUtils.convertPointToRealSpace(pMov[indP],imgMov);
+				pMov2[indP]=TransformUtils.convertPointToRealSpace(pMov2[indP],imgMov);
+			}
+		}
+		return new Point3d[][] {pRef,pMov,pMov2};
+	}
 
 
 	public ImagePlus getViewOfImagesTransformedAndSuperposedSerieWithThisReference(ImagePlus referenceGeometryForTransforms,boolean saveIndividualImages) {
@@ -1267,7 +1439,6 @@ public class RegistrationManager{
 					if(isSubSampled[nt][nm])hyperImg[index]=trsTemp[nt][nm].transformImage(referenceGeometryForTransforms,IJ.openImage(this.paths[nt][nm]), false);
 					else hyperImg[index]=trsTemp[nt][nm].transformImage(referenceGeometryForTransforms,images[nt][nm], false);
 					if(saveIndividualImages) {
-						VitimageUtils.printImageResume(hyperImg[index]);
 						IJ.saveAsTiff(hyperImg[index],nameForExport(nt, nm,true));
 						trsTemp[nt][nm].writeToFileWithTypeDetection(nameForExport(nt, nm,false), referenceGeometryForTransforms);	
 					}
@@ -1282,18 +1453,8 @@ public class RegistrationManager{
 		Concatenator con=new Concatenator();
 		con.setIm5D(true);
 		ImagePlus hyperImage=HyperStackConverter.toHyperStack(con.concatenate(hyperImg,false), nMods, referenceGeometryForTransforms.getStackSize(),nTimes,"xyztc","Grayscale");
-
-/*
- * 	Chez ASS	n thread "Run$_AWT-EventQueue-0" java.lang.IllegalArgumentException: C*Z*T not equal stack size
- 
-		at ij.plugin.HyperStackConverter.toHyperStack(HyperStackConverter.java:63)
-		at com.vitimage.fijiyama.RegistrationManager.getViewOfImagesTransformedAndSuperposedSerieWithThisReference(RegistrationManager.java:1202)
-		at com.vitimage.fijiyama.RegistrationManager.exportImagesAndComposedTransforms(RegistrationManager.java:843)
-		at com.vitimage.fijiyama.Fijiyama_GUI.actionPerformed(Fijiyama_GUI.java:744)
-		at javax.swing.AbstractButton.fireActionPerformed(AbstractButton.java:2022)
-*/		
 		hyperImage.show();
-		VitimageUtils.waitFor(4000);
+		VitimageUtils.waitFor(1000);
 		hyperImage.setTitle(fijiyamaGui.displayedNameCombinedImage);
 		return hyperImage;
 
@@ -1345,6 +1506,20 @@ public class RegistrationManager{
 		return trTot;
 	}
 		
+	public ItkTransform getComposedTransform(int nt, int nm,int lastStep) {
+		if (nt>=this.nTimes)return null;
+		if (nm>=this.nMods)return null;
+		if(lastStep>=this.step)return null;
+		if (this.transforms[nt][nm].size()==0)return new ItkTransform();
+		ItkTransform trTot=new ItkTransform();
+		for(int indT=0;indT<this.transforms[nt][nm].size();indT++) {
+			if(this.transforms[nt][nm].get(indT).step<=lastStep) {
+				System.out.println("Ajout de la transfo faite a l etape "+this.transforms[nt][nm].get(indT).step);
+				trTot.addTransform(this.transforms[nt][nm].get(indT));
+			}
+		}
+		return trTot;
+	}
 
 	public int estimateTime(RegistrationAction regAct) {;
 		if((regAct.typeAction==0) && (regAct.typeManViewer==0))return 300;//manual registration with landmarks
@@ -1506,6 +1681,9 @@ public class RegistrationManager{
 		return getComposedTransform(currentRegAction.movTime, currentRegAction.movMod);
 	}
 	
+	public ItkTransform getCurrentMovComposedTransform(int lastStep) {
+		return getComposedTransform(currentRegAction.movTime, currentRegAction.movMod,lastStep);
+	}
 	
 
 	

@@ -57,7 +57,7 @@ public class RegistrationAction implements Serializable{
 	public int strideY=3;
 	public int strideZ=3;
 	public int selectScore=50;
-	public int selectLTS=50;
+	public int selectLTS=80;
 	public int selectRandom=100;
 	public int subsampleZ=0;
 	public OptimizerType itkOptimizerType=OptimizerType.ITK_AMOEBA;

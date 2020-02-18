@@ -37,7 +37,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	public volatile boolean bmIsInterruptedSucceeded=false;
 	public Thread[] threads;
 	public Thread mainThread;
-	public boolean timingMeasurement=true;
+	public boolean timingMeasurement=false;
 	boolean debug=false;
 	public double[]refRange=new double[] {-1,-1};
 	public double[]movRange=new double[] {-1,-1};
@@ -258,12 +258,9 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		java.awt.Dimension currentScreen = Toolkit.getDefaultToolkit().getScreenSize();
 		int screenHeight=Toolkit.getDefaultToolkit().getScreenSize().height;
 		int screenWidth=Toolkit.getDefaultToolkit().getScreenSize().width;
-		zoomFactor=  Math.min((screenHeight/2)/dims[1]  ,  (screenWidth/2)/dims[0]) ; 
-//		if(dims[0]<512)this.zoomFactor=(int)Math.round(800/dims[0]);
+		zoomFactor=  (dims[0]<280 ? 0.8 : 1)*Math.min((screenHeight/2)/dims[1]  ,  (screenWidth/2)/dims[0]) ; 
 		this.viewHeight=(int)(this.imgRef.getHeight()*zoomFactor);
 		this.viewWidth=(int)(this.imgRef.getWidth()*zoomFactor);
-		handleOutput("Min block variance="+this.minBlockVariance);
-		handleOutput("Min block score="+this.minBlockScore);
 
 	}
 
@@ -395,8 +392,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		else this.currentTransform=new ItkTransform(trInit);
 		handleOutput(new Date().toString());
 		//Initialize various artifacts
-		ImagePlus imgRefTemp;
-		ImagePlus imgMovTemp;
+		ImagePlus imgRefTemp=null;
+		ImagePlus imgMovTemp=null;
 		handleOutput("------------------------------");
 		handleOutput("| Block Matching registration|");
 		handleOutput("------------------------------");
@@ -785,6 +782,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 //					this.additionalTransform.addTransform(new ItkTransform(new DisplacementFieldTransform( this.currentField[indField-1])));//TODO : may be unuseful now
 					timesIter[lev][iter][15]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 				}
+				if(displayRegistration==2) {
+					Object [] obj=VitimageUtils.getCorrespondanceListAsImagePlus(imgRef,listCorrespondances,curVoxSizes,this.sliceInt,						
+						levelStrideX*subSamplingFactors[0],levelStrideY*subSamplingFactors[1],levelStrideZ*subSamplingFactors[2],
+						blockSizeHalfX*subSamplingFactors[0],blockSizeHalfY*subSamplingFactors[1],blockSizeHalfZ*subSamplingFactors[2],false);
+					this.correspondancesSummary=(ImagePlus) obj[0];
+					this.sliceIntCorr=1+(int) obj[1];	
+				}
 				if(displayR2) {
 					globalR2Values[incrIter]=getGlobalRsquareWithActualTransform();
 					timesIter[lev][iter][16]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
@@ -797,10 +801,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			timesLev[lev][4]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 		} // Back for another level
 		timesGlob[3]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
-		handleOutput(new Date().toString());
+		handleOutput("Block matching finished, date="+new Date().toString());
 		if(this.transformationType!=Transform3DType.DENSE)handleOutput("\nMatrice finale block matching : \n"+this.currentTransform.drawableString());
-		if(false && this.transformationType==Transform3DType.DENSE)this.sliceJacobian.hide();
-
 		
 		if(displayR2) {
 			handleOutput("Successive R2 values :");
@@ -865,7 +867,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			handleOutput("timeBonus="+d);
 			
 			handleOutput("Total time="+(timesGlob[3]-timesGlob[0]));
-			
+		
 		}
 		//glob       0               1            2               3
 //		  st    prep         levels          return   
@@ -878,13 +880,12 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		//                               firstestimate           LTS                 second estimate             correspImage               add              R2
 		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.currentTransform;
 		else {
-			if(trInit.isDense())return new ItkTransform((trInit.getInverseOfDenseField()).addTransform(this.currentTransform));
+			if(trInit.isDense()) {
+				ItkTransform trInv=(trInit.flattenDenseField(imgRefTemp).getInverseOfDenseField());
+				return new ItkTransform(trInv.addTransform(this.currentTransform));
+			}
 			else return new ItkTransform(trInit.getInverse().addTransform(this.currentTransform));
 		}
-
-/*		
-		if(returnComposedTransformationIncludingTheInitialTransformationGiven)return new ItkTransform(this.currentTransform);
-		else return new ItkTransform(this.additionalTransform);*/
 	}
 	
 				
@@ -1019,38 +1020,62 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		if(sliceRef==null) {
 			handleOutput("Starting graphical following tool...");
 			this.sliceRef=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.imgRef),this.sliceInt);
+			handleOutput("HERE 01");
 			ImagePlus tempImg=new Duplicator().run(imgRef);
+			handleOutput("HERE 02");
 			IJ.run(tempImg,"32-bit","");
+			handleOutput("HERE 03");
 			tempImg.getProcessor().set(0);
+			handleOutput("HERE 04");
 			this.sliceCorr=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(tempImg),this.sliceIntCorr);
+			handleOutput("HERE 05");
 			this.sliceFuse=VitimageUtils.compositeRGBDouble(this.sliceRef,this.sliceMov,this.sliceCorr,1,1,1,"Registration is running. Red=Reference, Green=moving, Gray=score");
+			handleOutput("HERE 06");
 			this.sliceFuse.show();
+			handleOutput("HERE 07");
 			this.sliceFuse.getWindow().setSize(this.viewWidth,this.viewHeight);
+			handleOutput("HERE 08");
 			this.sliceFuse.getCanvas().fitToWindow();
+			handleOutput("HERE 09");
 		}
 		else {
+			handleOutput("HERE B01");
 			sliceCorr=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.correspondancesSummary),this.sliceIntCorr);
+			handleOutput("HERE B02");
 			this.sliceRef.show();
+			handleOutput("HERE B03");
 			this.sliceMov.show();
+			handleOutput("HERE B04");
 			this.sliceCorr.show();
+			handleOutput("HERE B05");
 			this.sliceCorr.setSlice(this.sliceIntCorr);
-			VitimageUtils.waitFor(3000);
+			VitimageUtils.waitFor(500);
+			handleOutput("HERE B06");
 			this.sliceRef.hide();
+			handleOutput("HERE B07");
 			this.sliceMov.hide();
+			handleOutput("HERE B08");
 			this.sliceCorr.hide();
+			handleOutput("HERE B09");
 			
 			ImagePlus tempImg=VitimageUtils.compositeRGBDouble(this.sliceRef,this.sliceMov,this.sliceCorr,1,1,1,"Registration is running. Red=Reference, Green=moving, Blue=score");
 			tempImg.show();
+			handleOutput("HERE B11");
 			IJ.run(tempImg, "Select All", "");
+			handleOutput("HERE B12");
 			tempImg.copy();
+			handleOutput("HERE B13");
 			this.sliceFuse.paste();
+			handleOutput("HERE B14");
 			tempImg.close();
+			handleOutput("HERE B15");
 
 		}
 		
 		
 		this.summaryArray.add(this.sliceFuse.duplicate());
 		handleOutput("Added the slice number "+this.summaryArray.size());
+		handleOutput("HERE 01");
 
 	}
 
@@ -1073,6 +1098,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 		if(sliceRef==null) {
 			handleOutput("Starting graphical following tool...");
+			VitimageUtils.printImageResume(this.imgRef);
+			this.imgRef.show();
 			this.sliceRef=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.imgRef),this.sliceInt);
 			if(flagRange)this.sliceRef.setDisplayRange(refRange[0], refRange[1]);
 			IJ.run(this.sliceRef,"8-bit","");
@@ -1087,7 +1114,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			this.sliceFuse.getCanvas().fitToWindow();
 			this.sliceFuse.setSlice(this.sliceInt);
 			VitimageUtils.adjustImageOnScreen(this.sliceFuse,0,0);
-			
+
 			if(displayRegistration>1) {
 				ImagePlus tempImg=VitimageUtils.getBinaryGrid(this.imgRef, 10);
 				this.sliceGrid=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(tempImg,tempImg,false)),this.sliceInt);
@@ -1123,7 +1150,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			if(this.flagSingleView)tempImg=VitimageUtils.compositeRGBDoubleJet(temp,this.sliceMov,this.sliceCorr,"Registration is running. Red=Reference, Green=moving, Gray=score. Level="+level+" Iter="+iteration+" "+this.info,true,1);
 			else tempImg=VitimageUtils.compositeOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info);
 			VitimageUtils.actualizeData(tempImg,this.sliceFuse);
-			if(this.flagSingleView)this.sliceFuse.setTitle("Registration is running. Red=Reference, Green=moving, Gray=score. Level="+level+" Iter="+iteration+" "+this.info);
+				if(this.flagSingleView)this.sliceFuse.setTitle("Registration is running. Red=Reference, Green=moving, Gray=score. Level="+level+" Iter="+iteration+" "+this.info);
 			else this.sliceFuse.setTitle("Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info);
 			this.sliceFuse.setSlice(this.sliceIntCorr);
 
@@ -1131,7 +1158,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				tempImg=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.correspondancesSummary),this.sliceIntCorr);
 				VitimageUtils.actualizeData(tempImg,this.sliceCorr);
 				this.sliceCorr.setSlice(this.sliceIntCorr);
-	
+
 				
 				tempImg=VitimageUtils.getBinaryGrid(this.imgRef, 10);
 				tempImg=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(tempImg,tempImg,false)),this.sliceInt);
@@ -1244,7 +1271,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	}
 
 	double meanSquareDifference(double X[], double Y[]) {
-		if(X.length !=Y.length )IJ.log("In meanSquareDifference in BlockMatching, blocks length does not match");
+		if(X.length !=Y.length ) {IJ.log("In meanSquareDifference in BlockMatching, blocks length does not match");return 1E8;}
 		double sum=0;
 		double diff;
 		int n=X.length;

@@ -115,7 +115,6 @@ public interface ItkImagePlusInterface {
 		VectorDouble values=new VectorDouble(3);
 		int coordIJ;
 		for(int z=0;z<dimZ;z++) {
-			System.out.println(z);
 			coordinates.set(2,z);
 			float [][]tabData=new float[4][];
 			tabData[0]=(float[])ret[0].getStack().getProcessor(z+1).getPixels();
@@ -139,7 +138,7 @@ public interface ItkImagePlusInterface {
 	}
 	
 	public static ImagePlus[] convertDisplacementFieldFloatToImagePlusArray(Image img){
-		System.out.println("Start");
+		System.out.println("Converting displacement field to ImagePlus array");
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		VectorDouble voxSizes= img.getSpacing();		
 		ImagePlus[]ret=new ImagePlus[3];
@@ -153,7 +152,6 @@ public interface ItkImagePlusInterface {
 		VectorFloat values=new VectorFloat(3);
 		int coordIJ;
 		for(int z=0;z<dimZ;z++) {
-			System.out.println(z);
 			coordinates.set(2,z);
 			float [][]tabData=new float[3][];
 			tabData[0]=(float[])ret[0].getStack().getProcessor(z+1).getPixels();

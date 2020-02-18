@@ -11,5 +11,4 @@ The plugin is roughly structured following the MVC pattern
 
 TODO : Best split of functions : set the runnables and manual registration interfaces in RegistrationAction
 TODO : during Programming, only MAN and AUTO actions should be available
-TODO : when loading, the first action after becomes MAN	
 

@@ -142,7 +142,6 @@ public interface VitiDialogs {
 		if(sd.getDirectory()==null ||  sd.getFileName()==null)return;
 		String pathSave=sd.getDirectory()+""+sd.getFileName();
 		VitimageUtils.writeStringInFile(text, pathSave);
-		System.out.println("Contenu ecrit dans "+pathSave);
 	}
 
 	
@@ -567,7 +566,6 @@ public interface VitiDialogs {
 		comp.close();
 		imgInspect.changes=false;
 		imgInspect.close();
-		System.out.println("On passe par ici");
 		return new double[][]{TransformUtils.normalize(new double[] { pointCoordImageUp.x - pointCoordImageDown.x , 
 																pointCoordImageUp.y - pointCoordImageDown.y , 
 																pointCoordImageUp.z - pointCoordImageDown.z } ), 
