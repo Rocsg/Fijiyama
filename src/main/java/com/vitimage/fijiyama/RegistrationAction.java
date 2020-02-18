@@ -129,6 +129,9 @@ public class RegistrationAction implements Serializable{
 	
 	
 	public RegistrationAction defineSettingsFromTwoImages(ImagePlus imgRef,ImagePlus imgMov,RegistrationManager regManager,boolean modifyMaxLevelOfManager) {
+		this.selectScore=50;
+		this.selectLTS=80;
+		this.selectRandom=100;
 		int nbStrideAtMaxLevel=30;//100 ou bien 20 mais avec decroissance
 		double minSubResolutionImageSizeLog2=5.0;//In power of two : min resolution=64;
 		double maxSubResolutionImageSizeLog2=6.0;//In power of two : max resolution=128
@@ -189,9 +192,9 @@ public class RegistrationAction implements Serializable{
 		strideX=strides[0];
 		strideY=strides[1];
 		strideZ=strides[2];
-		bhsX=(int) Math.round(Math.max(strides[0],3));
-		bhsY=(int) Math.round(Math.max(strides[1],3));
-		bhsZ=(int) Math.round(Math.max(strides[2],3));
+		bhsX=(int) Math.round(Math.min(11,Math.max(strides[0],3)));
+		bhsY=(int) Math.round(Math.min(11,Math.max(strides[1],3)));
+		bhsZ=(int) Math.round(Math.min(11,Math.max(strides[2],3)));
 		if(dimsTemp[2]<5) {//cas 2D
 			neighZ=0;
 			bhsZ=0;
@@ -226,8 +229,6 @@ public class RegistrationAction implements Serializable{
 				this.refTime=0;
 			}
 		}
-		//System.out.println("Cur reg action a pris action="+this.typeAction+" visavis de "+RegistrationAction.TYPEACTION_EVALUATE);
-		
 	}
 
 	public boolean isDone() {

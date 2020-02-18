@@ -505,9 +505,10 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				imgMaskTemp=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(this.mask)));
 			}
 			timesLev[lev][3]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
+
+			
 			//for each iteration
 			for(int iter=0;iter<nbIterations;iter++) {
-				//if(lev==1 && iter>5)continue;
 				timesLev[lev][4]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 				timesIter[lev][iter][0]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 				progress=0.1+0.9*(lev*1.0/nbLevels+(iter*1.0/nbIterations)*1.0/nbLevels);IJ.showProgress(progress);
@@ -524,6 +525,11 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				//Prepare a coordinate summary tabs for this blocks, compute and store their sigma
 				int indexTab=0;
 				nbBlocksTotal=nbBlocksX*nbBlocksY*nbBlocksZ;
+				if(nbBlocksTotal<0) {
+					IJ.showMessage("Bad parameters. Please set to default values");
+					if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.currentTransform;
+					else return new ItkTransform();
+				}
 				double[][] blocksRefTmp=new double[nbBlocksTotal][4];
 				handleOutput("       # blocks before trimming="+nbBlocksTotal);
 				
@@ -531,6 +537,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				
 				timesIter[lev][iter][2]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 				for(int blX=0;blX<nbBlocksX ;blX++) {
+					handleOutput(blX+" / "+nbBlocksX);
 					for(int blY=0;blY<nbBlocksY ;blY++) {
 						for(int blZ=0;blZ<nbBlocksZ ;blZ++) {
 							double[]valsBlock=VitimageUtils.valuesOfBlock(imgRefTemp,
@@ -688,6 +695,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 					this.freeMemory();					
 					return null;
 				}
+				for(int i=0;i<threads.length;i++)threads[i]=null;
+				threads=null;
 				timesIter[lev][iter][8]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 				handleOutput("");
 				//Convert the correspondance from each thread correspondance list to a main list for the whole image

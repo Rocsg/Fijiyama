@@ -57,23 +57,18 @@ import ij.plugin.frame.RoiManager;
  * 
  * @author fernandr
  * TODO : ******* Prioritary and critical bugs ********* 
- * TODO : None left
  * TODO : 
  * TODO : ******* Can wait a bit ********* 
- * TODO : The grid named "Mask" stays open after the alignment
+ * TODO : 
  * TODO : Stop saving transform for non transformations actions. These null transform are not that annoying, but them doesn't stand for nothing
  * TODO : when programming serie, and switching from an action to another, it copies from the previous action. updateBoxFieldsFromRegistrationAction
  * TODO : During serie process, at some moment, the initial launching frame appears 
  * TODO :
  * TODO : ******* Fast fixes in evaluation ********* 
- * TODO :  Abort button on automatic registration : work well when hit during the multithreaded processing. In other cases, can or cannot work
- * TODO	:  		--> Tried fix : accept abort only if threads are running 
  * TODO : describe Class and code articulation 
  * TODO : 			--> Did in "find your way in the package.txt" files 
  * TODO :
  * TODO : ******* Testing needs ********* 
- * TODO : undo after sequences of action : test them all
- * TODO : saving / load / saving / load to stress the counting of steps
  * 
  */
 /*TODO : v2 Already done non-regression tests :
@@ -381,7 +376,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	/* Registration Manager gui  and launching interface gui ************************************************************************************************/
 	public void startRegistrationInterface() {
 
-		System.out.println("Starting registration interface");
+		IJ.log("Starting Fijiyama registration interface");
 		actualizeLaunchingInterface(false);         
 		//Panel with console-style log informations and requests
 		JPanel consolePanel=new JPanel();
@@ -584,7 +579,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	}
 	
 	public void startLaunchingInterface() {
-		System.out.println("Starting launching interface");
+		IJ.log("Starting Fijiyama launching interface");
 		this.modeWindow=WINDOWIDLE;
 		sosButton=new JButton("Help");
 		runTwoImagesButton=new JButton("Two images registation (training mode)");
@@ -679,8 +674,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		}
 	
 		else if(e.getSource()==this.runSerieButton) {
-			modeWindow=WINDOWSERIEPROGRAMMING;
-			regManager.startSetupSerieFromScratch();
+			IJ.showMessage("On day left before release of Felicity Ficus, including series functionalities. Please wait !");
+			return;
+//			modeWindow=WINDOWSERIEPROGRAMMING;
+			//			regManager.startSetupSerieFromScratch();
 		}
 		
 		else if(e.getSource()==this.loadFjmButton) {
@@ -909,11 +906,13 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 				while(!bmRegistration.bmIsInterruptedSucceeded) {
 					VitimageUtils.waitFor(200);
 					bmRegistration.bmIsInterrupted=true;
-					for(int th=0;th<nThreads;th++)bmRegistration.threads[th].interrupt();
+					if(bmRegistration.threads==null)bmRegistration.bmIsInterruptedSucceeded=true;
+					else for(int th=0;th<nThreads;th++)bmRegistration.threads[th].interrupt();
 				}
 			}
 			//Aborting automatic itk iconic registration, killing threads, and checking if threads are deads
 			else if(runButton.getText().equals("Running Itk registration...")){
+				itkManager.itkRegistrationInterrupted=true;
 				if(itkManager== null || itkManager.registrationThread==null || (!itkManager.registrationThread.isAlive())) {
 					addLog("To early for aborting automatic registration. Try in a few seconds...", 1);
 					return;
@@ -922,11 +921,18 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 				disable(new int[] {RUN,RUNALL,SAVE,FINISH,UNDO, SETTINGS,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP});
 				actionAborted=true;
 				unpassThrough();			
-				while(itkManager.registrationThread!=null && itkManager.registrationThread.isAlive() && trial<100) {
+				while(itkManager != null && itkManager.registrationThread!=null && itkManager.registrationThread.isAlive() && trial<100) {
 					trial++;
 					VitimageUtils.waitFor(200);	
-					itkManager.itkRegistrationInterrupted=true;
-					itkManager.registrationThread.stop();
+
+					if(itkManager!=null) {
+						itkManager.itkRegistrationInterrupted=true;
+						if(itkManager.registrationThread.isAlive()) itkManager.registrationThread.stop();
+					}
+				}
+				if(itkManager!=null) {
+					itkManager.freeMemory();
+					itkManager=null;
 				}
 			}
 			runButton.setText("Start this action");
@@ -1019,7 +1025,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 									regManager.getCurrentMovComposedTransform().transformImage(regManager.getCurrentRefImage(), regManager.getCurrentMovImage(),false),
 									regManager.getCurrentAction().typeTrans, regManager.getCurrentAction().levelMin,regManager.getCurrentAction().levelMax,regManager.getCurrentAction().iterationsITK,regManager.getCurrentAction().learningRate);
 							disable(ABORT);
-							itkManager.freeMemory();
+							if(itkManager==null || itkManager.itkRegistrationInterrupted) {
+								enable(new int[] {RUN,SAVE,FINISH,SETTINGS,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP,UNDO});
+								return;
+							}
+							if(itkManager!=null)itkManager.freeMemory();
 							itkManager=null;
 							if(! actionAborted) {//TODO : this is not the same for blockmatching. What is the logic behind ?
 								regManager.finishCurrentAction(trTemp);
@@ -1059,11 +1069,12 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							addLog("Wrong arguments. Manual registration is over...", 1);
 							return;
 						}
-
+	
 						//Starting manual registration
 						if(runButton.getText().equals("Start this action")) {
 							addLog("Starting manual registration...", 1);
 							disable(new int[] {BOXACT,RUN,RUNALL,UNDO});
+							disable(new int[] {BOXACT,FINISH,SAVE,SETTINGS,UNDO});
 							runButton.setText("Position ok");
 							ImagePlus imgMovCurrentState=regManager.getCurrentMovComposedTransform().transformImage(regManager.getCurrentRefImage(),regManager.getCurrentMovImage(),false);
 							imgMovCurrentState.setDisplayRange(regManager.getCurrentMovRange()[0],regManager.getCurrentMovRange()[1]);
@@ -1079,6 +1090,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							enableChainIfPossible();
 							runButton.setBackground(colorGreenRunButton);
 							addLog("Waiting for position confirmation from user (green button)...", 1);
+
 						}
 						
 						//Finish manual registration
@@ -1134,34 +1146,16 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 						if(runButton.getText().equals("Start this action")) {
 							addLog("Starting evaluation...", 1);
 							disable(new int[] {BOXACT,RUN,RUNALL,UNDO});
+							disable(new int[] {BOXACT,FINISH,SAVE,SETTINGS,UNDO});
 							runButton.setText("Position ok");
-							if(!VitiDialogs.getYesNoUI("Compare steps ?", "Compare different steps  ? (\"No\" means evaluating only last step)")){
-								threeFoldEvaluation=false;
-								ImagePlus imgMovCurrentState=regManager.getCurrentMovComposedTransform().transformImage(regManager.getCurrentRefImage(),regManager.getCurrentMovImage(),false);
-								imgMovCurrentState.setDisplayRange(regManager.getCurrentMovRange()[0],regManager.getCurrentMovRange()[1]);
-								regManager.start2dManualRegistration(regManager.getCurrentRefImage(),imgMovCurrentState);
-								setRunToolTip(MANUAL2D);								
-	
-								enable(new int[] {ABORT,RUN});
-								runButton.setBackground(colorGreenRunButton);
-								addLog("Waiting for user to confirm points for evaluation...", 1);
-							}
-							else{
-								threeFoldEvaluation=true;
-								//Faire trans de  0 a 4
-								//Faire trans de 0 a 6
-								ImagePlus imgMovCurrentStateStep2=regManager.getCurrentMovComposedTransform().transformImage(regManager.getCurrentRefImage(),regManager.getCurrentMovImage(),false);
-								ImagePlus imgMovCurrentStateStep1=regManager.getCurrentMovComposedTransform(4).transformImage(regManager.getCurrentRefImage(),regManager.getCurrentMovImage(),false);
-								imgMovCurrentStateStep1.setDisplayRange(regManager.getCurrentMovRange()[0],regManager.getCurrentMovRange()[1]);
-								imgMovCurrentStateStep2.setDisplayRange(regManager.getCurrentMovRange()[0],regManager.getCurrentMovRange()[1]);
-								regManager.start2dManualRegistrationThreeFold(regManager.getCurrentRefImage(),imgMovCurrentStateStep1,imgMovCurrentStateStep2);
-								setRunToolTip(MANUAL2D);								
-	
-								enable(new int[] {ABORT,RUN});
-								runButton.setBackground(colorGreenRunButton);
-								addLog("Waiting for user to confirm points for evaluation...", 1);
-							}
-							
+							ImagePlus imgMovCurrentState=regManager.getCurrentMovComposedTransform().transformImage(regManager.getCurrentRefImage(),regManager.getCurrentMovImage(),false);
+							imgMovCurrentState.setDisplayRange(regManager.getCurrentMovRange()[0],regManager.getCurrentMovRange()[1]);
+							regManager.start2dManualRegistration(regManager.getCurrentRefImage(),imgMovCurrentState);
+							setRunToolTip(MANUAL2D);								
+
+							enable(new int[] {ABORT,RUN});
+							runButton.setBackground(colorGreenRunButton);
+							addLog("Waiting for user to confirm points for evaluation...", 1);
 						}
 						
 						//Finish avaluation
@@ -1189,13 +1183,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							disable(new int[] {ABORT,RUN,RUNALL});
 							actionAborted=false;
 							ItkTransform tr=new ItkTransform();
-							if(! threeFoldEvaluation) {								
-								regManager.finish2dEvaluation();
-							}
-							else {
-								threeFoldEvaluation=false;
-								regManager.finish2dEvaluationThreeFold();
-							}
+							regManager.finish2dEvaluation();
 							regManager.finishCurrentAction(tr);
 							updateView();
 							runButton.setText("Start this action");
@@ -1444,9 +1432,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		VitimageUtils.adjustFrameOnScreenRelative(imgView.getWindow(),registrationFrame,0,0,10);
 		double zoomFactor=Math.min((screenHeight/2)/imgView.getHeight()  ,  (screenWidth/2)/imgView.getWidth()); 
 		java.awt.Rectangle w = imgView.getWindow().getBounds();
+		int max=0;
 		
 		//If little image, enlarge it until its size is between half screen and full screen
-		while(imgView.getWindow().getWidth()<(screenWidth/2) && imgView.getWindow().getHeight()<(screenHeight/2)) {
+		while(imgView.getWindow().getWidth()<(screenWidth/2) && imgView.getWindow().getHeight()<(screenHeight/2) && (max++)<4) {
 			int sx=imgView.getCanvas().screenX((int) (w.x+w.width));
 			int sy=imgView.getCanvas().screenY((int) (w.y+w.height));
 			imgView.getCanvas().zoomIn(sx, sy);
@@ -1673,22 +1662,22 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        	a=1-gd.getNextChoiceIndex();
 	        	regManager.getCurrentAction().higherAcc=a;
 	        }
-	       	int c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsX=c;
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsY=c;
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsZ=c;
+	       	int c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsX=Math.min(11,Math.max(c,3));
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsY=Math.min(11,Math.max(c,3));
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsZ=Math.min(11,Math.max(c,3));
 
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().neighX=c;
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().neighY=c;
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().neighZ=c;
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().neighX=Math.min(7,Math.max(c,1));
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().neighY=Math.min(7,Math.max(c,1));
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().neighZ=Math.min(7,Math.max(c,0));
 
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().strideX=c;
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().strideY=c;
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().strideZ=c;
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().strideX=Math.min(100,Math.max(c,1));
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().strideY=Math.min(100,Math.max(c,1));
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().strideZ=Math.min(100,Math.max(c,1));
 
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().iterationsBM=c;
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().iterationsBM=Math.min(100,Math.max(c,1));
 	       	if(this.boxTypeTrans.getSelectedIndex()==2) {double d=gd.getNextNumber(); d=d<1E-6 ? 1E-6 : d; regManager.getCurrentAction().sigmaDense=d;}
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().selectScore=c;
-	       	if(this.boxTypeTrans.getSelectedIndex()!=2) {c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().selectLTS=c;}
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().selectScore=Math.min(100,Math.max(c,5));
+	       	if(this.boxTypeTrans.getSelectedIndex()!=2) {c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().selectLTS=Math.min(100,Math.max(c,5));}
 		}
 		//Parameters for Itk Iconic
 		else {//Itk parameters

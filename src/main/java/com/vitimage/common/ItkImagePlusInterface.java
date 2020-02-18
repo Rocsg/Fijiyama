@@ -138,7 +138,7 @@ public interface ItkImagePlusInterface {
 	}
 	
 	public static ImagePlus[] convertDisplacementFieldFloatToImagePlusArray(Image img){
-		System.out.println("Converting displacement field to ImagePlus array");
+		IJ.log("Converting displacement field to ImagePlus array");
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		VectorDouble voxSizes= img.getSpacing();		
 		ImagePlus[]ret=new ImagePlus[3];
@@ -169,8 +169,6 @@ public interface ItkImagePlusInterface {
 				}
 			}
 		}
-		System.out.println("End");
-
 		return ret;
 	}
 	

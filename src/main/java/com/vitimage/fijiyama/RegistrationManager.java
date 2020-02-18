@@ -1050,7 +1050,7 @@ public class RegistrationManager{
 		}
 		else {
 			ImagePlus movCopy=VitimageUtils.getBinaryGrid(refCopy,17,true,true);
-			movCopy.show();
+			//movCopy.show();
 			universe.removeAllContents();
 			universe.addContent(refCopy, new Color3f(Color.red),"movCopy",50,new boolean[] {true,true,true},1,0 );
 			universe.addOrthoslice(movCopy, new Color3f(Color.white),"refCopy",50,new boolean[] {true,true,true},1);
@@ -1153,38 +1153,6 @@ public class RegistrationManager{
 		fijiyamaGui.addLog(" Waiting for you to confirm position or to abort action...",0);
 	}
 	
-	public void start2dManualRegistrationThreeFold(ImagePlus imgRef,ImagePlus imgMov,ImagePlus imgMov2) {
-		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
-		ImagePlus movCopy=null;
-		ImagePlus movCopyOpt=null;
-		IJ.run(refCopy,"8-bit","");
-		refCopy.setTitle(fijiyamaGui.displayedNameImage1);
-		movCopy=VitimageUtils.imageCopy(imgMov);		
-		IJ.run(movCopy,"8-bit","");
-		movCopy.setTitle(fijiyamaGui.displayedNameImage2);
-
-		movCopyOpt=VitimageUtils.imageCopy(imgMov2);		
-		IJ.run(movCopyOpt,"8-bit","");
-		movCopyOpt.setTitle(fijiyamaGui.displayedNameImage3);
-		
-		IJ.setTool("point");
-		refCopy.show();refCopy.setSlice(refCopy.getStackSize()/2+1);refCopy.updateAndRepaintWindow();
-		VitimageUtils.adjustFrameOnScreen((Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage1), 0,2);
-		RoiManager rm=RoiManager.getRoiManager();
-		rm.reset();
-		VitimageUtils.adjustFrameOnScreenRelative((Frame)rm,(Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage1),2,1,2);
-
-		movCopy.show();movCopy.setSlice(movCopy.getStackSize()/2+1);movCopy.updateAndRepaintWindow();
-		VitimageUtils.adjustFrameOnScreenRelative((Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage2),rm,2,2,2);
-
-		movCopyOpt.show();movCopyOpt.setSlice(movCopyOpt.getStackSize()/2+1);movCopyOpt.updateAndRepaintWindow();
-		VitimageUtils.adjustFrameOnScreenRelative((Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage3),rm,2,2,2);
-
-		if(!fijiyamaGui.getAutoRepMode() && first2dmessageHasBeenViewed)IJ.showMessage("Examine images, identify correspondances between images and use the Roi manager to build a list of correspondances points. Points should be given this way : \n- Point A  in image 1\n- Correspondant of point A  in image 2\n- Correspondant of point A  in image 3\n- Point B  in image 1\n- Correspondant of point B  in image 2\n- Correspondant of point B  in image 3\netc...\n"+
-		"Once done (at least 5-15 couples of corresponding points), push the \""+fijiyamaGui.getRunButtonText()+"\" button to stop\n\n");
-		first2dmessageHasBeenViewed=false;
-		fijiyamaGui.addLog(" Waiting for you to confirm position or to abort action...",0);
-	}
 
 	public ItkTransform finish2dManualRegistration(){
 		RoiManager rm=RoiManager.getRoiManager();
@@ -1217,72 +1185,31 @@ public class RegistrationManager{
 		WindowManager.getImage(fijiyamaGui.displayedNameImage2).close();
 		rm.close();
 
-		
-		IJ.log("Registration evaluation : computing distance between corresponding points.");
-		int nCouples=pointTabImg[0].length;
-		double[][]dataExport=new double[nCouples][3+3+3+3+1];//coordIntRef, coordIntMov,DistanceImg,distanceReal,GlobDistReal
-		double[][]dataStats=new double[4][3+3+3+3+1];//coordIntRef, coordIntMov,DistanceImg,distanceReal,GlobDistReal
-		double[]data;
-		for(int i=0;i<nCouples;i++) {
-			//Coordinates of reference point
-			dataExport[i][0]=pointTabImg[0][i].x;
-			dataExport[i][1]=pointTabImg[0][i].y;
-			dataExport[i][2]=pointTabImg[0][i].z;
-
-			//Coordinates of corresponding point in moving image
-			dataExport[i][3+0]=pointTabImg[1][i].x;
-			dataExport[i][3+1]=pointTabImg[1][i].y;
-			dataExport[i][3+2]=pointTabImg[1][i].z;
-
-			//Distance in voxels in the registration image space and in real space (unit), along each dimension
-			for(int dim=0;dim<3;dim++) {
-				dataExport[i][6+dim]= Math.abs(  dataExport[i][0+dim] - dataExport[i][3+dim])*voxSizesReg[dim]/voxSizesEvaluate[dim];
-				dataExport[i][9+dim]= dataExport[i][6+dim]*voxSizesEvaluate[dim];
-			}			
-			dataExport[i][12]=Math.sqrt(dataExport[i][9]*dataExport[i][9] + dataExport[i][9+1]*dataExport[i][9+1] + dataExport[i][9+2]*dataExport[i][9+2]);
-		}
-
-		
-		double[][]transposedData=VitimageUtils.transposeTab(dataExport);
-		for(int i=0;i<3+3+3+3+1;i++) {
-			dataStats[0][i]=VitimageUtils.min(transposedData[i]);
-			dataStats[1][i]=VitimageUtils.max(transposedData[i]);
-			dataStats[2][i]=VitimageUtils.statistics1D(transposedData[i])[0];
-			dataStats[3][i]=VitimageUtils.statistics1D(transposedData[i])[1];
-		}
-
-		
-		//Set in shape of a CSV
-		String unit=getCurrentRefImage().getCalibration().getUnit();
-		String s="#Point,Ref_pt._X,Ref_pt._Y,Ref_pt._Z,"+     "Mov_pt._X,Mov_pt._Y,Mov_pt._Z,"+
-				 "deltaX(pixels),deltaY(pixels),deltaZ(pixels),"+     "deltaX("+unit+"),deltaY("+unit+"),deltaZ("+unit+"),"+
-				 "Distance("+unit+")\n";
-		for(int pt=0;pt<nCouples;pt++) {
-			s+="Point_"+pt;
-			for(int dat=0;dat<3+3+3+3+1;dat++)s+=","+dataExport[pt][dat];
-			s+="\n";
-		}		
-		String[]measurements= {"Min","Max","Mean","Std"};
-		for(int pt=0;pt<4;pt++) {
-			s+=measurements[pt];
-			for(int dat=0;dat<3+3+3+3+1;dat++)s+=","+dataStats[pt][dat];
-			s+="\n";
-		}		
-		IJ.log("Saving file to output path "+this.serieOutputPath);
+		boolean threeFoldEvaluation=false;//(VitiDialogs.getYesNoUI("Compare with last manual step ?", "Compare with last manual step  ? (\"No\" means evaluating only last step)"));//false
 		String nameMeasureTxt=new File(this.serieOutputPath,"measurements"+new SimpleDateFormat("yyyy-MM-dd_hh-mm").format(new Date())+".csv").getAbsolutePath();
-		VitimageUtils.writeStringInFile(s, nameMeasureTxt);
-		
-		for(int i=0;i<dataStats.length;i++)for(int j=0;j<dataStats.length;j++)dataStats[i][j]=VitimageUtils.dou(dataStats[i][j]);
-		IJ.showMessage("Your data have been written as a CSV file (excel-friendly) in the output directory : \n"+nameMeasureTxt+"\nCheck the ImageJ log for an overview of mismatch measurements (mean, std, min, max)");
-		IJ.log("Distance in pixels along X axis. Mean="+dataStats[2][0+6]+ ", Std="+ dataStats[3][0+6]+", Min="+dataStats[0][ 6]+", Max="+dataStats[1][ 6 ]);                                              
-		IJ.log("                             along Y axis. Mean="+dataStats[2][0+7]+ ", Std="+  dataStats[3][ 7 ]+", Min="+dataStats[0][ 7 ]+", Max="+dataStats[1][ 7 ]);                                              
-		IJ.log("                              along Z axis. Mean="+dataStats[2][0+8]+ ", Std="+ dataStats[3][ 8 ]+", Min="+dataStats[0][ 8 ]+", Max="+dataStats[1][ 8 ]);                                              
-		IJ.log("Distance in real space ("+unit+") along X axis. Mean="+dataStats[2][0+9]+ ", Std="+dataStats[3][ 9 ]+", Min="+dataStats[0][ 9 ]+", Max="+dataStats[1][ 9 ]);                                              
-		IJ.log("                                           along Y axis. Mean="+dataStats[2][0+10]+ ", Std="+ dataStats[3][ 10 ]+", Min="+dataStats[0][ 10 ]+", Max="+dataStats[1][ 10 ]);                                              
-		IJ.log("                                           along Z axis. Mean="+dataStats[2][0+11]+ ", Std="+ dataStats[3][ 11 ]+", Min="+dataStats[0][ 11 ]+", Max="+dataStats[1][ 11 ]);                                              
-		IJ.log("                                              (norm)      . Mean="+dataStats[2][0+12]+ ", Std="+ dataStats[3][ 12 ]+", Min="+dataStats[0][ 12 ]+", Max="+dataStats[1][ 12 ]);                                              
-		return new ItkTransform();		
+		computeMismatches(new Point3d[][] {pointTabImg[0],pointTabImg[1]},voxSizesReg,voxSizesEvaluate,nameMeasureTxt);
+
+		if(threeFoldEvaluation) {
+			int lastMan=0;
+			for(int s=0;s<this.step;s++)if(regActions.get(s).isDone() && regActions.get(s).typeAction==RegistrationAction.TYPEACTION_MAN)lastMan=s;
+			ItkTransform trTemp=new ItkTransform();	
+			for(int indT=lastMan+1;indT<this.step;indT++) {
+				trTemp.addTransform(this.transforms[currentRegAction.movTime][currentRegAction.movMod].get(indT));
+			}
+			for(int i=0;i<pointTabImg[1].length;i++) {
+				pointTabImg[1][i]=VitimageUtils.toRealSpace(pointTabImg[1][i],voxSizesEvaluate);
+				pointTabImg[1][i]=trTemp.transformPoint(pointTabImg[1][i]);
+				pointTabImg[1][i]=VitimageUtils.toImageSpace(pointTabImg[1][i],voxSizesEvaluate);
+			}
+			
+			nameMeasureTxt=new File(this.serieOutputPath,"measurements"+new SimpleDateFormat("yyyy-MM-dd_hh-mm").format(new Date())+"_Second.csv").getAbsolutePath();
+			computeMismatches(new Point3d[][] {pointTabImg[0],pointTabImg[1]},voxSizesReg,voxSizesEvaluate,nameMeasureTxt);
+		}
+		return new ItkTransform();
 	}
+
+		
+
 
 	public ItkTransform finish2dEvaluationThreeFold(){
 		RoiManager rm=RoiManager.getRoiManager();
@@ -1497,7 +1424,6 @@ public class RegistrationManager{
 		return maxAcceptableLevel;
 	}
 	
-
 	public ItkTransform getComposedTransform(int nt, int nm) {
 		if (nt>=this.nTimes)return null;
 		if (nm>=this.nMods)return null;
@@ -1515,7 +1441,6 @@ public class RegistrationManager{
 		ItkTransform trTot=new ItkTransform();
 		for(int indT=0;indT<this.transforms[nt][nm].size();indT++) {
 			if(this.transforms[nt][nm].get(indT).step<=lastStep) {
-				System.out.println("Ajout de la transfo faite a l etape "+this.transforms[nt][nm].get(indT).step);
 				trTot.addTransform(this.transforms[nt][nm].get(indT));
 			}
 		}

@@ -197,6 +197,14 @@ public interface VitimageUtils {
 		for(int i=0;i<img.getStack().getSize();i++)img.getStack().setSliceLabel(label,i+1);
 	}
 	
+	public static Point3d toRealSpace(Point3d p,double[]voxs) {
+		return new Point3d(p.x*voxs[0],p.y*voxs[1],p.z*voxs[2]);
+	}
+	public static Point3d toImageSpace(Point3d p,double[]voxs) {
+		return new Point3d(p.x/voxs[0],p.y/voxs[1],p.z/voxs[2]);
+	}
+
+	
 	public static String getSystemName(){
 		String os=System.getProperty("os.name").toLowerCase();
 		if(os.indexOf("win") >= 0)return "Windows system";

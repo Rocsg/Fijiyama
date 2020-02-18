@@ -164,11 +164,6 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		double bonusTime=factorInit*imageSize;
 		double displayTime=nbIter*factorView*(levelMax-levelMin+1)*viewRegistrationLevel*imageSize;
 		double processingTime=factorProcess*sumSize*nbIter;
-	/*	System.out.println("Itk time estimation : bonusTime="+bonusTime);
-		System.out.println("Itk time estimation : displayTime="+displayTime);
-		System.out.println("Itk time estimation : processingTime="+processingTime);
-		System.out.println("Itk time estimation : totalTime="+(processingTime+displayTime+bonusTime));
-		*/
 		return (int)Math.round(processingTime+displayTime+bonusTime);
 	}
 
@@ -303,11 +298,8 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
 		this.transform=new ItkTransform(transformInit);
-		System.out.println("DEBUG ITK 1");
 		this.register();
-		System.out.println("DEBUG ITK 2");
-
-		freeMemory();
+		if(this.itkRegistrationInterrupted)return null;
 		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.transform;
 		else {
 			if(transformInit.isDense())return new ItkTransform((transformInit.getInverseOfDenseField()).addTransform(this.transform));
@@ -616,25 +608,16 @@ public class ItkRegistration implements ItkImagePlusInterface{
 	}
 
 	public void register(){
-		System.out.println("DEBUG ITK 11");
 		this.currentStep=0;
-		System.out.println("DEBUG ITK 12");
 		while(currentStep<nbStep) {
-			System.out.println("DEBUG ITK 13-"+currentStep);
 			int excludeMargin=ijImgRef.getStackSize()/4;
 			this.registrationMethods.get(currentStep).setMetricFixedMask(ItkImagePlusInterface.imagePlusToItkImage(VitimageUtils.restrictionMaskForFadingHandling(this.ijImgRef,excludeMargin)));
 			this.registrationMethods.get(currentStep).setMetricMovingMask(ItkImagePlusInterface.imagePlusToItkImage(VitimageUtils.restrictionMaskForFadingHandling(this.ijImgMov,excludeMargin)));
-			System.out.println("DEBUG ITK 14-"+currentStep);
 
 			this.createUpdater();
 			updateView(this.dimensions.get(0)[0],this.sigmaFactors.get(0)[0],this.shrinkFactors.get(0)[0],
 						"Position before registration, Red=Ref, Green=Mov",this.transform==null ? new ItkTransform() : this.transform);
-			System.out.println("DEBUG ITK 15-"+currentStep);
 			this.runNextStep();
-			System.out.println("DEBUG ITK 16-"+currentStep);
-			System.out.println("Check resampler : "+(this.resampler==null));
-			System.out.println("Check transform : "+(this.transform==null));
-			System.out.println("Check transform : "+(this.transform.drawableString()));
 			if(this.displayRegistration>0) {
 				this.resampler.setTransform(this.transform);
 				ImagePlus temp=ItkImagePlusInterface.itkImageToImagePlus(this.resampler.execute(this.itkImgMov));
@@ -642,14 +625,11 @@ public class ItkRegistration implements ItkImagePlusInterface{
 			}
 
 		}
-		System.out.println("DEBUG ITK 18");
 		displayEndOfRegistrationMessage();
-		System.out.println("DEBUG ITK 19");
 		if(this.displayRegistration>0) {
 			this.sliceView.changes=false;
 			this.sliceView.close();
 		}
-		System.out.println("DEBUG ITK 199");
 	}
 
 	
@@ -659,13 +639,13 @@ public class ItkRegistration implements ItkImagePlusInterface{
 	 * Functions for displaying, tracking and keep memories of registration results along the computation
 	 */
 	public void displayEndOfRegistrationMessage() {
-		System.out.println("-----------------------------------------");
-		System.out.println("-----------------------------------------");
-		System.out.println("------     End of registration    -------");
-		System.out.println("-----------------------------------------");
-		System.out.format("Optimizer stop condition: %s\n", registrationMethods.get(nbStep-1).getOptimizerStopConditionDescription());
-		System.out.format(" Iteration: %d\n", registrationMethods.get(nbStep-1).getOptimizerIteration());
-		System.out.format(" Metric value: %f\n",registrationMethods.get(nbStep-1).getMetricValue());
+		IJ.log("-----------------------------------------");
+		IJ.log("-----------------------------------------");
+		IJ.log("------     End of registration    -------");
+		IJ.log("-----------------------------------------");
+		IJ.log("Optimizer stop condition: "+registrationMethods.get(nbStep-1).getOptimizerStopConditionDescription()+"\n");
+		IJ.log(" Iteration: "+registrationMethods.get(nbStep-1).getOptimizerIteration()+"\n");
+		IJ.log(" Metric value: "+registrationMethods.get(nbStep-1).getMetricValue()+"\n");
 	}
 
 	public void displayAlignmentResults() {
@@ -1061,7 +1041,7 @@ class IterationUpdate  extends Command {
 					" .  Image size = "+tabSizes[mem][0]+" x "+tabSizes[mem][1]+" x "+tabSizes[mem][2]+" . Execution with "+method.getNumberOfThreads()+" threads. Starting.\n";
 			for(int i=0;i<mem;i++)st+="     ";
 			st+="----------";		  
-			System.out.println(st);		  
+			IJ.log(st);		  
 			//IJ.log(st);
 		}
 		memoirePyramide=method.getOptimizerIteration();
