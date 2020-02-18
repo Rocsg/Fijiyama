@@ -1242,6 +1242,7 @@ public class RegistrationManager{
 			dataExport[i][12]=Math.sqrt(dataExport[i][9]*dataExport[i][9] + dataExport[i][9+1]*dataExport[i][9+1] + dataExport[i][9+2]*dataExport[i][9+2]);
 		}
 
+		
 		double[][]transposedData=VitimageUtils.transposeTab(dataExport);
 		for(int i=0;i<3+3+3+3+1;i++) {
 			dataStats[0][i]=VitimageUtils.min(transposedData[i]);
