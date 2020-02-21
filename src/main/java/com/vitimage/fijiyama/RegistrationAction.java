@@ -30,7 +30,7 @@ public class RegistrationAction implements Serializable{
 	public static final int TYPEACTION_SAVE=4;
 	public static final int TYPEACTION_EXPORT=5;
 	public static final int TYPEACTION_EVALUATE=6;
-	public static final int STD_BM_ITER=8;//6
+	public static final int STD_BM_ITER=12;
 	public static final int STD_ITK_ITER=200;
 	public OptimizerType typeOpt=OptimizerType.BLOCKMATCHING;
 	public int typeAutoDisplay=0;
@@ -56,7 +56,7 @@ public class RegistrationAction implements Serializable{
 	public int strideX=3;
 	public int strideY=3;
 	public int strideZ=3;
-	public int selectScore=50;
+	public int selectScore=95;
 	public int selectLTS=80;
 	public int selectRandom=100;
 	public int subsampleZ=0;
@@ -129,7 +129,7 @@ public class RegistrationAction implements Serializable{
 	
 	
 	public RegistrationAction defineSettingsFromTwoImages(ImagePlus imgRef,ImagePlus imgMov,RegistrationManager regManager,boolean modifyMaxLevelOfManager) {
-		this.selectScore=50;
+		this.selectScore=95;
 		this.selectLTS=80;
 		this.selectRandom=100;
 		int nbStrideAtMaxLevel=30;//100 ou bien 20 mais avec decroissance
@@ -140,7 +140,7 @@ public class RegistrationAction implements Serializable{
 		int[]dimsTemp=VitimageUtils.getDimensions(imgRef);
 		double[]voxsTemp=VitimageUtils.getVoxelSizes(imgRef);
 		double[]sizesTemp=new double[] {dimsTemp[0]*voxsTemp[0],dimsTemp[1]*voxsTemp[1],dimsTemp[2]*voxsTemp[2]};				
-		sigmaDense=sizesTemp[0]/20;//Default : gaussian kernel for dense field estimation is 20 times smaller than image
+		sigmaDense=sizesTemp[0]/12;//Default : gaussian kernel for dense field estimation is 20 times smaller than image
 		double anisotropyVox=voxsTemp[2]/Math.max(voxsTemp[1],voxsTemp[0]);
 		this.levelMin=0;
 		this.levelMax=0;
@@ -150,7 +150,7 @@ public class RegistrationAction implements Serializable{
 		neighX=2;
 		neighY=2;
 		neighZ=2;
-		if((dimsTemp[2]>=5) && (anisotropyVox<1.5)) {//Cas 3D pur
+		if((dimsTemp[2]>=5) && (anisotropyVox<3)) {//Cas 3D pur
 			subZ=true;
 			int []dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-minSubResolutionImageSizeLog2),
 						              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-minSubResolutionImageSizeLog2),
@@ -168,7 +168,7 @@ public class RegistrationAction implements Serializable{
 		}
 		else {	
 			//Si dims[2]<5, cas 2D --> pas de subsampleZ, levelMin et max defini sur dims 0 et 1, neighZ=0 BHSZ=0 strideZ=1;
-			//Sinon si anisotropyVox>1.5 -> pas de subsampleZ levelMin et max defini sur dims 0 et 1, neighZ=3 BHSZ=prop strideZ=prop;
+			//Sinon si anisotropyVox>3 -> pas de subsampleZ levelMin et max defini sur dims 0 et 1, neighZ=3 BHSZ=prop strideZ=prop;
 			int []dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-minSubResolutionImageSizeLog2),
 		              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-minSubResolutionImageSizeLog2) };
 			levelMax=Math.min(dimsLog2[0], dimsLog2[1]);

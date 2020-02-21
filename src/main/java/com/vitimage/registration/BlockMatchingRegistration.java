@@ -4,7 +4,6 @@ package com.vitimage.registration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.awt.Toolkit;
 import java.io.File;
@@ -12,7 +11,6 @@ import org.itk.simple.DisplacementFieldTransform;
 import org.itk.simple.Image;
 import org.itk.simple.ResampleImageFilter;
 
-import com.sun.tools.javac.code.Attribute.Array;
 import com.vitimage.common.ItkImagePlusInterface;
 import com.vitimage.common.TransformUtils;
 import com.vitimage.common.VitiDialogs;
@@ -22,12 +20,8 @@ import com.vitimage.fijiyama.RegistrationAction;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
-import ij.WindowManager;
 import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
-import ij.plugin.frame.RoiManager;
-import ij.process.FloatProcessor;
-import ij.process.LUT;
 import math3d.Point3d;
 
 public class BlockMatchingRegistration  implements ItkImagePlusInterface{
@@ -1091,7 +1085,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	public void updateViews(int level,int iteration,int subpixellic,String textTrans) {
 		String textIter=String.format("Niveau=%1d/%1d - Iter=%3d/%3d - %s",
 				level+1,this.levelMax-this.levelMin+1,
-				iteration+1,this.nbIterations,subpixellic>0 ? ("subpixellic 1/"+(1+subpixellic)+" pixel") :""
+				iteration+1,this.nbIterations,subpixellic>0 ? ("subpixellic 1/"+((int)Math.pow(2,subpixellic))+" pixel") :""
 				);
 
 		if(displayRegistration==0) {

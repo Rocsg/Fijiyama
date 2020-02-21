@@ -2,7 +2,6 @@ package com.vitimage.fijiyama;
 
 import java.awt.Color;
 import java.awt.Frame;
-import java.awt.event.KeyListener;
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.text.SimpleDateFormat;
@@ -26,7 +25,6 @@ import com.vitimage.registration.OptimizerType;
 import com.vitimage.registration.Transform3DType;
 
 import ij.IJ;
-import ij.ImageJ;
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
@@ -36,11 +34,12 @@ import ij.plugin.Memory;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import math3d.Point3d;
-import net.imglib2.img.ImgView;
 
 //TODO : adapter saveSerie pour qu il fasse le taf quelle que soit la serie
 
 public class RegistrationManager{
+	ImagePlus maskImage=null;
+	String pathToMask="None";
 	int recursiveCalls=0;
 	public int stepBuild=0;
 	public int ENDING_STEP=10000;
@@ -178,6 +177,9 @@ public class RegistrationManager{
 				}
 			}
 			this.expression=lines[14+this.nMods+this.nTimes].split("=")[1];
+			this.pathToMask=lines[15+this.nMods+this.nTimes].split("=")[1];
+			if(this.pathToMask.equals("None"))this.maskImage=null;
+			else this.maskImage=IJ.openImage(this.pathToMask);
 
 			this.setupStructures();
 
@@ -197,7 +199,7 @@ public class RegistrationManager{
 		}
 	
 		//Check computer capacity and get a working copy of images
-		this.checkComputerCapacity();
+		this.checkComputerCapacity(true);
 		this.openImagesAndCheckOversizing();
 		ItkTransform trTemp = null;
 		
@@ -232,7 +234,7 @@ public class RegistrationManager{
 		this.paths[refTime][refMod]=paths[0];
 		this.paths[movTime][movMod]=paths[1];
 
-		checkComputerCapacity();
+		checkComputerCapacity(true);
 		openImagesAndCheckOversizing();
 		addFirstActionOfPipeline();
 		String fjmPath=saveSerieToFjmFile();
@@ -245,13 +247,19 @@ public class RegistrationManager{
 		if(!createOutputPathAndFjmFile())return;
 		if(!defineInputData())return;
 		this.isSerie=true;
-		checkComputerCapacity();
+		checkComputerCapacity(false);
 		openImagesAndCheckOversizing();
 		this.stepBuild=0;
 		defineSerieRegistrationPipeline();
 	}
 
 	public void endSetupSerieFromScratch(){
+		boolean serieGotDenseTransforms=false;
+		for(int i=0;i<regActions.size();i++) {
+			if(regActions.get(i).typeAction==RegistrationAction.TYPEACTION_AUTO && regActions.get(i).typeTrans==Transform3DType.DENSE)serieGotDenseTransforms=true;
+		}
+		if(serieGotDenseTransforms) setPathToMask();
+
 		step=0;
 		this.updateNbSteps();
 	
@@ -260,6 +268,10 @@ public class RegistrationManager{
 		setupFromFjmFile(fjmFile);
 		fijiyamaGui.modeWindow=fijiyamaGui.WINDOWSERIERUNNING;
 		
+		startTheSerie();
+	}
+	
+	public void startTheSerie() {
 		fijiyamaGui.startSerie();
 		fijiyamaGui.frameLaunch.setVisible(false);
 		step=0;
@@ -268,10 +280,17 @@ public class RegistrationManager{
 		fijiyamaGui.updateList();
 	}
 	
-
+	public void setPathToMask() {
+		if(!VitiDialogs.getYesNoUI("Use a mask for dense transform estimations ?","Fijiyama can prevent estimating deformations in interest area, to keep their shape untouched\nSelect \"Yes\" to provide a mask, or \"No\" instead. "))pathToMask="None";
+		else pathToMask=VitiDialogs.chooseOneRoiPathUI("Choose mask image","Choose mask image");
+		if(pathToMask==null)pathToMask="None";
+		setMaskImage();
+	}
 	
-	
-	
+	public boolean setMaskImage() {
+		if(pathToMask.equals("None")) {maskImage=null;return false;}
+		else {maskImage=IJ.openImage(pathToMask);return true;}		
+	}
 	
 	/*Setup helpers ********************************************************************************************************************/
 	public String[] getRefAndMovPaths() {
@@ -362,16 +381,18 @@ public class RegistrationManager{
 
 		//Select reference modality
 		if(!fijiyamaGui.getAutoRepMode()) {
-			GenericDialog gd2=new GenericDialog("Choose reference modality for registration");
+			GenericDialog gd2=new GenericDialog("Choose reference modality and reference time for registration");
 			gd2.addMessage("This modality will be the reference image for each time-point. Choose the easiest to compare with all the other ones.");
 			gd2.addMessage("The registration process is done with the dimensions of the reference image.\n--> If you choose a low resolution modality, registration can be unaccurate\n"+
 					"--> If you choose a high resolution modality, it will be subsampled to prevent memory overflow");
 			gd2.addMessage("");
-			gd2.addMessage("After reference modality, you will have to choose the reference time. The dirst one is the recommended choice");
+			gd2.addMessage("After reference modality, you will have to choose the reference time. The first one is the default choice");
 			gd2.addChoice("Reference modality", potentialRef, potentialRef[0]);
+			gd2.addChoice("Reference time", this.times, this.times[0]);
 			gd2.showDialog();
 			if(gd2.wasCanceled()){IJ.showMessage("Dialog exited. Abort");return false;}
 			int refInd=gd2.getNextChoiceIndex();
+			int referenceTime=gd2.getNextChoiceIndex();
 			this.referenceModality=potentialRefIndex[refInd];
 			this.referenceTime=0;
 		}		
@@ -437,7 +458,7 @@ public class RegistrationManager{
 		
 		
 		//Define inter-mods pipeline, if needed
-		if(this.stepBuild!=ENDING_STEP && this.nMods<2) {
+		if(this.stepBuild<ENDING_STEP && this.nMods<2) {
 			this.stepBuild=ENDING_STEP;defineSerieRegistrationPipeline();return;
 		}
 		if(this.stepBuild<ENDING_STEP && this.stepBuild>=3 && ((this.stepBuild%2)==1)){
@@ -485,10 +506,10 @@ public class RegistrationManager{
 		
 		
 		if(this.stepBuild==ENDING_STEP) {		
+			this.stepBuild++;
 			fijiyamaGui.registrationFrame.setVisible(false);
 			fijiyamaGui.registrationFrame.dispose();
 			sequenceStepsOfTheCreatedPipeline(interTimes, interMods);
-			this.stepBuild++;
 			endSetupSerieFromScratch();
 		}
 	}
@@ -805,7 +826,7 @@ public class RegistrationManager{
 			str+="#Step="+ (Math.min(this.getNbSteps()-1, this.step))+"\n";
 		}
 		else if(fijiyamaGui.modeWindow==Fijiyama_GUI.WINDOWSERIERUNNING) {
-			if(this.getStep()>0)str+="#Step="+ (Math.min(this.getNbSteps()-1, this.step))+"\n";
+			if(this.step>0)str+="#Step="+ (Math.min(this.getNbSteps()-1, this.step))+"\n";
 			else str+="#Step="+ (Math.min(this.getNbSteps()-1, this.step+1))+"\n";		
 		}
 		else {
@@ -821,6 +842,7 @@ public class RegistrationManager{
 			for(int i=0;i<nTimes;i++)str+="#Time"+i+"="+this.times[i]+"\n";
 			str+="#"+"" +"\n";
 			str+="#Expression="+this.expression +"\n";
+			str+="#PathToMask="+pathToMask+"\n";
 			str+="#"+"" +"\n";
 		}
 
@@ -835,7 +857,7 @@ public class RegistrationManager{
 				trActions.get(st).writeToFileWithTypeDetection(f.getAbsolutePath(), this.images[regTemp.refTime][regTemp.refMod]);
 			}
 		}
-		str+="#"+""+"\n";		
+		str+="#"+""+"\n";
 		VitimageUtils.writeStringInFile(str, new File(this.serieOutputPath,this.name+".fjm").getAbsolutePath());
 		return (new File(this.serieOutputPath,this.name+".fjm").getAbsolutePath());
 	}
@@ -1049,8 +1071,7 @@ public class RegistrationManager{
 			sentence="Move the green volume (moving image) to match the red one (reference image).";
 		}
 		else {
-			ImagePlus movCopy=VitimageUtils.getBinaryGrid(refCopy,17,true,true);
-			//movCopy.show();
+			ImagePlus movCopy=VitimageUtils.getBinaryGrid(refCopy,17,true,false);
 			universe.removeAllContents();
 			universe.addContent(refCopy, new Color3f(Color.red),"movCopy",50,new boolean[] {true,true,true},1,0 );
 			universe.addOrthoslice(movCopy, new Color3f(Color.white),"refCopy",50,new boolean[] {true,true,true},1);
@@ -1128,17 +1149,13 @@ public class RegistrationManager{
 		refCopy.setTitle(fijiyamaGui.displayedNameImage1);
 		if(imgMov!=null) {
 			movCopy=VitimageUtils.imageCopy(imgMov);		
-			//movCopy.resetDisplayRange();
 			IJ.run(movCopy,"8-bit","");
 			movCopy.setTitle(fijiyamaGui.displayedNameImage2);
 		}
 		else {
 			movCopy=VitimageUtils.getBinaryGrid(refCopy,17);
-			movCopy.show();
 			movCopy.setTitle(fijiyamaGui.displayedNameImage2);
 		}
-
-		
 		IJ.setTool("point");
 		refCopy.show();refCopy.setSlice(refCopy.getStackSize()/2+1);refCopy.updateAndRepaintWindow();
 		VitimageUtils.adjustFrameOnScreen((Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage1), 0,2);
@@ -1366,6 +1383,7 @@ public class RegistrationManager{
 					trsTemp[nt][nm].addTransform(new ItkTransform(transformAlignementRef));
 					if(isSubSampled[nt][nm])hyperImg[index]=trsTemp[nt][nm].transformImage(referenceGeometryForTransforms,IJ.openImage(this.paths[nt][nm]), false);
 					else hyperImg[index]=trsTemp[nt][nm].transformImage(referenceGeometryForTransforms,images[nt][nm], false);
+					hyperImg[index].setDisplayRange(this.imageRanges[nt][nm][0], this.imageRanges[nt][nm][1]);
 					if(saveIndividualImages) {
 						IJ.saveAsTiff(hyperImg[index],nameForExport(nt, nm,true));
 						trsTemp[nt][nm].writeToFileWithTypeDetection(nameForExport(nt, nm,false), referenceGeometryForTransforms);	
@@ -1407,9 +1425,11 @@ public class RegistrationManager{
 			imgMovCurrentState= trMov.transformImage(this.images[refTime][refMod],this.images[movTime][movMod],false);
 			imgMovCurrentState.setDisplayRange(this.imageRanges[movTime][movMod][0], this.imageRanges[movTime][movMod][1]);
 	
-			imgRefCurrentState= (trRef==null)? this.images[refTime][refMod] : trRef.transformImage(this.images[refTime][refMod],this.images[refTime][refMod],false);
+			imgRefCurrentState= (trRef==null)? new ItkTransform().transformImage(this.images[refTime][refMod],this.images[refTime][refMod],false) : trRef.transformImage(this.images[refTime][refMod],this.images[refTime][refMod],false);
 			imgRefCurrentState.setDisplayRange(this.imageRanges[refTime][refMod][0], this.imageRanges[refTime][refMod][1]);
 		}
+		imgRefCurrentState.setDisplayRange(this.imageRanges[refTime][refMod][0], this.imageRanges[refTime][refMod][1]);
+		imgMovCurrentState.setDisplayRange(this.imageRanges[movTime][movMod][0], this.imageRanges[movTime][movMod][1]);
 		
 		//Compose images
 		imgView=VitimageUtils.compositeNoAdjustOf(imgRefCurrentState,imgMovCurrentState,step==0 ? "Superimposition before registration" : "Registration results after "+(step)+" step"+((step>1)?"s":""));
@@ -1492,7 +1512,7 @@ public class RegistrationManager{
 	}
 	
 
-	public String []checkComputerCapacity() {
+	public String []checkComputerCapacity(boolean verbose) {
 		this.nbCpu=Runtime.getRuntime().availableProcessors();
 		this.jvmMemory=(int)((new Memory().maxMemory() /(1024*1024)));//Java virtual machine available memory (in Megabytes)
 		this.freeMemory=(int)(Runtime.getRuntime().freeMemory() /(1024*1024));//Java virtual machine available memory (in Megabytes)
@@ -1514,7 +1534,8 @@ public class RegistrationManager{
 					" close the plugin then use the Fiji menu \"Edit / Options / Memory & threads\". "+
 					"Let at least "+VitimageUtils.getSystemNeededMemory()+" unused to keep your "+VitimageUtils.getSystemName()+" stable and responsive.";
 		}
-		return str;
+		if(verbose)		return str;
+		else return new String[] {"",""};
 	}
 
 

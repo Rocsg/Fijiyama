@@ -71,7 +71,8 @@ public interface VitiDialogs {
         	return imgRet;
 	}
 
-	
+
+
 	public static String chooseOneRoiPathUI(String strGuess,String strImg1) {
    		OpenDialog od1=new OpenDialog("Select "+strGuess);
    		return od1.getPath();

@@ -10,7 +10,6 @@ import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
@@ -56,33 +55,41 @@ import ij.plugin.frame.RoiManager;
 /**
  * 
  * @author fernandr
+
+ * TODO : User requests 
  * TODO : ******* Prioritary and critical bugs ********* 
+ * TODO :  During saving of serie, it does not lock the run button
+ * TODO :  Using short images, bad ranges : set to 0 65500, at least for the view phase
+ * TODO :  Reference choice --> Test
+ * TODO :  Mask for registration --> Test
+ * 
+ * TODO : (None)
+ * TODO : ******* Elements to investigate ********* 
+ * TODO : - Stop saving transform for non transformations actions. These null transform are not that annoying, but them doesn't stand for nothing
+ * TODO : - when programming serie, and switching from an action to another, it copies from the previous action. updateBoxFieldsFromRegistrationAction
+ * TODO : - During serie process, at some moment, the initial launching frame appears 
+ * TODO : - From eclipse, the registration Manager seems larger. Can I control its width ?
  * TODO : 
- * TODO : ******* Can wait a bit ********* 
  * TODO : 
- * TODO : Stop saving transform for non transformations actions. These null transform are not that annoying, but them doesn't stand for nothing
- * TODO : when programming serie, and switching from an action to another, it copies from the previous action. updateBoxFieldsFromRegistrationAction
- * TODO : During serie process, at some moment, the initial launching frame appears 
- * TODO :
- * TODO : ******* Fast fixes in evaluation ********* 
- * TODO : describe Class and code articulation 
- * TODO : 			--> Did in "find your way in the package.txt" files 
+ * TODO : ******* Fixes in evaluation ********* 
+ * TODO :  (None)
+ * TODO : 
  * TODO :
  * TODO : ******* Testing needs ********* 
- * 
+ * TODO :  Series with DATA_04
+ * TODO :  (None)
+ * TODO :  (None)
+  * 
  */
-/*TODO : v2 Already done non-regression tests :
-* Undo is ok. Activate up to one step done, deactivate when last step removed. Close the contexts previously open, update both structures and interfaces
-* Abort is ok.
-* One day : handle RegistrationAction with a specific object : a pile of to-do actions	
-* 
-* */
+
 
 
 
 
 public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
-	public String versionFlag="Elastic eucalyptus      Release time : "+new SimpleDateFormat("yyyy-MM-dd - hh-mm").format(new Date());
+	public String versionName="Felicity ficus ";
+	public String timeVersionFlag="Release time : 2020-02-21 - 19:18 PM";
+	public String versionFlag=versionName+timeVersionFlag;
 	public ImagePlus imgView;
 	public boolean threeFoldEvaluation=false;
 	private boolean enableHighAcc=true;
@@ -258,6 +265,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		ImageJ ij=new ImageJ();
 		ij.show();
 		Fijiyama_GUI reg=new Fijiyama_GUI();
+		reg.timeVersionFlag="Release time : "+new SimpleDateFormat("yyyy-MM-dd - hh:mm").format(new Date());
+		reg.versionFlag=reg.versionName+reg.timeVersionFlag;
 		reg.developerMode=true;
 		reg.debugMode=true;
 		reg.run("");
@@ -674,10 +683,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		}
 	
 		else if(e.getSource()==this.runSerieButton) {
-			IJ.showMessage("On day left before release of Felicity Ficus, including series functionalities. Please wait !");
-			return;
-//			modeWindow=WINDOWSERIEPROGRAMMING;
-			//			regManager.startSetupSerieFromScratch();
+			modeWindow=WINDOWSERIEPROGRAMMING;
+			regManager.startSetupSerieFromScratch();
 		}
 		
 		else if(e.getSource()==this.loadFjmButton) {
@@ -995,6 +1002,13 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							bmRegistration.minBlockVariance=0.04;
 							bmRegistration.displayRegistration=regManager.getCurrentAction().typeAutoDisplay;
 							bmRegistration.displayR2=false;
+							if(modeWindow==WINDOWTWOIMG && regManager.getCurrentAction().typeTrans==Transform3DType.DENSE) {
+								regManager.setPathToMask();
+								if(regManager.maskImage!=null)bmRegistration.mask=VitimageUtils.imageCopy(regManager.maskImage);
+							}
+							else if(modeWindow==WINDOWSERIERUNNING && regManager.getCurrentAction().typeTrans==Transform3DType.DENSE) {
+								if(regManager.setMaskImage())bmRegistration.mask=VitimageUtils.imageCopy(regManager.maskImage);
+							}
 							bmRegistration.returnComposedTransformationIncludingTheInitialTransformationGiven=false;
 							enable(ABORT);
 							ItkTransform trTemp=bmRegistration.runBlockMatching(regManager.getCurrentMovComposedTransform());
@@ -1128,7 +1142,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							setRunToolTip(MAIN);
 							runButton.setBackground(colorStdActivatedButton);
 							actionAborted=false;
-							enable(new int[] {UNDO,BOXACT,FINISH,SAVE,RUN});
+							enable(new int[] {UNDO,BOXACT,FINISH,SAVE,RUN,SETTINGS});
 							enableChainIfPossible();							
 							addLog("Manual registration finished.", 1);
 						}
@@ -1190,7 +1204,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							setRunToolTip(MAIN);
 							runButton.setBackground(colorStdActivatedButton);
 							actionAborted=false;
-							enable(new int[] {UNDO,BOXACT,FINISH,SAVE,RUN});
+							enable(new int[] {UNDO,BOXACT,FINISH,SAVE,RUN,SETTINGS});
 							enableChainIfPossible();							
 							addLog("Manual registration finished.", 1);
 						}
@@ -1544,7 +1558,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 				"The axis alignment process opens a 3d interface, to interact with the reference image (shown as a red volume)"+
 				" and set its alignment relative to the XYZ axis, drawn as white orthogonal lines "+nextPar+
 				"- Rotations : Mouse-drag the background to turn the scene, and mouse-drag an object to turn it."+
-				" For accurate rotations, use the arrows (numpad 7 & numpad 9  for X axis, right & left for Y axis, numpad 1 & numpad 3 for Z axis)"+nextPar+
+				" For accurate rotations, use the arrows (numpad 7 & numpad 9  for X axis, numpad 1 & numpad 3 for Y axis, character 'p' & character 'o' for Z axis)"+nextPar+
 				(VitimageUtils.isWindowsOS() ? "- Translations :  use the numerical keypad (4 & 6 for X axis, 2 & 8 for Y axis, 0 & 5 for Z axis)" :	
 					"- Translations : hold the SHIFT key and drag an object to translate it."+
 					"For accurate translations, use the numerical keypad (4 & 6 for X axis, 2 & 8 for Y axis, 0 & 5 for Z axis)")	+	
@@ -1571,7 +1585,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 				"To start this action, click on the <b>\"Start this action\"</b> button. A 3d interface opens, and let you interact with the images."+saut+
 				"In the 3d interface, the reference image is shown as a red volume and the moving image as a green volume. Interact with them to make them match."+nextPar+
 				"- Rotations : Mouse-drag the background to turn the scene, and mouse-drag an object to turn it."+
-				" For accurate rotations, use the arrows (numpad 7 & numpad 9  for X axis, right & left for Y axis, numpad 1 & numpad 3 for Z axis)"+nextPar+
+				" For accurate rotations, use the arrows (numpad 7 & numpad 9  for X axis, numpad 1 & numpad 3 for Y axis, character 'p' & character 'o' for Z axis)"+nextPar+
 				(VitimageUtils.isWindowsOS() ? "- Translations :  use the numerical keypad (4 & 6 for X axis, 2 & 8 for Y axis, 0 & 5 for Z axis)" :	
 					"- Translations : hold the SHIFT key and drag an object to translate it."+
 					"For accurate translations, use the numerical keypad (4 & 6 for X axis, 2 & 8 for Y axis, 0 & 5 for Z axis)")	+nextPar+
@@ -1712,7 +1726,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	}
 	
 	public void welcomeAndInformAboutComputerCapabilities() {		
-		String[]str=regManager.checkComputerCapacity();
+		String[]str=regManager.checkComputerCapacity(true);
 		addLog(str[0],0);
 		addLog(str[1],0);		
 	}
@@ -1812,6 +1826,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 
 	public void handleKeyPress(KeyEvent e) {
+		System.out.println(e.getKeyCode());
 		if(regManager==null) return;
 		if(regManager.universe==null)return;
 		if(regManager.universe.getSelected()==null)return;
@@ -1828,12 +1843,12 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		//Rotations
 		Transform3D tr=null;double[]tab=new double[16];
 		double[]angles=new double[3];		
-		if(e.getKeyCode()==37)angles[1]=angle;
-		if(e.getKeyCode()==39)angles[1]=-angle;
+		if(e.getKeyCode()==79)angles[1]=angle;
+		if(e.getKeyCode()==80)angles[1]=-angle;
 		if(e.getKeyCode()==103)angles[0]=angle;
 		if(e.getKeyCode()==105)angles[0]=-angle;
-		if(e.getKeyCode()==97)angles[2]=angle;
-		if(e.getKeyCode()==99)angles[2]=-angle;		
+		if(e.getKeyCode()==99)angles[2]=angle;
+		if(e.getKeyCode()==97)angles[2]=-angle;		
 		double[]imageCenter=VitimageUtils.getImageCenter(regManager.getCurrentRefImage(),true);		
 		ItkTransform itkTr=ItkTransform.getRigidTransform(imageCenter, angles, new double[] {0,0,0});
 		tr=ItkTransform.itkTransformToIj3dTransform(itkTr); 
