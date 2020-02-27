@@ -2941,9 +2941,9 @@ public interface VitimageUtils {
 		int border=50;//taskbar, or things like this
 		int x=0;int y=0;
         if(xPosition==0)x=referenceFrame.getLocationOnScreen().x-currentX-distance;//Set to the left of reference
-        if(xPosition==2)x=referenceFrame.getLocationOnScreen().x+referenceX+distance;
+        if(xPosition==1)x=referenceFrame.getLocationOnScreen().x;
         if(yPosition==0)y=border;
-        if(yPosition==1)y=(screenY-currentY)/2;
+        if(yPosition==1)y=referenceFrame.getLocationOnScreen().y;
         if(yPosition==2)y=screenY-border-currentY;
         currentFrame.setLocation(x, y);
         //System.out.println("Positioning frame at screen coordinates : ( "+x+" , "+y+" )");

@@ -7,6 +7,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
+import org.apache.commons.math3.transform.TransformType;
+
 import com.vitimage.common.VitimageUtils;
 import com.vitimage.registration.OptimizerType;
 import com.vitimage.registration.Transform3DType;
@@ -43,9 +45,11 @@ public class RegistrationAction implements Serializable{
 	public double sigmaResampling=0;
 	public double sigmaDense=0;
 	public int levelMin=2;
-	public int levelMax=2;
+	public int levelMaxDense=2;
+	public int levelMaxLinear=2;
 	public int higherAcc=0;
-	public int iterationsBM=STD_BM_ITER;
+	public int iterationsBMLin=STD_BM_ITER;
+	public int iterationsBMDen=STD_BM_ITER/2;
 	public int iterationsITK=STD_ITK_ITER;
 	public int neighX=2;
 	public int neighY=2;
@@ -90,9 +94,11 @@ public class RegistrationAction implements Serializable{
 		sigmaResampling=regAct.sigmaResampling;
 		sigmaDense=regAct.sigmaDense;
 		levelMin=regAct.levelMin;
-		levelMax=regAct.levelMax;
+		levelMaxDense=regAct.levelMaxDense;
+		levelMaxLinear=regAct.levelMaxLinear;
 		higherAcc=regAct.higherAcc;
-		iterationsBM=regAct.iterationsBM;
+		iterationsBMLin=regAct.iterationsBMLin;
+		iterationsBMDen=regAct.iterationsBMDen;
 		iterationsITK=regAct.iterationsITK;
 		neighX=regAct.neighX;
 		neighY=regAct.neighY;
@@ -114,17 +120,19 @@ public class RegistrationAction implements Serializable{
 	
 	
 	public void adjustSettings(Fijiyama_GUI fijiyamaGui,RegistrationManager regManager) {
-			this.typeAction=fijiyamaGui.boxTypeAction.getSelectedIndex();
-			this.typeTrans=fijiyamaGui.boxTypeTrans.getSelectedIndex()==0 ? Transform3DType.RIGID : fijiyamaGui.boxTypeTrans.getSelectedIndex()==1 ? Transform3DType.SIMILARITY : Transform3DType.DENSE;
-			this.typeOpt=fijiyamaGui.boxOptimizer.getSelectedIndex()==0 ? OptimizerType.BLOCKMATCHING : OptimizerType.ITK_AMOEBA;
-			this.typeAutoDisplay=fijiyamaGui.boxDisplay.getSelectedIndex();
-			this.typeManViewer=fijiyamaGui.boxDisplayMan.getSelectedIndex();
-			this.refMod=regManager.refMod;
-			this.movMod=regManager.movMod;
-			this.refTime=regManager.refTime;
-			this.movTime=regManager.movTime;
-			if(this.levelMax>regManager.maxAcceptableLevel)this.levelMax=regManager.maxAcceptableLevel;
-			if(this.levelMin>this.levelMax)this.levelMin=this.levelMax;
+		this.typeAction=fijiyamaGui.boxTypeAction.getSelectedIndex();
+		this.typeTrans=fijiyamaGui.boxTypeTrans.getSelectedIndex()==0 ? Transform3DType.RIGID : fijiyamaGui.boxTypeTrans.getSelectedIndex()==1 ? Transform3DType.SIMILARITY : Transform3DType.DENSE;
+		this.typeOpt=fijiyamaGui.boxOptimizer.getSelectedIndex()==0 ? OptimizerType.BLOCKMATCHING : OptimizerType.ITK_AMOEBA;
+		this.typeAutoDisplay=fijiyamaGui.boxDisplay.getSelectedIndex();
+		this.typeManViewer=fijiyamaGui.boxDisplayMan.getSelectedIndex();
+		this.refMod=regManager.refMod;
+		this.movMod=regManager.movMod;
+		this.refTime=regManager.refTime;
+		this.movTime=regManager.movTime;
+		if(this.levelMaxLinear>regManager.maxAcceptableLevel)this.levelMaxLinear=regManager.maxAcceptableLevel;
+		if(this.levelMaxDense>regManager.maxAcceptableLevel)this.levelMaxDense=regManager.maxAcceptableLevel;
+		if(this.typeTrans==Transform3DType.DENSE && this.levelMin>this.levelMaxDense) this.levelMin=this.levelMaxDense;
+		if(( this.typeTrans!=Transform3DType.DENSE ) && this.levelMin>this.levelMaxLinear) this.levelMin=this.levelMaxLinear;			
 	}	
 	
 	
@@ -134,7 +142,7 @@ public class RegistrationAction implements Serializable{
 		this.selectRandom=100;
 		int nbStrideAtMaxLevel=30;//100 ou bien 20 mais avec decroissance
 		double minSubResolutionImageSizeLog2=5.0;//In power of two : min resolution=64;
-		double maxSubResolutionImageSizeLog2=6.0;//In power of two : max resolution=128
+		double maxSubResolutionImageSizeLog2=7.0;//In power of two : max resolution=256
 		int strideMinZ=3;
 
 		int[]dimsTemp=VitimageUtils.getDimensions(imgRef);
@@ -143,9 +151,11 @@ public class RegistrationAction implements Serializable{
 		sigmaDense=sizesTemp[0]/12;//Default : gaussian kernel for dense field estimation is 20 times smaller than image
 		double anisotropyVox=voxsTemp[2]/Math.max(voxsTemp[1],voxsTemp[0]);
 		this.levelMin=0;
-		this.levelMax=0;
+		this.levelMaxLinear=0;
+		this.levelMaxDense=0;
 		boolean subZ=false;
-		iterationsBM=STD_BM_ITER;
+		iterationsBMLin=STD_BM_ITER;
+		iterationsBMDen=STD_BM_ITER/2;
 		iterationsITK=STD_ITK_ITER;
 		neighX=2;
 		neighY=2;
@@ -155,34 +165,34 @@ public class RegistrationAction implements Serializable{
 			int []dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-minSubResolutionImageSizeLog2),
 						              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-minSubResolutionImageSizeLog2),
 					              	  (int)Math.floor(Math.log(dimsTemp[2])/Math.log(2)-minSubResolutionImageSizeLog2)};
-			levelMax=Math.min(Math.min(dimsLog2[0], dimsLog2[1]), dimsLog2[2]);
+			levelMaxLinear=Math.min(Math.min(dimsLog2[0], dimsLog2[1]), dimsLog2[2]);
 			dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-maxSubResolutionImageSizeLog2),
 		              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-maxSubResolutionImageSizeLog2),
 	              	  (int)Math.floor(Math.log(dimsTemp[2])/Math.log(2)-maxSubResolutionImageSizeLog2)};
 			levelMin=Math.max(Math.max(dimsLog2[0], dimsLog2[1]), dimsLog2[2]);	
-			if(levelMin>levelMax)levelMin=levelMax;
+			if(levelMin>levelMaxLinear)levelMin=levelMaxLinear;
 			subsampleZ=1;
 			higherAcc=levelMin<1 ? 1 : 0;
 			levelMin=levelMin<1 ? 1 : levelMin;
-			levelMax= levelMax<levelMin ? levelMin : levelMax;
+			levelMaxLinear= levelMaxLinear<levelMin ? levelMin : levelMaxLinear;
 		}
 		else {	
 			//Si dims[2]<5, cas 2D --> pas de subsampleZ, levelMin et max defini sur dims 0 et 1, neighZ=0 BHSZ=0 strideZ=1;
 			//Sinon si anisotropyVox>3 -> pas de subsampleZ levelMin et max defini sur dims 0 et 1, neighZ=3 BHSZ=prop strideZ=prop;
 			int []dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-minSubResolutionImageSizeLog2),
 		              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-minSubResolutionImageSizeLog2) };
-			levelMax=Math.min(dimsLog2[0], dimsLog2[1]);
+			levelMaxLinear=Math.min(dimsLog2[0], dimsLog2[1]);
 			dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-maxSubResolutionImageSizeLog2),
 			    (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-maxSubResolutionImageSizeLog2)};
 			levelMin=Math.max(dimsLog2[0], dimsLog2[1]);	
-			if(levelMin>levelMax)levelMin=levelMax;
+			if(levelMin>levelMaxLinear)levelMin=levelMaxLinear;
 			subsampleZ=0;
 			higherAcc=levelMin<1 ? 1 : 0;
 			levelMin=levelMin<1 ? 1 : levelMin;
-			levelMax= levelMax<levelMin ? levelMin : levelMax;
+			levelMaxLinear= levelMaxLinear<levelMin ? levelMin : levelMaxLinear;
 		}
 		int subFactorMin=(int)Math.round(Math.pow(2, -1+Math.max(1,levelMin)));
-		int subFactorMax=(int)Math.round(Math.pow(2, -1+Math.max(1,levelMax)));
+		int subFactorMax=(int)Math.round(Math.pow(2, -1+Math.max(1,levelMaxLinear)));
 		int []targetDimsLevelMin=new int[] {dimsTemp[0]/subFactorMin,dimsTemp[1]/subFactorMin,dimsTemp[2]/(subZ ? subFactorMin : 1)};
 		int []targetDimsLevelMax=new int[] {dimsTemp[0]/subFactorMax,dimsTemp[1]/subFactorMax,dimsTemp[2]/(subZ ? subFactorMin : 1)};
 
@@ -192,19 +202,21 @@ public class RegistrationAction implements Serializable{
 		strideX=strides[0];
 		strideY=strides[1];
 		strideZ=strides[2];
-		bhsX=(int) Math.round(Math.min(11,Math.max(strides[0],3)));
-		bhsY=(int) Math.round(Math.min(11,Math.max(strides[1],3)));
-		bhsZ=(int) Math.round(Math.min(11,Math.max(strides[2],3)));
+		bhsX=(int) Math.round(Math.min(7,Math.max(strides[0],3)));
+		bhsY=(int) Math.round(Math.min(7,Math.max(strides[1],3)));
+		bhsZ=(int) Math.round(Math.min(7,Math.max(strides[2],3)));
 		if(dimsTemp[2]<5) {//cas 2D
 			neighZ=0;
 			bhsZ=0;
 			strideZ=1;
 		}
 		if(modifyMaxLevelOfManager){
-			regManager.maxAcceptableLevel=levelMax;			
-			if(this.levelMax>regManager.maxAcceptableLevel)this.levelMax=regManager.maxAcceptableLevel;
-			if(this.levelMin>this.levelMax)this.levelMin=this.levelMax;
+			regManager.maxAcceptableLevel=levelMaxLinear;			
+			if(this.levelMaxLinear>regManager.maxAcceptableLevel)this.levelMaxLinear=regManager.maxAcceptableLevel;
+			if(this.levelMin>this.levelMaxLinear)this.levelMin=this.levelMaxLinear;
 		}
+		if(this.levelMaxLinear>1)this.levelMaxDense=this.levelMaxLinear-1;
+		else this.levelMaxDense=1;
 		return this;
 	}
 
@@ -286,10 +298,10 @@ public class RegistrationAction implements Serializable{
 		}
 		if (typeAction==TYPEACTION_AUTO) {
 			str+=( (typeOpt==OptimizerType.BLOCKMATCHING)?" BM" : " ITK");
-			str+=" levs="+levelMax+"->"+(higherAcc==1 ? -1 : levelMin); 
+			str+=" levs="+(typeTrans==Transform3DType.DENSE ? levelMaxDense : levelMaxLinear)+"->"+(higherAcc==1 ? -1 : levelMin); 
 			if (typeTrans==Transform3DType.DENSE) str+=" sigma="+sigmaDense;
 			if (typeOpt==OptimizerType.BLOCKMATCHING) {
-				str+=" it="+iterationsBM+" bh="+bhsX+" nei="+neighX+" strd="+strideX;
+				str+=" it="+(typeTrans==Transform3DType.DENSE ? iterationsBMDen: iterationsBMLin)+" bh="+bhsX+" nei="+neighX+" strd="+strideX;
 			}
 			else {
 				str+=" it="+iterationsITK+" lr="+learningRate;
@@ -373,9 +385,9 @@ public class RegistrationAction implements Serializable{
 		str+="#SigmaResampling="+sigmaResampling+"\n";
 		str+="#SigmaDense="+sigmaDense+"\n";
 		str+="#LevelMin="+levelMin+"\n";
-		str+="#LevelMax="+levelMax+"\n";
+		str+="#LevelMaxLinear="+levelMaxLinear+"\n";
 		str+="#HigherAcc="+higherAcc+"\n";
-		str+="#IterationsBM="+iterationsBM+"\n";
+		str+="#IterationsBMLinear="+iterationsBMLin+"\n";
 		str+="#IterationsITK="+iterationsITK+"\n";
 		str+="#NeighX="+neighX+"\n";
 		str+="#NeighY="+neighY+"\n";
@@ -392,6 +404,8 @@ public class RegistrationAction implements Serializable{
 		str+="#SubsampleZ="+subsampleZ+"\n";
 		str+="#ItkOptimizerType="+(itkOptimizerType==OptimizerType.ITK_AMOEBA ? 0 : 1)+"\n";
 		str+="#LearningRate="+learningRate+"\n";
+		str+="#LevelMaxDense="+levelMaxDense+"\n";
+		str+="#IterationsBMDense="+iterationsBMDen+"\n";
 		VitimageUtils.writeStringInFile(str,path);
 	}
 
@@ -417,9 +431,7 @@ public class RegistrationAction implements Serializable{
 		reg.sigmaResampling=Double.parseDouble(lines[15]);
 		reg.sigmaDense=Double.parseDouble(lines[16]);
 		reg.levelMin =Integer.parseInt(lines[17]);
-		reg.levelMax =Integer.parseInt(lines[18]);
 		reg.higherAcc =Integer.parseInt(lines[19]);
-		reg.iterationsBM =Integer.parseInt(lines[20]);
 		reg.iterationsITK  =Integer.parseInt(lines[21]);
 		reg.neighX  =Integer.parseInt(lines[22]);
 		reg.neighY  =Integer.parseInt(lines[23]);
@@ -436,16 +448,43 @@ public class RegistrationAction implements Serializable{
 		reg.subsampleZ  =Integer.parseInt(lines[34]);
 		reg.itkOptimizerType=Integer.parseInt(lines[35])==0 ? OptimizerType.ITK_AMOEBA : null;
 		reg.learningRate=Double.parseDouble(lines[36]);
+		reg.levelMaxLinear=Integer.parseInt(lines[18]);
+		reg.levelMaxDense=Integer.parseInt(lines[37]);
+		reg.iterationsBMLin=Integer.parseInt(lines[20]);
+		reg.iterationsBMDen=Integer.parseInt(lines[38]);
 		return reg;
 	}
 	
 	
+	public int getLevelMax() {
+		if(typeTrans==Transform3DType.DENSE) return levelMaxDense;
+		else return levelMaxLinear;
+	}
+	
+	
+
+	public int getIterationsBM() {
+		if(typeTrans==Transform3DType.DENSE) return iterationsBMDen;
+		else return iterationsBMLin;
+	}
 	
 	
 	
+	public void setLevelMax(int lev) {
+		if(typeTrans==Transform3DType.DENSE) {
+			levelMaxDense=lev;
+		}
+		else {
+			levelMaxLinear=lev;
+		}
+	}
 	
 	
-	
+
+	public void setIterationsBM(int it) {
+		if(typeTrans==Transform3DType.DENSE) iterationsBMDen=it;
+		else iterationsBMLin=it;
+	}
 	
 	
 	

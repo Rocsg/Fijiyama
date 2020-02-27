@@ -2,6 +2,7 @@ package com.vitimage.fijiyama;
 
 import java.awt.Color;
 import java.awt.Frame;
+import java.awt.Window;
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.text.SimpleDateFormat;
@@ -98,11 +99,11 @@ public class RegistrationManager{
 	ArrayList<ItkTransform> trActions;
 	ArrayList<RegistrationAction>regActions;
 	private RegistrationAction currentRegAction;
-	private String stringSerie="Serie";
+	private String stringSerie="Series";
 	private String stringTwoImgs="TwoImgs";
 	String[] debugTabTwoImgs=new String[] {"/home/fernandr/Bureau/Test/TWOIMG/INPUT_DIR/imgRef.tif", "/home/fernandr/Bureau/Test/TWOIMG/INPUT_DIR/imgMov.tif"};
-	private int memoryFactorForGoodUX=200;//The maximum number of images that can be located in the RAM at the same time. Will be used to set the max image size, and decide wheter subsampling or not for computation
-
+	private int memoryFactorForGoodUX=100;//The maximum number of images that can be located in the RAM at the same time. Will be used to set the max image size, and decide wheter subsampling or not for computation
+	
 	
 	public String getModeString() {
 		return isSerie ? stringSerie : stringTwoImgs;
@@ -139,7 +140,7 @@ public class RegistrationManager{
 		//Get parameters from file
 		String[]lines=fjmFileContent.split("\n");
 		this.name=lines[1].split("=")[1];
-		this.serieOutputPath=(lines[3].split("=")[1]);
+		//this.serieOutputPath=(lines[3].split("=")[1]);
 		this.serieInputPath=(lines[4].split("=")[1]);
 		this.step=Integer.parseInt(lines[7].split("=")[1]);
 		this.nSteps=Integer.parseInt(lines[8].split("=")[1]);
@@ -317,8 +318,8 @@ public class RegistrationManager{
 		if(files.length!=0)  {IJ.showMessage("Directory already contains files. \nChoose an empty directory to begin your new experiment\nor select \"Open a previous study\" to go on an experiment");return createOutputPathAndFjmFile() ;}
 		new File(this.serieOutputPath,"Registration_files").mkdirs();
 		new File(this.serieOutputPath,"Exported_data").mkdirs();	
-		this.name="Fijiyama_serie_"+new SimpleDateFormat("yyyy-MM-dd_hh-mm").format(new Date());
-		this.name=VitiDialogs.getStringUI("Choose a name for your serie (accepted characters : alphanumeric, underscore and minus)","Serie name",this.name,true);
+		this.name="Fijiyama_series_"+new SimpleDateFormat("yyyy-MM-dd_hh-mm").format(new Date());
+		this.name=VitiDialogs.getStringUI("Choose a name for your series (accepted characters : alphanumeric, underscore and minus)","Series name",this.name,true);
 		IJ.showMessage("All files will be written in "+this.serieOutputPath+"\nConfiguration file="+this.name+".fjm \n");
 		return true;
 	}
@@ -398,8 +399,8 @@ public class RegistrationManager{
 		}		
 		
 		IJ.log("\nReference modality             : nb."+this.referenceModality+" = "+this.mods[this.referenceModality]);
-		IJ.log("Serie input path               : "+this.serieInputPath);
-		IJ.log("Serie output path              : "+this.serieOutputPath);
+		IJ.log("Series input path               : "+this.serieInputPath);
+		IJ.log("Series output path              : "+this.serieOutputPath);
 		IJ.log("Times                          : "+strTimes);
 		IJ.log("Modalities                     : "+strMods);
 		IJ.log("Expression                     : "+this.expression);
@@ -466,7 +467,6 @@ public class RegistrationManager{
 			if(curMod>=this.nMods) {this.stepBuild=ENDING_STEP;defineSerieRegistrationPipeline();return;}
 			if(curMod == referenceModality) { interMods.add(null);this.stepBuild+=2;defineSerieRegistrationPipeline();return;}
 			else {
-
 				this.regActions=new ArrayList<RegistrationAction>();
 				this.regActions.add(RegistrationAction.createRegistrationAction(
 						images[referenceTime][referenceModality],images[referenceTime][referenceModality],  this.fijiyamaGui,this,RegistrationAction.TYPEACTION_MAN));
@@ -1083,8 +1083,8 @@ public class RegistrationManager{
 		universe.getSelected().showCoordinateSystem(true);
 		if(fijiyamaGui.isRunningTwoImagesTraining()) {
 			universe.setSize(fijiyamaGui.lastViewSizes[0], fijiyamaGui.lastViewSizes[1]);
-			VitimageUtils.adjustFrameOnScreenRelative((Frame)((JPanel)(this.universe.getCanvas().getParent())).getParent().getParent().getParent(),fijiyamaGui.registrationFrame,3,3,10);
-			}
+			VitimageUtils.adjustFrameOnScreenRelative((Frame)((JPanel)(this.universe.getCanvas().getParent())).getParent().getParent().getParent(),fijiyamaGui.imgView.getWindow(),1,1,10);
+		}
 		else VitimageUtils.adjustFrameOnScreenRelative((Frame)((JPanel)(this.universe.getCanvas().getParent())).getParent().getParent().getParent(),fijiyamaGui.registrationFrame,0,0,10);
 		if(!fijiyamaGui.getAutoRepMode() && (!first3dmessageHasBeenViewed)) {
 			String mess=sentence+"\nWhen done, push the \""+fijiyamaGui.getRunButtonText()+"\" button to stop.\n.\nControls : \n";
@@ -1164,7 +1164,7 @@ public class RegistrationManager{
 		VitimageUtils.adjustFrameOnScreenRelative((Frame)rm,(Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage1),2,1,2);
 		movCopy.show();movCopy.setSlice(movCopy.getStackSize()/2+1);movCopy.updateAndRepaintWindow();
 		VitimageUtils.adjustFrameOnScreenRelative((Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage2),rm,2,2,2);
-		if(!fijiyamaGui.getAutoRepMode() && first2dmessageHasBeenViewed)IJ.showMessage("Examine images, identify correspondances between images and use the Roi manager to build a list of correspondances points. Points should be given this way : \n- Point A  in image 1\n- Correspondant of point A  in image 2\n- Point B  in image 1\n- Correspondant of point B  in image 2\netc...\n"+
+		if(!fijiyamaGui.getAutoRepMode() && first2dmessageHasBeenViewed)IJ.showMessage("Examine images, identify correspondances between images and use the Roi manager to build a list of corresponding points. Points should be given this way : \n- Point A  in image 1\n- Correspondant of point A  in image 2\n- Point B  in image 1\n- Correspondant of point B  in image 2\netc...\n"+
 		"Once done (at least 5-15 couples of corresponding points), push the \""+fijiyamaGui.getRunButtonText()+"\" button to stop\n\n");
 		first2dmessageHasBeenViewed=false;
 		fijiyamaGui.addLog(" Waiting for you to confirm position or to abort action...",0);
@@ -1475,7 +1475,8 @@ public class RegistrationManager{
 		else {
 			if(regAct.typeOpt==OptimizerType.BLOCKMATCHING) {
 				return (int)Math.round(BlockMatchingRegistration.estimateRegistrationDuration(
-					dimensions[regAct.refTime][regAct.refMod],regAct.typeAutoDisplay,regAct.levelMin,regAct.levelMax,regAct.iterationsBM,regAct.typeTrans,
+					dimensions[regAct.refTime][regAct.refMod],regAct.typeAutoDisplay,regAct.levelMin,regAct.typeTrans==Transform3DType.DENSE ? regAct.levelMaxDense : regAct.levelMaxLinear,
+							regAct.typeTrans==Transform3DType.DENSE ? regAct.iterationsBMDen : regAct.iterationsBMLin,regAct.typeTrans,
 					new int[] {regAct.bhsX,regAct.bhsY,regAct.bhsZ},   new int[] {regAct.strideX,regAct.strideY,regAct.strideZ},
 					new int[] {regAct.neighX,regAct.neighY,regAct.neighZ},
 					this.nbCpu,regAct.selectScore,regAct.selectLTS,regAct.selectRandom,regAct.subsampleZ==1,regAct.higherAcc
@@ -1483,7 +1484,7 @@ public class RegistrationManager{
 			}
 			else {
 				return ItkRegistration.estimateRegistrationDuration(
-					this.imageParameters,regAct.typeAutoDisplay,regAct.iterationsITK, regAct.levelMin,regAct.levelMax);
+					this.imageParameters,regAct.typeAutoDisplay,regAct.iterationsITK, regAct.levelMin,regAct.levelMaxLinear);
 			}
 		}
 	}
@@ -1519,7 +1520,7 @@ public class RegistrationManager{
 		this.memoryFullSize=0;
 		String []str=new String[] {"",""};
 		str[0]="Welcome to Fijiyama ! First trial ? Click on \"Contextual help\" to get started.  ";
-		if(fijiyamaGui.currentContextIsSerie())str[0]+="Current mode : serie processing. Click on \"Run next action\", or use the menu to modify it before. Series can be long. Keep clicking !";
+		if(fijiyamaGui.currentContextIsSerie())str[0]+="Current mode : series processing. Click on \"Run next action\", or use the menu to modify it before. Series can be long. Keep clicking !";
 		else str[0]+="Current mode : two-images registration. Choose the next action using the menus, then click on \"Start this action\"";
 		str[1]="System check. Available memory="+this.jvmMemory+" MB. #Available processor cores="+this.nbCpu+".";
 		try {

@@ -3,6 +3,7 @@ package com.vitimage.fijiyama;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.Frame;
 import java.awt.GridLayout;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
@@ -101,6 +102,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	private Color colorStdActivatedButton;
 	private Color colorGreenRunButton;
 	public boolean interfaceIsRunning=false;
+	public int sosLevel=0;
+	public int regInterrogationLevel=0;
 	
 	//Flags for the kind of viewer
 	private static final String saut="<div style=\"height:1px;display:block;\"> </div>";
@@ -205,8 +208,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	private JButton sosButton=new JButton("Help");
 
 	private JButton runTwoImagesButton = new JButton("Two images registration (training mode)");
-	private JButton runSerieButton = new JButton("Serie registration (N-times and/or N-modalities)");
-	private JButton loadFjmButton = new JButton("Open a previous study (two imgs or serie) from a fjm file");
+	private JButton runSerieButton = new JButton("Series registration (N-times and/or N-modalities)");
+	private JButton loadFjmButton = new JButton("Open a previous study (two imgs or series) from a fjm file");
 	private JButton transformButton = new JButton("Apply a computed transform to another image");
 	private JButton composeTransformsButton = new JButton("Compose successive transformations into a single one");
 	private JButton runNextStepButton = new JButton("Run next step");
@@ -547,6 +550,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 		//Main frame and main panel
 		registrationFrame=new JFrame();
+		registrationFrame.setSize(750,850);
 		JPanel registrationPanelGlobal=new JPanel();
 		registrationPanelGlobal.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
 		registrationPanelGlobal.setLayout(new BoxLayout(registrationPanelGlobal, BoxLayout.Y_AXIS));
@@ -563,7 +567,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		registrationFrame.add(registrationPanelGlobal);
 		registrationFrame.setTitle("Fijiyama registration manager ");
 		registrationFrame.pack();
-	
+		registrationFrame.setSize(750,850);
+		
 		registrationFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		registrationFrame.addWindowListener(new WindowAdapter(){
              public void windowClosing(WindowEvent e){
@@ -592,7 +597,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		this.modeWindow=WINDOWIDLE;
 		sosButton=new JButton("Help");
 		runTwoImagesButton=new JButton("Two images registation (training mode)");
-		runSerieButton=new JButton("Serie registration (N-times and/or N-modalities)");
+		runSerieButton=new JButton("Series registration (N-times and/or N-modalities)");
 		transformButton=new JButton("Apply a computed transform to another image");
 		composeTransformsButton=new JButton("Compose successive transformations into a single one");
 		JPanel globalPanel=new JPanel();
@@ -1037,7 +1042,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							ItkTransform trTemp=itkManager.runScenarioFromGui(new ItkTransform(),
 									regManager.getCurrentRefImage(),
 									regManager.getCurrentMovComposedTransform().transformImage(regManager.getCurrentRefImage(), regManager.getCurrentMovImage(),false),
-									regManager.getCurrentAction().typeTrans, regManager.getCurrentAction().levelMin,regManager.getCurrentAction().levelMax,regManager.getCurrentAction().iterationsITK,regManager.getCurrentAction().learningRate);
+									regManager.getCurrentAction().typeTrans, regManager.getCurrentAction().levelMin,regManager.getCurrentAction().levelMaxLinear,regManager.getCurrentAction().iterationsITK,regManager.getCurrentAction().learningRate);
 							disable(ABORT);
 							if(itkManager==null || itkManager.itkRegistrationInterrupted) {
 								enable(new int[] {RUN,SAVE,FINISH,SETTINGS,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP,UNDO});
@@ -1441,9 +1446,20 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 	public void updateView() {
 		if(this.modeWindow!=WINDOWTWOIMG)return;
-		this.imgView=regManager.getViewOfImagesTransformedAndSuperposedTwoImg();
-		imgView.show();
-		VitimageUtils.adjustFrameOnScreenRelative(imgView.getWindow(),registrationFrame,0,0,10);
+		ImagePlus temp=null;
+		boolean firstView=false;
+		if(this.imgView==null)firstView=true;
+		if(firstView){
+			this.imgView=regManager.getViewOfImagesTransformedAndSuperposedTwoImg();
+			imgView.show();
+			VitimageUtils.adjustFrameOnScreenRelative(imgView.getWindow(),registrationFrame,0,0,10);
+		}
+		else {
+			temp=this.imgView;
+			this.imgView=regManager.getViewOfImagesTransformedAndSuperposedTwoImg();
+			imgView.show();
+			VitimageUtils.adjustFrameOnScreenRelative(imgView.getWindow(),temp.getWindow(),1,1,10);
+		}
 		double zoomFactor=Math.min((screenHeight/2)/imgView.getHeight()  ,  (screenWidth/2)/imgView.getWidth()); 
 		java.awt.Rectangle w = imgView.getWindow().getBounds();
 		int max=0;
@@ -1464,7 +1480,12 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			imgView.getCanvas().zoomOut(sx, sy);
 			this.lastViewSizes=new int[] {imgView.getWindow().getWidth(),imgView.getWindow().getHeight()};
 		}
-		VitimageUtils.adjustFrameOnScreenRelative(imgView.getWindow(),registrationFrame,0,0,10);
+		if(firstView) {
+			VitimageUtils.adjustFrameOnScreenRelative(imgView.getWindow(),registrationFrame,0,0,10);
+		}
+		else {
+			VitimageUtils.adjustFrameOnScreenRelative(imgView.getWindow(),temp.getWindow(),1,1,10);
+		}
 		imgView.setSlice(viewSlice);
 		imgView.updateAndRepaintWindow();
 	}
@@ -1511,8 +1532,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			IJ.showMessage(
 			"Start menu\n"+
 			"* First trial ? Choose register two images and test Fijiyama with demo images or with your own data.\n"+
-			"* Ready to process a N-time M-modalities serie ? Choose Register 3d series\n"+
-			"* Go on a previous experiment (two images or serie) ? Choose Open a previous study\n"+
+			"* Ready to process a N-time M-modalities series ? Choose Register 3d series\n"+
+			"* Go on a previous experiment (two images or series) ? Choose Open a previous study\n"+
 			"More information ? Visit the webpage : www.imagej.net/Fijiyama\n"
 			);
 		}
@@ -1536,9 +1557,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 				"automatic algorithms settings can be modified using the settings dialog ( <b>\"Advanced settings\"</b> button )."+saut+saut; 
 
 		String mainWindowTextProgramming=basicFijiText+
-				"You're actually running a serie registration. We assume that you trained on the \"Two images registration\" module,"+
+				"You're actually running a series registration. We assume that you trained on the \"Two images registration\" module,"+
 				" to understand the main concepts of the plugin, testing the provided functions on your data, and eventually to fine-tune the settings of algorithms."+
-				nextPar+"The serie registration process runs the following steps :"+startPar+
+				nextPar+"The series registration process runs the following steps :"+startPar+
 				" <b>1)   Defining data directories :</b> input directory for image lookup, and output directory to save plugin state and exported images and transformations"+nextPar+
 				" <b>2-a) Defining the inter-time registration pipeline :</b> this pipeline describe the actions to run in order to align successive observations with the reference modality"+nextPar+
 				" <b>2-b) Defining the inter-modals registration pipelines :</b> these pipelines (one for each secondary modality) describe the actions to run in order to align secondary modalities with the reference modality"+nextPar+
@@ -1640,10 +1661,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			//Parameters for BlockMatching
 		if(this.boxOptimizer.getSelectedIndex()==0) {
 			GenericDialog gd= new GenericDialog("Expert mode for Blockmatching registration");
-			if(regManager.getCurrentAction().levelMax>regManager.maxAcceptableLevel)regManager.maxAcceptableLevel=regManager.getCurrentAction().levelMax;
+			if(regManager.getCurrentAction().getLevelMax()>regManager.maxAcceptableLevel)regManager.maxAcceptableLevel=regManager.getCurrentAction().getLevelMax();
 			String[]levelsMax=new String[regManager.getMaxAcceptableLevelForTheCurrentAction()];
 	        for(int i=0;i<regManager.getMaxAcceptableLevelForTheCurrentAction();i++)levelsMax[i]=""+((int)Math.round(Math.pow(2, (i))))+"";
-	        gd.addChoice("Max subsampling factor (high=fast)",levelsMax, levelsMax[regManager.getCurrentAction().levelMax-1]);
+	        gd.addChoice("Max subsampling factor (high=fast)",levelsMax, levelsMax[regManager.getCurrentAction().getLevelMax()-1]);
 	        gd.addChoice("Min subsampling factor (low=slow)",levelsMax, levelsMax[regManager.getCurrentAction().levelMin-1]);
 	        if(enableHighAcc)gd.addChoice("Higher accuracy (subpixellic level)", new String[] {"Yes","No"},regManager.getCurrentAction().higherAcc==1 ? "Yes":"No");
 
@@ -1663,22 +1684,22 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        gd.addNumericField("... along Z",  regManager.getCurrentAction().strideZ, 0, 3, "subsampled pixels");
 
 	        gd.addMessage("Others");
-	        gd.addNumericField("Number of iterations per level",  regManager.getCurrentAction().iterationsBM, 0, 3, "iterations");
+	        gd.addNumericField("Number of iterations per level",  regManager.getCurrentAction().getIterationsBM(), 0, 3, "iterations");
 	        if(this.boxTypeTrans.getSelectedIndex()==2)gd.addNumericField("Sigma for dense field smoothing", regManager.getCurrentAction().sigmaDense, 3, 12, regManager.getUnit());
 	        gd.addNumericField("Percentage of blocks selected by score", regManager.getCurrentAction().selectScore, 0, 3, "%");
 	        if(this.boxTypeTrans.getSelectedIndex()!=2)gd.addNumericField("Percentage kept in Least-trimmed square", regManager.getCurrentAction().selectLTS, 0, 3, "%");	        
 
 	        gd.showDialog();
 	        if (gd.wasCanceled()) return;	        
-	        int a=gd.getNextChoiceIndex()+1; regManager.getCurrentAction().levelMax=a;
+	        int a=gd.getNextChoiceIndex()+1; regManager.getCurrentAction().setLevelMax(a);
 	        int b=gd.getNextChoiceIndex()+1; b=b<a ? b : a; regManager.getCurrentAction().levelMin=b;
 	        if(enableHighAcc) {
 	        	a=1-gd.getNextChoiceIndex();
 	        	regManager.getCurrentAction().higherAcc=a;
 	        }
-	       	int c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsX=Math.min(11,Math.max(c,3));
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsY=Math.min(11,Math.max(c,3));
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsZ=Math.min(11,Math.max(c,3));
+	       	int c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsX=Math.min(7,Math.max(c,3));
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsY=Math.min(7,Math.max(c,3));
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsZ=Math.min(7,Math.max(c,3));
 
 	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().neighX=Math.min(7,Math.max(c,1));
 	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().neighY=Math.min(7,Math.max(c,1));
@@ -1688,7 +1709,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().strideY=Math.min(100,Math.max(c,1));
 	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().strideZ=Math.min(100,Math.max(c,1));
 
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().iterationsBM=Math.min(100,Math.max(c,1));
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().setIterationsBM(Math.min(100,Math.max(c,1)));
 	       	if(this.boxTypeTrans.getSelectedIndex()==2) {double d=gd.getNextNumber(); d=d<1E-6 ? 1E-6 : d; regManager.getCurrentAction().sigmaDense=d;}
 	       	c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().selectScore=Math.min(100,Math.max(c,5));
 	       	if(this.boxTypeTrans.getSelectedIndex()!=2) {c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().selectLTS=Math.min(100,Math.max(c,5));}
@@ -1698,7 +1719,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        GenericDialog gd= new GenericDialog("Expert mode for Itk registration");
 	        String[]levelsMax=new String[regManager.getMaxAcceptableLevelForTheCurrentAction()];for(int i=0;i<regManager.getMaxAcceptableLevelForTheCurrentAction();i++)levelsMax[i]=""+((int)Math.round(Math.pow(2, (i))))+"";
 			gd.addMessage(message);
-	        gd.addChoice("Max subsampling factor (high=fast)",levelsMax, levelsMax[regManager.getCurrentAction().levelMax-1]);
+	        gd.addChoice("Max subsampling factor (high=fast)",levelsMax, levelsMax[regManager.getCurrentAction().levelMaxLinear-1]);
 	        gd.addChoice("Min subsampling factor (low=slow)",levelsMax, levelsMax[regManager.getCurrentAction().levelMin-1]);
 	        
 	        gd.addMessage("Others");
@@ -1708,7 +1729,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        gd.showDialog();
 	        if (gd.wasCanceled()) return;	        
 	        int param1=gd.getNextChoiceIndex()+1; 
-	        regManager.getCurrentAction().levelMax=param1;
+	        regManager.getCurrentAction().levelMaxLinear=param1;
 
 	        int param2=gd.getNextChoiceIndex()+1; param2=param2<param1 ? param2 : param1;
 	        regManager.getCurrentAction().levelMin=param2;
@@ -1721,7 +1742,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	}
 
 	public void serieIsFinished() {
-		IJ.showMessage("Serie is finished !");
+		IJ.showMessage("Series is finished !");
 		disable(new int[] {RUN,RUNALL});
 	}
 	
@@ -1824,9 +1845,23 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	}
 
 
+	public void sendingOutAnSos() {
+		System.out.println("Sending out an sos");
+		enable(new int[] {RUN,SETTINGS,BOXACT,BOXTRANS,SAVE,FINISH,UNDO});
+	}
 
+	public void moreAboutRegAction() {
+		System.out.println("More about reg actions");
+		regManager.printRegActions("", regManager.regActions);
+	}
+	
 	public void handleKeyPress(KeyEvent e) {
-		System.out.println(e.getKeyCode());
+		if(sosLevel==2 && e.getKeyCode()==83) {sosLevel=0;sendingOutAnSos();return;}
+		if(sosLevel==1 && e.getKeyCode()==79)sosLevel=2;
+		if(sosLevel==0 && e.getKeyCode()==83)sosLevel=1;
+		if(regInterrogationLevel==2 && e.getKeyCode()==71) {regInterrogationLevel=0;moreAboutRegAction();return;}
+		if(regInterrogationLevel==1 && e.getKeyCode()==69)regInterrogationLevel=2;
+		if(regInterrogationLevel==0 && e.getKeyCode()==82)regInterrogationLevel=1;
 		if(regManager==null) return;
 		if(regManager.universe==null)return;
 		if(regManager.universe.getSelected()==null)return;
