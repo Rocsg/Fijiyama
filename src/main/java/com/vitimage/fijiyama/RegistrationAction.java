@@ -24,7 +24,7 @@ public class RegistrationAction implements Serializable{
 	public int refMod=0;
 	public int movTime=0;
 	public int movMod=0;
-	public int typeAction=0;//0=man, 1=auto, 2=align,3=view, 4=saving, 5=export
+	public int typeAction=0;
 	public static final int TYPEACTION_MAN=0;
 	public static final int TYPEACTION_AUTO=1;
 	public static final int TYPEACTION_ALIGN=2;
@@ -140,7 +140,7 @@ public class RegistrationAction implements Serializable{
 		this.selectScore=95;
 		this.selectLTS=80;
 		this.selectRandom=100;
-		int nbStrideAtMaxLevel=30;//100 ou bien 20 mais avec decroissance
+		int nbStrideAtMaxLevel=30;
 		double minSubResolutionImageSizeLog2=5.0;//In power of two : min resolution=64;
 		double maxSubResolutionImageSizeLog2=7.0;//In power of two : max resolution=256
 		int strideMinZ=3;
@@ -148,7 +148,7 @@ public class RegistrationAction implements Serializable{
 		int[]dimsTemp=VitimageUtils.getDimensions(imgRef);
 		double[]voxsTemp=VitimageUtils.getVoxelSizes(imgRef);
 		double[]sizesTemp=new double[] {dimsTemp[0]*voxsTemp[0],dimsTemp[1]*voxsTemp[1],dimsTemp[2]*voxsTemp[2]};				
-		sigmaDense=sizesTemp[0]/12;//Default : gaussian kernel for dense field estimation is 20 times smaller than image
+		sigmaDense=sizesTemp[0]/12;//Default : gaussian kernel for dense field estimation is 12 times smaller than image
 		double anisotropyVox=voxsTemp[2]/Math.max(voxsTemp[1],voxsTemp[0]);
 		this.levelMin=0;
 		this.levelMaxLinear=0;
@@ -177,8 +177,8 @@ public class RegistrationAction implements Serializable{
 			levelMaxLinear= levelMaxLinear<levelMin ? levelMin : levelMaxLinear;
 		}
 		else {	
-			//Si dims[2]<5, cas 2D --> pas de subsampleZ, levelMin et max defini sur dims 0 et 1, neighZ=0 BHSZ=0 strideZ=1;
-			//Sinon si anisotropyVox>3 -> pas de subsampleZ levelMin et max defini sur dims 0 et 1, neighZ=3 BHSZ=prop strideZ=prop;
+			//If dimZ<5, case 2D --> no subsampleZ, levelMin and max defined using dimX and dimY, neighZ=0 BHSZ=0 strideZ=1;
+			//else if anisotropyVox>3 -> no subsampleZ levelMin and max defined using dimX and dimY, neighZ=3 BHSZ=prop strideZ=prop;
 			int []dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-minSubResolutionImageSizeLog2),
 		              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-minSubResolutionImageSizeLog2) };
 			levelMaxLinear=Math.min(dimsLog2[0], dimsLog2[1]);

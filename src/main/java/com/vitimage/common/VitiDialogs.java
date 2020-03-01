@@ -36,13 +36,8 @@ public interface VitiDialogs {
 	public final static String OS_SEPARATOR=System.getProperties().getProperty("file.separator");
 
 	
-	public static void notYet(String strGuess) {
-		IJ.showMessage("Not yet implemented : "+strGuess+"\nOur team constantly struggle to provide you new features, accordingly to you needs.\n"+
-						"Please consider sending a feature request to : romainfernandez06@gmail.com");
-	}
-	
 	/** 
-	 * UI interfaces for the tools
+	 * UI generic functions to access images
 	 * */
 	public static ImagePlus chooseOneImageUI(String strGuess,String strImg1) {
 			ImagePlus imgRet;
@@ -71,21 +66,14 @@ public interface VitiDialogs {
         	return imgRet;
 	}
 
-
-
 	public static String chooseOneRoiPathUI(String strGuess,String strImg1) {
    		OpenDialog od1=new OpenDialog("Select "+strGuess);
    		return od1.getPath();
 	}
 
-	
-	
-	/** 
-	 * UI interfaces for the tools
-	 * */
 	public static ImagePlus[] chooseTwoImagesUI(String strGuess,String strImg1, String strImg2) {
 			ImagePlus[]imgRet=new ImagePlus[2];
-			String open="* Je vais choisir une image dans l'explorateur de fichiers *";
+			String open="* I will choose image in the explorer *";
 			int index1,index2;
 			int[] wList = WindowManager.getIDList();
 			String[] titles=(wList==null) ? new String[1] : new String[wList.length+1] ;
@@ -119,84 +107,10 @@ public interface VitiDialogs {
         	return imgRet;
 	}
 		
-	public static double[] chooseVoxSizeUI(ImagePlus img,String strGuess,boolean autonomyLevel) {
-		 double[]tabRet=new double[] {img.getCalibration().pixelWidth,img.getCalibration().pixelHeight,img.getCalibration().pixelDepth};
-		 if(autonomyLevel==AUTOMATIC)return tabRet;
-		 else {
-				GenericDialog gd = new GenericDialog(strGuess);
-		        gd.addNumericField("Vx suggestion :",tabRet[0], 5);
-		        gd.addNumericField("Vy suggestion :",tabRet[1], 5);
-		        gd.addNumericField("Vz suggestion :",tabRet[2], 5);
-		        gd.showDialog();
-		        if (gd.wasCanceled()) {System.out.println("Warning : vox sizes set by default 1.0 1.0 1.0"); return new double[] {1.0,1.0,1.0};}
-		 
-		        tabRet[0] = gd.getNextNumber();
-		        tabRet[1] = gd.getNextNumber();
-		        tabRet[2] = gd.getNextNumber();
-			 return tabRet;
-		 }
-	}
 
-	
-	public static void saveTextFileUI(String text,String strGuess,String suggestedDir,String title,String extension){
-		SaveDialog sd=new SaveDialog(strGuess,title,extension);
-		if(sd.getDirectory()==null ||  sd.getFileName()==null)return;
-		String pathSave=sd.getDirectory()+""+sd.getFileName();
-		VitimageUtils.writeStringInFile(text, pathSave);
-	}
-
-	
-	
-	
-	public static double getDoubleUI(String strGuess,String parameter,double value) {
-		double ret=0;
-		GenericDialog gd = new GenericDialog(strGuess);
-		gd.addNumericField(parameter+" :",value,1);
-		
-        gd.showDialog();
-        if (gd.wasCanceled()) {return value;}
- 
-	        ret = gd.getNextNumber();
-		 return ret;
-	 }
-	
-	
-	public static String getStringUI(String strGuess,String parameter,String value,boolean forceStringToBeValidForFilenames) {
-		String ret="";
-		while(!isStandardName(ret)) {
-			GenericDialog gd = new GenericDialog(strGuess);
-			gd.addStringField(parameter+" :",value,20);
-	        gd.showDialog();
-	        if (gd.wasCanceled()) {IJ.showMessage("Dialog cancel. Value is set to default : "+value);return value;}
-	        ret=gd.getNextString();
-		}
-        return ret;
-	}
-	
-	//work like isAlphaNumeric, but including also underscore and minus
-	public static boolean isStandardChar(char c) {
-		int val=(int)c;
-		if(val>=97 && val<=122)return true;//Character from a to z
-		if(val>=65 && val<=90)return true;//Character from A to Z
-		if(val>=48 && val<=57)return true;//Character from A to Z
-		if(val==95 || val==45)return true;//Respectively, underscore and minus symbols
-		return false;
-	}
-	
-	public static boolean isStandardName(String str) {
-		if(str.length()<=0)return false;
-		for (int i=0;i<str.length();i++)if (!isStandardChar(str.charAt(i)))return false;
-		return true;
-	}
-	
-	public static boolean getYesNoUI(String title,String strGuess) {
-        GenericDialog gd=new GenericDialog(title);
-        gd.addMessage(strGuess);
-        gd.enableYesNoCancel("Yes", "No");
-        gd.showDialog();
-    	return (gd.wasOKed());
-	}
-
+	/** 
+	 * UI generic functions to ask simple data : image dimensions, voxel size, boolean yes/no , double or integer number, or String
+	 * */
 	public static int[] chooseSizeUI(ImagePlus img,String strGuess,boolean autonomyLevel) {
 		 int[]tabRet=new int[] {img.getWidth(),img.getHeight(),img.getStack().getSize()};
 		 if(autonomyLevel==AUTOMATIC)return tabRet;
@@ -215,6 +129,73 @@ public interface VitiDialogs {
 		 }
 	}
 
+	public static double[] chooseVoxSizeUI(ImagePlus img,String strGuess,boolean autonomyLevel) {
+		 double[]tabRet=new double[] {img.getCalibration().pixelWidth,img.getCalibration().pixelHeight,img.getCalibration().pixelDepth};
+		 if(autonomyLevel==AUTOMATIC)return tabRet;
+		 else {
+				GenericDialog gd = new GenericDialog(strGuess);
+		        gd.addNumericField("Vx suggestion :",tabRet[0], 5);
+		        gd.addNumericField("Vy suggestion :",tabRet[1], 5);
+		        gd.addNumericField("Vz suggestion :",tabRet[2], 5);
+		        gd.showDialog();
+		        if (gd.wasCanceled()) {System.out.println("Warning : vox sizes set by default 1.0 1.0 1.0"); return new double[] {1.0,1.0,1.0};}
+		 
+		        tabRet[0] = gd.getNextNumber();
+		        tabRet[1] = gd.getNextNumber();
+		        tabRet[2] = gd.getNextNumber();
+			 return tabRet;
+		 }
+	}
+
+	public static int chooseNumberUI(String strGuess,int min,int max,int def) {
+		GenericDialog gd = new GenericDialog(strGuess);
+        gd.addNumericField("Choose a number :",def,6);
+        gd.showDialog();
+        int ans=0;
+        if (gd.wasCanceled()) ans=0;
+        else ans= (int)gd.getNextNumber();
+        if(ans<min)ans=min;
+        if(ans>max)ans=max;
+        return ans;
+	}
+	
+	public static double getDoubleUI(String strGuess,String parameter,double value) {
+		double ret=0;
+		GenericDialog gd = new GenericDialog(strGuess);
+		gd.addNumericField(parameter+" :",value,1);
+		
+        gd.showDialog();
+        if (gd.wasCanceled()) {return value;}
+ 
+	        ret = gd.getNextNumber();
+		 return ret;
+	 }
+	
+	public static boolean getYesNoUI(String title,String strGuess) {
+        GenericDialog gd=new GenericDialog(title);
+        gd.addMessage(strGuess);
+        gd.enableYesNoCancel("Yes", "No");
+        gd.showDialog();
+    	return (gd.wasOKed());
+	}
+
+	public static String getStringUI(String strGuess,String parameter,String value,boolean forceStringToBeValidForFilenames) {
+		String ret="";
+		while(!isStandardName(ret)) {
+			GenericDialog gd = new GenericDialog(strGuess);
+			gd.addStringField(parameter+" :",value,20);
+	        gd.showDialog();
+	        if (gd.wasCanceled()) {IJ.showMessage("Dialog cancel. Value is set to default : "+value);return value;}
+	        ret=gd.getNextString();
+		}
+        return ret;
+	}
+	
+
+	
+	/** 
+	 * UI generic functions to open other files : directories, roiset, transforms
+	 * */
 	public static String chooseDirectoryNiceUI(String strGuess,String strApproveButton){
 		DirectoryChooser dc=new DirectoryChooser(strGuess);
 		
@@ -225,8 +206,6 @@ public interface VitiDialogs {
 		if (jf.showOpenDialog(null) == JFileChooser.APPROVE_OPTION)return jf.getSelectedFile().getAbsolutePath(); 
 		return null;
 	}
-
-	
 	
 	public static String chooseDirectoryUI(String strGuess,String strApproveButton){
 		JFileChooser jf=new JFileChooser();
@@ -247,13 +226,8 @@ public interface VitiDialogs {
 		jf.setApproveButtonText("Choose this file");
 		if (jf.showOpenDialog(null) == JFileChooser.APPROVE_OPTION)return jf.getSelectedFile().getAbsolutePath(); 
 		return null;
-/*
-		OpenDialog sd=new OpenDialog(strGuess, fileName, extension);
-		return(new String[] {sd.getDirectory(),sd.getFileName()});
-		*/
 	 }
 
-	
 	public static ItkTransform chooseTransformsUI(String strGuess,boolean autonomyLevel){
 		ItkTransform globalTransform = null;
 		int iTr=-1;
@@ -274,7 +248,6 @@ public interface VitiDialogs {
 		return (globalTransform);
 	 }
 		
-
 	public static ItkTransform chooseOneTransformsUI(String strGuess,String path,boolean autonomyLevel){
 		if(autonomyLevel==AUTOMATIC) {
 			return ItkTransform.readTransformFromFile(path);
@@ -285,8 +258,9 @@ public interface VitiDialogs {
 	 }
 		
 
-
-	
+	/** 
+	 * UI generic functions to save transforms, images, or text in files
+	 * */
 	public static void saveDenseFieldTransformUI(ItkTransform tr,String strGuess,boolean autonomyLevel,String path,String title,ImagePlus imgRef){
 		if(autonomyLevel==AUTOMATIC) {
 			String pathSave=path+""+title;
@@ -299,8 +273,6 @@ public interface VitiDialogs {
 			tr.writeAsDenseField(pathSave,imgRef);
 		}
 	}
-
-	
 	
 	public static void saveMatrixTransformUI(ItkTransform tr,String strGuess,boolean autonomyLevel,String path,String title){
 		if(autonomyLevel==AUTOMATIC) {
@@ -329,7 +301,20 @@ public interface VitiDialogs {
 	
 	}
 	
+	public static void saveTextFileUI(String text,String strGuess,String suggestedDir,String title,String extension){
+		SaveDialog sd=new SaveDialog(strGuess,title,extension);
+		if(sd.getDirectory()==null ||  sd.getFileName()==null)return;
+		String pathSave=sd.getDirectory()+""+sd.getFileName();
+		VitimageUtils.writeStringInFile(text, pathSave);
+	}
+	
 
+	
+	
+	
+	/** 
+	 * UI generic functions to open landmark perspective, with an image (or two) open, and waiting for the points to be selected
+	 * */
 	public static double[][] waitForReferencePointsUI(int nbWantedPoints,ImagePlus img,boolean realCoordinates){
 		double[][]tabRet=new double[nbWantedPoints][3];
 		RoiManager rm=RoiManager.getRoiManager();
@@ -356,19 +341,16 @@ public interface VitiDialogs {
 				tabRet[indP][1]=(tabRet[indP][1]+0.5)*(img.getCalibration().pixelHeight);
 				tabRet[indP][2]=(tabRet[indP][2]+0.5)*(img.getCalibration().pixelDepth);
 			}	
-			System.out.println("Point retenu numéro "+indP+" : {"+tabRet[indP][0]+","+tabRet[indP][1]+","+tabRet[indP][2]+"}");
+			System.out.println("Got point number "+indP+" : {"+tabRet[indP][0]+","+tabRet[indP][1]+","+tabRet[indP][2]+"}");
 		}
 		temp.close();
 		return tabRet;
 	}
 
-
 	public static Point3d[] waitForPointsUIUntilClickOnSlice1(ImagePlus rx,ImagePlus mri,ImagePlus img2,boolean realCoordinates){
 		ImagePlus img=new Duplicator().run(img2);
 		img.setTitle("waitForPointsUI");
 		img.show();
-		//rx.show();
-		//mri.show();
 		VitimageUtils.adjustImageCalibration(img, img2);
 		double[][]tabRet=new double[50000][3];
 		RoiManager rm=RoiManager.getRoiManager();
@@ -377,7 +359,6 @@ public interface VitiDialogs {
 		boolean finished =false;
 		int incr=0;
 		int lastBeep=0;
-		//getYesNoUI("Identification of the four corners \nof the inoculation point with ROI points\nAre you ready  ?");
 		do {
 			try {
 				java.util.concurrent.TimeUnit.MILLISECONDS.sleep(100);
@@ -388,7 +369,6 @@ public interface VitiDialogs {
 			if(rm.getCount()>0 && rm.getRoi(rm.getCount()-1).getZPosition()==1)finished=true;
 			if(rm.getCount()%2==0 && (rm.getCount() != lastBeep)) {
 				lastBeep=rm.getCount();
-				VitimageUtils.soundAlert("Beep");
 			}
 			if((incr%20) == 0)System.out.println("Waiting. Number of points : "+rm.getCount());
 		}while (!finished);	
@@ -406,19 +386,15 @@ public interface VitiDialogs {
 		Point3d []ptRet=new Point3d[rm.getCount()-1];
 		for(int i=0;i<rm.getCount()-1;i++)ptRet[i]=new Point3d(tabRet[i][0],tabRet[i][1],tabRet[i][2]);
 		img.hide();
-		//rx.hide();
-		//mri.hide();
 		return ptRet;
 	}
-	
-	
+		
 	public static double[][] waitForPointsUI(int nbWantedPoints,ImagePlus img,boolean realCoordinates){
 		double[][]tabRet=new double[nbWantedPoints][3];
 		RoiManager rm=RoiManager.getRoiManager();
 		rm.reset();
 		IJ.setTool("point");
 		boolean finished =false;
-		//getYesNoUI("Identification of the four corners \nof the inoculation point with ROI points\nAre you ready  ?");
 		do {
 			try {
 				java.util.concurrent.TimeUnit.MILLISECONDS.sleep(1000);
@@ -437,7 +413,7 @@ public interface VitiDialogs {
 				tabRet[indP][1]=(tabRet[indP][1]+0.5)*(img.getCalibration().pixelHeight);
 				tabRet[indP][2]=(tabRet[indP][2]+0.5)*(img.getCalibration().pixelDepth);
 			}	
-			System.out.println("Point retenu numéro "+indP+" : {"+tabRet[indP][0]+","+tabRet[indP][1]+","+tabRet[indP][2]+"}");
+			System.out.println("Got point number "+indP+" : {"+tabRet[indP][0]+","+tabRet[indP][1]+","+tabRet[indP][2]+"}");
 		}
 		return tabRet;
 	}
@@ -477,15 +453,20 @@ public interface VitiDialogs {
 				pRef[indP]=TransformUtils.convertPointToRealSpace(pRef[indP],imgRef);
 				pMov[indP]=TransformUtils.convertPointToRealSpace(pMov[indP],imgRef);				
 			}	
-			//System.out.println("Point retenu numéro "+indP+" : {"+tabRet[indP][0]+","+tabRet[indP][1]+","+tabRet[indP][2]+"}");
 		}
 		imgRefBis.close();
 		imgMovBis.close();
 		return new Point3d[][] {pRef,pMov};
 	}
 	
+	
+	
+	
+	/** 
+	 * Display a point detected on an image, and ask for confirmation
+	 * */
 	public static Point3d inspectInoculationPoint(ImagePlus img,Point3d suggestedInocPoint) {
-		double ray=1;//en mm
+		double ray=1;//in mm
 		ImagePlus imgInspect=new Duplicator().run(img);
 		Point3d pointCoordImage=TransformUtils.convertPointToImageSpace(suggestedInocPoint,imgInspect);
 		imgInspect.getProcessor().resetMinAndMax();
@@ -526,10 +507,8 @@ public interface VitiDialogs {
 		return pointCoordImage;		
 	}
 	
-	
-	
 	public static double[][] inspectAxis(ImagePlus img ,double[] vectZ,Point3d ptOrigine,int delayForReacting){
-		double ray=1;//en mm
+		double ray=1;//in mm
 		ImagePlus imgInspect=new Duplicator().run(img);
 		Point3d pointCoordImage=TransformUtils.convertPointToImageSpace(ptOrigine,imgInspect);
 		imgInspect.getProcessor().resetMinAndMax();
@@ -575,8 +554,32 @@ public interface VitiDialogs {
 		}
 
 		
-		
-		
+	/** 
+	 * Helpers to check conformity of the String given by the user
+	 * */
+	//work like isAlphaNumeric, but including also underscore and minus
+	public static boolean isStandardChar(char c) {
+		int val=(int)c;
+		if(val>=97 && val<=122)return true;//Character from a to z
+		if(val>=65 && val<=90)return true;//Character from A to Z
+		if(val>=48 && val<=57)return true;//Character from A to Z
+		if(val==95 || val==45)return true;//Respectively, underscore and minus symbols
+		return false;
+	}
+	
+	public static boolean isStandardName(String str) {
+		if(str.length()<=0)return false;
+		for (int i=0;i<str.length();i++)if (!isStandardChar(str.charAt(i)))return false;
+		return true;
+	}
+	
+
+	public static void notYet(String strGuess) {
+		IJ.showMessage("Not yet implemented : "+strGuess+"\nOur team constantly struggle to provide you new features, accordingly to you needs.\n"+
+						"Please consider sending a feature request to : romainfernandez06@gmail.com");
+	}
+	
+
 }
 	
 	

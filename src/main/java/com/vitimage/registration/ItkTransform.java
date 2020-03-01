@@ -1,6 +1,4 @@
 package com.vitimage.registration;
-//TODO common
-
 import java.util.ArrayList;
 
 import org.itk.simple.ComposeImageFilter;
@@ -45,24 +43,13 @@ import vib.FastMatrix;
 public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	private boolean isDense=false;
 	public int step=0;
-	public static int runTestSequence() {
-		int nbFailed=0;
-		//test bestRigid, bestAffine, bestSimilityde
-		//test transform ij to ITK, then apply to image
-		//test fast mat to ITK, then apply to image
-		//compare with itk applyed to image
-		//test transform image
-		return nbFailed;
-	}
 
-
-	
 	public static void main(String[]args) {
 		System.out.println("File ITK transform compiled");
-		ItkTransform tr=new ItkTransform();
-		System.out.println("File ITK transform executed");
 	}
 	
+
+	/* Constructors and factories*/
 	public ItkTransform(){
 		super();
 	}
@@ -90,16 +77,28 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 //		return itkTransformFromCoefs(new double[] { vx[0] , -vx[1] , -vx[2] , t[0] ,          vy[0] , -vy[1] , -vy[2] , t[1] ,        vzz[0] , vzz[1] , vzz[2] , t[2]   });
 		return itkTransformFromCoefs(new double[] { vx[0] , vy[0] , vz[0] , t[0] +40.63,          -vx[1] ,- vy[1] , -vz[1] , -t[1]+50.7 ,        vzz[0] , vzz[1] , vzz[2] , -t[2] +213.5  });
 	}
-	
-	
+		
 	public static ItkTransform itkTransformFromDICOMVectorsNOAXIAL(double[]vx,double[]vy,double[]vz,double[]t) {
 		double []vzz=TransformUtils.vectorialProduct(new double[] {  vx[0] , vy[0] , vz[0]}, new double[] {-vx[1] ,- vy[1] , -vz[1] });
 //		return itkTransformFromCoefs(new double[] { vx[0] , -vx[1] , -vx[2] , t[0] ,          vy[0] , -vy[1] , -vy[2] , t[1] ,        vzz[0] , vzz[1] , vzz[2] , t[2]   });
 		return itkTransformFromCoefs(new double[] { vx[0] , vy[0] , vz[0] , t[0] ,          -vx[1] ,- vy[1] , -vz[1] , -t[1] ,        vzz[0] , vzz[1] , vzz[2] , -t[2]   });
 	}
+		
+	public static ItkTransform getIdentityDenseFieldTransform(ImagePlus imgRef) {
+		ImagePlus img=imgRef.duplicate();
+		IJ.run(img,"32-bit","");
+		for(int i=0;i<img.getStackSize();i++)img.getStack().getProcessor(i+1).set(0);
+		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(new ImagePlus[] {img,img,img})));
+	}
 	
 
 
+	
+	
+	
+	
+	
+	/* Conversions of Transformations*/	
 	public static imagescience.transform.Transform itkTransformToIjTransform(ItkTransform tr) {
 		double[][]tab=tr.toAffineArrayRepresentation();
 		imagescience.transform.Transform ret=new imagescience.transform.Transform();
@@ -114,7 +113,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return ret;
 	}
 
-	
 	public static ItkTransform ijTransformToItkTransform(imagescience.transform.Transform tr) {
 		org.itk.simple.AffineTransform aff=new org.itk.simple.AffineTransform(
 				ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {tr.get(0,0),tr.get(0,1),tr.get(0,2),  tr.get(1,0),tr.get(1,1),tr.get(1,2),    tr.get(2,0),tr.get(2,1),tr.get(2,2) } ),
@@ -130,28 +128,10 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return new ItkTransform(aff);
 	}
 
-
 	public ItkTransform(org.itk.simple.Transform tr) {
 		super(tr);
 		this.isDense=!tr.isLinear();
 		return ;
-	}
-
-	public boolean isDense() {
-		return this.isDense;
-	}
-	
-	
-	public ItkTransform addTransform(ItkTransform tr) {
-		super.addTransform(tr);
-		if(!this.isDense)this.isDense=tr.isDense;
-		return this;
-	}
-	
-	public ItkTransform addTransform(Transform tr) {
-		super.addTransform(tr);
-		if(!this.isDense)this.isDense=!tr.isLinear();
-		return this;
 	}
 
 	public static ItkTransform array16ElementsToItkTransform(double[] tab) {
@@ -161,349 +141,79 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return new ItkTransform(aff);
 	}
 
+	public double[] itkTransformToArray(org.itk.simple.Transform transfo) {
+		//A reecrire au vu des decouvertes effectuees sur les chevrons
+		//Ce sera la deuxieme passe
+		double [][]ret;
+		double[] temp;
+		int nb=this.nbTransformComposed();
+		String str=transfo.toString();
+		if(nb==1) {
+			return(itkTransformStepToArray(str.substring(str.indexOf("\n"))));
+		}
+		else {
+			String []tab1=str.split("<<<<<<<<<<");
+			String[] transforms=tab1[0].split(">>>>>>>>>");
+			double[][]tabMat=new double[transforms.length-1][12];
+			for(int i=1;i<transforms.length;i++) {
+				tabMat[i-1]=itkTransformStepToArray(transforms[i]) ;
+			}
+			ret=TransformUtils.composeMatrices(tabMat);
+			return ret[0];
+		}
+	}
 
+	public double[] toAffineArrayMonolineRepresentation() {
+		double [][]tabTemp=toAffineArrayRepresentation();
+		return new double[] {   tabTemp[0][0] , tabTemp[0][1] , tabTemp[0][2] , tabTemp[0][3] , 
+								tabTemp[1][0] , tabTemp[1][1] , tabTemp[1][2] , tabTemp[1][3] , 
+								tabTemp[2][0] , tabTemp[2][1] , tabTemp[2][2] , tabTemp[2][3] , 
+								tabTemp[3][0] , tabTemp[3][1] , tabTemp[3][2] , tabTemp[3][3] };
+	}
+
+	public double[][] toAffineArrayRepresentation() {
+		Point3d pt0=new Point3d(0,0,0);
+		Point3d pt0Tr=this.transformPoint(pt0);
+		Point3d pt1=new Point3d(1,0,0);
+		Point3d pt1Tr=this.transformPoint(pt1);
+		Point3d pt2=new Point3d(0,1,0);
+		Point3d pt2Tr=this.transformPoint(pt2);
+		Point3d pt3=new Point3d(0,0,1);
+		Point3d pt3Tr=this.transformPoint(pt3);
+		return new double[][] {    { pt1Tr.x-pt0Tr.x , pt2Tr.x-pt0Tr.x , pt3Tr.x-pt0Tr.x   ,pt0Tr.x    },    
+											   { pt1Tr.y-pt0Tr.y , pt2Tr.y-pt0Tr.y , pt3Tr.y-pt0Tr.y   ,pt0Tr.y    },  
+											   { pt1Tr.z-pt0Tr.z , pt2Tr.z-pt0Tr.z , pt3Tr.z-pt0Tr.z   ,pt0Tr.z    },  
+											   { 0 , 0 , 0 , 1 }   };
+	}
+
+	
+	
+	
+	
+	
+
+	/* Estimation of transformations from point set or euler angles*/	
 	public static ItkTransform estimateBestAffine3D(Point3d[]setRef,Point3d[]setMov) {
 		return fastMatrixToItkTransform(FastMatrix.bestLinear( setMov, setRef));
 	}
-	
-	
-	public static ItkTransform getPoseIndicatorMatrix(ImagePlus mask,boolean computeInertiaMatrix) {
-		double[]voxs=VitimageUtils.getVoxelSizes(mask);
-		int[]dims=VitimageUtils.getDimensions(mask);
-		byte[][] data=new byte[mask.getStackSize()][];
-		double[]massCenter=new double[] {0,0,0};		
-		int X=mask.getWidth();
-		int Y=mask.getHeight();
-		int Z=mask.getStackSize();
-
 		
-		//Calcul du centre de masse
-		int hits=0;
-		for(int z=0;z<Z;z++) {
-			data[z]=(byte []) mask.getStack().getProcessor(z+1).getPixels();
-			for(int x=0;x<X;x++) {
-				for(int y=0;y<Y;y++) {
-					if((int)(data[z][y*X+x] & 0xff) >0) {
-						massCenter[0]+=x*voxs[0];
-						massCenter[1]+=y*voxs[1];
-						massCenter[2]+=z*voxs[2];
-						hits++;
-					}
-				}
-			}
-		}
-		for(int i=0;i<3;i++)massCenter[i]/=(1.0*hits);
-		ItkTransform tr;
-		if(!computeInertiaMatrix) {
-			tr=array16ElementsToItkTransform(new double[] {1,0,0,massCenter[0]-dims[0]*voxs[0]*0.5,0,1,0,massCenter[1]-dims[1]*voxs[1]*0.5,0,0,1,massCenter[2]-dims[2]*voxs[2]*0.5,0,0,0,1});
-			return tr;
-		}
-		
-		//Calcul de la matrice d inertie
-		double Sxx, Sxy, Sxz, Syx, Syy, Syz, Szx, Szy, Szz,xr,yr,zr;
-		Sxx = Sxy = Sxz = Syx = Syy = Syz = Szx = Szy = Szz = 0;
-		for(int z=0;z<Z;z++) {
-			data[z]=(byte []) mask.getStack().getProcessor(z+1).getPixels();
-			for(int x=0;x<X;x++) {
-				for(int y=0;y<Y;y++) {
-					if((int)(data[z][y*X+x] & 0xff) >0) {
-						xr=(x*voxs[0]-massCenter[0]);
-						yr=(y*voxs[1]-massCenter[1]);
-						zr=(z*voxs[2]-massCenter[2]);
-						Sxx+=yr*yr+zr*zr;
-						Syy+=xr*xr+zr*zr;
-						Szz+=xr*xr+yr*yr;
-						Sxy+=xr*yr;
-						Sxz+=xr*zr;
-						Syz+=yr*zr;
-					}
-				}
-			}
-		}
-		double [][]mat=new double[][] {new double[] {Sxx,Sxy,Sxz,0} , new double[] {Sxy,Syy,Syz,0} , new double[] {Sxz,Syz,Szz,0 }, new double[] {0,0,0,1} };
-		JacobiDouble jacobi = new JacobiDouble(mat);
-		double[][] eigenVectors = jacobi.getEigenVectors();
-		double[] eigenValues = jacobi.getEigenValues();
-		for(int i=0;i<4;i++) IJ.log("Lambda "+i+" = "+eigenValues[i]+" Vecteur "+i+" = "+TransformUtils.stringVectorN(eigenVectors[i], ""));
-		
-		//Classer les vecteurs. Vraisemblablement,la plus faible valeur de lambda correspond à l'axe Z. On identifie ensuite l'axe X
-		
-		tr=fastMatrixToItkTransform(new FastMatrix(eigenVectors));
-		return tr;
-	}
-	
-	
-	
 	public static ItkTransform estimateBestRigid3D(Point3d[]setRef,Point3d[]setMov) {
 		return fastMatrixToItkTransform(FastMatrix.bestRigid( setMov, setRef, false ));
 	}
 
-	public static Point3d centerOfPointSet(Point3d []pIn) {
-		double xMoy=0;
-		double yMoy=0;
-		double zMoy=0;
-		Point3d []pOut=new Point3d[pIn.length];
-		for(Point3d p : pIn) {
-			xMoy+=p.x;
-			yMoy+=p.y;
-			zMoy+=p.z;
-		}
-		xMoy/=pIn.length;
-		yMoy/=pIn.length;
-		zMoy/=pIn.length;
-		return new Point3d(xMoy,yMoy,zMoy);
-	}
-
-	
-	public static Point3d []centerPointSet(Point3d []pIn) {
-		double xMoy=0;
-		double yMoy=0;
-		double zMoy=0;
-		Point3d []pOut=new Point3d[pIn.length];
-		for(Point3d p : pIn) {
-			xMoy+=p.x;
-			yMoy+=p.y;
-			zMoy+=p.z;
-		}
-		xMoy/=pIn.length;
-		yMoy/=pIn.length;
-		zMoy/=pIn.length;
-		for(int i=0;i<pIn.length;i++) {
-			pOut[i]=new Point3d( pIn[i].x-xMoy, pIn[i].y-yMoy , pIn[i].z-zMoy );
-		}		
-		return pOut;
-	}
-	
 	public static ItkTransform estimateBestSimilarity3D(Point3d[]setRef,Point3d[]setMov) {
 		FastMatrix fm=FastMatrix.bestRigid( setMov, setRef, true );
 		IJ.log("Similarity transform computed. Coefficient of dilation : "+Math.pow(fm.det(),0.333333));
 		return fastMatrixToItkTransform(fm);
 	}
 
-	public static double estimateGlobalDilationFactor(Point3d[]setRef,Point3d[]setMov) {
-		FastMatrix fm=FastMatrix.bestRigid( setMov, setRef, true );
-		IJ.log("Similarity transform computed. Coefficient of dilation : "+Math.pow(fm.det(),0.333333));
-		return Math.pow(fm.det(),0.333333);
-	}
-
-	
-	
-	/*Angles are in radians */
+	//Angles are in radians
 	public static ItkTransform getRigidTransform(double []center,double[]angles,double[]translation) {
 		org.itk.simple.VectorDouble cent=ItkImagePlusInterface.doubleArrayToVectorDouble(center);
 		org.itk.simple.VectorDouble trans=ItkImagePlusInterface.doubleArrayToVectorDouble(translation);		
 		return new ItkTransform(new org.itk.simple.Transform(new org.itk.simple.Euler3DTransform (cent,angles[0],angles[1],angles[2], trans)));
 	}
 
-	
-	public void writeToFileWithTypeDetection(String path,ImagePlus imgRef) {
-		if(this.isDense) {
-			this.writeAsDenseField(path, imgRef);
-		}
-		else this.writeMatrixTransformToFile(path);
-	}
-	
-	
-	//TODO : implement smoothingBeforeDownSampling.
-	public ImagePlus transformImage(ImagePlus imgRef, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
-		if(imgMov.getNChannels()>1 || imgMov.getNFrames()>1) {
-			int nbZ=imgMov.getNSlices();
-			int nbT=imgMov.getNFrames();
-			int nbC=imgMov.getNChannels();
-			ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstackFastBis(imgMov);
-			for(int i=0;i<imgTabMov.length;i++) {
-				imgTabMov[i]= transformImage(imgRef, imgTabMov[i],smoothingBeforeDownSampling);
-			}
-			Concatenator con=new Concatenator();
-			con.setIm5D(true);
-			return HyperStackConverter.toHyperStack(con.concatenate(imgTabMov,false), nbC, nbZ,nbT,"xyztc","Grayscale");
-		}
-		if(imgMov.getType()==4) {
-			ImagePlus[] channels = ChannelSplitter.split(imgMov);
-			for(int i=0;i<3;i++) {
-				VitimageUtils.adjustImageCalibration(channels[i], imgRef);
-				channels[i]=transformImage(imgRef,channels[i],smoothingBeforeDownSampling);
-			}
-			ImagePlus ret=new ImagePlus("",RGBStackMerge.mergeStacks(channels[0].getStack(),channels[1].getStack(),channels[2].getStack(),true));
-			VitimageUtils.adjustImageCalibration(ret, imgRef);
-			return ret;
-		}
-/*		int val=Math.min(  10    ,    Math.min(   imgMov.getWidth()/20    ,   imgMov.getHeight()/20  ));
-		int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(imgMov,val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(imgMov,imgMov.getWidth()-val-1,imgMov.getHeight()-val-1,0,val)*0.5    );
-*/
-		double valMean=imgMov.getStack().getProcessor(imgMov.getStackSize()/2+1).getMin();
-		ResampleImageFilter resampler=new ResampleImageFilter();
-		resampler.setDefaultPixelValue(valMean);
-		if(imgRef.getNChannels()==1 && imgRef.getNFrames()==1)resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(imgRef));
-		else {
-			ImagePlus img=new Duplicator().run(imgRef, 1, 1, 1, imgRef.getNSlices(), 1, 1);
-			VitimageUtils.adjustImageCalibration(img, imgRef);
-			resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(img));
-		}
-		resampler.setTransform(this);
-		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
-	}	
-	
-	public ImagePlus transformImage(int[]targetDims,double[]targetVoxs, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
-		String unit=imgMov.getCalibration().getUnit();
-		if(imgMov.getNChannels()>1 || imgMov.getNFrames()>1) {
-			int nbZ=imgMov.getNSlices();
-			int nbT=imgMov.getNFrames();
-			int nbC=imgMov.getNChannels();
-			ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstackFastBis(imgMov);
-			for(int i=0;i<imgTabMov.length;i++) {
-				imgTabMov[i]= transformImage(targetDims,targetVoxs, imgTabMov[i],smoothingBeforeDownSampling);
-			}
-			nbZ=targetDims[2];
-			Concatenator con=new Concatenator();
-			con.setIm5D(true);
-			VitimageUtils.printImageResume(imgTabMov[0]);
-			ImagePlus img= HyperStackConverter.toHyperStack(con.concatenate(imgTabMov,false), nbC, nbZ,nbT,"xyztc","Grayscale");
-			return img;
-		}
-		if(imgMov.getType()==4) {
-			ImagePlus[] channels = ChannelSplitter.split(imgMov);
-			for(int i=0;i<3;i++) {
-				VitimageUtils.adjustImageCalibration(channels[i], imgMov);
-				channels[i]=transformImage(targetDims,targetVoxs,channels[i],smoothingBeforeDownSampling);
-			}
-			ImagePlus ret=new ImagePlus("",RGBStackMerge.mergeStacks(channels[0].getStack(),channels[1].getStack(),channels[2].getStack(),true));
-			VitimageUtils.adjustImageCalibration(ret, targetVoxs,unit);
-			return ret;
-		}
-		int val=Math.min(  10    ,    Math.min(   imgMov.getWidth()/20    ,   imgMov.getHeight()/20  ));
-		int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(imgMov,val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(imgMov,imgMov.getWidth()-val-1,imgMov.getHeight()-val-1,0,val)*0.5    );
-		ResampleImageFilter resampler=new ResampleImageFilter();
-		resampler.setDefaultPixelValue(valMean);
-		resampler.setOutputSpacing(ItkImagePlusInterface.doubleArrayToVectorDouble(targetVoxs));
-		resampler.setSize(ItkImagePlusInterface.intArrayToVectorUInt32(targetDims));
-		resampler.setTransform(this);
-		return ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov)));
-	}	
-
-	public static ImagePlus resampleImage(int[]targetDims,double[]targetVoxs, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
-		return (new ItkTransform()).transformImage(targetDims,targetVoxs,imgMov,smoothingBeforeDownSampling);
-	}	
-
-	
-	/*
-	public static ImagePlus resample
-	this.resampler.setDefaultPixelValue(this.imgRefDefaultValue);
-	this.resampler.setTransform(new ItkTransform());
-	this.resampler.setOutputSpacing(ItkImagePlusInterface.doubleArrayToVectorDouble(this.successiveVoxSizes[lev]));
-	this.resampler.setSize(ItkImagePlusInterface.intArrayToVectorUInt32(this.successiveDimensions[lev]));
-	imgRefTemp=VitimageUtils.gaussianFilteringIJ(this.imgRef, this.successiveSmoothingSigma[lev], this.successiveSmoothingSigma[lev], this.successiveSmoothingSigma[lev]);
-	timesLev[lev][1]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
-	imgRefTemp=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgRefTemp)));
-*/
-	
-	public ImagePlus transformImageSegmentationByte(ImagePlus imgRef, ImagePlus imgMov,int min, int max) {
-		//Pour toutes les intensités possibles
-		ImagePlus[]threshTab=new ImagePlus[max-min+1];
-		ImagePlus mov8=new Duplicator().run(imgMov);
-		mov8.setDisplayRange(0, 255);
-		IJ.run(mov8,"8-bit","");
-		for(int thr=min;thr<=max;thr++) {
-			threshTab[thr-min]=VitimageUtils.thresholdByteImage(mov8, thr, thr+1);
-			IJ.run(threshTab[thr-min],"32-bit","");			
-			int val=Math.min(  10    ,    Math.min(   threshTab[thr-min].getWidth()/20    ,   threshTab[thr-min].getHeight()/20  ));
-			int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(threshTab[thr-min],val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(threshTab[thr-min],threshTab[thr-min].getWidth()-val-1,threshTab[thr-min].getHeight()-val-1,0,val)*0.5    );
-			ResampleImageFilter resampler=new ResampleImageFilter();
-			resampler.setDefaultPixelValue(valMean);
-			resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(imgRef));
-			resampler.setTransform(this);
-			threshTab[thr-min]=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(threshTab[thr-min])));
-		}
-
-		//Pour chaque pixel
-			//donner la valeur du plus probable
-
-		ImagePlus ret=new Duplicator().run(imgRef);
-		VitimageUtils.adjustImageCalibration(ret, imgRef);
-		IJ.run(ret,"8-bit","");
-		float valMax=0;
-		float val=0;
-		int indMax=0;
-		float[][][] in=new float[max-min+1][ret.getStackSize()][];
-		byte[][] out=new byte[ret.getStackSize()][];
-		int X=ret.getWidth();
-		int Y=ret.getHeight();
-		int Z=ret.getStackSize();
-		for(int z=0;z<Z;z++) {
-			for(int thr=min;thr<=max;thr++)in[thr-min][z]=(float []) threshTab[thr-min].getStack().getProcessor(z+1).getPixels();
-			out[z]=(byte []) ret.getStack().getProcessor(z+1).getPixels();
-			for(int x=0;x<X;x++) {
-				for(int y=0;y<Y;y++) {
-					valMax=-1;
-					indMax=-1;
-					for(int thr=min;thr<=max;thr++) {
-						val=(float)(in[thr-min][z][y*X+x]);
-						if(val>valMax) {valMax=val;indMax=thr;}
-					}
-					out[z][y*X+x]=(  ((byte) (indMax & 0xff)) );
-				}			 
-			}
-		}
-		return ret;
-	}
-
-
-/*	public ItkTransform getTransformImageReech(ImagePlus imgRef, ImagePlus imgMov) {
-		double[]voxSRef=VitimageUtils.getVoxelSizes(imgRef);
-		double[]voxSMov=VitimageUtils.getVoxelSizes(imgMov);
-		double[]voxSReal=new double[] {1,1,1};
-		ItkTransform tr=new ItkTransform();
-		tr.addTransform(getTransformForResampling(voxSRef,voxSReal));
-		tr.addTransform(this);
-		tr.addTransform(getTransformForResampling(voxSReal,voxSMov));
-		return tr;
-	}	
-
-	public ItkTransform getTransformImageReech(double[]voxSRef,double[]voxSMov) {
-		double[]voxSReal=new double[] {1,1,1};
-		ItkTransform tr=new ItkTransform();
-		tr.addTransform(getTransformForResampling(voxSRef,voxSReal));
-		tr.addTransform(this);
-		tr.addTransform(getTransformForResampling(voxSReal,voxSMov));
-		return tr;
-	}	
-
-
-	public ImagePlus transformImageReech(ImagePlus imgRef, ImagePlus imgMov) {
-		int val=Math.min(  10    ,    Math.min(   imgMov.getWidth()/20    ,   imgMov.getHeight()/20  ));
-		int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(imgMov,val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(imgMov,imgMov.getWidth()-val-1,imgMov.getHeight()-val-1,0,val)*0.5    );
-		ResampleImageFilter resampler=new ResampleImageFilter();
-		resampler.setDefaultPixelValue(valMean);
-		resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(imgRef));
-		double[]voxSRef=VitimageUtils.getVoxelSizes(imgRef);
-		double[]voxSMov=VitimageUtils.getVoxelSizes(imgMov);
-		double[]voxSReal=new double[] {1,1,1};
-		ItkTransform tr=new ItkTransform();
-		tr.addTransform(getTransformForResampling(voxSReal,voxSRef));
-		tr.addTransform(this);
-		System.out.println("\nLa transfo initiale etait :"+this.drawableString());
-		tr.addTransform(getTransformForResampling(voxSMov,voxSReal));
-		System.out.println("\nLa transfo finale est :"+tr.drawableString());
-		resampler.setTransform(this);
-		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
-	}	
-*/
-	public static ImagePlus resampleImageReech(ImagePlus imgRef, ImagePlus imgMov) {
-		int val=Math.min(  10    ,    Math.min(   imgMov.getWidth()/20    ,   imgMov.getHeight()/20  ));
-		int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(imgMov,val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(imgMov,imgMov.getWidth()-val-1,imgMov.getHeight()-val-1,0,val)*0.5    );
-		ResampleImageFilter resampler=new ResampleImageFilter();
-		resampler.setDefaultPixelValue(valMean);
-		resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(imgRef));
-		double[]voxSRef=VitimageUtils.getVoxelSizes(imgRef);
-		double[]voxSMov=VitimageUtils.getVoxelSizes(imgMov);
-		ItkTransform tr=getTransformForResampling(voxSRef,voxSMov);
-		resampler.setTransform(tr);
-		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
-	}	
-
-
-	
-	
 	public static ItkTransform getTransformForResampling(double[]voxSRef,double[]voxSMov) {
 		double[]mat=new double[] {  1, 0, 0, 0.5*(voxSRef[0]-voxSMov[0]) ,
 				0, 1, 0, 0.5*(voxSRef[1]-voxSMov[1]) ,
@@ -511,119 +221,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return ItkTransform.itkTransformFromCoefs(mat);
 	}
 		
-	
-	
-	public static Point3d[][]trimCorrespondances(Point3d[][] correspondancePoints,ImagePlus imgRef,double sigma,double rejectThreshold){
-		IJ.log("Trim correspondances. Sigma  ="+sigma+" ="+sigma/imgRef.getCalibration().pixelWidth+" voxels");
-		double epsilon = 10E-10;
-		double epsilonRejection=10E-6;
-		double []voxSizes=VitimageUtils.getVoxelSizes(imgRef);
-		int []dimensions=VitimageUtils.getDimensions(imgRef);
-		int nPt=correspondancePoints[0].length;
-		//Construire la liste des pixels concernes, à partir des corespondance points (attention à inverser vox size)
-		int [][]vectPoints=new int[nPt][3];
-		double [][]vectVals=new double[nPt][3];
-		for(int i=0;i<vectPoints.length;i++) {
-			vectPoints[i][0]=(int)Math.round(correspondancePoints[0][i].x/voxSizes[0]);
-			vectPoints[i][1]=(int)Math.round(correspondancePoints[0][i].y/voxSizes[1]);
-			vectPoints[i][2]=(int)Math.round(correspondancePoints[0][i].z/voxSizes[2]);
-			vectVals[i][0]=correspondancePoints[1][i].x-correspondancePoints[0][i].x;
-			vectVals[i][1]=correspondancePoints[1][i].y-correspondancePoints[0][i].y;
-			vectVals[i][2]=correspondancePoints[1][i].z-correspondancePoints[0][i].z;
-		}
-		
-		
-		//Construire l'image des poids, et l'image des valeurs suivant X, Y et Z
-		ImagePlus imgWeights=IJ.createImage("tempW", dimensions[0], dimensions[1], dimensions[2], 32);
-		ImagePlus imgFieldX=IJ.createImage("tempX", dimensions[0], dimensions[1], dimensions[2], 32);
-		ImagePlus imgFieldY=IJ.createImage("tempY", dimensions[0], dimensions[1], dimensions[2], 32);
-		ImagePlus imgFieldZ=IJ.createImage("tempZ", dimensions[0], dimensions[1], dimensions[2], 32);
-		VitimageUtils.adjustImageCalibration(imgWeights, imgRef);
-		VitimageUtils.adjustImageCalibration(imgFieldX, imgRef);
-		VitimageUtils.adjustImageCalibration(imgFieldY, imgRef);
-		VitimageUtils.adjustImageCalibration(imgFieldZ, imgRef);
-		
-		//Y inserer les informations necessaires
-		imgWeights.getProcessor().set(0);
-		imgFieldX.getProcessor().set(0);
-		imgFieldY.getProcessor().set(0);
-		imgFieldZ.getProcessor().set(0);
-		
-		for(int i=0;i<nPt;i++) {
-			imgWeights.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], 1);
-			imgFieldX.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], (float) vectVals[i][0]);
-			imgFieldY.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], (float) vectVals[i][1]);
-			imgFieldZ.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1],(float) vectVals[i][2]);
-		}
-		
-		//Lisser tout le monde
-		imgWeights=VitimageUtils.gaussianFiltering(imgWeights, sigma,sigma , sigma);
-		imgFieldX=VitimageUtils.gaussianFiltering(imgFieldX, sigma,sigma , sigma);
-		imgFieldY=VitimageUtils.gaussianFiltering(imgFieldY, sigma,sigma , sigma);
-		imgFieldZ=VitimageUtils.gaussianFiltering(imgFieldZ, sigma,sigma , sigma);
-		
-		//puis diviser les valeurs suivants X,Y et Z par les poids lissés. Si les poids sont < epsilon, mettre 0
-		for(int z=0;z<dimensions[2];z++) {
-			float[] valsW=(float [])imgWeights.getStack().getProcessor(z+1).getPixels();
-			float[] valsX=(float [])imgFieldX.getStack().getProcessor(z+1).getPixels();
-			float[] valsY=(float [])imgFieldY.getStack().getProcessor(z+1).getPixels();
-			float[] valsZ=(float [])imgFieldZ.getStack().getProcessor(z+1).getPixels();
-			for(int x=0;x<dimensions[0];x++) {
-				for(int y=0;y<dimensions[1];y++){
-					int index=dimensions[0]*y+x;
-					if(valsW[index]<epsilon)valsX[index]=valsY[index]=valsZ[index]=0;
-					else{
-						valsX[index]/=valsW[index];
-						valsY[index]/=valsW[index];
-						valsZ[index]/=valsW[index];
-					}
-				}
-			}			
-		}
-		//Pour chaque point de correspondance, calculer les statistiques locales autour du point, suivant chaque coordonnee X,Y,Z
-		int [] flagPoint=new int [nPt];
-		int keepedPoints=0;
-		for(int i=0;i<nPt;i++) {
-			//System.out.println("Trim base sur dense field : evaluation du point "+i+" aux coordonnees ("+vectPoints[i][0]+","+vectPoints[i][1]+","+vectPoints[i][2]+") ");
-			double []statsX=VitimageUtils.statistics1D(VitimageUtils.valuesOfImageAround(imgFieldX, vectPoints[i][0],  vectPoints[i][1],  vectPoints[i][2], sigma*40));
-			double []statsY=VitimageUtils.statistics1D(VitimageUtils.valuesOfImageAround(imgFieldY, vectPoints[i][0],  vectPoints[i][1],  vectPoints[i][2], sigma*40));
-			double []statsZ=VitimageUtils.statistics1D(VitimageUtils.valuesOfImageAround(imgFieldZ, vectPoints[i][0],  vectPoints[i][1],  vectPoints[i][2], sigma*40));
-			//System.out.println("Valeurs mesurees : VectPoint=("+vectVals[i][0]+","+vectVals[i][1]+","+vectVals[i][2]+") et StatImgX="+statsX[0]+" +- "+statsX[1]+" , StatImgY="+statsY[0]+" +- "+statsZ[1]+" , StatImgY="+statsZ[0]+" +- "+statsZ[1]);
-			if( (vectVals[i][0]>statsX[0]+rejectThreshold*statsX[1]+epsilonRejection || vectVals[i][0]<statsX[0]-rejectThreshold*statsX[1]-epsilonRejection ) ||
-				(vectVals[i][1]>statsY[0]+rejectThreshold*statsY[1]+epsilonRejection || vectVals[i][1]<statsY[0]-rejectThreshold*statsY[1]-epsilonRejection ) ||
-				(vectVals[i][2]>statsZ[0]+rejectThreshold*statsZ[1]+epsilonRejection || vectVals[i][2]<statsZ[0]-rejectThreshold*statsZ[1]-epsilonRejection ) ) {
-				//System.out.println("Point rejected");
-				flagPoint [i]=-1;
-			}
-			else {
-				//System.out.println("Point accepted");
-				flagPoint[i]=1;
-				keepedPoints++;
-			}
-		}
-		Point3d [][]newCorrespondances=new Point3d[2][keepedPoints];
-		keepedPoints=0;
-		for(int i=0;i<nPt;i++) {
-			if(flagPoint[i]>0) {
-				newCorrespondances[0][keepedPoints]=new Point3d(correspondancePoints[0][i].x,correspondancePoints[0][i].y,correspondancePoints[0][i].z);
-				newCorrespondances[1][keepedPoints]=new Point3d(correspondancePoints[1][i].x,correspondancePoints[1][i].y,correspondancePoints[1][i].z);
-				keepedPoints++;
-			}
-		}
-		return newCorrespondances;
-	}
-
-	
-	
-	
-	
 	public static Image computeDenseFieldFromSparseCorrespondancePoints(Point3d[][]correspondancePoints,ImagePlus imgRef,double sigma,boolean zeroPaddingOutside) {
 		double epsilon = 10E-20;
 		double []voxSizes=VitimageUtils.getVoxelSizes(imgRef);
 		int []dimensions=VitimageUtils.getDimensions(imgRef);
 		int nPt=correspondancePoints[0].length;
 		IJ.log("Compute dense field from : "+nPt+" couples.");
-		//Construire la liste des pixels concernes, à partir des corespondance points (attention à inverser vox size)
 		int [][]vectPoints=new int[nPt][3];
 		double [][]vectVals=new double[nPt][3];
 		for(int i=0;i<vectPoints.length;i++) {
@@ -635,7 +238,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			vectVals[i][2]=correspondancePoints[1][i].z-correspondancePoints[0][i].z;
 		}
 		
-		//Construire l'image des poids, et l'image des valeurs suivant X, Y et Z
+		//Build weights image, and X,Y,Z components images
 		ImagePlus imgWeights=IJ.createImage("tempW", dimensions[0], dimensions[1], dimensions[2], 32);
 		ImagePlus imgFieldX=IJ.createImage("tempX", dimensions[0], dimensions[1], dimensions[2], 32);
 		ImagePlus imgFieldY=IJ.createImage("tempY", dimensions[0], dimensions[1], dimensions[2], 32);
@@ -645,7 +248,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		VitimageUtils.adjustImageCalibration(imgFieldY, imgRef);
 		VitimageUtils.adjustImageCalibration(imgFieldZ, imgRef);
 		
-		//Y inserer les informations necessaires
+		//Insert the needed informations
 		imgWeights.getProcessor().set(0);
 		imgFieldX.getProcessor().set(0);
 		imgFieldY.getProcessor().set(0);
@@ -667,10 +270,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		imgFieldY=VitimageUtils.gaussianFilteringIJ(imgFieldY, sigma,sigma , (zeroPaddingOutside ? 1 : 5)*sigma);
 		imgFieldZ=VitimageUtils.gaussianFilteringIJ(imgFieldZ, sigma,sigma , (zeroPaddingOutside ? 1 : 5)*sigma);
 		
-		
-		
-		
-		//puis diviser les valeurs suivants X,Y et Z par les poids lissés. Si les poids sont < epsilon, mettre 0
+		//Divide values by the smooth weights
 		for(int z=0;z<dimensions[2];z++) {
 			float[] valsW=(float [])imgWeights.getStack().getProcessor(z+1).getPixels();
 			float[] valsX=(float [])imgFieldX.getStack().getProcessor(z+1).getPixels();
@@ -729,8 +329,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 				}
 			}
 			IJ.log("Summary. Total size = "+(nX*nY*nZ)+" , padding  = "+hits+" points");
-			
-			
 			Point3d [][]newCorr=new Point3d[2][pts0.size()];
 			for(int i=0;i<pts0.size();i++) {
 				newCorr[0][i]=pts0.get(i);
@@ -738,21 +336,296 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			}
 			return computeDenseFieldFromSparseCorrespondancePoints(newCorr,imgRef,sigma,false);
 		}
-
-		
-		//Construire le champ vectoriel associe et le rendre
 	  	return ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(new ImagePlus [] {imgFieldX,imgFieldY,imgFieldZ});
+	}
+		
+	public static Point3d[][]trimCorrespondances(Point3d[][] correspondancePoints,ImagePlus imgRef,double sigma,double rejectThreshold){
+		IJ.log("Trim correspondances. Sigma  ="+sigma+" ="+sigma/imgRef.getCalibration().pixelWidth+" voxels");
+		double epsilon = 10E-10;
+		double epsilonRejection=10E-6;
+		double []voxSizes=VitimageUtils.getVoxelSizes(imgRef);
+		int []dimensions=VitimageUtils.getDimensions(imgRef);
+		int nPt=correspondancePoints[0].length;
+		int [][]vectPoints=new int[nPt][3];
+		double [][]vectVals=new double[nPt][3];
+		for(int i=0;i<vectPoints.length;i++) {
+			vectPoints[i][0]=(int)Math.round(correspondancePoints[0][i].x/voxSizes[0]);
+			vectPoints[i][1]=(int)Math.round(correspondancePoints[0][i].y/voxSizes[1]);
+			vectPoints[i][2]=(int)Math.round(correspondancePoints[0][i].z/voxSizes[2]);
+			vectVals[i][0]=correspondancePoints[1][i].x-correspondancePoints[0][i].x;
+			vectVals[i][1]=correspondancePoints[1][i].y-correspondancePoints[0][i].y;
+			vectVals[i][2]=correspondancePoints[1][i].z-correspondancePoints[0][i].z;
+		}
+		
+		
+		ImagePlus imgWeights=IJ.createImage("tempW", dimensions[0], dimensions[1], dimensions[2], 32);
+		ImagePlus imgFieldX=IJ.createImage("tempX", dimensions[0], dimensions[1], dimensions[2], 32);
+		ImagePlus imgFieldY=IJ.createImage("tempY", dimensions[0], dimensions[1], dimensions[2], 32);
+		ImagePlus imgFieldZ=IJ.createImage("tempZ", dimensions[0], dimensions[1], dimensions[2], 32);
+		VitimageUtils.adjustImageCalibration(imgWeights, imgRef);
+		VitimageUtils.adjustImageCalibration(imgFieldX, imgRef);
+		VitimageUtils.adjustImageCalibration(imgFieldY, imgRef);
+		VitimageUtils.adjustImageCalibration(imgFieldZ, imgRef);
+		
+		imgWeights.getProcessor().set(0);
+		imgFieldX.getProcessor().set(0);
+		imgFieldY.getProcessor().set(0);
+		imgFieldZ.getProcessor().set(0);
+		
+		for(int i=0;i<nPt;i++) {
+			imgWeights.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], 1);
+			imgFieldX.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], (float) vectVals[i][0]);
+			imgFieldY.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], (float) vectVals[i][1]);
+			imgFieldZ.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1],(float) vectVals[i][2]);
+		}
+		
+		imgWeights=VitimageUtils.gaussianFiltering(imgWeights, sigma,sigma , sigma);
+		imgFieldX=VitimageUtils.gaussianFiltering(imgFieldX, sigma,sigma , sigma);
+		imgFieldY=VitimageUtils.gaussianFiltering(imgFieldY, sigma,sigma , sigma);
+		imgFieldZ=VitimageUtils.gaussianFiltering(imgFieldZ, sigma,sigma , sigma);
+		
+		for(int z=0;z<dimensions[2];z++) {
+			float[] valsW=(float [])imgWeights.getStack().getProcessor(z+1).getPixels();
+			float[] valsX=(float [])imgFieldX.getStack().getProcessor(z+1).getPixels();
+			float[] valsY=(float [])imgFieldY.getStack().getProcessor(z+1).getPixels();
+			float[] valsZ=(float [])imgFieldZ.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<dimensions[0];x++) {
+				for(int y=0;y<dimensions[1];y++){
+					int index=dimensions[0]*y+x;
+					if(valsW[index]<epsilon)valsX[index]=valsY[index]=valsZ[index]=0;
+					else{
+						valsX[index]/=valsW[index];
+						valsY[index]/=valsW[index];
+						valsZ[index]/=valsW[index];
+					}
+				}
+			}			
+		}
+		int [] flagPoint=new int [nPt];
+		int keepedPoints=0;
+		for(int i=0;i<nPt;i++) {
+			double []statsX=VitimageUtils.statistics1D(VitimageUtils.valuesOfImageAround(imgFieldX, vectPoints[i][0],  vectPoints[i][1],  vectPoints[i][2], sigma*40));
+			double []statsY=VitimageUtils.statistics1D(VitimageUtils.valuesOfImageAround(imgFieldY, vectPoints[i][0],  vectPoints[i][1],  vectPoints[i][2], sigma*40));
+			double []statsZ=VitimageUtils.statistics1D(VitimageUtils.valuesOfImageAround(imgFieldZ, vectPoints[i][0],  vectPoints[i][1],  vectPoints[i][2], sigma*40));
+			if( (vectVals[i][0]>statsX[0]+rejectThreshold*statsX[1]+epsilonRejection || vectVals[i][0]<statsX[0]-rejectThreshold*statsX[1]-epsilonRejection ) ||
+				(vectVals[i][1]>statsY[0]+rejectThreshold*statsY[1]+epsilonRejection || vectVals[i][1]<statsY[0]-rejectThreshold*statsY[1]-epsilonRejection ) ||
+				(vectVals[i][2]>statsZ[0]+rejectThreshold*statsZ[1]+epsilonRejection || vectVals[i][2]<statsZ[0]-rejectThreshold*statsZ[1]-epsilonRejection ) ) {
+				flagPoint [i]=-1;
+			}
+			else {
+				flagPoint[i]=1;
+				keepedPoints++;
+			}
+		}
+		Point3d [][]newCorrespondances=new Point3d[2][keepedPoints];
+		keepedPoints=0;
+		for(int i=0;i<nPt;i++) {
+			if(flagPoint[i]>0) {
+				newCorrespondances[0][keepedPoints]=new Point3d(correspondancePoints[0][i].x,correspondancePoints[0][i].y,correspondancePoints[0][i].z);
+				newCorrespondances[1][keepedPoints]=new Point3d(correspondancePoints[1][i].x,correspondancePoints[1][i].y,correspondancePoints[1][i].z);
+				keepedPoints++;
+			}
+		}
+		return newCorrespondances;
+	}
 
+	
+	
+	
+	
+	
+	
+	/*Transform images and points*/
+	//TODO : smoothingBeforeDownSampling.
+	public ImagePlus transformImage(ImagePlus imgRef, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
+		if(imgMov.getNChannels()>1 || imgMov.getNFrames()>1) {
+			int nbZ=imgMov.getNSlices();
+			int nbT=imgMov.getNFrames();
+			int nbC=imgMov.getNChannels();
+			ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstackFastBis(imgMov);
+			for(int i=0;i<imgTabMov.length;i++) {
+				imgTabMov[i]= transformImage(imgRef, imgTabMov[i],smoothingBeforeDownSampling);
+			}
+			Concatenator con=new Concatenator();
+			con.setIm5D(true);
+			return HyperStackConverter.toHyperStack(con.concatenate(imgTabMov,false), nbC, nbZ,nbT,"xyztc","Grayscale");
+		}
+		if(imgMov.getType()==4) {
+			ImagePlus[] channels = ChannelSplitter.split(imgMov);
+			for(int i=0;i<3;i++) {
+				VitimageUtils.adjustImageCalibration(channels[i], imgRef);
+				channels[i]=transformImage(imgRef,channels[i],smoothingBeforeDownSampling);
+			}
+			ImagePlus ret=new ImagePlus("",RGBStackMerge.mergeStacks(channels[0].getStack(),channels[1].getStack(),channels[2].getStack(),true));
+			VitimageUtils.adjustImageCalibration(ret, imgRef);
+			return ret;
+		}
+		double valMean=imgMov.getStack().getProcessor(imgMov.getStackSize()/2+1).getMin();
+		ResampleImageFilter resampler=new ResampleImageFilter();
+		resampler.setDefaultPixelValue(valMean);
+		if(imgRef.getNChannels()==1 && imgRef.getNFrames()==1)resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(imgRef));
+		else {
+			ImagePlus img=new Duplicator().run(imgRef, 1, 1, 1, imgRef.getNSlices(), 1, 1);
+			VitimageUtils.adjustImageCalibration(img, imgRef);
+			resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(img));
+		}
+		resampler.setTransform(this);
+		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
+	}	
+	
+	public ImagePlus transformImage(int[]targetDims,double[]targetVoxs, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
+		String unit=imgMov.getCalibration().getUnit();
+		if(imgMov.getNChannels()>1 || imgMov.getNFrames()>1) {
+			int nbZ=imgMov.getNSlices();
+			int nbT=imgMov.getNFrames();
+			int nbC=imgMov.getNChannels();
+			ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstackFastBis(imgMov);
+			for(int i=0;i<imgTabMov.length;i++) {
+				imgTabMov[i]= transformImage(targetDims,targetVoxs, imgTabMov[i],smoothingBeforeDownSampling);
+			}
+			nbZ=targetDims[2];
+			Concatenator con=new Concatenator();
+			con.setIm5D(true);
+			VitimageUtils.printImageResume(imgTabMov[0]);
+			ImagePlus img= HyperStackConverter.toHyperStack(con.concatenate(imgTabMov,false), nbC, nbZ,nbT,"xyztc","Grayscale");
+			return img;
+		}
+		if(imgMov.getType()==4) {
+			ImagePlus[] channels = ChannelSplitter.split(imgMov);
+			for(int i=0;i<3;i++) {
+				VitimageUtils.adjustImageCalibration(channels[i], imgMov);
+				channels[i]=transformImage(targetDims,targetVoxs,channels[i],smoothingBeforeDownSampling);
+			}
+			ImagePlus ret=new ImagePlus("",RGBStackMerge.mergeStacks(channels[0].getStack(),channels[1].getStack(),channels[2].getStack(),true));
+			VitimageUtils.adjustImageCalibration(ret, targetVoxs,unit);
+			return ret;
+		}
+		int val=Math.min(  10    ,    Math.min(   imgMov.getWidth()/20    ,   imgMov.getHeight()/20  ));
+		int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(imgMov,val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(imgMov,imgMov.getWidth()-val-1,imgMov.getHeight()-val-1,0,val)*0.5    );
+		ResampleImageFilter resampler=new ResampleImageFilter();
+		resampler.setDefaultPixelValue(valMean);
+		resampler.setOutputSpacing(ItkImagePlusInterface.doubleArrayToVectorDouble(targetVoxs));
+		resampler.setSize(ItkImagePlusInterface.intArrayToVectorUInt32(targetDims));
+		resampler.setTransform(this);
+		return ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov)));
+	}	
+
+	public static ImagePlus resampleImage(int[]targetDims,double[]targetVoxs, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
+		return (new ItkTransform()).transformImage(targetDims,targetVoxs,imgMov,smoothingBeforeDownSampling);
+	}	
+	
+	public ImagePlus transformImageSegmentationByte(ImagePlus imgRef, ImagePlus imgMov,int min, int max) {
+		ImagePlus[]threshTab=new ImagePlus[max-min+1];
+		ImagePlus mov8=new Duplicator().run(imgMov);
+		mov8.setDisplayRange(0, 255);
+		IJ.run(mov8,"8-bit","");
+		for(int thr=min;thr<=max;thr++) {
+			threshTab[thr-min]=VitimageUtils.thresholdByteImage(mov8, thr, thr+1);
+			IJ.run(threshTab[thr-min],"32-bit","");			
+			int val=Math.min(  10    ,    Math.min(   threshTab[thr-min].getWidth()/20    ,   threshTab[thr-min].getHeight()/20  ));
+			int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(threshTab[thr-min],val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(threshTab[thr-min],threshTab[thr-min].getWidth()-val-1,threshTab[thr-min].getHeight()-val-1,0,val)*0.5    );
+			ResampleImageFilter resampler=new ResampleImageFilter();
+			resampler.setDefaultPixelValue(valMean);
+			resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(imgRef));
+			resampler.setTransform(this);
+			threshTab[thr-min]=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(threshTab[thr-min])));
+		}
+
+		ImagePlus ret=new Duplicator().run(imgRef);
+		VitimageUtils.adjustImageCalibration(ret, imgRef);
+		IJ.run(ret,"8-bit","");
+		float valMax=0;
+		float val=0;
+		int indMax=0;
+		float[][][] in=new float[max-min+1][ret.getStackSize()][];
+		byte[][] out=new byte[ret.getStackSize()][];
+		int X=ret.getWidth();
+		int Y=ret.getHeight();
+		int Z=ret.getStackSize();
+		for(int z=0;z<Z;z++) {
+			for(int thr=min;thr<=max;thr++)in[thr-min][z]=(float []) threshTab[thr-min].getStack().getProcessor(z+1).getPixels();
+			out[z]=(byte []) ret.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<X;x++) {
+				for(int y=0;y<Y;y++) {
+					valMax=-1;
+					indMax=-1;
+					for(int thr=min;thr<=max;thr++) {
+						val=(float)(in[thr-min][z][y*X+x]);
+						if(val>valMax) {valMax=val;indMax=thr;}
+					}
+					out[z][y*X+x]=(  ((byte) (indMax & 0xff)) );
+				}			 
+			}
+		}
+		return ret;
+	}
+
+	public static ImagePlus resampleImageReech(ImagePlus imgRef, ImagePlus imgMov) {
+		int val=Math.min(  10    ,    Math.min(   imgMov.getWidth()/20    ,   imgMov.getHeight()/20  ));
+		int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(imgMov,val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(imgMov,imgMov.getWidth()-val-1,imgMov.getHeight()-val-1,0,val)*0.5    );
+		ResampleImageFilter resampler=new ResampleImageFilter();
+		resampler.setDefaultPixelValue(valMean);
+		resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(imgRef));
+		double[]voxSRef=VitimageUtils.getVoxelSizes(imgRef);
+		double[]voxSMov=VitimageUtils.getVoxelSizes(imgMov);
+		ItkTransform tr=getTransformForResampling(voxSRef,voxSMov);
+		resampler.setTransform(tr);
+		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
+	}	
+	
+	public ImagePlus transformHyperImage(ImagePlus imgRef,ImagePlus hyperMov) {
+		VitimageUtils.printImageResume(imgRef);
+		VitimageUtils.printImageResume(hyperMov);
+		int nbZ=hyperMov.getNSlices();
+		int nbT=hyperMov.getNFrames();
+		int nbC=hyperMov.getNChannels();
+		ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstackFastBis(hyperMov);
+		for(int i=0;i<imgTabMov.length;i++) {
+			imgTabMov[i]= transformImage(imgRef, imgTabMov[i],false);
+		}
+		Concatenator con=new Concatenator();
+		con.setIm5D(true);
+		return HyperStackConverter.toHyperStack(con.concatenate(imgTabMov,false), nbC, nbZ,nbT,"xyztc","Grayscale");
+	}
+
+	//throw away this one
+	public ImagePlus transformHyperImage4D(ImagePlus hyperRef,ImagePlus hyperMov,int dimension) {
+		ImagePlus []imgTabRef=VitimageUtils.stacksFromHyperstack(hyperRef, dimension);
+		ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstack(hyperMov, dimension);
+		if(imgTabRef.length != imgTabMov.length)IJ.showMessage("Warning in transformHyperImage4D: tab sizes does not match");
+		for(int i=0;i<dimension;i++) {			
+			imgTabMov[i]= transformImage(imgTabRef[i], imgTabMov[i],false);
+		}
+		return Concatenator.run(imgTabMov);
 	}
 	
-	
-	public static ItkTransform smoothDeformationTransform(ItkTransform tr,double sigmaX,double sigmaY,double sigmaZ) {
-		ImagePlus[]imgs=ItkImagePlusInterface.convertItkTransformToImagePlusArray(tr);
-		for(int i=0;i<3;i++)imgs[i]=VitimageUtils.gaussianFiltering(imgs[i], sigmaX, sigmaY, sigmaZ);
-		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(imgs)));
+	public Point3d transformPoint(Point3d pt) {
+		VectorDouble vect=new VectorDouble(3);
+		vect.set(0,pt.x);
+		vect.set(1,pt.y);
+		vect.set(2,pt.z);
+		double []coords=ItkImagePlusInterface.vectorDoubleToDoubleArray(this.transformPoint(vect));
+		return new Point3d(coords[0],coords[1],coords[2]);
 	}
+
+	public Point3d transformPointInverse(Point3d pt) {
+		VectorDouble vect=new VectorDouble(3);
+		vect.set(0,pt.x);
+		vect.set(1,pt.y);
+		vect.set(2,pt.z);
+		double []coords=ItkImagePlusInterface.vectorDoubleToDoubleArray(this.getInverse().transformPoint(vect));
+		return new Point3d(coords[0],coords[1],coords[2]);
+	}
+
 	
 	
+	
+	
+	
+	
+	
+	
+	/* Visualize transform as images*/
 	public ImagePlus viewAsGrid3D(ImagePlus imgRef,int pixelSpacing) {
 		ImagePlus grid=VitimageUtils.getBinaryGrid(imgRef, pixelSpacing);
 		return this.transformImage(imgRef,grid,false);
@@ -773,8 +646,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		}
 		return coordinates;
 	}
-	
-	
+		
 	public void showAsGrid3D(ImagePlus imgRef2,int pixelSpacing,String title,int slice) {
 		ImagePlus imgRef=VitimageUtils.imageCopy(imgRef2);
 		IJ.run(imgRef,"8-bit","");
@@ -809,7 +681,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		tempYZ.setSlice(slice);
 
 	}
-
 	
 	public static ImagePlus getJacobian(ItkTransform tr,ImagePlus imgRef) {
 		DisplacementFieldTransform df;
@@ -829,38 +700,18 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 
 	
-	public ImagePlus transformHyperImage(ImagePlus imgRef,ImagePlus hyperMov) {
-		VitimageUtils.printImageResume(imgRef);
-		VitimageUtils.printImageResume(hyperMov);
-		int nbZ=hyperMov.getNSlices();
-		int nbT=hyperMov.getNFrames();
-		int nbC=hyperMov.getNChannels();
-		ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstackFastBis(hyperMov);
-		for(int i=0;i<imgTabMov.length;i++) {
-			imgTabMov[i]= transformImage(imgRef, imgTabMov[i],false);
-		}
-		Concatenator con=new Concatenator();
-		con.setIm5D(true);
-		return HyperStackConverter.toHyperStack(con.concatenate(imgTabMov,false), nbC, nbZ,nbT,"xyztc","Grayscale");
-	}
-
-	//TODO : throw away this one
-	public ImagePlus transformHyperImage4D(ImagePlus hyperRef,ImagePlus hyperMov,int dimension) {
-		ImagePlus []imgTabRef=VitimageUtils.stacksFromHyperstack(hyperRef, dimension);
-		ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstack(hyperMov, dimension);
-		if(imgTabRef.length != imgTabMov.length)IJ.showMessage("Warning in transformHyperImage4D: tab sizes does not match");
-		for(int i=0;i<dimension;i++) {			
-			imgTabMov[i]= transformImage(imgTabRef[i], imgTabMov[i],false);
-		}
-		return Concatenator.run(imgTabMov);
-	}
 	
-
-	public void writeMatrixTransformToFile(String path) {
-		SimpleITK.writeTransform(this.simplify(),path);
-	}
-
 	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	/*Mathematical, geometrical and composition operations over transforms*/
 	public ImagePlus normOfDenseField(ImagePlus imgRef) {
 		//Recuperer les dimensions
 		int dimX=imgRef.getWidth();
@@ -898,8 +749,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		ret.resetDisplayRange();
 		return ret;
 	}
-	
-	
 	
 	public ItkTransform flattenDenseField(ImagePlus imgRef) {
 		if(!this.isDense) {IJ.showMessage("Trying to flatten non dense transform");System.exit(0);}
@@ -943,78 +792,11 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(ret)));
 	}
 	
-	public static ItkTransform getIdentityDenseFieldTransform(ImagePlus imgRef) {
-		ImagePlus img=imgRef.duplicate();
-		IJ.run(img,"32-bit","");
-		for(int i=0;i<img.getStackSize();i++)img.getStack().getProcessor(i+1).set(0);
-		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(new ImagePlus[] {img,img,img})));
+	public ItkTransform simplify() {
+		double[][]transArray=this.toAffineArrayRepresentation();
+		imagescience.transform.Transform transIj=new imagescience.transform.Transform(transArray);
+		return ItkTransform.ijTransformToItkTransform(transIj);		
 	}
-	
-	public void writeAsDenseFieldWithITKExporter(String path){
-		if(!this.isDense) {IJ.showMessage("Trying to write non dense transform");System.exit(0);}
-		String shortPath = (path != null) ? path.substring(0,path.indexOf('.')) : "";
-		ImageFileWriter imWri=new ImageFileWriter();
-		imWri.execute((new DisplacementFieldTransform((Transform)(this))).getDisplacementField(),shortPath+".mhd",false);
-	}
-	
-	public static ItkTransform readFromDenseFieldWithITKImporter(String path){
-		ImageFileReader imRead=new ImageFileReader();
-		imRead.setFileName(path);
-		return new ItkTransform(new DisplacementFieldTransform( imRead.execute() ));
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	public static void transformImageWithGui() {
-		ImagePlus imgMov=VitiDialogs.chooseOneImageUI("Select the image to transform (moving image)","Select the image to transform (moving image)");
-		if(imgMov==null) {IJ.showMessage("Moving image does not exist. Abort.");return;}
-		ImagePlus imgRef=VitiDialogs.chooseOneImageUI("Select the reference image, giving output dimensions (it can be the same)","Select the reference image, giving output dimensions (it can be the same)");
-		ItkTransform tr=VitiDialogs.chooseOneTransformsUI("Select the transform to apply , .txt for Itk linear and .transform.tif for Itk dense", "", false);
-		if(tr==null) {IJ.showMessage("No transform given. Abort");return;}
-		if(imgRef==null) {IJ.showMessage("No reference image provided. Moving image will be used as reference image.");imgRef=VitimageUtils.imageCopy(imgMov);}
-		ImagePlus result=tr.transformImage(imgRef, imgMov, false);
-		result.setTitle("Transformed image");
-		result.show();
-	}
-	
-	public static void composeTransformsWithGui() {
-		ArrayList<ItkTransform> listTr=new ArrayList<ItkTransform>();
-		boolean oneMore=true;
-		int num=1;
-		while(oneMore) {
-			ItkTransform tr=VitiDialogs.chooseOneTransformsUI("Select the transform #"+(num++)+" , .txt for Itk linear and .transform.tif for Itk dense", "", false);
-			if(tr==null) {tr=new ItkTransform();IJ.showMessage("Warning : you included a bad transform file. It was replaced by an identity transform\nin order the process is to be interrupted");}
-			listTr.add(tr);
-			oneMore=VitiDialogs.getYesNoUI("One more transform ?","One more transform ?");
-		}
-		ItkTransform trGlob=new ItkTransform();
-		for(int i=0;i<listTr.size();i++)trGlob.addTransform(listTr.get(i));
-		if(trGlob.isDense()) {
-			ImagePlus imgRef=VitiDialogs.chooseOneImageUI("Select the reference image, giving output space dimensions","Select the reference image, giving output space dimensions");
-			VitiDialogs.saveDenseFieldTransformUI(trGlob, "Save the resulting composed transform",false,"", "composed_transform.tif", imgRef);
-		}
-		else {
-			VitiDialogs.saveMatrixTransformUI(trGlob, "Save the resulting composed transform", false, "", "composed_transform.txt");
-		}
-		IJ.showMessage("Transform successfully saved.");
-	}
-
-	
-
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	
 	public ItkTransform getInverseOfDenseField() {
 		if(!this.isDense) {IJ.showMessage("Trying to get inverse of non dense transform");System.exit(0);}
@@ -1054,26 +836,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return new ItkTransform(new DisplacementFieldTransform( computeDenseFieldFromSparseCorrespondancePoints(correspondancePoints,imgs[0],sigma,false) ));
 	}
 	
-
-	
-	
-	public void writeAsDenseField(String path,ImagePlus imgRef) {
-		if(!this.isDense) {IJ.showMessage("Trying to write as dense field non dense transform");System.exit(0);}
-		VitimageUtils.printImageResume(imgRef);
-		String shortPath = (path != null) ? path.substring(0,path.indexOf('.')) : "";
-		ImagePlus[]trans=new ImagePlus[3];
-		
-		DisplacementFieldTransform df=new DisplacementFieldTransform((Transform)(this.flattenDenseField(imgRef)));
-		trans=ItkImagePlusInterface.convertDisplacementFieldToImagePlusArrayAndNorm(df.getDisplacementField());
-		VitimageUtils.printImageResume(trans[0]);
-		IJ.saveAsTiff(trans[0],shortPath+".x.tif");
-		IJ.saveAsTiff(trans[1],shortPath+".y.tif");
-		IJ.saveAsTiff(trans[2],shortPath+".z.tif");
-		IJ.run(trans[0],"8-bit","");
-		IJ.saveAsTiff(trans[0],shortPath+".transform.tif");
-	}
-	
-	
 	public ItkTransform multiplyDenseField(double factor) {
 			if(!this.isDense) {IJ.showMessage("Trying to multiplyDenseField non dense transform");System.exit(0);}
 			MultiplyImageFilter mul=new MultiplyImageFilter();
@@ -1089,10 +851,75 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			return (new ItkTransform(new DisplacementFieldTransform( compFilter.execute(ix,iy,iz)  )));
 	
 	}
+		
+	public static ItkTransform smoothDeformationTransform(ItkTransform tr,double sigmaX,double sigmaY,double sigmaZ) {
+		ImagePlus[]imgs=ItkImagePlusInterface.convertItkTransformToImagePlusArray(tr);
+		for(int i=0;i<3;i++)imgs[i]=VitimageUtils.gaussianFiltering(imgs[i], sigmaX, sigmaY, sigmaZ);
+		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(imgs)));
+	}
+		
+	public ItkTransform addTransform(ItkTransform tr) {
+		super.addTransform(tr);
+		if(!this.isDense)this.isDense=tr.isDense;
+		return this;
+	}
+	
+	public ItkTransform addTransform(Transform tr) {
+		super.addTransform(tr);
+		if(!this.isDense)this.isDense=!tr.isLinear();
+		return this;
+	}
+
 	
 	
 	
 	
+	
+	
+	
+	
+	
+	/* File and String I/O functions*/
+	public void writeMatrixTransformToFile(String path) {
+		SimpleITK.writeTransform(this.simplify(),path);
+	}
+		
+	public void writeToFileWithTypeDetection(String path,ImagePlus imgRef) {
+		if(this.isDense) {
+			this.writeAsDenseField(path, imgRef);
+		}
+		else this.writeMatrixTransformToFile(path);
+	}
+	
+	public void writeAsDenseFieldWithITKExporter(String path){
+		if(!this.isDense) {IJ.showMessage("Trying to write non dense transform");System.exit(0);}
+		String shortPath = (path != null) ? path.substring(0,path.indexOf('.')) : "";
+		ImageFileWriter imWri=new ImageFileWriter();
+		imWri.execute((new DisplacementFieldTransform((Transform)(this))).getDisplacementField(),shortPath+".mhd",false);
+	}
+	
+	public static ItkTransform readFromDenseFieldWithITKImporter(String path){
+		ImageFileReader imRead=new ImageFileReader();
+		imRead.setFileName(path);
+		return new ItkTransform(new DisplacementFieldTransform( imRead.execute() ));
+	}
+		
+	public void writeAsDenseField(String path,ImagePlus imgRef) {
+		if(!this.isDense) {IJ.showMessage("Trying to write as dense field non dense transform");System.exit(0);}
+		VitimageUtils.printImageResume(imgRef);
+		String shortPath = (path != null) ? path.substring(0,path.indexOf('.')) : "";
+		ImagePlus[]trans=new ImagePlus[3];
+		
+		DisplacementFieldTransform df=new DisplacementFieldTransform((Transform)(this.flattenDenseField(imgRef)));
+		trans=ItkImagePlusInterface.convertDisplacementFieldToImagePlusArrayAndNorm(df.getDisplacementField());
+		VitimageUtils.printImageResume(trans[0]);
+		IJ.saveAsTiff(trans[0],shortPath+".x.tif");
+		IJ.saveAsTiff(trans[1],shortPath+".y.tif");
+		IJ.saveAsTiff(trans[2],shortPath+".z.tif");
+		IJ.run(trans[0],"8-bit","");
+		IJ.saveAsTiff(trans[0],shortPath+".transform.tif");
+	}
+		
 	public static ItkTransform readAsDenseField(String path) {
 		String shortPath = (path != null) ? path.substring(0,path.indexOf('.')) : "";
 		ImagePlus[]trans=new ImagePlus[3];
@@ -1101,7 +928,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		trans[2]=IJ.openImage(shortPath+".z.tif");
 		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(trans)));
 	}
-	
 	
 	public static ItkTransform readTransformFromFile(String path) {
 		ItkTransform tr=null;
@@ -1112,88 +938,25 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		} catch (Exception e) {		IJ.log("Wrong transform file. Please provide a   * .transform.tif file or a *.txt file with an ITK matrix in it");return null; }
 	}
 
-	public Point3d transformPoint(Point3d pt) {
-		VectorDouble vect=new VectorDouble(3);
-		vect.set(0,pt.x);
-		vect.set(1,pt.y);
-		vect.set(2,pt.z);
-		double []coords=ItkImagePlusInterface.vectorDoubleToDoubleArray(this.transformPoint(vect));
-		return new Point3d(coords[0],coords[1],coords[2]);
-	}
-	
-
-	public Point3d transformPointInverse(Point3d pt) {
-		VectorDouble vect=new VectorDouble(3);
-		vect.set(0,pt.x);
-		vect.set(1,pt.y);
-		vect.set(2,pt.z);
-		double []coords=ItkImagePlusInterface.vectorDoubleToDoubleArray(this.getInverse().transformPoint(vect));
-		return new Point3d(coords[0],coords[1],coords[2]);
-	}
-
-	
-	public double[] toAffineArrayMonolineRepresentation() {
-		double [][]tabTemp=toAffineArrayRepresentation();
-		return new double[] {   tabTemp[0][0] , tabTemp[0][1] , tabTemp[0][2] , tabTemp[0][3] , 
-								tabTemp[1][0] , tabTemp[1][1] , tabTemp[1][2] , tabTemp[1][3] , 
-								tabTemp[2][0] , tabTemp[2][1] , tabTemp[2][2] , tabTemp[2][3] , 
-								tabTemp[3][0] , tabTemp[3][1] , tabTemp[3][2] , tabTemp[3][3] };
-	}
-
-	public double[][] toAffineArrayRepresentation() {
-		Point3d pt0=new Point3d(0,0,0);
-		Point3d pt0Tr=this.transformPoint(pt0);
-		Point3d pt1=new Point3d(1,0,0);
-		Point3d pt1Tr=this.transformPoint(pt1);
-		Point3d pt2=new Point3d(0,1,0);
-		Point3d pt2Tr=this.transformPoint(pt2);
-		Point3d pt3=new Point3d(0,0,1);
-		Point3d pt3Tr=this.transformPoint(pt3);
-		return new double[][] {    { pt1Tr.x-pt0Tr.x , pt2Tr.x-pt0Tr.x , pt3Tr.x-pt0Tr.x   ,pt0Tr.x    },    
-											   { pt1Tr.y-pt0Tr.y , pt2Tr.y-pt0Tr.y , pt3Tr.y-pt0Tr.y   ,pt0Tr.y    },  
-											   { pt1Tr.z-pt0Tr.z , pt2Tr.z-pt0Tr.z , pt3Tr.z-pt0Tr.z   ,pt0Tr.z    },  
-											   { 0 , 0 , 0 , 1 }   };
-	}
-	
-	public ItkTransform simplify() {
-		double[][]transArray=this.toAffineArrayRepresentation();
-		imagescience.transform.Transform transIj=new imagescience.transform.Transform(transArray);
-		return ItkTransform.ijTransformToItkTransform(transIj);		
-	}
-
-	public int nbTransformComposed() {
-		VitiDialogs.notYet("ItkTransform > nbTransformComposed");
-		return 0;
+	public static String stringMatrix(String sTitre,double[]tab){
 		//A reecrire au vu des decouvertes effectuees sur les chevrons
 		//Ce sera la deuxieme passe
-		
-		/*
-		int nb=(this.toString().split("<<<<<<<<<<")[0].split(">>>>>>>>>").length-1);
-		if(nb==0)nb=1;
-		return nb;*/
-	}
-
-	
-	public boolean isEqualToAffineTransform(ItkTransform tr2,double epsilonRotation,double epsilonTranslation) {
-		double[][]array1=this.toAffineArrayRepresentation();
-		double[][]array2=tr2.toAffineArrayRepresentation();
-		
-		for(int lin=0;lin<3;lin++)for(int col=0;col<3;col++)if(Math.abs(array1[lin][col]-array2[lin][col])>epsilonRotation)return false;
-		for(int lin=0;lin<3;lin++)if(Math.abs(array1[lin][3]-array2[lin][3])>epsilonTranslation)return false;
-		return true;
-	}
-
-	public boolean isIdentityAffineTransform(double epsilonRotation,double epsilonTranslation) {
-		double[][]array=this.toAffineArrayRepresentation();
-		
-		for(int lin=0;lin<3;lin++)for(int col=0;col<3;col++) {
-			if((lin==col) && (Math.abs(1-array[lin][col])>epsilonRotation))return false;
-			if((lin!=col) && (Math.abs(array[lin][col])>epsilonRotation))return false;
+		String s=new String();
+		s+=sTitre;
+		s+="\n";		
+		for(int i=0;i<3;i++){
+			s+="[ ";
+			for(int j=0;j<3;j++){
+				s+=tab[i*4+j];
+				s+=" , ";
+			}
+			s+=tab[i*4+3];
+			s+=" ] \n";
 		}
-		for(int lin=0;lin<3;lin++)if(Math.abs(array[lin][3])>epsilonTranslation)return false;
-		return true;
+		s+= "[ 0 , 0 , 0 , 1 ]\n";
+		return(s);	
 	}
-	
+
 	public String drawableString() {
 		double[][]array=this.toAffineArrayRepresentation();
 		String str=String.format("[%8.5f  %8.5f  %8.5f  %8.5f]\n[%8.5f  %8.5f  %8.5f  %8.5f]\n[%8.5f  %8.5f  %8.5f  %8.5f]\n[%8.5f  %8.5f  %8.5f  %8.5f]",
@@ -1204,7 +967,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return str;
 	}
 
-	
 	public String toString(String title) {
 		//A reecrire au vu des decouvertes effectuees sur les chevrons
 		//Ce sera la deuxieme passe
@@ -1227,6 +989,32 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		}
 	}
 
+	
+	
+	
+	
+	
+	
+	public boolean isEqualToAffineTransform(ItkTransform tr2,double epsilonRotation,double epsilonTranslation) {
+		double[][]array1=this.toAffineArrayRepresentation();
+		double[][]array2=tr2.toAffineArrayRepresentation();
+		
+		for(int lin=0;lin<3;lin++)for(int col=0;col<3;col++)if(Math.abs(array1[lin][col]-array2[lin][col])>epsilonRotation)return false;
+		for(int lin=0;lin<3;lin++)if(Math.abs(array1[lin][3]-array2[lin][3])>epsilonTranslation)return false;
+		return true;
+	}
+
+	public boolean isIdentityAffineTransform(double epsilonRotation,double epsilonTranslation) {
+		double[][]array=this.toAffineArrayRepresentation();
+		
+		for(int lin=0;lin<3;lin++)for(int col=0;col<3;col++) {
+			if((lin==col) && (Math.abs(1-array[lin][col])>epsilonRotation))return false;
+			if((lin!=col) && (Math.abs(array[lin][col])>epsilonRotation))return false;
+		}
+		for(int lin=0;lin<3;lin++)if(Math.abs(array[lin][3])>epsilonTranslation)return false;
+		return true;
+	}
+	
 	public String itkTransfoStepToString(String step){		 
 		//A reecrire au vu des decouvertes effectuees sur les chevrons
 		//Ce sera la deuxieme passe
@@ -1262,48 +1050,60 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 
 
-	public double[] itkTransformToArray(org.itk.simple.Transform transfo) {
-		//A reecrire au vu des decouvertes effectuees sur les chevrons
-		//Ce sera la deuxieme passe
-		double [][]ret;
-		double[] temp;
-		int nb=this.nbTransformComposed();
-		String str=transfo.toString();
-		if(nb==1) {
-			return(itkTransformStepToArray(str.substring(str.indexOf("\n"))));
+	/*Others*/
+	public int nbTransformComposed() {
+		VitiDialogs.notYet("ItkTransform > nbTransformComposed");
+		return 0;
+	}
+
+	public boolean isDense() {
+		return this.isDense;
+	}
+	
+	public static double estimateGlobalDilationFactor(Point3d[]setRef,Point3d[]setMov) {
+		FastMatrix fm=FastMatrix.bestRigid( setMov, setRef, true );
+		IJ.log("Similarity transform computed. Coefficient of dilation : "+Math.pow(fm.det(),0.333333));
+		return Math.pow(fm.det(),0.333333);
+	}
+	
+	public static void transformImageWithGui() {
+		ImagePlus imgMov=VitiDialogs.chooseOneImageUI("Select the image to transform (moving image)","Select the image to transform (moving image)");
+		if(imgMov==null) {IJ.showMessage("Moving image does not exist. Abort.");return;}
+		ImagePlus imgRef=VitiDialogs.chooseOneImageUI("Select the reference image, giving output dimensions (it can be the same)","Select the reference image, giving output dimensions (it can be the same)");
+		ItkTransform tr=VitiDialogs.chooseOneTransformsUI("Select the transform to apply , .txt for Itk linear and .transform.tif for Itk dense", "", false);
+		if(tr==null) {IJ.showMessage("No transform given. Abort");return;}
+		if(imgRef==null) {IJ.showMessage("No reference image provided. Moving image will be used as reference image.");imgRef=VitimageUtils.imageCopy(imgMov);}
+		ImagePlus result=tr.transformImage(imgRef, imgMov, false);
+		result.setTitle("Transformed image");
+		result.show();
+	}
+	
+	public static void composeTransformsWithGui() {
+		ArrayList<ItkTransform> listTr=new ArrayList<ItkTransform>();
+		boolean oneMore=true;
+		int num=1;
+		while(oneMore) {
+			ItkTransform tr=VitiDialogs.chooseOneTransformsUI("Select the transform #"+(num++)+" , .txt for Itk linear and .transform.tif for Itk dense", "", false);
+			if(tr==null) {tr=new ItkTransform();IJ.showMessage("Warning : you included a bad transform file. It was replaced by an identity transform\nin order the process is to be interrupted");}
+			listTr.add(tr);
+			oneMore=VitiDialogs.getYesNoUI("One more transform ?","One more transform ?");
+		}
+		ItkTransform trGlob=new ItkTransform();
+		for(int i=0;i<listTr.size();i++)trGlob.addTransform(listTr.get(i));
+		if(trGlob.isDense()) {
+			ImagePlus imgRef=VitiDialogs.chooseOneImageUI("Select the reference image, giving output space dimensions","Select the reference image, giving output space dimensions");
+			VitiDialogs.saveDenseFieldTransformUI(trGlob, "Save the resulting composed transform",false,"", "composed_transform.tif", imgRef);
 		}
 		else {
-			String []tab1=str.split("<<<<<<<<<<");
-			String[] transforms=tab1[0].split(">>>>>>>>>");
-			double[][]tabMat=new double[transforms.length-1][12];
-			for(int i=1;i<transforms.length;i++) {
-				tabMat[i-1]=itkTransformStepToArray(transforms[i]) ;
-			}
-			ret=TransformUtils.composeMatrices(tabMat);
-			return ret[0];
+			VitiDialogs.saveMatrixTransformUI(trGlob, "Save the resulting composed transform", false, "", "composed_transform.txt");
 		}
+		IJ.showMessage("Transform successfully saved.");
 	}
 
+	
 
-	public static String stringMatrix(String sTitre,double[]tab){
-		//A reecrire au vu des decouvertes effectuees sur les chevrons
-		//Ce sera la deuxieme passe
-		String s=new String();
-		s+=sTitre;
-		s+="\n";		
-		for(int i=0;i<3;i++){
-			s+="[ ";
-			for(int j=0;j<3;j++){
-				s+=tab[i*4+j];
-				s+=" , ";
-			}
-			s+=tab[i*4+3];
-			s+=" ] \n";
-		}
-		s+= "[ 0 , 0 , 0 , 1 ]\n";
-		return(s);	
-	}
-
+	
+	
 
 
 }

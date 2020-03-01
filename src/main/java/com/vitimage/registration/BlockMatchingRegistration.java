@@ -1,5 +1,4 @@
 package com.vitimage.registration;
-//TODO common
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,7 +24,6 @@ import ij.plugin.Duplicator;
 import math3d.Point3d;
 
 public class BlockMatchingRegistration  implements ItkImagePlusInterface{
-	//ItkTransform additionalTransform=new ItkTransform();
 	public boolean returnComposedTransformationIncludingTheInitialTransformationGiven=true;
 	boolean viewFuseBigger=true;
 	public volatile boolean bmIsInterruptedSucceeded=false;
@@ -101,13 +99,9 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	public ImagePlus sliceCorr;
 	public ImagePlus sliceJacobian;
 	public ImagePlus summary;
-	public ArrayList<ImagePlus> summaryArray=new ArrayList<ImagePlus>();
 	public ImagePlus gridSummary;
-	public ArrayList<ImagePlus> gridSummaryArray=new ArrayList<ImagePlus>();
 	public ImagePlus correspondancesSummary;
-	public ArrayList<ImagePlus> correspondancesSummaryArray=new ArrayList<ImagePlus>();
 	public ImagePlus jacobianSummary;
-	public ArrayList<ImagePlus> jacobianSummaryArray=new ArrayList<ImagePlus>();
 	public int sliceInt;
 	public int sliceIntCorr;
 	public double zoomFactor=1;
@@ -121,60 +115,11 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	private static final double EPSILON=1E-8;
 
 	
-	/** Main for testing, and constructor
+	/** Starting points
 	 * 
 	 */
 	public static void main(String[] args) {
-		ImageJ ij=new ImageJ();
-		int viewSlice=19;
-		///////////TEST 1/////////////
-		ImagePlus imgRef=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgRef_Ttest.tif");
-		ImagePlus imgMov=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/imgMov_Ttest.tif");
-		ImagePlus imgMask=IJ.openImage("/mnt/DD_COMMON/Data_VITIMAGE/Old_test/BM_subvoxel/mask_little.tif");
-
-		///CALCUL DU BLOCKMATCHING
-		
-		//COMPUTE THE REGISTRATION, RIGID-BODY, then DENSE
-		
-		ItkTransform tr1=BlockMatchingRegistration.testSetupAndRunStandardBlockMatchingWithoutFineParameterization(
-												VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgRef),
-												VitimageUtils.removeCapillaryFromHyperImageForRegistration(imgMov),
-												imgMask,true,true,true,true,true,true);
-		
-		
-
-		///SAUVEGARDE DE LA TRANSFORMATION RESULTAT
-		ItkTransform testField=tr1.flattenDenseField(imgRef);
-		testField.writeAsDenseField("/home/fernandr/Bureau/Test/BM_subvoxel/testField.tif",imgRef);
-
-		///CALCUL DE LA NORME		
-		ImagePlus normField=testField.normOfDenseField(imgRef);
-		normField.setTitle("Distance_map");
-		normField.setDisplayRange(0,0.1);
-		IJ.run(normField,"Fire","");
-		normField.show();
-		ImagePlus testNorm=testField.transformImage(imgRef, imgRef,false);	
-		testNorm.setTitle("Validation_after");
-		testNorm.show();
-		IJ.run(normField, "Merge Channels...", "c1=Distance_map c2=Validation_after create");
-		normField=IJ.getImage();
-		normField.setTitle("Distance map in final transform");
-		normField.setSlice(viewSlice);
-		
-		
-		//CALCUL DE L IMAGE AVANT/APRES
-		ImagePlus imgInit=new ItkTransform().transformImage(imgRef,imgMov,false);
-		ImagePlus imgResampled=testField.transformImage(imgRef,imgMov,false);
-		imgResampled.getProcessor().setMinAndMax(imgMov.getProcessor().getMin(), imgMov.getProcessor().getMax());
-		imgInit.getProcessor().setMinAndMax(imgMov.getProcessor().getMin(), imgMov.getProcessor().getMax());
-		ImagePlus viewAfter=VitimageUtils.compositeNoAdjustOf(imgRef, imgResampled,"After");
-		ImagePlus viewBefore=VitimageUtils.compositeNoAdjustOf(imgRef, imgInit,"Before");
-		viewBefore.show();
-		viewBefore.setSlice(viewSlice);
-		viewAfter.show();
-		viewAfter.setSlice(viewSlice);
-		
-	
+		System.out.println("File compiled");
 	}
 
 	public BlockMatchingRegistration(ImagePlus imgRef,ImagePlus imgMov,Transform3DType transformationType,MetricType metricType,
@@ -235,7 +180,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 	}
 
-	
 	public static BlockMatchingRegistration setupBlockMatchingRegistration(ImagePlus imgRef,ImagePlus imgMov,RegistrationAction regAct) {
 		return new BlockMatchingRegistration(imgRef,imgMov,regAct.typeTrans,MetricType.SQUARED_CORRELATION,
 				regAct.sigmaResampling,regAct.sigmaDense , regAct.higherAcc==1 ? -1 : regAct.levelMin,
@@ -244,107 +188,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	}
 
 	
-	
-	/** Helper to estimate computation time, and eventually adjust parameters before launch
-	 * 
-	 */
-	public static double []estimateBlocksNumberPerLevel(int[]dims,int viewRegistrationLevel,int levelMin,int levelMax,int nbIter,Transform3DType transformType,													
-		int []blockHalfSizes,int []strides,int []neighbourhoods,int percentageScoreSelect,int percentageVarianceSelect,int percentageRandomSelect,boolean subsampleZ) {
-		double[]tabNb= new double[levelMax-levelMin+1];
-		int []factorDiv;
-		double []factorDivStride;
-		int []strideLev;
-		for(int lev=levelMax;lev>=levelMin;lev--) {
-			factorDiv=new int[] {1,1,1};
-			factorDivStride=new double[] {1,1,1};
-			strideLev=new int[] {strides[0],strides[1],strides[2]};
-			if(lev>1) {
-				factorDiv=new int[] {(int)Math.round(Math.pow(2, lev-1)),(int)Math.round(Math.pow(2, lev-1)),subsampleZ ? (int)Math.round(Math.pow(2, lev-1)) : 1};
-				factorDivStride=new double[] {(Math.pow(factorDiv[0], 1/3.0)),(Math.pow(factorDiv[1], 1/3.0)),(Math.pow(factorDiv[2], 1/3.0))};
-				strideLev=new int[] {(int)Math.round(Math.max(1,-EPSILON+strides[0]/factorDivStride[0])),(int)Math.round(Math.max(1,-EPSILON+strides[1]/factorDivStride[1])),(int)Math.round(Math.max(1,-EPSILON+strides[2]/factorDivStride[2]))};
-			}
-			int nbBlocksX=1;int nbBlocksY=1;int nbBlocksZ=1;			
-			if(dims[0]>1) nbBlocksX=(int)Math.round( 1+(dims[0]/factorDiv[0]-blockHalfSizes[0]-2*neighbourhoods[0]*strideLev[0])/strideLev[0]);
-			if(dims[1]>1) nbBlocksY=(int)Math.round( 1+(dims[1]/factorDiv[1]-blockHalfSizes[1]-2*neighbourhoods[1]*strideLev[1])/strideLev[1]);
-			if(dims[2]>1) nbBlocksZ=(int)Math.round( 1+(dims[2]/factorDiv[2]-blockHalfSizes[2]-2*neighbourhoods[2]*strideLev[2])/strideLev[2]);
-			int nbBlocksTotal=nbBlocksX*nbBlocksY*nbBlocksZ;			
-			tabNb[levelMax-lev]=nbBlocksTotal*1.0*percentageVarianceSelect/(1.0*1E2);
-		}
-		return tabNb;
-	}
-
-	
-	
-	public static double estimateRegistrationDuration(int[]dims,int viewRegistrationLevel,int levelMin,int levelMax,int nIterations,Transform3DType transformType,
-													int []blockHalfSizes,int []strides,int []neighbourhoods,int nCpu,int percentageScoreSelect,int percentageVarianceSelect,int percentageRandomSelect,boolean subsampleZ,int higherAccuracy) {
-		if(higherAccuracy==1)levelMin=-1;
-		int nVoxels=dims[0]*dims[1]*dims[2];
-		int nNeighbours=(1+2*neighbourhoods[0])*(1+2*neighbourhoods[1])*(1+2*neighbourhoods[2]);
-		int blockSize=(1+2*blockHalfSizes[0])*(1+2*blockHalfSizes[1])*(1+2*blockHalfSizes[2]);
-		double []nBlocksPerLevel=estimateBlocksNumberPerLevel(dims,viewRegistrationLevel,levelMin,levelMax,nIterations,
-				transformType,blockHalfSizes,strides,neighbourhoods,percentageScoreSelect,percentageVarianceSelect,percentageRandomSelect,subsampleZ);
-		int nLevels=nBlocksPerLevel.length;
-		double nImgUpdateView=viewRegistrationLevel;
-		if(viewRegistrationLevel==2)nImgUpdateView=3.5*0.57;
-		double sumLevels=0;
-		double sumLevels2=0;
-		double sumNbBlocks=0;
-		for(int lev=levelMax;lev>=levelMin;lev--){
-			sumLevels+= (lev<=1) ? 1 : (1.0/lev);
-			sumLevels2+= (lev<=1) ? 1 : (1.0/Math.sqrt(lev+1));
-			sumNbBlocks+=nBlocksPerLevel[levelMax-lev];
-		}
-		double alphaTrans=1E-7;
-		double alphaGlob=1E-7;
-		double alphaLev=1E-7;
-		double alphaIter=1E-7;
-		double alphaProdDense=1E-7;
-		double alphaComp=300;
-		double alphaBm=0.9;
-		double alphaVar=0.14;
-		double factorTrans=1E-7;
-		double factorVarBlocks=2.5E-8;
-		double factorCompBlocks=1.6E-8;
-		double factorProdDense=1E-7;
-		
-		double transTime=alphaTrans+nVoxels*factorTrans; // time for a transformation = constante + factor * N voxels
-		double timeUpdatesView=transTime*nImgUpdateView*1.125*(1.9+1.52*nLevels*nIterations); //time for the first update, and one for each iteration. Each updated image lies 4 transformations
-		double timeTransRefAndMov=0.625*sumLevels2*transTime*(1+nIterations); // One transfo per level for ref, one transfo per iteration for mov. 
-		double timeVariance=nIterations*(alphaVar+0.12*factorVarBlocks*sumNbBlocks*blockSize);
-		double timeBlockMatching=(factorCompBlocks*sumNbBlocks*(alphaComp+0.455*blockSize)*nNeighbours*(1.0/nCpu)+alphaBm)*nIterations;
-		double timeTransfoProduction=transTime*1.4*(1.9)*(nLevels*nIterations); // production of dense field		
-		double timeBonus=timeUpdatesView+timeVariance;
-		double totalTime=timeUpdatesView+timeTransRefAndMov+timeVariance+timeBlockMatching+(transformType==Transform3DType.DENSE ? timeTransfoProduction : 0)+timeBonus;
-		return totalTime*4;
-		/**Pas detail :
-		***************Global : 
-		* First update view : 2.24 s   prop to (alpha + nvox image) * nbimagesconsideredfor debug
-		***************Level :
-		* trans ref : 0.35  0.6      prop to nvox image and target resolution (level)
-		*
-		***************Iteration
-		*trans mov : 0.32  0.54     prop to nvox image and target resolution (level)
-		*compute var : 0.23 0.87    prop to nb blocks at level dot (alpha+ block size)
-		*bm : 2.72  8.4            prop nblocks dot nneighbour dot (alpha + block size)
-		*compute trans if dense
-		*update view : 1.613  1.7  prop to (alpha + nvox image) 
-
-		*
-		* Transtime=alphatrans * nvoximage
-		* Global : alphaGlob + NimgDisplay * 4 * transtime 
-		*         
-		* Levels : Sigma_over_levels  (alphaLev + transTime / level) 
-		* Iter  : N iter * (alphaIter + transTime / level + factorBlocks*nbBlocksatlevel*blocksize + factorBisBlocks*nbBlocks* nb neighbour * (alpha + blocksize) / nbcpu  + 3*Nimgdisplay*transtime) 
-		*  
-		*  inconnues : nbblocksatlevel, alphatrans, alphaglob, alphaLev, alphaIter, factorBlocks, factorBisBlocks 
-		*/
-	}
-		
-
-	
-	
-		
-
 	
 	/** Run algorithm from an initial situation (trInit), and return the final transform (including trInit)
  */
@@ -755,7 +598,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 					
 					//Finally, add it to the current stack of transformations
 					this.currentTransform.addTransform(new ItkTransform(new DisplacementFieldTransform( this.currentField[indField-1])));
-//					this.additionalTransform.addTransform(new ItkTransform(new DisplacementFieldTransform( this.currentField[indField-1])));//TODO : may be unuseful now
 					timesIter[lev][iter][15]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 				}
 				if(displayRegistration==2) {
@@ -866,10 +708,111 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 				
 	
+	
+	
+	
+	/** Helper to estimate computation time, and eventually adjust parameters before launch
+	 * 
+	 */
+	public static double []estimateBlocksNumberPerLevel(int[]dims,int viewRegistrationLevel,int levelMin,int levelMax,int nbIter,Transform3DType transformType,													
+		int []blockHalfSizes,int []strides,int []neighbourhoods,int percentageScoreSelect,int percentageVarianceSelect,int percentageRandomSelect,boolean subsampleZ) {
+		double[]tabNb= new double[levelMax-levelMin+1];
+		int []factorDiv;
+		double []factorDivStride;
+		int []strideLev;
+		for(int lev=levelMax;lev>=levelMin;lev--) {
+			factorDiv=new int[] {1,1,1};
+			factorDivStride=new double[] {1,1,1};
+			strideLev=new int[] {strides[0],strides[1],strides[2]};
+			if(lev>1) {
+				factorDiv=new int[] {(int)Math.round(Math.pow(2, lev-1)),(int)Math.round(Math.pow(2, lev-1)),subsampleZ ? (int)Math.round(Math.pow(2, lev-1)) : 1};
+				factorDivStride=new double[] {(Math.pow(factorDiv[0], 1/3.0)),(Math.pow(factorDiv[1], 1/3.0)),(Math.pow(factorDiv[2], 1/3.0))};
+				strideLev=new int[] {(int)Math.round(Math.max(1,-EPSILON+strides[0]/factorDivStride[0])),(int)Math.round(Math.max(1,-EPSILON+strides[1]/factorDivStride[1])),(int)Math.round(Math.max(1,-EPSILON+strides[2]/factorDivStride[2]))};
+			}
+			int nbBlocksX=1;int nbBlocksY=1;int nbBlocksZ=1;			
+			if(dims[0]>1) nbBlocksX=(int)Math.round( 1+(dims[0]/factorDiv[0]-blockHalfSizes[0]-2*neighbourhoods[0]*strideLev[0])/strideLev[0]);
+			if(dims[1]>1) nbBlocksY=(int)Math.round( 1+(dims[1]/factorDiv[1]-blockHalfSizes[1]-2*neighbourhoods[1]*strideLev[1])/strideLev[1]);
+			if(dims[2]>1) nbBlocksZ=(int)Math.round( 1+(dims[2]/factorDiv[2]-blockHalfSizes[2]-2*neighbourhoods[2]*strideLev[2])/strideLev[2]);
+			int nbBlocksTotal=nbBlocksX*nbBlocksY*nbBlocksZ;			
+			tabNb[levelMax-lev]=nbBlocksTotal*1.0*percentageVarianceSelect/(1.0*1E2);
+		}
+		return tabNb;
+	}
+
+	public static double estimateRegistrationDuration(int[]dims,int viewRegistrationLevel,int levelMin,int levelMax,int nIterations,Transform3DType transformType,
+													int []blockHalfSizes,int []strides,int []neighbourhoods,int nCpu,int percentageScoreSelect,int percentageVarianceSelect,int percentageRandomSelect,boolean subsampleZ,int higherAccuracy) {
+		if(higherAccuracy==1)levelMin=-1;
+		int nVoxels=dims[0]*dims[1]*dims[2];
+		int nNeighbours=(1+2*neighbourhoods[0])*(1+2*neighbourhoods[1])*(1+2*neighbourhoods[2]);
+		int blockSize=(1+2*blockHalfSizes[0])*(1+2*blockHalfSizes[1])*(1+2*blockHalfSizes[2]);
+		double []nBlocksPerLevel=estimateBlocksNumberPerLevel(dims,viewRegistrationLevel,levelMin,levelMax,nIterations,
+				transformType,blockHalfSizes,strides,neighbourhoods,percentageScoreSelect,percentageVarianceSelect,percentageRandomSelect,subsampleZ);
+		int nLevels=nBlocksPerLevel.length;
+		double nImgUpdateView=viewRegistrationLevel;
+		if(viewRegistrationLevel==2)nImgUpdateView=3.5*0.57;
+		double sumLevels=0;
+		double sumLevels2=0;
+		double sumNbBlocks=0;
+		for(int lev=levelMax;lev>=levelMin;lev--){
+			sumLevels+= (lev<=1) ? 1 : (1.0/lev);
+			sumLevels2+= (lev<=1) ? 1 : (1.0/Math.sqrt(lev+1));
+			sumNbBlocks+=nBlocksPerLevel[levelMax-lev];
+		}
+		double alphaTrans=1E-7;
+		double alphaGlob=1E-7;
+		double alphaLev=1E-7;
+		double alphaIter=1E-7;
+		double alphaProdDense=1E-7;
+		double alphaComp=300;
+		double alphaBm=0.9;
+		double alphaVar=0.14;
+		double factorTrans=1E-7;
+		double factorVarBlocks=2.5E-8;
+		double factorCompBlocks=1.6E-8;
+		double factorProdDense=1E-7;
+		
+		double transTime=alphaTrans+nVoxels*factorTrans; // time for a transformation = constante + factor * N voxels
+		double timeUpdatesView=transTime*nImgUpdateView*1.125*(1.9+1.52*nLevels*nIterations); //time for the first update, and one for each iteration. Each updated image lies 4 transformations
+		double timeTransRefAndMov=0.625*sumLevels2*transTime*(1+nIterations); // One transfo per level for ref, one transfo per iteration for mov. 
+		double timeVariance=nIterations*(alphaVar+0.12*factorVarBlocks*sumNbBlocks*blockSize);
+		double timeBlockMatching=(factorCompBlocks*sumNbBlocks*(alphaComp+0.455*blockSize)*nNeighbours*(1.0/nCpu)+alphaBm)*nIterations;
+		double timeTransfoProduction=transTime*1.4*(1.9)*(nLevels*nIterations); // production of dense field		
+		double timeBonus=timeUpdatesView+timeVariance;
+		double totalTime=timeUpdatesView+timeTransRefAndMov+timeVariance+timeBlockMatching+(transformType==Transform3DType.DENSE ? timeTransfoProduction : 0)+timeBonus;
+		return totalTime*4;
+		/**Pas detail :
+		***************Global : 
+		* First update view : 2.24 s   prop to (alpha + nvox image) * nbimagesconsideredfor debug
+		***************Level :
+		* trans ref : 0.35  0.6      prop to nvox image and target resolution (level)
+		*
+		***************Iteration
+		*trans mov : 0.32  0.54     prop to nvox image and target resolution (level)
+		*compute var : 0.23 0.87    prop to nb blocks at level dot (alpha+ block size)
+		*bm : 2.72  8.4            prop nblocks dot nneighbour dot (alpha + block size)
+		*compute trans if dense
+		*update view : 1.613  1.7  prop to (alpha + nvox image) 
+
+		*
+		* Transtime=alphatrans * nvoximage
+		* Global : alphaGlob + NimgDisplay * 4 * transtime 
+		*         
+		* Levels : Sigma_over_levels  (alphaLev + transTime / level) 
+		* Iter  : N iter * (alphaIter + transTime / level + factorBlocks*nbBlocksatlevel*blocksize + factorBisBlocks*nbBlocks* nb neighbour * (alpha + blocksize) / nbcpu  + 3*Nimgdisplay*transtime) 
+		*  
+		*  inconnues : nbblocksatlevel, alphatrans, alphaglob, alphaLev, alphaIter, factorBlocks, factorBisBlocks 
+		*/
+	}
+		
 
 	
 	
-	/**	Helper functions for trimming the correspondances
+		
+	
+
+	
+	
+	/**	Helper functions for trimming the correspondences
 *
 */
 	Object[] getCorrespondanceListAsTrimmedPointArray(ArrayList<double[][]>list,double[]voxSizes,int percentageKeepScore,int percentageKeepLTS,ItkTransform transform){
@@ -984,6 +927,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return ret;
 	}
 	
+	
+	
 
 	
 	
@@ -991,69 +936,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	/** display registration and informations during execution.  
  * 	
  */
-	public void updateViewsSingle() {
-		this.sliceMov=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(this.imgRef,this.imgMov,false)),this.sliceInt);
-		if(sliceRef==null) {
-			handleOutput("Starting graphical following tool...");
-			this.sliceRef=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.imgRef),this.sliceInt);
-			handleOutput("HERE 01");
-			ImagePlus tempImg=new Duplicator().run(imgRef);
-			handleOutput("HERE 02");
-			IJ.run(tempImg,"32-bit","");
-			handleOutput("HERE 03");
-			tempImg.getProcessor().set(0);
-			handleOutput("HERE 04");
-			this.sliceCorr=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(tempImg),this.sliceIntCorr);
-			handleOutput("HERE 05");
-			this.sliceFuse=VitimageUtils.compositeRGBDouble(this.sliceRef,this.sliceMov,this.sliceCorr,1,1,1,"Registration is running. Red=Reference, Green=moving, Gray=score");
-			handleOutput("HERE 06");
-			this.sliceFuse.show();
-			handleOutput("HERE 07");
-			this.sliceFuse.getWindow().setSize(this.viewWidth,this.viewHeight);
-			handleOutput("HERE 08");
-			this.sliceFuse.getCanvas().fitToWindow();
-			handleOutput("HERE 09");
-		}
-		else {
-			handleOutput("HERE B01");
-			sliceCorr=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.correspondancesSummary),this.sliceIntCorr);
-			handleOutput("HERE B02");
-			this.sliceRef.show();
-			handleOutput("HERE B03");
-			this.sliceMov.show();
-			handleOutput("HERE B04");
-			this.sliceCorr.show();
-			handleOutput("HERE B05");
-			this.sliceCorr.setSlice(this.sliceIntCorr);
-			VitimageUtils.waitFor(500);
-			handleOutput("HERE B06");
-			this.sliceRef.hide();
-			handleOutput("HERE B07");
-			this.sliceMov.hide();
-			handleOutput("HERE B08");
-			this.sliceCorr.hide();
-			handleOutput("HERE B09");
-			
-			ImagePlus tempImg=VitimageUtils.compositeRGBDouble(this.sliceRef,this.sliceMov,this.sliceCorr,1,1,1,"Registration is running. Red=Reference, Green=moving, Blue=score");
-			tempImg.show();
-			handleOutput("HERE B11");
-			IJ.run(tempImg, "Select All", "");
-			handleOutput("HERE B12");
-			tempImg.copy();
-			handleOutput("HERE B13");
-			this.sliceFuse.paste();
-			handleOutput("HERE B14");
-			tempImg.close();
-			handleOutput("HERE B15");
-
-		}
-		
-		
-		this.summaryArray.add(this.sliceFuse.duplicate());
-		handleOutput("Added the slice number "+this.summaryArray.size());
-		handleOutput("HERE 01");
-
-	}
 
 	public void updateViews(int level,int iteration,int subpixellic,String textTrans) {
 		String textIter=String.format("Level=%1d/%1d - Iter=%3d/%3d - %s",
@@ -1142,76 +1024,22 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		}
 		
 		
-		if(this.computeSummary) {
-			this.summaryArray.add(this.sliceFuse.duplicate());
-			if(displayRegistration>1) {
-				this.gridSummaryArray.add(this.sliceGrid.duplicate());
-				this.correspondancesSummaryArray.add(this.sliceCorr.duplicate());
-				if(false)this.jacobianSummaryArray.add(this.sliceJacobian.duplicate());
-			}
-			handleOutput("Added the slice number "+this.summaryArray.size());
-		}
 	}
 	
-	public void computeSummaries() {
-		if(this.displayRegistration==0)return;
-		ImagePlus []tabSum=new ImagePlus[summaryArray.size()];
-		for(int i =0;i<summaryArray.size() ; i++) {
-			tabSum[i]=summaryArray.get(i);
-		}
-
-		this.summary=Concatenator.run(tabSum);
-		this.summary.setTitle("Summary of alignement VS iterations");
-		ImagePlus imgTemp=new Duplicator().run(this.summary);
-		IJ.run(imgTemp,"32-bit","");
-
-		ImagePlus []tabGrid=new ImagePlus[gridSummaryArray.size()];
-		for(int i =0;i<gridSummaryArray.size() ; i++) {
-			tabGrid[i]=gridSummaryArray.get(i);
-		}
-		ImagePlus []tabCorr=new ImagePlus[correspondancesSummaryArray.size()];
-		for(int i =0;i<correspondancesSummaryArray.size() ; i++) {
-			tabCorr[i]=correspondancesSummaryArray.get(i);
-		}
-
-		
-		this.gridSummary=Concatenator.run(tabGrid);
-		this.gridSummary.setTitle("Summary of field evolution VS iterations");
-		this.gridSummary=VitimageUtils.compositeOf(this.gridSummary, imgTemp);
-
-		this.correspondancesSummary=Concatenator.run(tabCorr);
-		this.correspondancesSummary.setTitle("Correspondance points VS iterations");
-	}
 	
 	public void closeLastImages() {
 		if(this.displayRegistration>0) {
 			this.sliceFuse.changes=false;
 			this.sliceFuse.close();
-			if(this.computeSummary) {
-				this.summary.close();
-			}
 		}
 		if(this.displayRegistration==2) {
 			this.sliceGrid.changes=false;
 			this.sliceGrid.close();
 			this.sliceCorr.changes=false;
 			this.sliceCorr.close();
-			if(this.computeSummary) {
-				this.gridSummary.close();
-				this.correspondancesSummary.close();
-			}
 		}
 	}
 	
-	public void temporarySummariesSave() {
-		long lo=new Date().getTime();
-		File f=new File("/home/fernandr");
-		if(! f.exists())return;
-		IJ.saveAsTiff(this.gridSummary, "/mnt/DD_COMMON/Data_VITIMAGE/Temp/Recalage_memories/BM"+lo+"imageGrid.tif");
-		IJ.saveAsTiff(this.summary, "/mnt/DD_COMMON/Data_VITIMAGE/Temp/Recalage_memories/BM"+lo+"imageSummary.tif");
-		if(displayRegistration>0)this.summary.hide();
-		if(displayRegistration==2)this.gridSummary.hide();
-	}
 	
 	public void handleOutput(String s) {
 		if (consoleOutputActivated)System.out.println(s);
@@ -1288,6 +1116,11 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		double val=correlationCoefficient(refData,movData);
 		return (val*val);
 	}
+	
+	
+	
+	
+	
 	
 	
 	/**Helper functions to determine initial factors from given data and parameters 
@@ -1435,375 +1268,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 
 
-	/** Common test scenarios, and command-line calls
-	 * 
-	 */
-	public static ItkTransform setupAndRunRoughBlockMatchingWithoutFineParameterization(
-			ImagePlus imgRef,ImagePlus imgMov,ImagePlus imgMask,Transform3DType transType,MetricType metr,
-			int levelMax,int levelMin,int blockSize,int neighSize,double varMin,double sigma,int duration,boolean displayRegistration,boolean displayR2,int percentageScoreKeep,boolean correspondanceUserDefined)
-	{
-	double sigmaSmoothingInPixels=0.0;
-	double denseFieldSigmaInMM=sigma;
-	double[]voxS=VitimageUtils.getVoxelSizes(imgRef);
-	int nbIterations=5+3*duration;
-	int viewSlice=imgRef.getStackSize()/2;
-	int neighXY=neighSize;
-	int neighZ=(int)Math.round(Math.max(1,neighXY*voxS[0]/voxS[2]));
-	int bSXY=blockSize;
-	int bSZ=(int)Math.round(Math.max(1,bSXY*voxS[0]/voxS[2]));
-	int strideXY=bSXY;
-	int strideZ=bSZ;
-	ItkTransform transRet=null;
-	BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,transType,metr,
-				sigmaSmoothingInPixels,denseFieldSigmaInMM,levelMin,levelMax,nbIterations,
-				viewSlice,imgMask,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
-	ItkTransform trInit=null;
-	if(correspondanceUserDefined) {
-		trInit=new ItkTransform(new DisplacementFieldTransform(ItkTransform.computeDenseFieldFromSparseCorrespondancePoints(VitiDialogs.registrationPointsUI(50, imgRef, imgMov, true),imgRef,denseFieldSigmaInMM,true)));			
-	}
-	
-	bmRegistration.percentageBlocksSelectedByScore=percentageScoreKeep;
-	bmRegistration.minBlockVariance=varMin;
-	bmRegistration.displayRegistration=displayRegistration ? 2 : 0;
-	bmRegistration.displayR2=displayR2;
-	transRet=bmRegistration.runBlockMatching(trInit);
-	
-	if(transType==Transform3DType.DENSE ) transRet=transRet.flattenDenseField(imgRef);
-	else transRet=transRet.simplify();
-	if(displayRegistration) {
-		bmRegistration.computeSummaries();		
-		bmRegistration.temporarySummariesSave();
-		bmRegistration.closeLastImages();
-	}
-	bmRegistration.freeMemory();
-	return transRet;
-	}
-	
-	public static ItkTransform testSetupAndRunStandardBlockMatchingWithoutFineParameterization(ImagePlus imgRef,ImagePlus imgMov,ImagePlus mask,boolean doRigidPart,boolean doDensePart,boolean doCoarserRigid,boolean doCoarserDense,boolean doThinnerRigid,boolean doThinnerDense) {
-	double sigmaSmoothingInPixels=0.0;
-	double denseFieldSigmaInMM=1.2;
-	int levelMinRig=doThinnerRigid ? -1 : 0;
-	int levelMaxRig=doCoarserRigid ? 4 : 1;
-	int levelMinDen=doThinnerDense ? 0 : 1;
-	int levelMaxDen=doCoarserDense ? 2 : 1;
-	int viewSlice=imgRef.getStackSize()/2;
-	int nbIterations=1;
-	int nbIterationsRig=1;
-	int neighXY=2;
-	int neighZ=1;
-	int bSXY=7;
-	int bSZ=1;
-	int strideXY=3;
-	int strideZ=1;
-	ItkTransform transRet=null;
-	if(doRigidPart) {
-		BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transform3DType.VERSOR,MetricType.SQUARED_CORRELATION,
-				sigmaSmoothingInPixels,denseFieldSigmaInMM,levelMinRig,levelMaxRig,nbIterationsRig,
-				viewSlice,mask,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
-		transRet=bmRegistration.runBlockMatching(null);
-		if( !doDensePart) {
-			bmRegistration.computeSummaries();
-			bmRegistration.temporarySummariesSave();
-			bmRegistration.closeLastImages();
-			bmRegistration.freeMemory();
-			return transRet;
-		}
-		else {
-			bmRegistration.transformationType=Transform3DType.DENSE;
-			bmRegistration.levelMin=levelMinDen;
-			bmRegistration.levelMax=levelMaxDen;
-			bmRegistration.nbLevels=bmRegistration.levelMax-bmRegistration.levelMin+1;
-			bmRegistration.subScaleFactors=bmRegistration.subSamplingFactorsAtSuccessiveLevels(bmRegistration.levelMin,bmRegistration.levelMax,false,2);
-			bmRegistration.successiveStepFactors=bmRegistration.successiveStepFactorsAtSuccessiveLevels(bmRegistration.levelMin,bmRegistration.levelMax,false,2);
-			bmRegistration.successiveDimensions=bmRegistration.imageDimsAtSuccessiveLevels(new int[] {imgRef.getWidth(),imgRef.getHeight(),imgRef.getStackSize()},bmRegistration.subScaleFactors,bmRegistration.noSubScaleZ);
-			bmRegistration.successiveVoxSizes=bmRegistration.imageVoxSizesAtSuccessiveLevels(VitimageUtils.getVoxelSizes(imgRef),bmRegistration.subScaleFactors);
-			bmRegistration.successiveSmoothingSigma=bmRegistration.sigmaFactorsAtSuccessiveLevels(VitimageUtils.getVoxelSizes(imgRef),bmRegistration.subScaleFactors,bmRegistration.smoothingSigmaInPixels); 
-			bmRegistration.successiveDenseFieldSigma=bmRegistration.sigmaDenseFieldAtSuccessiveLevels(bmRegistration.subScaleFactors,bmRegistration.denseFieldSigma);
-			transRet=bmRegistration.runBlockMatching(transRet);
-			transRet=transRet.flattenDenseField(imgRef);
-			bmRegistration.computeSummaries();
-			bmRegistration.temporarySummariesSave();
-			bmRegistration.closeLastImages();
-			bmRegistration.freeMemory();
-			return transRet;
-		}
-	}
-	
-	else {
-		if(doDensePart) {			
-			BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transform3DType.DENSE,MetricType.SQUARED_CORRELATION,
-												sigmaSmoothingInPixels,denseFieldSigmaInMM,levelMinDen,levelMaxDen,nbIterations,
-												viewSlice,mask,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
-			transRet=bmRegistration.runBlockMatching(null);
-			transRet=transRet.flattenDenseField(imgRef);
-			bmRegistration.computeSummaries();
-			bmRegistration.temporarySummariesSave();
-			bmRegistration.closeLastImages();
-			bmRegistration.freeMemory();
-			return transRet;
-		}
-		else {
-			return null;
-		}
-	}
-	}
-	
-	public static ItkTransform testSetupAndRunStandardBlockMatchingWithoutFineParameterizationFromRigidStart(ImagePlus imgRef,ImagePlus imgMov,ImagePlus mask,ItkTransform rigidTrans,boolean doDensePart,boolean doCoarserRigid,boolean doCoarserDense,boolean doThinnerRigid,boolean doThinnerDense) {
-	double sigmaSmoothingInPixels=0.0;
-	double denseFieldSigmaInMM=1.2;
-	int levelMinDen=doThinnerDense ? 0 : 1;
-	int levelMaxDen=doCoarserDense ? 2 : 1;
-	int viewSlice=imgRef.getStackSize()/2;
-	int nbIterations=7;
-	int nbIterationsRig=8;
-	int neighXY=2;
-	int neighZ=1;
-	int bSXY=7;
-	int bSZ=1;
-	int strideXY=3;
-	int strideZ=1;
-	ItkTransform transRet=rigidTrans;
-	BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transform3DType.VERSOR,MetricType.SQUARED_CORRELATION,
-			sigmaSmoothingInPixels,denseFieldSigmaInMM,levelMinDen,levelMaxDen,nbIterationsRig,
-			viewSlice,mask,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
-	bmRegistration.transformationType=Transform3DType.DENSE;
-	bmRegistration.levelMin=levelMinDen;
-	bmRegistration.levelMax=levelMaxDen;
-	bmRegistration.nbLevels=bmRegistration.levelMax-bmRegistration.levelMin+1;
-	bmRegistration.subScaleFactors=bmRegistration.subSamplingFactorsAtSuccessiveLevels(bmRegistration.levelMin,bmRegistration.levelMax,false,2);
-	bmRegistration.successiveStepFactors=bmRegistration.successiveStepFactorsAtSuccessiveLevels(bmRegistration.levelMin,bmRegistration.levelMax,false,2);
-	bmRegistration.successiveDimensions=bmRegistration.imageDimsAtSuccessiveLevels(new int[] {imgRef.getWidth(),imgRef.getHeight(),imgRef.getStackSize()},bmRegistration.subScaleFactors,bmRegistration.noSubScaleZ);
-	bmRegistration.successiveVoxSizes=bmRegistration.imageVoxSizesAtSuccessiveLevels(VitimageUtils.getVoxelSizes(imgRef),bmRegistration.subScaleFactors);
-	bmRegistration.successiveSmoothingSigma=bmRegistration.sigmaFactorsAtSuccessiveLevels(VitimageUtils.getVoxelSizes(imgRef),bmRegistration.subScaleFactors,bmRegistration.smoothingSigmaInPixels); 
-	bmRegistration.successiveDenseFieldSigma=bmRegistration.sigmaDenseFieldAtSuccessiveLevels(bmRegistration.subScaleFactors,bmRegistration.denseFieldSigma);
-	bmRegistration.minBlockScore=0.3;///////////////////////////////////////////////////
-	transRet=bmRegistration.runBlockMatching(transRet);
-	transRet=transRet.flattenDenseField(imgRef);
-	bmRegistration.computeSummaries();
-	bmRegistration.temporarySummariesSave();
-	bmRegistration.closeLastImages();
-	bmRegistration.freeMemory();
-	return transRet;
-	}
-	
-	public static Object[] testSetupAndRunStandardBlockMatchingWithoutFineParameterizationPhoto2D(ImagePlus imgRef,ImagePlus imgMov,ImagePlus mask,ItkTransform trInit,boolean doCoarser,boolean doThinner,String info) {
-	double sigmaSmoothingInPixels=0.0;
-	int levelMinRig=doThinner ? 0 : 0;
-	int levelMaxRig=doCoarser ? 1 : 1;
-	int viewSlice=0;
-	int nbIterations=8;
-	int neighXY=5;
-	int neighZ=0;
-	int bSXY=6;
-	int bSZ=0;
-	int strideXY=2;
-	int strideZ=1;
-	ItkTransform transRet=null;
-	BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transform3DType.VERSOR,MetricType.SQUARED_CORRELATION,
-			sigmaSmoothingInPixels,0,levelMinRig,levelMaxRig,nbIterations,
-			viewSlice,mask,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
-	bmRegistration.info=info;
-	bmRegistration.displayRegistration=0;
-	bmRegistration.flagSingleView=false;
-	bmRegistration.minBlockVariance=4;
-	bmRegistration.consoleOutputActivated=false;
-	transRet=bmRegistration.runBlockMatching(trInit);
-	bmRegistration.closeLastImages();
-	bmRegistration.freeMemory();
-	return (new Object[] {transRet,new Double(bmRegistration.lastValueBlocksCorr)});
-	}
-	
-	public static ItkTransform registerRXOnSlices(ImagePlus imgSlice,ImagePlus imgRX,ItkTransform transRX,int slice,boolean accurate) {
-	int levelMin=accurate ? 1 : 2;	
-	int levelMax=3;
-	int viewSlice=slice;
-	int nbIterations=8;//14
-	int neighXY=2;	int neighZ=2;
-	int bSXY=9;		int bSZ=0;
-	int strideXY=3;		int strideZ=1;
-	ItkTransform transRet=null;
-	BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgSlice,imgRX,Transform3DType.VERSOR,MetricType.SQUARED_CORRELATION,
-				0,0,levelMin,levelMax,nbIterations,viewSlice,null,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
-	bmRegistration.flagSingleView=true;
-	bmRegistration.displayRegistration=0;
-	bmRegistration.displayR2=false;
-	transRet=bmRegistration.runBlockMatching(transRX);
-	bmRegistration.closeLastImages();
-	bmRegistration.freeMemory();
-	return transRet;
-	}
-	
-	public static ItkTransform registerMRIonRX(ImagePlus imgRefH,ImagePlus imgMovH,ItkTransform transMov,int slice,ImagePlus mask) {
-	ImagePlus imgRef=VitimageUtils.Sub222(imgRefH);
-	ImagePlus imgMov=VitimageUtils.Sub222(imgMovH);
-	int levelMinRig=2;		int levelMax=3;int levelMinDen=2;
-	int viewSlice=slice;
-	int nbIterations=13;//14
-	int neighXY=2;	int neighZ=2;
-	int bSXY=5;		int bSZ=5;
-	int strideXY=3;		int strideZ=3;
-	ItkTransform transRet=null;
-	BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transform3DType.VERSOR,MetricType.SQUARED_CORRELATION,
-				0,0,levelMinRig,levelMax,nbIterations,viewSlice,mask,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
-	bmRegistration.flagSingleView=true;
-	bmRegistration.displayRegistration=0;
-	bmRegistration.displayR2=false;
-	transRet=bmRegistration.runBlockMatching(transMov);
-	bmRegistration.closeLastImages();
-	bmRegistration.freeMemory();
-	//bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,ItkTransform.Transform3DType.DENSE,MetricType.SQUARED_CORRELATION,
-	//		0,50,levelMinDen,levelMax,nbIterations,viewSlice,null,neighXY,neighZ,bSXY,bSZ,strideXY,strideZ);
-				//		bmRegistration.flagSingleView=true;
-				//bmRegistration.displayRegistration=true;
-				//bmRegistration.displayR2=false;
-	//transRet=bmRegistration.runBlockMatching(transRet);
-	//bmRegistration.closeLastImages();
-	//bmRegistration.freeMemory();
-	return transRet;
-	}
-	
-	public static ItkTransform blockMatchingRegistrationCepMRIData(ImagePlus imgRef,ImagePlus imgMov,ImagePlus mask,boolean doRigidPart,boolean doDensePart,boolean doCoarserRigid,boolean doCoarserDense,double sigma) {
-	double sigmaSmoothingInPixels=0.0;
-	double denseFieldSigmaInMM=sigma;
-	int levelMinRig=1;
-	int levelMaxRig=doCoarserRigid ? 3 : 1;
-	int levelMinDen=1;
-	int levelMaxDen=doCoarserDense ? 2 : 1;
-	int viewSlice=60;//imgRef.getStackSize()/2;
-	int nbIterations=7;//14
-	int nbIterationsRig=10;//14
-	int neighXY=2;
-	int neighZ=2;
-	int bSXY=9;
-	int bSZ=9;
-	int strideXY=3;
-	int strideZ=1;
-	ItkTransform transRet=null;
-	if(doRigidPart) {
-		BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transform3DType.VERSOR,MetricType.SQUARED_CORRELATION,
-				sigmaSmoothingInPixels,denseFieldSigmaInMM,levelMinRig,levelMaxRig,nbIterationsRig,
-				viewSlice,mask,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
-		bmRegistration.flagSingleView=true;
-		transRet=bmRegistration.runBlockMatching(null);
-		if( !doDensePart) {
-			bmRegistration.computeSummaries();
-			bmRegistration.temporarySummariesSave();
-			bmRegistration.closeLastImages();
-			bmRegistration.freeMemory();
-			return transRet;
-		}
-		else {
-			bmRegistration.transformationType=Transform3DType.DENSE;
-			bmRegistration.levelMin=levelMinDen;
-			bmRegistration.levelMax=levelMaxDen;
-			bmRegistration.nbLevels=bmRegistration.levelMax-bmRegistration.levelMin+1;
-			bmRegistration.subScaleFactors=bmRegistration.subSamplingFactorsAtSuccessiveLevels(bmRegistration.levelMin,bmRegistration.levelMax,false,2);
-			bmRegistration.successiveStepFactors=bmRegistration.successiveStepFactorsAtSuccessiveLevels(bmRegistration.levelMin,bmRegistration.levelMax,false,2);
-			bmRegistration.successiveDimensions=bmRegistration.imageDimsAtSuccessiveLevels(new int[] {imgRef.getWidth(),imgRef.getHeight(),imgRef.getStackSize()},bmRegistration.subScaleFactors,bmRegistration.noSubScaleZ);
-			bmRegistration.successiveVoxSizes=bmRegistration.imageVoxSizesAtSuccessiveLevels(VitimageUtils.getVoxelSizes(imgRef),bmRegistration.subScaleFactors);
-			bmRegistration.successiveSmoothingSigma=bmRegistration.sigmaFactorsAtSuccessiveLevels(VitimageUtils.getVoxelSizes(imgRef),bmRegistration.subScaleFactors,bmRegistration.smoothingSigmaInPixels); 
-			bmRegistration.successiveDenseFieldSigma=bmRegistration.sigmaDenseFieldAtSuccessiveLevels(bmRegistration.subScaleFactors,bmRegistration.denseFieldSigma);
-			bmRegistration.flagSingleView=true;
-	
-			transRet=bmRegistration.runBlockMatching(transRet);
-			transRet=transRet.flattenDenseField(imgRef);
-			bmRegistration.computeSummaries();
-			bmRegistration.temporarySummariesSave();
-			bmRegistration.closeLastImages();
-			bmRegistration.freeMemory();
-			return transRet;
-		}
-	}
-	
-	else {
-		if(doDensePart) {			
-			BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transform3DType.DENSE,MetricType.SQUARED_CORRELATION,
-												sigmaSmoothingInPixels,denseFieldSigmaInMM,levelMinDen,levelMaxDen,nbIterations,
-												viewSlice,mask,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
-			bmRegistration.flagSingleView=true;
-	
-			transRet=bmRegistration.runBlockMatching(null);
-			transRet=transRet.flattenDenseField(imgRef);
-			bmRegistration.computeSummaries();
-			bmRegistration.temporarySummariesSave();
-			bmRegistration.closeLastImages();
-			bmRegistration.freeMemory();
-			return transRet;
-		}
-		else {
-			return null;
-		}
-	}
-	}
-	
-	public static ItkTransform setupAndRunStandardBlockMatchingWithoutFineParameterization(ImagePlus imgRef,ImagePlus imgMov,ImagePlus mask,boolean doRigidPart,boolean doDensePart,boolean doCoarserRigid) {
-	double sigmaSmoothingInPixels=0.0;
-	double denseFieldSigmaInMM=0.9;
-	int levelMinRig=1;
-	int levelMaxRig=doCoarserRigid ? 2 : 1;
-	int levelMinDen=1;
-	int levelMaxDen=1;
-	int viewSlice=imgRef.getStackSize()/2;
-	int nbIterations=5;//14
-	int nbIterationsRig=14;//14
-	int neighXY=3;
-	int neighZ=1;
-	int bSXY=9;
-	int bSZ=2;
-	int strideXY=3;
-	int strideZ=1;
-	ItkTransform transRet=null;
-	if(doRigidPart) {
-		BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transform3DType.VERSOR,MetricType.SQUARED_CORRELATION,
-				sigmaSmoothingInPixels,denseFieldSigmaInMM,levelMinRig,levelMaxRig,nbIterationsRig,
-				viewSlice,mask,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
-		transRet=bmRegistration.runBlockMatching(null);
-		if( !doDensePart) {
-			bmRegistration.computeSummaries();
-			bmRegistration.temporarySummariesSave();
-			bmRegistration.closeLastImages();
-			bmRegistration.freeMemory();
-			return transRet;
-		}
-		else {
-			bmRegistration.transformationType=Transform3DType.DENSE;
-			bmRegistration.levelMin=levelMinDen;
-			bmRegistration.levelMax=levelMaxDen;
-			bmRegistration.nbLevels=bmRegistration.levelMax-bmRegistration.levelMin+1;
-			bmRegistration.subScaleFactors=bmRegistration.subSamplingFactorsAtSuccessiveLevels(bmRegistration.levelMin,bmRegistration.levelMax,false,2);
-			bmRegistration.successiveStepFactors=bmRegistration.successiveStepFactorsAtSuccessiveLevels(bmRegistration.levelMin,bmRegistration.levelMax,false,2);
-			bmRegistration.successiveDimensions=bmRegistration.imageDimsAtSuccessiveLevels(new int[] {imgRef.getWidth(),imgRef.getHeight(),imgRef.getStackSize()},bmRegistration.subScaleFactors,bmRegistration.noSubScaleZ);
-			bmRegistration.successiveVoxSizes=bmRegistration.imageVoxSizesAtSuccessiveLevels(VitimageUtils.getVoxelSizes(imgRef),bmRegistration.subScaleFactors);
-			bmRegistration.successiveSmoothingSigma=bmRegistration.sigmaFactorsAtSuccessiveLevels(VitimageUtils.getVoxelSizes(imgRef),bmRegistration.subScaleFactors,bmRegistration.smoothingSigmaInPixels); 
-			bmRegistration.successiveDenseFieldSigma=bmRegistration.sigmaDenseFieldAtSuccessiveLevels(bmRegistration.subScaleFactors,bmRegistration.denseFieldSigma);
-			transRet=bmRegistration.runBlockMatching(transRet);
-			transRet=transRet.flattenDenseField(imgRef);
-			bmRegistration.computeSummaries();
-			bmRegistration.temporarySummariesSave();
-			bmRegistration.closeLastImages();
-			bmRegistration.freeMemory();
-			return transRet;
-		}
-	}
-	
-	else {
-		if(doDensePart) {			
-			BlockMatchingRegistration bmRegistration=new BlockMatchingRegistration(imgRef,imgMov,Transform3DType.DENSE,MetricType.SQUARED_CORRELATION,
-												sigmaSmoothingInPixels,denseFieldSigmaInMM,levelMinDen,levelMaxDen,nbIterations,
-												viewSlice,mask,neighXY,neighXY,neighZ,bSXY,bSXY,bSZ,strideXY,strideXY,strideZ);
-			transRet=bmRegistration.runBlockMatching(null);
-			transRet=transRet.flattenDenseField(imgRef);
-			bmRegistration.computeSummaries();
-			bmRegistration.temporarySummariesSave();
-			bmRegistration.closeLastImages();
-			bmRegistration.freeMemory();
-			return transRet;
-		}
-		else {
-			return null;
-		}
-	}
-	}
 
 	/**Memory free and management
 	 * 
@@ -1821,13 +1285,9 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		this.sliceGrid=null;;
 		this.sliceCorr=null;;
 		this.sliceJacobian=null;
-		this.summaryArray.clear();
 		this.summary=null;
-		this.gridSummaryArray.clear();
 		this.gridSummary=null;
-		this.correspondancesSummaryArray.clear();
 		this.correspondancesSummary=null;
-		this.jacobianSummaryArray.clear();
 		this.jacobianSummary=null;
 		this.mask=null;
 		System.gc();

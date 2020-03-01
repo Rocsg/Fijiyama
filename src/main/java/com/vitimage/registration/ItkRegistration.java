@@ -146,145 +146,10 @@ public class ItkRegistration implements ItkImagePlusInterface{
 
 		
 		manager.register();
-		manager.showRegistrationSummary();
-		//ImagePlus resultat=manager.computeRegisteredImage();
-		//resultat.show();
 		freeMemory();
 		return nbFailed;
 	}
 	
-	public static int estimateRegistrationDuration(int[]dims,int viewRegistrationLevel,int nbIter,int levelMin,int levelMax) {
-		double imageSize=dims[0]*dims[1]*dims[2];
-		double[]imageSizes=new double[levelMax-levelMin+1];
-		double sumSize=0;
-		for(int lev=levelMax;lev>=levelMin;lev--) {imageSizes[levelMax-lev]=imageSize/Math.pow(2,(lev-1));sumSize+=imageSizes[levelMax-lev];}
-		double factorProcess=1E-8;
-		double factorView=1E-7;
-		double factorInit=2E-7;
-		double bonusTime=factorInit*imageSize;
-		double displayTime=nbIter*factorView*(levelMax-levelMin+1)*viewRegistrationLevel*imageSize;
-		double processingTime=factorProcess*sumSize*nbIter;
-		return (int)Math.round(processingTime+displayTime+bonusTime);
-	}
-
-	public  ItkTransform runScenarioInterTime(ImagePlus imgRef, ImagePlus imgMov) {
-		this.setMovingImage(imgMov);
-		this.setReferenceImage(imgRef);
-		this.setViewSlice(imgRef.getStackSize()/2);
-		this.setMetric(MetricType.CORRELATION);
-		OptimizerType opt=OptimizerType.ITK_AMOEBA ;
-		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-		boolean testSpeed=false;
-
-		this.addStepToQueue( 1 ,    2    ,     1     ,   testSpeed ? 1 : 100  , 0.3   ,       Transform3DType.VERSOR,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.addStepToQueue( 1 ,    1    ,     1     ,   testSpeed ? 1 : 100 , 0.2   ,       Transform3DType.TRANSLATION,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.addStepToQueue( 1 ,    1    ,     1     ,   testSpeed ? 1 : 100   , 0.3   ,       Transform3DType.VERSOR,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.addStepToQueue( 1 ,   1    ,     1     ,   testSpeed ? 1 : 100  , 0.3   ,       Transform3DType.VERSOR,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.register();
-		this.showRegistrationSummary();
-		freeMemory();
-		return new ItkTransform(this.transform);
-	}
-	
-	public ImagePlus runScenarioMaidaFlipFlop(ImagePlus imgRef, ImagePlus imgMov) {
-		this.setMovingImage(imgMov);
-		this.setReferenceImage(imgRef);
-		this.setViewSlice(imgRef.getStackSize()/2);
-		this.setMetric(MetricType.CORRELATION);
-		OptimizerType opt=OptimizerType.ITK_GRADIENT_LINE_SEARCH;
-		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-		this.addStepToQueue( 2 ,   2    ,     0    ,   20 , 0.4   ,       Transform3DType.TRANSLATION,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		true,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-		this.register();
-		this.showRegistrationSummary();		
-		ImagePlus result=this.computeRegisteredImage();
-		freeMemory();
-		return result;
-	}
-
-	public ItkTransform runScenarioKhalifa(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov) {
-		this.setMovingImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgMov));
-		this.setReferenceImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgRef));
-		this.setViewSlice(imgRef.getStackSize()/2);
-		this.setMetric(MetricType.MATTES);
-		OptimizerType opt=OptimizerType.ITK_AMOEBA ;
-		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-		int levelMax=3;//1+(int)Math.floor(Math.log(dimMinImage/dimMinPyramide)/Math.log(2) );
-		int levelMin=1;
-		this.addStepToQueue( levelMin ,     levelMax    ,     1     ,    40  , 0.3   ,       Transform3DType.VERSOR,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.addStepToQueue( levelMin ,     levelMax/2    ,     1     ,    40  , 0.3   ,       Transform3DType.SIMILARITY,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.transform=new ItkTransform(trans);
-
-		this.register();
-		this.showRegistrationSummary();	
-		freeMemory();
-		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.transform;
-		else {
-			if(trans.isDense())return new ItkTransform((trans.getInverseOfDenseField()).addTransform(this.transform));
-			else return new ItkTransform(trans.getInverse().addTransform(this.transform));
-		}
-	}
-	
-	public ItkTransform runScenarioInterModal(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov,boolean verySimilarData) {
-		this.setMovingImage(imgMov);
-		this.setReferenceImage(imgRef);
-		this.setViewSlice(imgRef.getStackSize()/2);
-		this.setMetric(MetricType.CORRELATION);
-		OptimizerType opt=OptimizerType.ITK_AMOEBA ;
-		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-		int lMin1=verySimilarData ? 1 : 2;
-		int lMax1=verySimilarData ? 1 : 3;
-		int lMin2=verySimilarData ? 1 : 1;
-		int lMax2=verySimilarData ? 1 : 2;
-		boolean testSpeed=false;
-		
-		this.addStepToQueue( lMin1 ,     lMax1    ,     1     ,   testSpeed ? 2 : 100  , 0.3   ,       Transform3DType.TRANSLATION,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.addStepToQueue( lMin1 ,   lMax1    ,     1     ,  testSpeed ? 2 :  100  , 0.3   ,       Transform3DType.VERSOR,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.addStepToQueue( lMin2 ,     lMax2    ,     1     ,  testSpeed ? 2 :  100  , 0.3   ,       Transform3DType.TRANSLATION,    null,
-				OptimizerType.ITK_AMOEBA  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.addStepToQueue( lMin2 ,   lMax2    ,     1     ,   testSpeed ? 2 : 100  , 0.3   ,       Transform3DType.VERSOR,    null,
-				OptimizerType.ITK_AMOEBA  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-
-		this.transform=new ItkTransform(trans);
-		this.register();
-		this.showRegistrationSummary();
-		freeMemory();
-		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.transform;
-		else {
-			if(trans.isDense())return new ItkTransform((trans.getInverseOfDenseField()).addTransform(this.transform));
-			else return new ItkTransform(trans.getInverse().addTransform(this.transform));
-		}
-	}
-
 	public ItkTransform runScenarioFromGui(ItkTransform transformInit, ImagePlus imgRef, ImagePlus imgMov, Transform3DType transformType,int levelMin,int levelMax,int nIterations,double learningRate) {
 		this.setMovingImage(imgMov);
 		this.setReferenceImage(imgRef);
@@ -307,124 +172,18 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		}
 	}
 
-	public ItkTransform runScenarioKhalifa2(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov,boolean verySimilarData,ImagePlus masque) {
-		this.setMovingImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgMov));
-		this.setReferenceImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgRef));
-		this.setViewSlice(imgRef.getStackSize()/2);
-		this.setMetric(MetricType.CORRELATION);
-		OptimizerType opt=OptimizerType.ITK_AMOEBA ;
-		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-		this.addStepToQueue( 1 , 1    ,    1.8     ,    20  , 0.2   ,       Transform3DType.VERSOR,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-		this.addStepToQueue( 1 , 1    ,    0.8     ,    100  , 0.2   ,       Transform3DType.TRANSLATION,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-		this.addStepToQueue( 1 , 1    ,    0.8     ,    100  , 0.2   ,       Transform3DType.VERSOR,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-		this.addStepToQueue( 1 , 1    ,    0.8     ,    100  , 0.2   ,       Transform3DType.SIMILARITY,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-
-		this.transform=new ItkTransform(trans);
-
-		for(int i=0;i<this.registrationMethods.size();i++) {
-			if(masque!=null) {
-				Image masqueItk=ItkImagePlusInterface.imagePlusToItkImage(masque);
-				this.registrationMethods.get(i).setMetricFixedMask(masqueItk);
-				this.registrationMethods.get(i).setMetricFixedMask(masqueItk);
-			
-			}
-		}
-		
-		this.register();
-		this.showRegistrationSummary();
-		freeMemory();
-		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.transform;
-		else {
-			if(trans.isDense())return new ItkTransform((trans.getInverseOfDenseField()).addTransform(this.transform));
-			else return new ItkTransform(trans.getInverse().addTransform(this.transform));
-		}
-	}
-
-	public ItkTransform runScenarioTestStuff(ItkTransform trans, ImagePlus imgRef, ImagePlus imgMov) {
-		this.setMovingImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgMov));
-		this.setReferenceImage(VitimageUtils.convertShortToFloatWithoutDynamicChanges(imgRef));
-		this.setViewSlice(imgRef.getStackSize()/2);
-		this.setMetric(MetricType.MATTES);
-		OptimizerType opt=OptimizerType.ITK_AMOEBA ;
-		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-
-		this.addStepToQueue( 2 ,     3    ,     1     ,    200  , 0.3   ,       Transform3DType.TRANSLATION,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.addStepToQueue( 2 ,   3    ,     1     ,    100  , 0.3   ,       Transform3DType.VERSOR,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.addStepToQueue( 1 ,     2    ,     1     ,    100  , 0.3   ,       Transform3DType.SIMILARITY,    null,
-				OptimizerType.ITK_AMOEBA  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.addStepToQueue( 1 ,   2    ,     1     ,    100  , 0.3   ,       Transform3DType.VERSOR,    null,
-				OptimizerType.ITK_AMOEBA  , ScalerType.SCALER_PHYSICAL, null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-
-		this.transform=new ItkTransform(trans);
-
-		this.register();
-		this.showRegistrationSummary();
-		
-		freeMemory();
-		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.transform;
-		else {
-			if(trans.isDense())return new ItkTransform((trans.getInverseOfDenseField()).addTransform(this.transform));
-			else return new ItkTransform(trans.getInverse().addTransform(this.transform));
-		}
-	}
-
-	public ImagePlus[] runScenarioInterEchoes(ImagePlus refImgSource, ImagePlus movImgSource) {
-		ImagePlus refImg=VitimageUtils.imageCopy(refImgSource);
-		ImagePlus movImg=VitimageUtils.imageCopy(movImgSource);
-		IJ.run(refImg,"32-bit","");
-		IJ.run(movImg,"32-bit","");
-		this.setMovingImage(movImg);
-		this.setReferenceImage(refImg);
-		this.setViewSlice(refImg.getStackSize()/2);
-		SamplingStrategy samplStrat=SamplingStrategy.NONE;
-		int levelMax=1;
-		int levelMin=1;
-		double learningRate=0.5;
-		double sigma=0.5;
-		MetricType metr=MetricType.CORRELATION;
-		this.setMetric(metr);
-		OptimizerType opt2=OptimizerType.ITK_AMOEBA;
-		
-		
-		this.addStepToQueue( levelMin ,    levelMax     ,     sigma   ,   120 ,learningRate   ,       Transform3DType.TRANSLATION,    null,
-				opt2  , ScalerType.SCALER_PHYSICAL , null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-		this.addStepToQueue( levelMin ,    levelMax     ,     sigma   ,   120 ,learningRate   ,       Transform3DType.VERSOR,    null,
-				opt2  , ScalerType.SCALER_PHYSICAL , null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-		this.addStepToQueue( levelMin ,    levelMax     ,     sigma   ,   120 ,learningRate   ,       Transform3DType.TRANSLATION,    null,
-				opt2  , ScalerType.SCALER_PHYSICAL , null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-		this.addStepToQueue( levelMin ,    levelMax     ,     sigma   ,   120 ,learningRate   ,       Transform3DType.VERSOR,    null,
-				opt2  , ScalerType.SCALER_PHYSICAL , null ,
-		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
-		
-		this.register();
-		//this.showRegistrationSummary();
-		IJ.log("Score="+this.registrationMethods.get(registrationMethods.size()-1).getMetricValue());
-		ImagePlus result=this.computeRegisteredImage();
-		ImagePlus sumDup=null;
-		if(summary!=null)sumDup=VitimageUtils.imageCopy(summary);
-		freeMemory();
-		return (new ImagePlus[] {result,sumDup});
+	public static int estimateRegistrationDuration(int[]dims,int viewRegistrationLevel,int nbIter,int levelMin,int levelMax) {
+		double imageSize=dims[0]*dims[1]*dims[2];
+		double[]imageSizes=new double[levelMax-levelMin+1];
+		double sumSize=0;
+		for(int lev=levelMax;lev>=levelMin;lev--) {imageSizes[levelMax-lev]=imageSize/Math.pow(2,(lev-1));sumSize+=imageSizes[levelMax-lev];}
+		double factorProcess=1E-8;
+		double factorView=1E-7;
+		double factorInit=2E-7;
+		double bonusTime=factorInit*imageSize;
+		double displayTime=nbIter*factorView*(levelMax-levelMin+1)*viewRegistrationLevel*imageSize;
+		double processingTime=factorProcess*sumSize*nbIter;
+		return (int)Math.round(processingTime+displayTime+bonusTime);
 	}
 
 	
@@ -574,7 +333,6 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		}
 		if(flagCentering && transformation3DTypes.get(currentStep)!= Transform3DType.TRANSLATION)trPlus=new ItkTransform(centerTransformFilter.execute(this.itkImgRef,this.itkImgMov,trPlus));
 
-		//TODO : il se passe des choses ici. Faut il utiliser .setMovingInitialTransform
 		if(this.transform==null)this.transform=trPlus;
 		else this.transform.addTransform(trPlus);
 		this.registrationMethods.get(currentStep).setInitialTransform(this.transform);	
@@ -648,33 +406,6 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		IJ.log(" Metric value: "+registrationMethods.get(nbStep-1).getMetricValue()+"\n");
 	}
 
-	public void displayAlignmentResults() {
-		if(displayRegistration==0)return;
-		this.sliceView.changes=false;
-		this.sliceView.close();
-		ImagePlus resInit=VitimageUtils.compositeOf(ijImgRef,ijImgMov,"Position before registration, Red=Ref, Green=Mov");
-		VitimageUtils.imageChecking(resInit,"Initial superposition");
-		for(int st=nbStep-1;st<nbStep;st++) {
-			ImagePlus res=VitimageUtils.compositeOf(ijImgRef,imgMovSuccessiveResults.get(st),"Registration result after step"+st+", Red=Ref, Green=Mov");
-			VitimageUtils.imageChecking(res,"Registration result");
-			imgMovSuccessiveResults.get(st).getProcessor().resetMinAndMax();
-			IJ.run(imgMovSuccessiveResults.get(st),"16-bit","");
-		}
-	}
-	
-	public void showRegistrationSummary() {
-		if(displayRegistration==0)return;
-		ImagePlus []tabImg=new ImagePlus[registrationSummary.size()];
-		for(int i =0;i<registrationSummary.size() ; i++) {
-			tabImg[i]=registrationSummary.get(i);
-		}
-		this.summary=Concatenator.run(tabImg);
-		IJ.saveAsTiff(this.summary, "/home/fernandr/tmpImageRec.tif");
-		VitimageUtils.imageChecking(this.summary,0,this.summary.getStackSize()-1,2,"Registration summary",20,false);
-		this.summary.changes=false;
-		this.summary.close();
-	}
-	
 	public ImagePlus computeRegisteredImage() {
 		if(transform==null)return null;
 		ResampleImageFilter resampler = new ResampleImageFilter();

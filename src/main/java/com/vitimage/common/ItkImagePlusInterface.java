@@ -19,20 +19,43 @@ import ij.measure.Calibration;
 import math3d.Point3d;
 
 public interface ItkImagePlusInterface {
+	
 
 	
-	public static void runInterfaceTestSequence() {
-		//Create ImageJ new image
-		//Convert it to Itk
-		//Convert it again to ImageJ
+	
+	/* Helper functions to convert between arrays (java std format) and VectorDouble (org.itk.simple format) */
+	public static VectorUInt32 intArrayToVectorUInt32(int[]array) {
+		VectorUInt32 vect=new VectorUInt32(array.length);
+		for(int i=0;i<array.length ;i++)vect.set(i,array[i]);
+		return vect;
+	}
 
+	public static int[] vectorUInt32ToIntArray(VectorUInt32 vect) {
+		int[] tab=new int[(int) vect.size()];
+		for(int i=0;i<tab.length ;i++)tab[i]=(int) vect.get(i);
+		return tab;
+	}
+
+	public static VectorDouble doubleArrayToVectorDouble(double[]array) {
+		VectorDouble vect=new VectorDouble(array.length);
+		for(int i=0;i<array.length ;i++)vect.set(i,array[i]);
+		return vect;
+	}
+
+	public static double[] vectorDoubleToDoubleArray(VectorDouble vect) {
+		double[] tab=new double[(int) vect.size()];
+		for(int i=0;i<tab.length ;i++)tab[i]=vect.get(i);
+		return tab;
+	}
+
+	public static Point3d vectorDoubleToPoint3d(VectorDouble vect) {
+		return new Point3d(vect.get(0) ,vect.get(1), vect.get(2) );
 	}
 	
+
+
 	
-	/**
-	 * Helper functions to convert between ImagePlus (ImageJ format) and Image (org.itk.simple format)
-	 * 
-	 */
+	/*Helper functions to convert between ImagePlus (ImageJ format) and Image (org.itk.simple format) */
 	public static Image imagePlusToItkImage(ImagePlus img) {
 		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getStackSize();
 		double[]voxSizes=new double[] {img.getCalibration().pixelWidth,img.getCalibration().pixelHeight,img.getCalibration().pixelDepth};
@@ -95,8 +118,7 @@ public interface ItkImagePlusInterface {
 		else VitiDialogs.notYet("Conversion ImagePlus vers ItkImage type RGB");
 		return ret;
 	}
-	
-	
+		
 	public static ImagePlus[] convertItkTransformToImagePlusArray(ItkTransform tr){
 		return convertDisplacementFieldToImagePlusArrayAndNorm((new DisplacementFieldTransform((org.itk.simple.Transform)tr).getDisplacementField()));
 	}
@@ -172,8 +194,6 @@ public interface ItkImagePlusInterface {
 		return ret;
 	}
 	
-	
-
 	public static Image convertImagePlusArrayToDisplacementField(ImagePlus []imgs){
 		int dimX=(int) imgs[0].getWidth(); int dimY=(int) imgs[0].getHeight(); int dimZ=(int) imgs[0].getStackSize();
 		double[]voxSizes=new double[] {imgs[0].getCalibration().pixelWidth,imgs[0].getCalibration().pixelHeight,imgs[0].getCalibration().pixelDepth};
@@ -204,12 +224,6 @@ public interface ItkImagePlusInterface {
 		return ret;
 	}
 
-	
-	
-	
-	
-	
-	
 	public static ImagePlus itkImageToImagePlus(Image img) {
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		VectorDouble voxSizes= img.getSpacing();		
@@ -299,7 +313,6 @@ public interface ItkImagePlusInterface {
 		return imgp;
     }
 	
-	
 	public static ImagePlus itkImageToImagePlusSlice(Image img,int slice) {
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		if(slice>dimZ)slice=dimZ;
@@ -354,49 +367,12 @@ public interface ItkImagePlusInterface {
 	}
 		
 	
-	/**
-	 * Helper functions to convert between arrays (java std format) and VectorDouble (org.itk.simple format)
-	 * 
-	 */
-	public static VectorUInt32 intArrayToVectorUInt32(int[]array) {
-		VectorUInt32 vect=new VectorUInt32(array.length);
-		for(int i=0;i<array.length ;i++)vect.set(i,array[i]);
-		return vect;
-	}
-
-	public static int[] vectorUInt32ToIntArray(VectorUInt32 vect) {
-		int[] tab=new int[(int) vect.size()];
-		for(int i=0;i<tab.length ;i++)tab[i]=(int) vect.get(i);
-		return tab;
-	}
-
-	public static VectorDouble doubleArrayToVectorDouble(double[]array) {
-		VectorDouble vect=new VectorDouble(array.length);
-		for(int i=0;i<array.length ;i++)vect.set(i,array[i]);
-		return vect;
-	}
-
-	public static double[] vectorDoubleToDoubleArray(VectorDouble vect) {
-		double[] tab=new double[(int) vect.size()];
-		for(int i=0;i<tab.length ;i++)tab[i]=vect.get(i);
-		return tab;
-	}
-
-	public static Point3d vectorDoubleToPoint3d(VectorDouble vect) {
-		return new Point3d(vect.get(0) ,vect.get(1), vect.get(2) );
-	}
+	
+	
+	
+	
 	
 
-	public default double cuteDouble(double d,int precision){
-		if (d < 1.0/Math.pow(10, precision))return 0;
-		return (double)(Math.round(d * Math.pow(10, precision))/Math.pow(10, precision));
-	}
-
-
-	/**
-	 * Helper enums to ease ItkRegistration description and usage. All of them are actually options of simple ITK's ImageRegistrationMethod
-	 * 
-	 */	
 
 }
 	

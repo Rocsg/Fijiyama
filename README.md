@@ -17,3 +17,14 @@ Code is structured into subpackages :
 follow source directories to the main packages (registration, common, fijiyama).
 Each package host a Find_your_way_in_the_package.txt file
 
+* Acknowledgements :
+-Erik Meijering for Imagescience https://imagescience.org/meijering/software/imagescience/
+-David Legland and Ignacio Arganda-Carreras for morpholibJ https://imagej.net/MorphoLibJ
+-Johannes Schindelin and Albert Cardona (and many other people) for Fiji (ref Fiji)
+-Benjamin Schmid, Johannes Schindelin, Albert Cardona (et al) for the ImageJ 3dviewer.
+-The ITK and SimpleITK team that sets registration algorithms freely available
+-Gregoire Malandain, Sebastien Ourselin and Olivier Commowick for explanations about Block-Matching 
+-Jean-Luc Verdeil for his support to new technology in plant science
+-Cedric moisy for his ambition to make tech' available where it is not
+-Christophe Pradal for his contribution and inspiration
+
