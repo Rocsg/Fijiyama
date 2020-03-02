@@ -48,7 +48,6 @@ public class RegistrationManager{
 	public ij3d.Image3DUniverse universe;
 	private int nbCpu=1;
 	private int jvmMemory=1;
-	private int freeMemory=1;
 	private long memoryFullSize;
 	private boolean oversizingDialogSeen=false;
 	private boolean downSizingWhenNeeded=true;
@@ -61,7 +60,6 @@ public class RegistrationManager{
 	
 	public boolean isSerie=false;
 	public String serieOutputPath;
-	private String serieFjmFile;
 	private String serieInputPath;
 	private String[] times=new String[] {"t0"};
 	private String[] mods=new String[] {"ref","mov"};
@@ -345,7 +343,6 @@ public class RegistrationManager{
 	public boolean createOutputPathAndFjmFile() {
 		this.serieOutputPath=VitiDialogs.chooseDirectoryUI("Select an output directory for your work","Select an empty output directory to begin a new work");
 		if(this.serieOutputPath==null) {IJ.showMessage("No output path given. Abort");return false ;}
-		this.serieFjmFile=null;
 		String[]files=new File(this.serieOutputPath).list();
 		if(files.length!=0)  {IJ.showMessage("Directory already contains files. \nChoose an empty directory to begin your new experiment\nor select \"Open a previous study\" to go on an experiment");return createOutputPathAndFjmFile() ;}
 		new File(this.serieOutputPath,"Registration_files").mkdirs();
@@ -448,7 +445,7 @@ public class RegistrationManager{
 
 		if(this.stepBuild==0) {
 			fijiyamaGui.modeWindow=Fijiyama_GUI.WINDOWSERIEPROGRAMMING;
-			ArrayList<ArrayList<RegistrationAction>>interMods=new ArrayList<ArrayList<RegistrationAction> >();
+			//ArrayList<ArrayList<RegistrationAction>>interMods=new ArrayList<ArrayList<RegistrationAction> >();
 			if(this.nTimes<=1)this.stepBuild=3;
 			else this.stepBuild=1;
 		}
@@ -553,7 +550,6 @@ public class RegistrationManager{
 		this.step=-1;
 		this.regActions=new ArrayList<RegistrationAction>();
 		int[]typeSuccessives=new int[] {0,1};//Manual actions, followed by automatic actions
-		int[]transSuccessives=new int[] {0,1,2};//Rigid,followed by Similarities, followed by denses
 		for(int type : typeSuccessives) {
 			for(int tRef=0;tRef<this.nTimes-1;tRef++) {
 				if(tRef<this.referenceTime) {
@@ -905,8 +901,8 @@ public class RegistrationManager{
 	public void exportImagesAndComposedTransforms() {
 		//Ask for target dimensions
 		ImagePlus referenceGeometryForTransforms;
-		ItkTransform transformAlignementRef=(transforms[referenceTime][referenceModality].size()>0) ? getComposedTransform(referenceTime, referenceModality) : new ItkTransform();
-		ItkTransform trTemp;
+		//ItkTransform transformAlignementRef=(transforms[referenceTime][referenceModality].size()>0) ? getComposedTransform(referenceTime, referenceModality) : new ItkTransform();
+		//ItkTransform trTemp;
 		
 		GenericDialog gd=new GenericDialog("Choose target dimensions...");
 		gd.addMessage("This operation will export all images in the same geometry, and combine it in a 4D/5D hyperimage");
@@ -1265,7 +1261,7 @@ public class RegistrationManager{
 		int nCouples=pointTabImg[0].length;
 		double[][]dataExport=new double[nCouples][3+3+3+3+1];//coordIntRef, coordIntMov,DistanceImg,distanceReal,GlobDistReal
 		double[][]dataStats=new double[4][3+3+3+3+1];//coordIntRef, coordIntMov,DistanceImg,distanceReal,GlobDistReal
-		double[]data;
+//		double[]data;
 		for(int i=0;i<nCouples;i++) {
 			//Coordinates of reference point
 			dataExport[i][0]=pointTabImg[0][i].x;
@@ -1523,10 +1519,10 @@ public class RegistrationManager{
 		return (this.initDimensions[n][m][3]*this.initDimensions[n][m][4]>1);
 	}
 	
+	@SuppressWarnings("restriction")
 	public String []checkComputerCapacity(boolean verbose) {
 		this.nbCpu=Runtime.getRuntime().availableProcessors();
 		this.jvmMemory=(int)((new Memory().maxMemory() /(1024*1024)));//Java virtual machine available memory (in Megabytes)
-		this.freeMemory=(int)(Runtime.getRuntime().freeMemory() /(1024*1024));//Java virtual machine available memory (in Megabytes)
 		this.memoryFullSize=0;
 		String []str=new String[] {"",""};
 		str[0]="Welcome to Fijiyama ! First trial ? Click on \"Contextual help\" to get started.  ";

@@ -5,21 +5,17 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.awt.Toolkit;
-import java.io.File;
 import org.itk.simple.DisplacementFieldTransform;
 import org.itk.simple.Image;
 import org.itk.simple.ResampleImageFilter;
 
 import com.vitimage.common.ItkImagePlusInterface;
 import com.vitimage.common.TransformUtils;
-import com.vitimage.common.VitiDialogs;
 import com.vitimage.common.VitimageUtils;
 import com.vitimage.fijiyama.RegistrationAction;
 
 import ij.IJ;
-import ij.ImageJ;
 import ij.ImagePlus;
-import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
 import math3d.Point3d;
 
@@ -155,7 +151,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		this.sliceInt=sliceInt;
 		this.sliceIntCorr=sliceInt;
 		this.mask=mask;
-		this.noSubScaleZ=noSubScaleZ;
 		this.blockSizeHalfX=blockHalfSizeX;
 		this.blockSizeHalfY=blockHalfSizeY;
 		this.blockSizeHalfZ=blockHalfSizeZ;
@@ -170,8 +165,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		this.blocksStrideX=strideX;
 		this.blocksStrideY=strideY;
 		this.blocksStrideZ=strideZ;
-		//TODO : verify screen height, and adjust zoomFactor in order that viewHeight < screen height/2
-		java.awt.Dimension currentScreen = Toolkit.getDefaultToolkit().getScreenSize();
 		int screenHeight=Toolkit.getDefaultToolkit().getScreenSize().height;
 		int screenWidth=Toolkit.getDefaultToolkit().getScreenSize().width;
 		zoomFactor=  (dims[0]<280 ? 0.8 : 1)*Math.min((screenHeight/2)/dims[1]  ,  (screenWidth/2)/dims[0]) ; 
@@ -362,16 +355,16 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 	
 				//Sort by variance
-				double meanVar=0;
-				for(int i=0;i<blocksRefTmp.length;i++)meanVar+=blocksRefTmp[i][0];
+				//double meanVar=0;
+				//for(int i=0;i<blocksRefTmp.length;i++)meanVar+=blocksRefTmp[i][0];
 				Arrays.sort(blocksRefTmp,new VarianceComparator());
 				timesIter[lev][iter][4]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 				
 				//Keep this.percentageBlocksSelectedByVariance
 				int lastRemoval=(nbBlocksTotal*(100-this.percentageBlocksSelectedByVariance))/100;
 				for(int bl=0;bl<lastRemoval;bl++)blocksRefTmp[bl][0]=-1;
-				meanVar=0;
-				for(int i=lastRemoval;i<blocksRefTmp.length;i++)meanVar+=blocksRefTmp[i][0];
+				//meanVar=0;
+				//for(int i=lastRemoval;i<blocksRefTmp.length;i++)meanVar+=blocksRefTmp[i][0];
 				handleOutput("Sorting blocks using variance : eliminating blocks from 0 to  "+lastRemoval+" / "+blocksRefTmp.length);
 				nbBlocksTotal=0;
 				for(int bl=0;bl<blocksRefTmp.length;bl++)if(blocksRefTmp[bl][0]>=this.minBlockVariance)nbBlocksTotal++;
@@ -487,6 +480,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 							correspondances[numThread]=correspondancesThread2; 
 						} catch(Exception ie) {}
 						} 
+						@SuppressWarnings("unused")
 						public void cancel() {interrupt();}
 					};  		
 				}				
@@ -750,26 +744,26 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		int nLevels=nBlocksPerLevel.length;
 		double nImgUpdateView=viewRegistrationLevel;
 		if(viewRegistrationLevel==2)nImgUpdateView=3.5*0.57;
-		double sumLevels=0;
+		//double sumLevels=0;
 		double sumLevels2=0;
 		double sumNbBlocks=0;
 		for(int lev=levelMax;lev>=levelMin;lev--){
-			sumLevels+= (lev<=1) ? 1 : (1.0/lev);
+			//sumLevels+= (lev<=1) ? 1 : (1.0/lev);
 			sumLevels2+= (lev<=1) ? 1 : (1.0/Math.sqrt(lev+1));
 			sumNbBlocks+=nBlocksPerLevel[levelMax-lev];
 		}
 		double alphaTrans=1E-7;
-		double alphaGlob=1E-7;
-		double alphaLev=1E-7;
-		double alphaIter=1E-7;
-		double alphaProdDense=1E-7;
+		//double alphaGlob=1E-7;
+		//double alphaLev=1E-7;
+		//double alphaIter=1E-7;
+		//double alphaProdDense=1E-7;
 		double alphaComp=300;
 		double alphaBm=0.9;
 		double alphaVar=0.14;
 		double factorTrans=1E-7;
 		double factorVarBlocks=2.5E-8;
 		double factorCompBlocks=1.6E-8;
-		double factorProdDense=1E-7;
+		//double factorProdDense=1E-7;
 		
 		double transTime=alphaTrans+nVoxels*factorTrans; // time for a transformation = constante + factor * N voxels
 		double timeUpdatesView=transTime*nImgUpdateView*1.125*(1.9+1.52*nLevels*nIterations); //time for the first update, and one for each iteration. Each updated image lies 4 transformations
@@ -815,13 +809,12 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	/**	Helper functions for trimming the correspondences
 *
 */
+	@SuppressWarnings("unchecked")
 	Object[] getCorrespondanceListAsTrimmedPointArray(ArrayList<double[][]>list,double[]voxSizes,int percentageKeepScore,int percentageKeepLTS,ItkTransform transform){
 		//Convert voxel space correspondances in real space vectors
 		boolean isLTS = (transform!=null);
 		int n=list.size();
 		int  ind=0;
-		double sumWay0=0;
-		double sumWay1=0;
 		double distance=0;
 		for(int i=0;i<n;i++)if(list.get(i)[2][1]<0)n--;
 		Point3d[][]tabPt=new Point3d[3][n];
@@ -832,7 +825,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			//If Least Trimmed Squared selection activated, compute distance from reference to moving using transform
 			if(isLTS) {
 				Point3d pt0Trans=transform.transformPoint(tabPt[0][ind]);
-				Point3d pt1Trans=transform.transformPoint(tabPt[1][ind]);
 				distance=TransformUtils.norm(new double[] {pt0Trans.x-tabPt[1][ind].x, pt0Trans.y-tabPt[1][ind].y, pt0Trans.z-tabPt[1][ind].z});
 			}
 			tabPt[2][ind]=new Point3d((tabInit[2][0]),tabInit[2][1],-distance);
@@ -856,7 +848,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		//Keep this.percentageBlocksSelectedByVariance
 		int lastRemoval=(int)Math.round(tabPt[0].length*((100-(isLTS ? percentageKeepLTS : percentageKeepScore))/100.0));
 		Point3d[][]ret=new Point3d[3][tabPt[0].length-lastRemoval];
-		ArrayList<double[][]>listRet=new ArrayList();
+		ArrayList<double[][]>listRet=new ArrayList<double[][]>();
 		for(int bl=lastRemoval;bl<tabPt[0].length;bl++) {
 			ret[0][bl-lastRemoval]=tabPt[0][bl];
 			ret[1][bl-lastRemoval]=tabPt[1][bl];
@@ -903,9 +895,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		int[]isOut=new int[tabIn.length];
 		int n=tabIn.length;
 		int n0=n;
-		boolean debug=false;
 		for(int i=0;i<tabIn.length;i++) {
-			debug=false;
 			double []vals=VitimageUtils.valuesOfBlock(imgMaskAtScale,	(int)tabIn[i][0], (int)tabIn[i][1], (int)tabIn[i][2], (int)tabIn[i][0]+bSX,  (int)tabIn[i][1]+bSY,  (int)tabIn[i][2]+bSZ);
 			for(int j=0;j<vals.length;j++) {
 				if(vals[j]<255-epsilon)isOut[i]=1;
@@ -1063,7 +1053,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
  */
 	double computeBlockScore(double[]valsFixedBlock,double[]valsMovingBlock) {
 		//if(valsFixedBlock.length!=valsMovingBlock.length)return -10E10;
-		double measure=0;
 		switch(this.metricType) {
 		case CORRELATION :return correlationCoefficient(valsFixedBlock,valsMovingBlock);
 		case SQUARED_CORRELATION :double score=correlationCoefficient(valsFixedBlock,valsMovingBlock);return (score*score);
@@ -1088,7 +1077,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		double epsilon=10E-20;
 		if(X.length !=Y.length ) {return 0;}
 		int n=X.length;
-		boolean flag=false;
 		double sum_X = 0, sum_Y = 0, sum_XY = 0; 
 		double squareSum_X = 0, squareSum_Y = 0; 	
 		for (int i = 0; i < n; i++) { 
@@ -1300,24 +1288,28 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 /** Comparators used for sorting data when trimming by score, variance or distance to computed transform
  * 
  */
+@SuppressWarnings("rawtypes")
 class PointTabComparatorByScore implements java.util.Comparator {
    public int compare(Object o1, Object o2) {
 	   return (new Double(((Point3d[]) o1)[2].x)).compareTo(new Double(((Point3d[]) o2)[2].x));
    }
 }
 
+@SuppressWarnings("rawtypes")
 class PointTabComparatorByDistanceLTS implements java.util.Comparator {
 	   public int compare(Object o1, Object o2) {
 		   return (new Double(((Point3d[]) o1)[2].z)).compareTo(new Double(((Point3d[]) o2)[2].z));
 	   }
 	}
 
+@SuppressWarnings("rawtypes")
 class VarianceComparator implements java.util.Comparator {
    public int compare(Object o1, Object o2) {
 	   return (new Double(((double[]) o1)[0])).compareTo(new Double(((double[]) o2)[0]));
    }
 }
 
+@SuppressWarnings("rawtypes")
 class ScoreComparator implements java.util.Comparator {
    public int compare(Object o1, Object o2) {
 	   return (new Double(((double[][]) o1)[2][0])).compareTo(new Double(((double[][]) o2)[2][0]));

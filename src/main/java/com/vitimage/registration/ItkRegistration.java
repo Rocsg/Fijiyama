@@ -1,5 +1,4 @@
 package com.vitimage.registration;
-//TODO common
 
 import java.util.ArrayList;
 
@@ -26,7 +25,6 @@ import org.itk.simple.RecursiveGaussianImageFilter;
 
 import ij.IJ;
 import ij.ImagePlus;
-import ij.plugin.Concatenator;
 
 public class ItkRegistration implements ItkImagePlusInterface{
 	ItkTransform additionalTransform=new ItkTransform();
@@ -52,7 +50,7 @@ public class ItkRegistration implements ItkImagePlusInterface{
 	private ImagePlus sliceView;
 	private ImagePlus sliceSummaryRef;
 	private ImagePlus sliceSummaryMov;
-	private ImagePlus summary;
+	//private ImagePlus summary;
 	private ArrayList<ImagePlus> imgMovSuccessiveResults;
 	private int viewWidth;
 	private int viewHeight;
@@ -88,7 +86,6 @@ public class ItkRegistration implements ItkImagePlusInterface{
 
 	public void freeMemory(){
 		if(registrationSummary.size()>0) {
-			for(ImagePlus img : registrationSummary) {img=null;}
 			registrationSummary=null;
 		}
 		itkImgMov=null;
@@ -105,9 +102,7 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		sliceView=null;
 		sliceSummaryRef=null;
 		sliceSummaryMov=null;
-		summary=null;
 		if(imgMovSuccessiveResults.size()>0) {
-			for(ImagePlus img : imgMovSuccessiveResults)img=null;
 			imgMovSuccessiveResults=null;
 		}
 		System.gc();

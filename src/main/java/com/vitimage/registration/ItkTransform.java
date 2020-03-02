@@ -7,12 +7,9 @@ import org.itk.simple.DisplacementFieldTransform;
 import org.itk.simple.Image;
 import org.itk.simple.ImageFileReader;
 import org.itk.simple.ImageFileWriter;
-import org.itk.simple.InterpolatorEnum;
 import org.itk.simple.MultiplyImageFilter;
-import org.itk.simple.PixelIDValueEnum;
 import org.itk.simple.ResampleImageFilter;
 import org.itk.simple.SimpleITK;
-import org.itk.simple.SimpleITKJNI;
 import org.itk.simple.Transform;
 import org.itk.simple.VectorDouble;
 import org.itk.simple.VectorIndexSelectionCastImageFilter;
@@ -25,18 +22,11 @@ import com.vitimage.common.VitimageUtils;
 
 import ij.IJ;
 import ij.ImagePlus;
-import ij.ImageStack;
-import ij.gui.GenericDialog;
 import ij.plugin.ChannelSplitter;
 import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
-import ij.plugin.GaussianBlur3D;
 import ij.plugin.HyperStackConverter;
-import ij.plugin.ImageCalculator;
 import ij.plugin.RGBStackMerge;
-import ij.process.ByteProcessor;
-import ij.process.StackConverter;
-import math3d.JacobiDouble;
 import math3d.Point3d;
 import vib.FastMatrix;
 
@@ -145,7 +135,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		//A reecrire au vu des decouvertes effectuees sur les chevrons
 		//Ce sera la deuxieme passe
 		double [][]ret;
-		double[] temp;
+		//double[] temp;
 		int nb=this.nbTransformComposed();
 		String str=transfo.toString();
 		if(nb==1) {
@@ -694,6 +684,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	public static ImagePlus getJacobian(Image denseField) {
 		DisplacementFieldJacobianDeterminantFilter df=new  DisplacementFieldJacobianDeterminantFilter();
+		@SuppressWarnings("unused")
 		Image im=df.execute(new Image(denseField));//Cette ligne produit plus tard le crash
 		ImagePlus imIJ=null;
 		return imIJ;

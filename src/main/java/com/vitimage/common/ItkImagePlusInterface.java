@@ -3,8 +3,6 @@ package com.vitimage.common;
 
 import org.itk.simple.DisplacementFieldTransform;
 import org.itk.simple.Image;
-import org.itk.simple.ImageFileReader;
-import org.itk.simple.ImageFileWriter;
 import org.itk.simple.PixelIDValueEnum;
 import org.itk.simple.VectorDouble;
 import org.itk.simple.VectorFloat;
@@ -13,7 +11,6 @@ import org.itk.simple.VectorUInt32;
 import com.vitimage.registration.ItkTransform;
 
 import ij.IJ;
-import ij.ImageJ;
 import ij.ImagePlus;
 import ij.measure.Calibration;
 import math3d.Point3d;

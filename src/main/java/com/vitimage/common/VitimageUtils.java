@@ -3,11 +3,7 @@ package com.vitimage.common;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Frame;
-import java.awt.List;
-import java.awt.Point;
-import java.awt.Rectangle;
 import java.awt.Toolkit;
-import java.awt.image.BufferedImage;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -19,55 +15,24 @@ import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.stream.Collectors;
 
-import org.itk.simple.DisplacementFieldTransform;
-import org.itk.simple.GradientImageFilter;
 import org.itk.simple.Image;
 import org.itk.simple.OtsuThresholdImageFilter;
 import org.itk.simple.RecursiveGaussianImageFilter;
-import org.itk.simple.ResampleImageFilter;
-import org.scijava.java3d.Transform3D;
-import org.scijava.vecmath.Color3f;
-import org.scijava.vecmath.Point3f;
-
-import com.vitimage.common.TransformUtils.AngleComparator;
-import com.vitimage.common.TransformUtils.VolumeComparator;
-import com.vitimage.registration.ItkTransform;
-
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
-import ij.WindowManager;
 import ij.gui.Overlay;
-import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.gui.TextRoi;
 import ij.measure.Calibration;
-import ij.plugin.ChannelSplitter;
-import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
 import ij.plugin.ImageCalculator;
 import ij.plugin.RGBStackMerge;
-import ij.plugin.filter.Analyzer;
-import ij.plugin.filter.ThresholdToSelection;
-import ij.plugin.frame.RoiManager;
-import ij.process.ByteProcessor;
-import ij.process.FloatPolygon;
-import ij.process.ImageProcessor;
-import ij.process.StackConverter;
-import inra.ijpb.binary.geodesic.GeodesicDistanceTransform3DFloat;
-import inra.ijpb.morphology.Morphology;
-import inra.ijpb.morphology.Strel3D;
 import math3d.Point3d;
-import mcib3d.image3d.ImageHandler;
-import mcib3d.image3d.processing.CannyEdge3D;
-import trainableSegmentation.FeatureStack;
-import trainableSegmentation.WekaSegmentation;
-import vib.BenesNamedPoint;
 
 public interface VitimageUtils {
 	public final static double EPSILON=0.00001;
@@ -423,7 +388,6 @@ public interface VitimageUtils {
 	 * http://repo.or.cz/w/trakem2.git?a=blob;f=mpi/fruitfly/general/MultiThreading.java;hb=HEAD 
 	 */  
 	public static Thread[] newThreadArray(int n) {  
-		int n_cpus = Runtime.getRuntime().availableProcessors();  
 		return new Thread[n];  
 	}  
 
@@ -448,8 +412,8 @@ public interface VitimageUtils {
 	
 	public static int[][]listForThreads(int nbP,int nbProc){
 		int [][]indexes=new int[nbProc][];
-		ArrayList[]arrs=new ArrayList[nbProc];
-		int nbParProc=(int)Math.ceil(nbP*1.0/nbProc);
+		@SuppressWarnings("unchecked")
+		ArrayList<Integer>[]arrs=new ArrayList[nbProc];
 		for(int pro=0;pro<nbProc;pro++) arrs[pro]=new ArrayList<Integer>();
 		for(int ind=0;ind<nbP;ind++)arrs[ind%nbProc].add(new Integer(ind));
 		for(int pro=0;pro<nbProc;pro++) {indexes[pro]=new int[arrs[pro].size()]; for (int i=0;i<arrs[pro].size();i++) indexes[pro][i]=(Integer)(arrs[pro].get(i));  }
@@ -467,7 +431,7 @@ public interface VitimageUtils {
 	
 	
 	
-	/* Converstion functions successive test. The last one is in use */	
+	/* Conversion functions successive test. The last one is in use */	
 	public static ImagePlus[]stacksFromHyperstack(ImagePlus hyper,int nb){
 		ImagePlus []ret=new ImagePlus[nb];
 		for(int i=0;i<nb;i++) {
@@ -549,7 +513,6 @@ public interface VitimageUtils {
 		if(imgIn.getType() != ImagePlus.GRAY8)return imgIn;
 		ImagePlus img=new Duplicator().run(imgIn);
 		int xM=img.getWidth();
-		int yM=img.getHeight();
 		int zM=img.getStackSize();
 		byte[][] valsImg=new byte[zM][];
 		for(int z=0;z<zM;z++) {
@@ -567,7 +530,6 @@ public interface VitimageUtils {
 		if(imgIn.getType() != ImagePlus.GRAY8)return imgIn;
 		ImagePlus img=new Duplicator().run(imgIn);
 		int xM=img.getWidth();
-		int yM=img.getHeight();
 		int zM=img.getStackSize();
 		byte[][] valsImg=new byte[zM][];
 		for(int z=z0;z<=zf;z++) {
@@ -592,7 +554,6 @@ public interface VitimageUtils {
 		double voxSY=img.getCalibration().pixelHeight;
 		double realDisX;
 		double realDisY;
-		double realDisZ;
 		byte[][] valsImg=new byte[zM][];
 		double distance;
 		for(int z=0;z<zM;z++) {
@@ -663,7 +624,6 @@ public interface VitimageUtils {
 		double[]vectCur;
 		double distanceLine;
 		float[][] valsImg=new float[zM][];
-		double distance;
 		int hit=0;
 		for(int z=0;z<zM;z++) {
 			valsImg[z]=(float [])img.getStack().getProcessor(z+1).getPixels();
@@ -709,7 +669,6 @@ public interface VitimageUtils {
 		double[]vectCur;
 		double distanceLine;
 		byte[][] valsImg=new byte[zM][];
-		double distance;
 		int hit=0;
 		for(int z=0;z<zM;z++) {
 			valsImg[z]=(byte [])img.getStack().getProcessor(z+1).getPixels();
@@ -753,7 +712,6 @@ public interface VitimageUtils {
 		double[]vectCur;
 		double distanceLine;
 		short[][] valsImg=new short[zM][];
-		double distance;
 		int hit=0;
 		for(int z=0;z<zM;z++) {
 			valsImg[z]=(short [])img.getStack().getProcessor(z+1).getPixels();
@@ -1003,7 +961,6 @@ public interface VitimageUtils {
 	}
 
 	public static double[] statistics1DNoBlack(double[] vals){
-		double epsilon=10E-8;
 		double accumulator=0;
 		int hits=0;
 		for(int i=0;i<vals.length ;i++) {if(vals[i]>=1) {accumulator+=vals[i];hits++;};}
@@ -1222,7 +1179,6 @@ public interface VitimageUtils {
 		VitimageUtils.adjustImageCalibration(imgVar, img);
 		IJ.run(imgVar,"32-bit","");
 		ImagePlus imgMask=VitimageUtils.thresholdByteImage(img, 0,1);
-		RoiManager rm=RoiManager.getRoiManager();
 		int dimZ=img.getStackSize();
 		System.out.print("Moyenne et variance dans masque ...");
 		for(int z=1;z<=dimZ;z++) {
@@ -1299,9 +1255,6 @@ public interface VitimageUtils {
 		int xM=img.getWidth();
 		int yM=img.getHeight();
 		int zM=img.getStackSize();
-		double voxSX=img.getCalibration().pixelWidth;
-		double voxSY=img.getCalibration().pixelHeight;
-		double voxSZ=img.getCalibration().pixelDepth;
 		int hit=0;
 		byte[]valsImg;
 		for(int z=0;z<zM;z++) {
@@ -1362,9 +1315,6 @@ public interface VitimageUtils {
 		int xM=img.getWidth();
 		int yM=img.getHeight();
 		int zM=img.getStackSize();
-		double voxSX=img.getCalibration().pixelWidth;
-		double voxSY=img.getCalibration().pixelHeight;
-		double voxSZ=img.getCalibration().pixelDepth;
 		int hit=0;
 		short[]valsImg;
 		for(int z=0;z<zM;z++) {
@@ -1389,9 +1339,6 @@ public interface VitimageUtils {
 		int xM=img.getWidth();
 		int yM=img.getHeight();
 		int zM=img.getStackSize();
-		double voxSX=img.getCalibration().pixelWidth;
-		double voxSY=img.getCalibration().pixelHeight;
-		double voxSZ=img.getCalibration().pixelDepth;
 		int hit=0;
 		float[]valsImg;
 		for(int z=0;z<zM;z++) {
@@ -1789,7 +1736,6 @@ public interface VitimageUtils {
 		int nData;
 		int[]vals;
 		String[]strFile=null;
-		String[]strLine=null;
 		try {
 			 String str= Files.lines(Paths.get(fParam.getAbsolutePath()) ).collect(Collectors.joining("\n"));
 			 strFile=str.split("\n");
@@ -1818,7 +1764,6 @@ public interface VitimageUtils {
 		int nData;
 		double[]vals;
 		String[]strFile=null;
-		String[]strLine=null;
 		try {
 			 String str= Files.lines(Paths.get(fParam.getAbsolutePath()) ).collect(Collectors.joining("\n"));
 			 strFile=str.split("\n");
@@ -2289,14 +2234,12 @@ public interface VitimageUtils {
 		int xMax=img.getWidth();
 		int yMax=img.getHeight();
 		int zMax=img.getStackSize();
-		int hit=0;
 		if(img.getType() == ImagePlus.GRAY8) {
 			for(int z=0;z<zMax;z++) {
 				byte[]valsImg=(byte [])out.getStack().getProcessor(z+1).getPixels();
 				for(int x=0;x<xMax;x++) {
 					for(int y=0;y<yMax;y++) {
 						if(  ((int) ( ((byte)valsImg[xMax*y+x])  & 0xff) ==valueBefore ) ) {
-							hit++;
 							valsImg[xMax*y+x]=(byte)( valueAfter &0xff);
 						}
 					}
@@ -2309,7 +2252,6 @@ public interface VitimageUtils {
 				for(int x=0;x<xMax;x++) {
 					for(int y=0;y<yMax;y++) {
 						if(  ((int) ( ((short)valsImg[xMax*y+x])  & 0xffff) ==valueBefore ) ) {
-							hit++;
 							valsImg[xMax*y+x]=(short)( valueAfter &0xffff);
 						}
 					}
@@ -2365,7 +2307,6 @@ public interface VitimageUtils {
 		IJ.run(ret,"32-bit","");
 		float[][] out=new float[ret.getStackSize()][];
 		short[][] in=new short[imgIn.getStackSize()][];
-		int index;
 		int X=imgIn.getWidth();
 		for(int z=0;z<imgIn.getStackSize();z++) {
 			out[z]=(float []) ret.getStack().getProcessor(z+1).getPixels();
@@ -2408,7 +2349,6 @@ public interface VitimageUtils {
 
 		float[][] out=new float[ret.getStackSize()][];
 		byte[][] in=new byte[imgIn.getStackSize()][];
-		int index;
 		int X=imgIn.getWidth();
 		for(int z=0;z<imgIn.getStackSize();z++) {
 			out[z]=(float []) ret.getStack().getProcessor(z+1).getPixels();

@@ -7,9 +7,7 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
-import ij.io.DirectoryChooser;
 import ij.io.OpenDialog;
-import ij.io.Opener;
 import ij.io.SaveDialog;
 import ij.plugin.Duplicator;
 import ij.plugin.frame.RoiManager;
@@ -42,7 +40,7 @@ public interface VitiDialogs {
 	public static ImagePlus chooseOneImageUI(String strGuess,String strImg1) {
 			ImagePlus imgRet;
 			String open="Select this option to select image into a dialog";
-			int index1,index2;
+			int index1;
 			int[] wList = WindowManager.getIDList();
 			String[] titles=(wList==null) ? new String[1] : new String[wList.length+1] ;
 			titles[0]=open;
@@ -197,8 +195,6 @@ public interface VitiDialogs {
 	 * UI generic functions to open other files : directories, roiset, transforms
 	 * */
 	public static String chooseDirectoryNiceUI(String strGuess,String strApproveButton){
-		DirectoryChooser dc=new DirectoryChooser(strGuess);
-		
 		JFileChooser jf=new JFileChooser();
 		jf.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
 		jf.setDialogTitle(strGuess);
@@ -249,10 +245,7 @@ public interface VitiDialogs {
 	 }
 		
 	public static ItkTransform chooseOneTransformsUI(String strGuess,String path,boolean autonomyLevel){
-		if(autonomyLevel==AUTOMATIC) {
-			return ItkTransform.readTransformFromFile(path);
-		}
-		ItkTransform globalTransform = null;
+		if(autonomyLevel==AUTOMATIC) return ItkTransform.readTransformFromFile(path);
 		OpenDialog od=new OpenDialog(strGuess);
 		return(ItkTransform.readTransformFromFile(od.getPath()));
 	 }

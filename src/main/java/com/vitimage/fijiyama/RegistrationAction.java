@@ -7,8 +7,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-import org.apache.commons.math3.transform.TransformType;
-
 import com.vitimage.common.VitimageUtils;
 import com.vitimage.registration.OptimizerType;
 import com.vitimage.registration.Transform3DType;
@@ -17,6 +15,7 @@ import ij.IJ;
 import ij.ImagePlus;
 
 public class RegistrationAction implements Serializable{
+	private static final long serialVersionUID = 6L;
 	private boolean isDone=false;
 	public String nameAction;
 	public String nameSubject;
@@ -192,9 +191,7 @@ public class RegistrationAction implements Serializable{
 			levelMaxLinear= levelMaxLinear<levelMin ? levelMin : levelMaxLinear;
 		}
 		int subFactorMin=(int)Math.round(Math.pow(2, -1+Math.max(1,levelMin)));
-		int subFactorMax=(int)Math.round(Math.pow(2, -1+Math.max(1,levelMaxLinear)));
 		int []targetDimsLevelMin=new int[] {dimsTemp[0]/subFactorMin,dimsTemp[1]/subFactorMin,dimsTemp[2]/(subZ ? subFactorMin : 1)};
-		int []targetDimsLevelMax=new int[] {dimsTemp[0]/subFactorMax,dimsTemp[1]/subFactorMax,dimsTemp[2]/(subZ ? subFactorMin : 1)};
 
 		int[]strides=new int[] { (int) Math.round(Math.max(1,Math.ceil(targetDimsLevelMin[0]/nbStrideAtMaxLevel))),
 								 (int) Math.round(Math.max(1,Math.ceil(targetDimsLevelMin[1]/nbStrideAtMaxLevel))),

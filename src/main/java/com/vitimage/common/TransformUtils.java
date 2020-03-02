@@ -1,33 +1,6 @@
 package com.vitimage.common;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.stream.Collectors;
-
-import com.vitimage.registration.ItkTransform;
-
-import ij.IJ;
 import ij.ImagePlus;
-import ij.ImageStack;
-import ij.Prefs;
-import ij.gui.GenericDialog;
-import ij.gui.Roi;
-import ij.measure.Calibration;
-import ij.plugin.Duplicator;
-import ij.plugin.GaussianBlur3D;
-import ij.plugin.frame.RoiManager;
-import ij.process.ByteProcessor;
-import ij.process.FloatPolygon;
-import ij.process.ImageProcessor;
-import ij.process.StackConverter;
 import imagescience.transform.Transform;
 import math3d.Point3d;
 
@@ -97,12 +70,14 @@ public interface TransformUtils {
 	}
 
 
+	@SuppressWarnings("rawtypes")
 	class VolumeComparator implements java.util.Comparator {
 		   public int compare(Object o1, Object o2) {
 		      return ((Double) ((Object[]) o1)[0]).compareTo((Double)((Object[]) o2)[0]);
 		   }
 		}
 	
+	@SuppressWarnings("rawtypes")
 	class AngleComparator implements java.util.Comparator {
 	   public int compare(Object o1, Object o2) {
 	      return ((Double) ((Double[]) o1)[2]).compareTo((Double)((Double[]) o2)[2]);

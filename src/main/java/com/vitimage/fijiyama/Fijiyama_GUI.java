@@ -1,9 +1,7 @@
 package com.vitimage.fijiyama;
-//TODO fijiyama
 
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.Frame;
 import java.awt.GridLayout;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
@@ -34,7 +32,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTextArea;
 
-import org.itk.simple.BoxMeanImageFilter;
 import org.scijava.java3d.Transform3D;
 
 import com.vitimage.common.TransformUtils;
@@ -98,10 +95,6 @@ import ij.plugin.frame.RoiManager;
  * 
  */
 
-//TODO: 
-//TODO: 
-
-
 
 
 public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
@@ -160,7 +153,6 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	private static final int RUNSERIE=112;
 	private static final int RUNTRANS=113;
 	private static final int RUNTRANSCOMP=114;
-	private static final int SOSINIT=115;
 
 	//Identifiers for buttons of registration serie
 	private static final int RUNNEXTSTEP=131;
@@ -252,7 +244,6 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	private final int waitingTimeHyperImage=30;
 
 
-	private volatile boolean pipelineValidated=false;
 	protected boolean comboBoxChanged=false;
 	private RegistrationManager regManager;
 	
@@ -284,8 +275,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	}
 
 	public static void main(String[]args) {//TestMethod
+		@SuppressWarnings("unused")
 		ImageJ ij=new ImageJ();
-		ij.show();
 		Fijiyama_GUI reg=new Fijiyama_GUI();
 		reg.timeVersionFlag="Release time : "+new SimpleDateFormat("yyyy-MM-dd - hh:mm").format(new Date());
 		reg.versionFlag=reg.versionName+reg.timeVersionFlag;
@@ -731,7 +722,6 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public void performActionInProgrammingSerieInterface(ActionEvent e) {
 		IJ.log("Action performed in serie prog");
 		if(e.getSource()==validatePipelineButton) {
-			this.pipelineValidated=true;
 			regManager.defineSerieRegistrationPipeline("SEND FROM INTERFACE");
 		}
 		
@@ -777,6 +767,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	}	
 	
 	/* Listener of the running serie and running two images parts **********************************************************************************************/
+	@SuppressWarnings("deprecation")
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		logActionEvent(e);
@@ -1920,7 +1911,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(e.getKeyCode()==101) {regManager.universe.getSelected().applyTranslation(0, 0, (float)(-vectTrans[0]));return;}
 
 		//Rotations
-		Transform3D tr=null;double[]tab=new double[16];
+		Transform3D tr=null;
 		double[]angles=new double[3];		
 		if(e.getKeyCode()==79)angles[1]=angle;
 		if(e.getKeyCode()==80)angles[1]=-angle;
