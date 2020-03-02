@@ -89,12 +89,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	
 	/* Conversions of Transformations*/	
-	public static imagescience.transform.Transform itkTransformToIjTransform(ItkTransform tr) {
-		double[][]tab=tr.toAffineArrayRepresentation();
-		imagescience.transform.Transform ret=new imagescience.transform.Transform();
-		ret.set(tab);
-		return ret;
-	}
 
 	public static Transform3D itkTransformToIj3dTransform(ItkTransform tr) {
 		double[]tab=tr.toAffineArrayMonolineRepresentation();
@@ -103,11 +97,11 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return ret;
 	}
 
-	public static ItkTransform ijTransformToItkTransform(imagescience.transform.Transform tr) {
-		org.itk.simple.AffineTransform aff=new org.itk.simple.AffineTransform(
-				ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {tr.get(0,0),tr.get(0,1),tr.get(0,2),  tr.get(1,0),tr.get(1,1),tr.get(1,2),    tr.get(2,0),tr.get(2,1),tr.get(2,2) } ),
-				ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {tr.get(0,3),tr.get(1,3),tr.get(2,3)} ),   ItkImagePlusInterface.doubleArrayToVectorDouble(   new double[] {0,0,0}  )  );
-		return new ItkTransform(aff);
+	public static ItkTransform ij3dTransformToItkTransform(Transform3D tr) {
+		double[]tab=new double[16];
+		tr.get(tab);
+		ItkTransform itkTr=itkTransformFromCoefs(tab);
+		return itkTr;
 	}
 
 	public static ItkTransform fastMatrixToItkTransform(FastMatrix fm) {
@@ -131,27 +125,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return new ItkTransform(aff);
 	}
 
-	public double[] itkTransformToArray(org.itk.simple.Transform transfo) {
-		//A reecrire au vu des decouvertes effectuees sur les chevrons
-		//Ce sera la deuxieme passe
-		double [][]ret;
-		//double[] temp;
-		int nb=this.nbTransformComposed();
-		String str=transfo.toString();
-		if(nb==1) {
-			return(itkTransformStepToArray(str.substring(str.indexOf("\n"))));
-		}
-		else {
-			String []tab1=str.split("<<<<<<<<<<");
-			String[] transforms=tab1[0].split(">>>>>>>>>");
-			double[][]tabMat=new double[transforms.length-1][12];
-			for(int i=1;i<transforms.length;i++) {
-				tabMat[i-1]=itkTransformStepToArray(transforms[i]) ;
-			}
-			ret=TransformUtils.composeMatrices(tabMat);
-			return ret[0];
-		}
-	}
 
 	public double[] toAffineArrayMonolineRepresentation() {
 		double [][]tabTemp=toAffineArrayRepresentation();
@@ -785,8 +758,8 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	public ItkTransform simplify() {
 		double[][]transArray=this.toAffineArrayRepresentation();
-		imagescience.transform.Transform transIj=new imagescience.transform.Transform(transArray);
-		return ItkTransform.ijTransformToItkTransform(transIj);		
+		Transform3D transIj=new Transform3D(this.toAffineArrayMonolineRepresentation());
+		return ItkTransform.ij3dTransformToItkTransform(transIj);		
 	}
 	
 	public ItkTransform getInverseOfDenseField() {

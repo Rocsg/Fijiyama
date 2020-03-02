@@ -1,7 +1,7 @@
 package com.vitimage.common;
 
 import ij.ImagePlus;
-import imagescience.transform.Transform;
+//import imagescience.transform.Transform;
 import math3d.Point3d;
 
 
@@ -238,57 +238,6 @@ public interface TransformUtils {
 	}
 	
 
-	public static double[][]composeMatrices(Transform[]matricesToCompose){
-		 double [][]matRet=new double[2][12];
-		 Transform transGlobal=new Transform();
-		 Transform transInd;
-		 System.out.println("Et matrices to Compose fait tant de long : "+matricesToCompose.length);
-		 for(int tr=0;tr<matricesToCompose.length;tr++) {
-			 transInd=matricesToCompose[tr];
-			 System.out.println("TransIND 1/2= :");
-   		for(int ii=0;ii<3;ii++){
-   			System.out.println("[ "+transInd.get(ii,0)+"  "+transInd.get(ii,1)+"  "+transInd.get(ii,2)+"  "+transInd.get(ii,3)+" ]");
-       	}
-			System.out.println("");
-	    		
-		 	transInd.transform(transGlobal);
-		 	System.out.println("TransIND 2/2= :");
-   		for(int ii=0;ii<3;ii++){
-				System.out.println("[ "+transInd.get(ii,0)+"  "+transInd.get(ii,1)+"  "+transInd.get(ii,2)+"  "+transInd.get(ii,3)+" ]");
-       	}
-			System.out.println("");
-			 transGlobal=new Transform(transInd);			 
-		 }
-
-		 transInd=new Transform(transGlobal);
-		 transInd.invert();
-		 matRet[0]=transformToArray(transGlobal);
-		 matRet[1]=transformToArray(transInd);
-		 return matRet;
-	 }
-	 
-	public static double[][]composeMatrices(double[][]matricesToCompose){
-		Transform[] trans=new Transform[matricesToCompose.length];
-		for(int i=0;i<matricesToCompose.length;i++)trans[i]=arrayToTransform(matricesToCompose[i]);
-		return (composeMatrices(trans));
-	 }
-	 
-	
-	public static double[]transformToArray(Transform transGlobal){
-	 	double[]ret=new double[]{transGlobal.get(0,0) ,transGlobal.get(0,1) ,transGlobal.get(0,2) ,transGlobal.get(0,3) ,
-	 							 transGlobal.get(1,0) ,transGlobal.get(1,1) ,transGlobal.get(1,2) ,transGlobal.get(1,3) ,
- 							 	 transGlobal.get(2,0) ,transGlobal.get(2,1) ,transGlobal.get(2,2) ,transGlobal.get(2,3)
- 							 	 };
-		 return (ret);
-	 }
-	
-	public static Transform arrayToTransform(double[]mat){
-	 	Transform tr=new Transform();
-	 	for(int j=0;j<12;j++) {
-	 		tr.set(j/4,j%4,mat[j]);	 	
-	 	}
-	 	return tr;
- 	}
 
 	
 }

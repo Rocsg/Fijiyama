@@ -1149,7 +1149,7 @@ public class RegistrationManager{
 		ItkTransform itTrans=ItkTransform.array16ElementsToItkTransform(tab);
 		itTrans.addTransform(itRot);
 		itTrans=itTrans.simplify();
-		ItkTransform trMov=new ItkTransform(itTrans.getInverse());
+	ItkTransform trMov=new ItkTransform(itTrans.getInverse());
 
 		//Collect transform applied to ref
 		tr=new Transform3D();
@@ -1405,6 +1405,9 @@ public class RegistrationManager{
 		Concatenator con=new Concatenator();
 		con.setIm5D(true);
 		ImagePlus hyperImage=HyperStackConverter.toHyperStack(con.concatenate(hyperImg,false), nMods, referenceGeometryForTransforms.getStackSize(),nTimes,"xyztc","Grayscale");
+		
+		if(WindowManager.getImage(fijiyamaGui.displayedNameCombinedImage) != null) {WindowManager.getImage(fijiyamaGui.displayedNameCombinedImage).close();}
+		
 		hyperImage.show();
 		VitimageUtils.waitFor(1000);
 		hyperImage.setTitle(fijiyamaGui.displayedNameCombinedImage);
@@ -1485,7 +1488,7 @@ public class RegistrationManager{
 		else {
 			if(regAct.typeOpt==OptimizerType.BLOCKMATCHING) {
 				return (int)Math.round(BlockMatchingRegistration.estimateRegistrationDuration(
-					dimensions[regAct.refTime][regAct.refMod],regAct.typeAutoDisplay,regAct.levelMin,regAct.typeTrans==Transform3DType.DENSE ? regAct.levelMaxDense : regAct.levelMaxLinear,
+					dimensions[regAct.refTime][regAct.refMod],regAct.typeAutoDisplay,regAct.typeTrans==Transform3DType.DENSE ? regAct.levelMinDense : regAct.levelMaxLinear,regAct.typeTrans==Transform3DType.DENSE ? regAct.levelMaxDense : regAct.levelMaxLinear,
 							regAct.typeTrans==Transform3DType.DENSE ? regAct.iterationsBMDen : regAct.iterationsBMLin,regAct.typeTrans,
 					new int[] {regAct.bhsX,regAct.bhsY,regAct.bhsZ},   new int[] {regAct.strideX,regAct.strideY,regAct.strideZ},
 					new int[] {regAct.neighX,regAct.neighY,regAct.neighZ},
@@ -1494,7 +1497,7 @@ public class RegistrationManager{
 			}
 			else {
 				return ItkRegistration.estimateRegistrationDuration(
-					this.imageParameters,regAct.typeAutoDisplay,regAct.iterationsITK, regAct.levelMin,regAct.levelMaxLinear);
+					this.imageParameters,regAct.typeAutoDisplay,regAct.iterationsITK, regAct.typeTrans==Transform3DType.DENSE ? regAct.levelMinDense : regAct.levelMinLinear,regAct.levelMaxLinear);
 			}
 		}
 	}
@@ -1663,6 +1666,17 @@ public class RegistrationManager{
 	public void updateNbSteps() {
 		this.nSteps=regActions.size();
 	}
+
 	
+	public void freeMemory() {
+		if(images!=null)for(int i=0;i<images.length;i++)for(int j=0;j<images[i].length;j++)images[i][j]=null;
+		images=null;
+		if(transforms!=null)for(int i=0;i<transforms.length;i++)for(int j=0;j<transforms[i].length;j++)transforms[i][j].clear();
+		transforms=null;
+		if(trActions!=null)trActions.clear();
+		trActions=null;		
+		System.gc();
+
+	}
 
 }

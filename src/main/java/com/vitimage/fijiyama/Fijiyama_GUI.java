@@ -238,7 +238,6 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public int[] lastViewSizes=new int[] {700,700};//Only useful for serie running
 	public final String displayedNameImage1="Image 1";
 	public final String displayedNameImage2="Image 2";
-	public final String displayedNameImage3="Image 3";
 	public final String displayedNameCombinedImage="Data_combined";
 	public final String displayedNameHyperImage="Data_combined";
 	private final int waitingTimeHyperImage=30;
@@ -580,8 +579,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		registrationFrame.addWindowListener(new WindowAdapter(){
              public void windowClosing(WindowEvent e){
                    IJ.showMessage("See you next time !");
-                   System.exit(0);
-             }
+                   registrationFrame.setVisible(false);
+                   regManager.freeMemory();
+                   closeAllViews();
+               }
 		});
 		updateList();
 		if(modeWindow!=WINDOWSERIERUNNING) updateBoxFieldsToCoherenceAndApplyToRegistrationAction(true);
@@ -633,7 +634,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		frameLaunch.addWindowListener(new WindowAdapter(){
             public void windowClosing(WindowEvent e){                  
                   IJ.showMessage("See you next time !");
-                  System.exit(0);
+                  regManager.freeMemory();
+                  closeAllViews();
             }
 		});
 		frameLaunch.setVisible(true);
@@ -694,12 +696,16 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			modeWindow=WINDOWSERIEPROGRAMMING;
 			if(regManager.startSetupSerieFromScratch(0,null)) {}
 			else {actualizeLaunchingInterface(true);modeWindow=WINDOWIDLE;}
+			frameLaunch.setVisible(false);
 		}
 		
 		else if(e.getSource()==this.loadFjmButton) {
 			String path=regManager.openFjmFileAndGetItsPath();
 			if(path!=null)regManager.setupFromFjmFile(path);
-			else return;
+			else {
+				frameLaunch.setVisible(false);
+				return;
+			}
 			if(this.mode==MODE_SERIE) {
 				startSerie();
 				modeWindow=WINDOWSERIERUNNING;
@@ -713,16 +719,17 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		
 		else if(e.getSource()==this.transformButton) {
 			ItkTransform.transformImageWithGui();
+			frameLaunch.setVisible(false);
 		}
 		
 		else if(e.getSource()==this.composeTransformsButton) {
 			ItkTransform.composeTransformsWithGui();
+			frameLaunch.setVisible(false);
 		}
 	}
 	
 	/* Listeners for serie programming interface*/
 	public void performActionInProgrammingSerieInterface(ActionEvent e) {
-		IJ.log("Action performed in serie prog");
 		if(e.getSource()==validatePipelineButton) {
 			regManager.defineSerieRegistrationPipeline("SEND FROM INTERFACE");
 		}
@@ -744,13 +751,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 				 (e.getSource()==boxTypeTrans  && boxTypeTrans.hasFocus())  ||
 				 (e.getSource()==boxDisplay    && boxDisplay.hasFocus())    ||
 				 (e.getSource()==boxDisplayMan)&& boxDisplayMan.hasFocus()) ) {		
-			IJ.log("registered a box action");
 			if(modeWindow==WINDOWTWOIMG && (boxTypeAction.getSelectedIndex()>2) && (boxTypeAction.getSelectedIndex()!=RegistrationAction.TYPEACTION_EVALUATE)) {
 				boxTypeAction.setSelectedIndex(0);
 			}
-			regManager.printRegActions("Before click in gui",regManager.regActions);
 			boxClikedInGui();
-			regManager.printRegActions("After click in gui",regManager.regActions);
 			updateEstimatedTime();
 		}
 		/*Settings and parameters modification*/		
@@ -1540,6 +1544,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if (WindowManager.getImage(displayedNameImage2)!=null)WindowManager.getImage(displayedNameImage2).close();
 		if (RoiManager.getInstance()!=null)RoiManager.getInstance().close();
 		if (regManager.universe!=null) regManager.universe.close();
+		if(WindowManager.getImage(displayedNameCombinedImage)!=null)WindowManager.getImage(displayedNameCombinedImage).close();
 	}	
 	
 	public void undoButtonPressed() {

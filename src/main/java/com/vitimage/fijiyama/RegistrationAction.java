@@ -43,7 +43,8 @@ public class RegistrationAction implements Serializable{
 	public Transform3DType typeTrans=Transform3DType.RIGID;;
 	public double sigmaResampling=0;
 	public double sigmaDense=0;
-	public int levelMin=2;
+	public int levelMinLinear=2;
+	public int levelMinDense=2;
 	public int levelMaxDense=2;
 	public int levelMaxLinear=2;
 	public int higherAcc=0;
@@ -92,7 +93,8 @@ public class RegistrationAction implements Serializable{
 		typeTrans=regAct.typeTrans;
 		sigmaResampling=regAct.sigmaResampling;
 		sigmaDense=regAct.sigmaDense;
-		levelMin=regAct.levelMin;
+		levelMinLinear=regAct.levelMinLinear;
+		levelMinDense=regAct.levelMinDense;
 		levelMaxDense=regAct.levelMaxDense;
 		levelMaxLinear=regAct.levelMaxLinear;
 		higherAcc=regAct.higherAcc;
@@ -130,8 +132,8 @@ public class RegistrationAction implements Serializable{
 		this.movTime=regManager.movTime;
 		if(this.levelMaxLinear>regManager.maxAcceptableLevel)this.levelMaxLinear=regManager.maxAcceptableLevel;
 		if(this.levelMaxDense>regManager.maxAcceptableLevel)this.levelMaxDense=regManager.maxAcceptableLevel;
-		if(this.typeTrans==Transform3DType.DENSE && this.levelMin>this.levelMaxDense) this.levelMin=this.levelMaxDense;
-		if(( this.typeTrans!=Transform3DType.DENSE ) && this.levelMin>this.levelMaxLinear) this.levelMin=this.levelMaxLinear;			
+		if(this.typeTrans==Transform3DType.DENSE && this.levelMinDense>this.levelMaxDense) this.levelMinDense=this.levelMaxDense;
+		if(( this.typeTrans!=Transform3DType.DENSE ) && this.levelMinLinear>this.levelMaxLinear) this.levelMinLinear=this.levelMaxLinear;			
 	}	
 	
 	
@@ -149,7 +151,8 @@ public class RegistrationAction implements Serializable{
 		double[]sizesTemp=new double[] {dimsTemp[0]*voxsTemp[0],dimsTemp[1]*voxsTemp[1],dimsTemp[2]*voxsTemp[2]};				
 		sigmaDense=sizesTemp[0]/12;//Default : gaussian kernel for dense field estimation is 12 times smaller than image
 		double anisotropyVox=voxsTemp[2]/Math.max(voxsTemp[1],voxsTemp[0]);
-		this.levelMin=0;
+		this.levelMinLinear=0;
+		this.levelMinDense=0;
 		this.levelMaxLinear=0;
 		this.levelMaxDense=0;
 		boolean subZ=false;
@@ -168,12 +171,12 @@ public class RegistrationAction implements Serializable{
 			dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-maxSubResolutionImageSizeLog2),
 		              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-maxSubResolutionImageSizeLog2),
 	              	  (int)Math.floor(Math.log(dimsTemp[2])/Math.log(2)-maxSubResolutionImageSizeLog2)};
-			levelMin=Math.max(Math.max(dimsLog2[0], dimsLog2[1]), dimsLog2[2]);	
-			if(levelMin>levelMaxLinear)levelMin=levelMaxLinear;
+			levelMinLinear=Math.max(Math.max(dimsLog2[0], dimsLog2[1]), dimsLog2[2]);	
+			if(levelMinLinear>levelMaxLinear)levelMinLinear=levelMaxLinear;
 			subsampleZ=1;
-			higherAcc=levelMin<1 ? 1 : 0;
-			levelMin=levelMin<1 ? 1 : levelMin;
-			levelMaxLinear= levelMaxLinear<levelMin ? levelMin : levelMaxLinear;
+			higherAcc=levelMinLinear<1 ? 1 : 0;
+			levelMinLinear=levelMinLinear<1 ? 1 : levelMinLinear;
+			levelMaxLinear= levelMaxLinear<levelMinLinear ? levelMinLinear : levelMaxLinear;
 		}
 		else {	
 			//If dimZ<5, case 2D --> no subsampleZ, levelMin and max defined using dimX and dimY, neighZ=0 BHSZ=0 strideZ=1;
@@ -183,14 +186,14 @@ public class RegistrationAction implements Serializable{
 			levelMaxLinear=Math.min(dimsLog2[0], dimsLog2[1]);
 			dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-maxSubResolutionImageSizeLog2),
 			    (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-maxSubResolutionImageSizeLog2)};
-			levelMin=Math.max(dimsLog2[0], dimsLog2[1]);	
-			if(levelMin>levelMaxLinear)levelMin=levelMaxLinear;
+			levelMinLinear=Math.max(dimsLog2[0], dimsLog2[1]);	
+			if(levelMinLinear>levelMaxLinear)levelMinLinear=levelMaxLinear;
 			subsampleZ=0;
-			higherAcc=levelMin<1 ? 1 : 0;
-			levelMin=levelMin<1 ? 1 : levelMin;
-			levelMaxLinear= levelMaxLinear<levelMin ? levelMin : levelMaxLinear;
+			higherAcc=levelMinLinear<1 ? 1 : 0;
+			levelMinLinear=levelMinLinear<1 ? 1 : levelMinLinear;
+			levelMaxLinear= levelMaxLinear<levelMinLinear ? levelMinLinear : levelMaxLinear;
 		}
-		int subFactorMin=(int)Math.round(Math.pow(2, -1+Math.max(1,levelMin)));
+		int subFactorMin=(int)Math.round(Math.pow(2, -1+Math.max(1,levelMinLinear)));
 		int []targetDimsLevelMin=new int[] {dimsTemp[0]/subFactorMin,dimsTemp[1]/subFactorMin,dimsTemp[2]/(subZ ? subFactorMin : 1)};
 
 		int[]strides=new int[] { (int) Math.round(Math.max(1,Math.ceil(targetDimsLevelMin[0]/nbStrideAtMaxLevel))),
@@ -210,10 +213,11 @@ public class RegistrationAction implements Serializable{
 		if(modifyMaxLevelOfManager){
 			regManager.maxAcceptableLevel=levelMaxLinear;			
 			if(this.levelMaxLinear>regManager.maxAcceptableLevel)this.levelMaxLinear=regManager.maxAcceptableLevel;
-			if(this.levelMin>this.levelMaxLinear)this.levelMin=this.levelMaxLinear;
+			if(this.levelMinLinear>this.levelMaxLinear)this.levelMinLinear=this.levelMaxLinear;
 		}
 		if(this.levelMaxLinear>1)this.levelMaxDense=this.levelMaxLinear-1;
 		else this.levelMaxDense=1;
+		this.levelMinDense=this.levelMinLinear;
 		return this;
 	}
 
@@ -295,7 +299,7 @@ public class RegistrationAction implements Serializable{
 		}
 		if (typeAction==TYPEACTION_AUTO) {
 			str+=( (typeOpt==OptimizerType.BLOCKMATCHING)?" BM" : " ITK");
-			str+=" levs="+(typeTrans==Transform3DType.DENSE ? levelMaxDense : levelMaxLinear)+"->"+(higherAcc==1 ? -1 : levelMin); 
+			str+=" levs="+(typeTrans==Transform3DType.DENSE ? (levelMaxDense+"->"+(higherAcc==1 ? -1 : levelMinDense)) : (levelMaxLinear+"->"+(higherAcc==1 ? -1 : levelMinLinear))); 
 			if (typeTrans==Transform3DType.DENSE) str+=" sigma="+sigmaDense;
 			if (typeOpt==OptimizerType.BLOCKMATCHING) {
 				str+=" it="+(typeTrans==Transform3DType.DENSE ? iterationsBMDen: iterationsBMLin)+" bh="+bhsX+" nei="+neighX+" strd="+strideX;
@@ -381,7 +385,7 @@ public class RegistrationAction implements Serializable{
 		str+="#TypeTrans="+(typeTrans==Transform3DType.RIGID ? 0 : typeTrans==Transform3DType.SIMILARITY ? 1 : 2)+"\n";
 		str+="#SigmaResampling="+sigmaResampling+"\n";
 		str+="#SigmaDense="+sigmaDense+"\n";
-		str+="#LevelMin="+levelMin+"\n";
+		str+="#LevelMinLinear="+levelMinLinear+"\n";
 		str+="#LevelMaxLinear="+levelMaxLinear+"\n";
 		str+="#HigherAcc="+higherAcc+"\n";
 		str+="#IterationsBMLinear="+iterationsBMLin+"\n";
@@ -403,6 +407,7 @@ public class RegistrationAction implements Serializable{
 		str+="#LearningRate="+learningRate+"\n";
 		str+="#LevelMaxDense="+levelMaxDense+"\n";
 		str+="#IterationsBMDense="+iterationsBMDen+"\n";
+		str+="#LevelMinDense="+levelMinDense+"\n";
 		VitimageUtils.writeStringInFile(str,path);
 	}
 
@@ -427,7 +432,7 @@ public class RegistrationAction implements Serializable{
 		reg.typeTrans=Integer.parseInt(lines[14])==0 ? Transform3DType.RIGID : Integer.parseInt(lines[14])==1 ? Transform3DType.SIMILARITY : Transform3DType.DENSE;
 		reg.sigmaResampling=Double.parseDouble(lines[15]);
 		reg.sigmaDense=Double.parseDouble(lines[16]);
-		reg.levelMin =Integer.parseInt(lines[17]);
+		reg.levelMinLinear =Integer.parseInt(lines[17]);
 		reg.higherAcc =Integer.parseInt(lines[19]);
 		reg.iterationsITK  =Integer.parseInt(lines[21]);
 		reg.neighX  =Integer.parseInt(lines[22]);
@@ -449,6 +454,7 @@ public class RegistrationAction implements Serializable{
 		reg.levelMaxDense=Integer.parseInt(lines[37]);
 		reg.iterationsBMLin=Integer.parseInt(lines[20]);
 		reg.iterationsBMDen=Integer.parseInt(lines[38]);
+		reg.levelMinDense=Integer.parseInt(lines[39]);
 		return reg;
 	}
 	
@@ -456,6 +462,11 @@ public class RegistrationAction implements Serializable{
 	public int getLevelMax() {
 		if(typeTrans==Transform3DType.DENSE) return levelMaxDense;
 		else return levelMaxLinear;
+	}
+	
+	public int getLevelMin() {
+		if(typeTrans==Transform3DType.DENSE) return levelMinDense;
+		else return levelMinLinear;
 	}
 	
 	
@@ -476,6 +487,16 @@ public class RegistrationAction implements Serializable{
 		}
 	}
 	
+	
+	
+	public void setLevelMin(int lev) {
+		if(typeTrans==Transform3DType.DENSE) {
+			levelMinDense=lev;
+		}
+		else {
+			levelMinLinear=lev;
+		}
+	}
 	
 
 	public void setIterationsBM(int it) {
