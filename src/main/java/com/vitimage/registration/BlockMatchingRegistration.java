@@ -131,6 +131,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		this.transformationType=transformationType;
 		this.levelMin=levelMin;
 		this.levelMax=levelMax;
+		if(this.levelMin>this.levelMax)this.levelMin=this.levelMax;
 		this.nbLevels=levelMax-levelMin+1;
 		this.denseFieldSigma=denseFieldSigma;
 		this.nbIterations=nbIterations;
@@ -175,7 +176,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 	public static BlockMatchingRegistration setupBlockMatchingRegistration(ImagePlus imgRef,ImagePlus imgMov,RegistrationAction regAct) {
 		return new BlockMatchingRegistration(imgRef,imgMov,regAct.typeTrans,MetricType.SQUARED_CORRELATION,
-				regAct.sigmaResampling,regAct.sigmaDense , regAct.higherAcc==1 ? -1 : regAct.levelMin,
+				regAct.sigmaResampling,regAct.sigmaDense , regAct.higherAcc==1 ? -1 : (regAct.typeTrans==Transform3DType.DENSE ? regAct.levelMinDense : regAct.levelMinLinear),
 				regAct.typeTrans==Transform3DType.DENSE ? regAct.levelMaxDense : regAct.levelMaxLinear,regAct.typeTrans==Transform3DType.DENSE ? regAct.iterationsBMDen : regAct.iterationsBMLin,
 				imgRef.getStackSize()/2,null  ,			regAct.neighX,regAct.neighY,regAct.neighZ,			regAct.bhsX,regAct.bhsY,regAct.bhsZ, 			regAct.strideX,regAct.strideY,regAct.strideZ);
 	}
@@ -655,31 +656,30 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				
 			}
 			
-			handleOutput("Bilan time");
+			handleOutput("Summary computation times for Block matching");
 			double d=0;double dSum=0;
 			d+=(timesGlob[1]-timesGlob[0]);
 			for(int lev=0;lev<this.nbLevels;lev++) 				for(int it=0;it<this.nbIterations;it++) 			d+=(timesIter[lev][it][17]-timesIter[lev][it][14]);
-			handleOutput("timeUpdatesView="+d);
+			handleOutput("time used for view updating (s)="+VitimageUtils.dou(d));
 
 			d=0;
 			for(int lev=0;lev<this.nbLevels;lev++)			d+=(timesLev[lev][2]-timesLev[lev][1]);
 			for(int lev=0;lev<this.nbLevels;lev++) 				for(int it=0;it<this.nbIterations;it++) 			d+=(timesIter[lev][it][1]-timesIter[lev][it][0]);
-			handleOutput("timeTransRefAndMov="+d);dSum+=d;
+			handleOutput("time used for resampling reference (one time), and moving (at each iteration) (s)="+VitimageUtils.dou(d));dSum+=d;
 	
 			d=0;
 			for(int lev=0;lev<this.nbLevels;lev++) 				for(int it=0;it<this.nbIterations;it++) 			d+=(timesIter[lev][it][3]-timesIter[lev][it][2]);
-			handleOutput("timeVariance="+d);dSum+=d;
+			handleOutput("time used to compute blocks variances (s)="+VitimageUtils.dou(d));dSum+=d;
 
 			d=0;
 			for(int lev=0;lev<this.nbLevels;lev++) 				for(int it=0;it<this.nbIterations;it++) 			d+=(timesIter[lev][it][8]-timesIter[lev][it][7]);
-			handleOutput("timeBlockMatching="+d);dSum+=d;
+			handleOutput("time used to compute correspondences between blocks (s)="+VitimageUtils.dou(d));dSum+=d;
 			
 			
 			d=timesGlob[3]-timesGlob[0]-dSum;
-			handleOutput("timeBonus="+d);
+			handleOutput("time used for side events (s) ="+VitimageUtils.dou(d));
 			
-			handleOutput("Total time="+(timesGlob[3]-timesGlob[0]));
-		
+			handleOutput("Total time (s)="+VitimageUtils.dou(timesGlob[3]-timesGlob[0]));	
 		}
 		//glob       0               1            2               3
 //		  st    prep         levels          return   
