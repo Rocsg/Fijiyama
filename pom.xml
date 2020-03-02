@@ -65,7 +65,7 @@
 	<version>4.0.0</version>
 	<name>Fijiyama_GUI</name>
 	<packaging>jar</packaging>
-	<description>Fijiyama : a versatile registration tool for 3D multimodal time-lapse monitoring of biological tissues in Fiji</description>
+	<description>Fijiyama : a versatile registration tool for 3D multimodal time-lapse imaging</description>
 	<inceptionYear>2019</inceptionYear>
 	<organization>
 		<name>Vitimage</name>
@@ -78,30 +78,13 @@
 		</license>
 	</licenses>
 
-<!--	<build>-->
-<!--	<plugins>-->
-<!--	<plugin>-->
-<!--	<groupId>com.vitimage</groupId>-->
-<!--	<artifactId>Fijiyama_GUI</artifactId>-->
-<!--	<configuration>-->
-<!-- 	<excludePackageNames>com.vitimage.hyperweka:com.vitimage.factory:com.vitimage.mrutils</excludePackageNames>-->
-<!--	<includes>-->
-<!--	<include>com.vitimage.common</include>-->
-<!--	<include>com.vitimage.registration</include>-->
-<!--	<include>com.vitimage.fijiyama</include>-->
-	
-<!--	</includes>-->
-<!--	</configuration>	-->
-	
-
-
 
 	
 	<dependencies>
 		<dependency>
 		    <groupId>net.imagej</groupId>
 		    <artifactId>ij</artifactId>
-		    <version>1.52p</version>
+		    <version>1.52t</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -111,16 +94,8 @@
 		<dependency>
 		    <groupId>sc.fiji</groupId>
 		    <artifactId>VIB-lib</artifactId>
-		    <version>2.1.2</version>
+		    <version>2.2.0</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/sc.fiji/Trainable_Segmentation -->
-		<dependency>
-		    <groupId>sc.fiji</groupId>
-		    <artifactId>Trainable_Segmentation</artifactId>
-		    <version>3.2.2</version>
-		</dependency>
-		
-		
 
 		<!-- https://mvnrepository.com/artifact/org.scijava/scijava-java3d -->
 		<dependency>
@@ -129,23 +104,6 @@
 		    <version>0.1.0</version>
 		</dependency>
 
-
-		<!-- https://mvnrepository.com/artifact/com.github.mcib3d/mcib3d-core -->
-		<dependency>
-		    <groupId>com.github.mcib3d</groupId>
-		    <artifactId>mcib3d-core</artifactId>
-		    <version>master-47119b6729-1</version>
-		</dependency>
-
-
-
-		<!-- https://mvnrepository.com/artifact/fr.inra.ijpb/MorphoLibJ_ -->
-		<dependency>
-		    <groupId>fr.inra.ijpb</groupId>
-		    <artifactId>MorphoLibJ_</artifactId>
-		    <version>1.3.6</version>
-		</dependency>
-		
 		<!-- https://mvnrepository.com/artifact/org.itk.simple/simpleitk -->
 		<dependency>
 		    <groupId>org.itk.simple</groupId>
@@ -153,68 +111,15 @@
 		    <version>0.9.0</version>
 		    <type>jar</type>
 		</dependency>
-		
-		<dependency>
-		    <groupId>ij3d</groupId>
-		    <artifactId>ImageJ3DViewer</artifactId>
-		    <version>1</version>
-		    <scope>system</scope>
-   	   	    <systemPath>/home/fernandr/Programmes/Fiji.app/plugins/3D_Viewer-4.0.2.jar</systemPath>
-		</dependency>
-		
-		
-		<dependency>
-		    <groupId>lma</groupId>
-		    <artifactId>lma</artifactId>
-		    <version>1</version>
-		    <scope>system</scope>
-   	   	    <systemPath>/home/fernandr/Programmes/LIB_EXT/JAR/lma.jar</systemPath>
-		</dependency>
-		
-		
-		<dependency>
-		    <groupId>Hough_Package</groupId>
-		    <artifactId>Hough_Circle_Transform</artifactId>
-		    <version>1</version>
-		    <scope>system</scope>
-   	   	    <systemPath>/home/fernandr/Programmes/Fiji.app/plugins/Hough_Circle_Transform-1.0.0-RELEASE.jar</systemPath>
-		</dependency>
 
+		<!-- https://mvnrepository.com/artifact/sc.fiji/3D_Viewer -->
 		<dependency>
-		    <groupId>jgrapht</groupId>
-		    <artifactId>jgrapht</artifactId>
-		    <version>0.7.3</version>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core -->
-		<dependency>
-		    <groupId>org.jgrapht</groupId>
-		    <artifactId>jgrapht-core</artifactId>
-		    <version>1.3.1</version>
-		</dependency>
-		
-		<!-- https://mvnrepository.com/artifact/org.jgrapht/jgrapht-opt -->
-		<dependency>
-		    <groupId>org.jgrapht</groupId>
-		    <artifactId>jgrapht-opt</artifactId>
-		    <version>1.3.1</version>
-		</dependency>
-		
-		
-		<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-math3 -->
-		<dependency>
-		    <groupId>org.apache.commons</groupId>
-		    <artifactId>commons-math3</artifactId>
-		    <version>3.6.1</version>
+		    <groupId>sc.fiji</groupId>
+		    <artifactId>3D_Viewer</artifactId>
+		    <version>4.0.3</version>
 		</dependency>
 		
 
 		
 	</dependencies>
-<!-- 		</plugin> -->
-	<!--</plugins> -->
-	
-	
-	<!--</build> -->
-	
-	
 </project>
