@@ -579,12 +579,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		registrationFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		registrationFrame.addWindowListener(new WindowAdapter(){
              public void windowClosing(WindowEvent e){
-                   closeAllViews();
-                   registrationFrame.setVisible(false);
-                   dispose();
-                   frameLaunch.setVisible(true);
-                   actualizeLaunchingInterface(true);           
-                   modeWindow=WINDOWIDLE;
+                   IJ.showMessage("See you next time !");
+                   System.exit(0);
              }
 		});
 		updateList();
@@ -634,6 +630,12 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		frameLaunch.add(globalPanel);
 		frameLaunch.pack();
 		actualizeLaunchingInterface(true);
+		frameLaunch.addWindowListener(new WindowAdapter(){
+            public void windowClosing(WindowEvent e){                  
+                  IJ.showMessage("See you next time !");
+                  System.exit(0);
+            }
+		});
 		frameLaunch.setVisible(true);
 		frameLaunch.repaint();		
 	}
@@ -810,7 +812,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			addLog("Exporting results...", 1);
 			disable(new int[] {RUN,RUNALL,FINISH,SAVE,UNDO});
 			if(modeWindow==WINDOWTWOIMG)regManager.getCurrentAction().typeAction=RegistrationAction.TYPEACTION_EXPORT;
-			VitimageUtils.waitFor(200);
+			VitimageUtils.waitFor(20);
 			regManager.getCurrentAction().setDone();
 			regManager.exportImagesAndComposedTransforms();
 			regManager.finishCurrentAction(new ItkTransform());
@@ -1060,7 +1062,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							ItkTransform trTemp=itkManager.runScenarioFromGui(new ItkTransform(),
 									regManager.getCurrentRefImage(),
 									regManager.getCurrentMovComposedTransform().transformImage(regManager.getCurrentRefImage(), regManager.getCurrentMovImage(),false),
-									regManager.getCurrentAction().typeTrans, regManager.getCurrentAction().levelMin,regManager.getCurrentAction().levelMaxLinear,regManager.getCurrentAction().iterationsITK,regManager.getCurrentAction().learningRate);
+									regManager.getCurrentAction().typeTrans, regManager.getCurrentAction().levelMinLinear,regManager.getCurrentAction().levelMaxLinear,regManager.getCurrentAction().iterationsITK,regManager.getCurrentAction().learningRate);
 							disable(ABORT);
 							if(itkManager==null || itkManager.itkRegistrationInterrupted) {
 								enable(new int[] {RUN,SAVE,FINISH,SETTINGS,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP,UNDO});
@@ -1411,7 +1413,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		disable(new int[] {BOXOPT,BOXTIME,BOXDISP,BOXTRANS,BOXACT});
 		updateBoxFieldsToCoherenceAndApplyToRegistrationAction(true);
 		updateList();
-		VitimageUtils.waitFor(100);
+		VitimageUtils.waitFor(10);
 		enable(new int[] {BOXACT,BOXTRANS});
 		setState(new int[] {BOXOPT,BOXDISP },boxTypeAction.getSelectedIndex()==1);
 		setState(new int[] {BOXDISPMAN },boxTypeAction.getSelectedIndex()!=1);
@@ -1485,7 +1487,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(this.modeWindow!=WINDOWTWOIMG)return;
 		ImagePlus temp=null;
 		boolean firstView=false;
-		if(this.imgView==null)firstView=true;
+		if(this.imgView==null || (!this.imgView.isVisible()))firstView=true;
 		if(firstView){
 			this.imgView=regManager.getViewOfImagesTransformedAndSuperposedTwoImg();
 			imgView.show();
@@ -1701,7 +1703,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			String[]levelsMax=new String[regManager.getMaxAcceptableLevelForTheCurrentAction()];
 	        for(int i=0;i<regManager.getMaxAcceptableLevelForTheCurrentAction();i++)levelsMax[i]=""+((int)Math.round(Math.pow(2, (i))))+"";
 	        gd.addChoice("Max subsampling factor (high=fast)",levelsMax, levelsMax[regManager.getCurrentAction().getLevelMax()-1]);
-	        gd.addChoice("Min subsampling factor (low=slow)",levelsMax, levelsMax[regManager.getCurrentAction().levelMin-1]);
+	        gd.addChoice("Min subsampling factor (low=slow)",levelsMax, levelsMax[regManager.getCurrentAction().getLevelMin()-1]);
 	        if(enableHighAcc)gd.addChoice("Higher accuracy (subpixellic level)", new String[] {"Yes","No"},regManager.getCurrentAction().higherAcc==1 ? "Yes":"No");
 
 	        gd.addMessage("Blocks dimensions. Blocks are image subparts\nCompared to establish correspondances between ref and mov images");
@@ -1728,7 +1730,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        gd.showDialog();
 	        if (gd.wasCanceled()) return;	        
 	        int a=gd.getNextChoiceIndex()+1; regManager.getCurrentAction().setLevelMax(a);
-	        int b=gd.getNextChoiceIndex()+1; b=b<a ? b : a; regManager.getCurrentAction().levelMin=b;
+	        int b=gd.getNextChoiceIndex()+1; b=b<a ? b : a; regManager.getCurrentAction().setLevelMin(b);
 	        if(enableHighAcc) {
 	        	a=1-gd.getNextChoiceIndex();
 	        	regManager.getCurrentAction().higherAcc=a;
@@ -1756,7 +1758,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        String[]levelsMax=new String[regManager.getMaxAcceptableLevelForTheCurrentAction()];for(int i=0;i<regManager.getMaxAcceptableLevelForTheCurrentAction();i++)levelsMax[i]=""+((int)Math.round(Math.pow(2, (i))))+"";
 			gd.addMessage(message);
 	        gd.addChoice("Max subsampling factor (high=fast)",levelsMax, levelsMax[regManager.getCurrentAction().levelMaxLinear-1]);
-	        gd.addChoice("Min subsampling factor (low=slow)",levelsMax, levelsMax[regManager.getCurrentAction().levelMin-1]);
+	        gd.addChoice("Min subsampling factor (low=slow)",levelsMax, levelsMax[regManager.getCurrentAction().levelMinLinear-1]);
 	        
 	        gd.addMessage("Others");
 	        gd.addNumericField("Number of iterations per level",  regManager.getCurrentAction().iterationsITK, 0, 5, "iterations");
@@ -1768,7 +1770,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        regManager.getCurrentAction().levelMaxLinear=param1;
 
 	        int param2=gd.getNextChoiceIndex()+1; param2=param2<param1 ? param2 : param1;
-	        regManager.getCurrentAction().levelMin=param2;
+	        regManager.getCurrentAction().levelMinLinear=param2;
 	       	
 	       	int param3=(int)Math.round(gd.getNextNumber());
 	       	param3=param3<0 ? 0 : param3;  regManager.getCurrentAction().iterationsITK=param3;
