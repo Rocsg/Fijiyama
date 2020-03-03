@@ -99,7 +99,7 @@ import ij.plugin.frame.RoiManager;
 
 public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public String versionName="Felicity ficus ";
-	public String timeVersionFlag="Release time : 2020-03-01 - 23:18 PM";
+	public String timeVersionFlag="Release time : 2020-03-01 - 11:18 PM";
 	public String versionFlag=versionName+timeVersionFlag;
 	public ImagePlus imgView;
 	private boolean enableHighAcc=true;
@@ -230,7 +230,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	
 	//Some more Gui objects and constants
 	public JFrame registrationFrame;
-	private JTextArea logArea=new JTextArea("", 10,10);
+	private JTextArea logArea=new JTextArea("", 11,10);
 	private Color colorIdle;
 	public JFrame frameLaunch;
 	private int screenHeight=0;
@@ -594,9 +594,14 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		updateList();
 
 	}
+
 	
+
 	public void startLaunchingInterface() {
 		IJ.log("Starting Fijiyama launching interface");
+		IJ.log("Welcome to Fijiyama.");
+		IJ.log("User requests, issues ? \nContact : romainfernandez06ATgmail.com");
+		IJ.log(versionFlag);
 		this.modeWindow=WINDOWIDLE;
 		sosButton=new JButton("Help");
 		runTwoImagesButton=new JButton("Two images registation (training mode)");

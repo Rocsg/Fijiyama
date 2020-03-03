@@ -1528,10 +1528,11 @@ public class RegistrationManager{
 		this.jvmMemory=(int)((new Memory().maxMemory() /(1024*1024)));//Java virtual machine available memory (in Megabytes)
 		this.memoryFullSize=0;
 		String []str=new String[] {"",""};
-		str[0]="Welcome to Fijiyama ! First trial ? Click on \"Contextual help\" to get started.  ";
+
+		str[0]="Welcome to Fijiyama "+fijiyamaGui.versionFlag+" ! \nFirst trial ? Click on \"Contextual help\" to get started. \n User requests, issues ? Contact : romainfernandez06ATgmail.com\n";
 		if(fijiyamaGui.currentContextIsSerie())str[0]+="Current mode : series processing. Click on \"Run next action\", or use the menu to modify it before. Series can be long. Keep clicking !";
 		else str[0]+="Current mode : two-images registration. Choose the next action using the menus, then click on \"Start this action\"";
-		str[1]="System check. Available memory="+this.jvmMemory+" MB. #Available processor cores="+this.nbCpu+".";
+		str[1]="System check. Available memory in JVM="+this.jvmMemory+" MB. #Available processor cores="+this.nbCpu+".";
 		try {
 			this.memoryFullSize = ( ((com.sun.management.OperatingSystemMXBean) ManagementFactory
 		        .getOperatingSystemMXBean()).getTotalPhysicalMemorySize() )/(1024*1024);
@@ -1539,7 +1540,7 @@ public class RegistrationManager{
 		int maxTemp=this.jvmMemory/(memoryFactorForGoodUX);	
 		this.maxImageSizeForRegistration=Math.min(maxTemp, this.maxImageSizeForRegistration);	
 		if((this.memoryFullSize>this.jvmMemory*2) && (this.memoryFullSize-this.jvmMemory>4000))  {
-			str[1]+="It seems that your computer have more memory : total memory="+(this.memoryFullSize)+" MB."+
+			str[1]+="\nIt seems that your computer have more memory : total memory="+(this.memoryFullSize)+" MB."+
 					"Registration process is time and memory consuming. To give more memory and computation power to Fiji,"+
 					" close the plugin then use the Fiji menu \"Edit / Options / Memory & threads\". "+
 					"Let at least "+VitimageUtils.getSystemNeededMemory()+" unused to keep your "+VitimageUtils.getSystemName()+" stable and responsive.";
