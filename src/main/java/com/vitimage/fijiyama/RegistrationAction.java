@@ -15,7 +15,9 @@ import ij.IJ;
 import ij.ImagePlus;
 
 public class RegistrationAction implements Serializable{
-	private static final long serialVersionUID = 6L;
+	private static final long serialFelicityFicus = 600L;
+	private static final long serialVersionUID = serialFelicityFicus;
+	private long currentSerialVersionUID = serialFelicityFicus;
 	private boolean isDone=false;
 	public String nameAction;
 	public String nameSubject;
@@ -368,7 +370,7 @@ public class RegistrationAction implements Serializable{
 
 	// Serialization in text file  
 	public void writeToTxtFile(String path) {
-		String str="#\n";
+		String str="#Version="+this.currentSerialVersionUID+"\n";
 		str+="#IsDone="+(isDone ? 1 : 0)+"\n";
 		str+="#Step="+step+"\n";
 		str+="#NameAction="+nameAction+"\n";
@@ -416,6 +418,10 @@ public class RegistrationAction implements Serializable{
 		String str=VitimageUtils.readStringFromFile(path);
 		String[]lines=str.split("\n");
 		for(int indStr=1 ;  indStr<lines.length;indStr++)lines[indStr]=lines[indStr].split("=")[1];
+		reg.currentSerialVersionUID=500;
+		if(lines.length<40) IJ.showMessage("Warning : reading a deprecated registration file. Unexpected behaviour can happen, possibly a crash");
+		else reg.currentSerialVersionUID=600;
+		if( lines[0].length()>1)reg.currentSerialVersionUID=Integer.parseInt(lines[0].split("=")[1]);
 		reg.isDone=Integer.parseInt(lines[1])==1;
 		reg.step=Integer.parseInt(lines[2]);
 		reg.nameAction=lines[3];
@@ -449,12 +455,20 @@ public class RegistrationAction implements Serializable{
 		reg.selectRandom =Integer.parseInt(lines[33]);
 		reg.subsampleZ  =Integer.parseInt(lines[34]);
 		reg.itkOptimizerType=Integer.parseInt(lines[35])==0 ? OptimizerType.ITK_AMOEBA : null;
-		reg.learningRate=Double.parseDouble(lines[36]);
 		reg.levelMaxLinear=Integer.parseInt(lines[18]);
-		reg.levelMaxDense=Integer.parseInt(lines[37]);
 		reg.iterationsBMLin=Integer.parseInt(lines[20]);
-		reg.iterationsBMDen=Integer.parseInt(lines[38]);
-		reg.levelMinDense=Integer.parseInt(lines[39]);
+		if(reg.currentSerialVersionUID>=RegistrationAction.serialFelicityFicus) {
+			reg.learningRate=Double.parseDouble(lines[36]);
+			reg.levelMaxDense=Integer.parseInt(lines[37]);
+			reg.iterationsBMDen=Integer.parseInt(lines[38]);
+			reg.levelMinDense=Integer.parseInt(lines[39]);
+		}
+		else {
+			reg.learningRate=0.3;
+			reg.levelMaxDense=2;
+			reg.iterationsBMDen=2;
+			reg.levelMinDense=2;
+		}
 		return reg;
 	}
 	

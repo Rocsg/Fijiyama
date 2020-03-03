@@ -688,6 +688,7 @@ public class RegistrationManager{
 				if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 					if(this.transforms[nt][nm]==null)this.transforms[nt][nm]=new ArrayList<ItkTransform>();//If it is not the case, it is a startup from a file
 					ImagePlus imgTemp=IJ.openImage(this.paths[nt][nm]);
+					if(nt==this.referenceTime && nm==this.referenceModality)this.unit=imgTemp.getCalibration().getUnit();
 					initDimensions[nt][nm]=VitimageUtils.getDimensionsXYZCT(imgTemp);
 					dimensions[nt][nm]=VitimageUtils.getDimensions(imgTemp);
 					initVoxs[nt][nm]=VitimageUtils.getVoxelSizes(imgTemp);
@@ -1088,7 +1089,6 @@ public class RegistrationManager{
 	
 	
 	/*Manual registration routines ********************************************************************************************************************/	
-	@SuppressWarnings("deprecation")
 	public void start3dManualRegistration(ImagePlus imgRef,ImagePlus imgMov) {
 		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
 		IJ.run(refCopy,"8-bit","");
@@ -1421,7 +1421,9 @@ public class RegistrationManager{
 		//Update views
 		if(this.transforms[movTime][movMod].size()==0 && this.transforms[refTime][refMod].size()==0 ) {
 			imgRefCurrentState=this.images[refTime][refMod];
+			System.out.println("DEBUG : this.unit="+this.unit+" and REF.unit="+imgRefCurrentState.getCalibration().getUnit());
 			imgMovCurrentState=new ItkTransform().transformImage(imgRefCurrentState, this.images[movTime][movMod],false);
+			System.out.println("MOVAFT"+imgMovCurrentState.getCalibration().getUnit());
 		}
 		else {
 			trMov=getComposedTransform(movTime,movMod);
@@ -1429,17 +1431,24 @@ public class RegistrationManager{
 				trRef=getComposedTransform(refTime, refMod);
 				trMov.addTransform(trRef);
 			}
+			System.out.println("DEBUG 1 IMAGES"+this.images[refTime][refMod].getCalibration().getUnit());
 			imgMovCurrentState= trMov.transformImage(this.images[refTime][refMod],this.images[movTime][movMod],false);
+			System.out.println("DEBUG 1 MOVCUR"+imgMovCurrentState.getCalibration().getUnit());
 			imgMovCurrentState.setDisplayRange(this.imageRanges[movTime][movMod][0], this.imageRanges[movTime][movMod][1]);
+			System.out.println("DEBUG 1 MOVCUR"+imgMovCurrentState.getCalibration().getUnit());
 	
+			System.out.println("DEBUG 1 IMAGES"+this.images[refTime][refMod].getCalibration().getUnit());
 			imgRefCurrentState= (trRef==null)? new ItkTransform().transformImage(this.images[refTime][refMod],this.images[refTime][refMod],false) : trRef.transformImage(this.images[refTime][refMod],this.images[refTime][refMod],false);
+			System.out.println("DEBUG 1 REF"+imgRefCurrentState.getCalibration().getUnit());
 			imgRefCurrentState.setDisplayRange(this.imageRanges[refTime][refMod][0], this.imageRanges[refTime][refMod][1]);
+			System.out.println("DEBUG 1 REF"+imgRefCurrentState.getCalibration().getUnit());
 		}
 		imgRefCurrentState.setDisplayRange(this.imageRanges[refTime][refMod][0], this.imageRanges[refTime][refMod][1]);
 		imgMovCurrentState.setDisplayRange(this.imageRanges[movTime][movMod][0], this.imageRanges[movTime][movMod][1]);
 		
 		//Compose images
 		imgView=VitimageUtils.compositeNoAdjustOf(imgRefCurrentState,imgMovCurrentState,step==0 ? "Superimposition before registration" : "Registration results after "+(step)+" step"+((step>1)?"s":""));
+		System.out.println("DEBUG 1 VIEW"+imgView.getCalibration().getUnit());
 		int viewSlice=this.images[refTime][refMod].getStackSize()/2;
 		imgView.setSlice(viewSlice);
 		return imgView;

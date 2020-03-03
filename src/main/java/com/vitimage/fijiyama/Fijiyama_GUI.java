@@ -58,14 +58,12 @@ import ij.plugin.frame.RoiManager;
  * To date, this work is under review. Article title : Fijiyama: a registration tool for 3D multimodal time-lapse imaging
  * 
  * Acknowledgements :
- * Erik Meijering for Imagescience https://imagescience.org/meijering/software/imagescience/
- * David Legland and Ignacio Arganda-Carreras for morpholibJ https://imagej.net/MorphoLibJ
  * Johannes Schindelin and Albert Cardona (and many other people) for Fiji (ref Fiji)
  * Benjamin Schmid, Johannes Schindelin, Albert Cardona (et al) for the ImageJ 3dviewer.
  * The ITK and SimpleITK team that sets registration algorithms freely available
  * Gregoire Malandain, Sebastien Ourselin and Olivier Commowick for explanations about Block-Matching
  * Jean-Luc Verdeil for his support to new technology in plant science
- * Cedric moisy for his ambition to make tech' available where it is not
+ * Cedric Moisy for his ambition to make tech' available where it is not
  * Christophe Pradal for his contribution and inspiration
  * 
 
@@ -306,11 +304,13 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			return;
 		}
 		IJ.showMessage("Testing procedure\nTest 1 = two images\nTest 2 = Abdomen\nTest 3 = Multimodal series\nTest 4 = Time-lapse series\n5 = Test Gui");
-		int currentTest=VitiDialogs.chooseNumberUI("Choose the test (between 1 and 4)",1,4,1);
+		int currentTest=VitiDialogs.chooseNumberUI("Choose the test (between 1 and 4)",1,5,1);
 		if(currentTest==TEST_GUI) {
 			System.out.println("Gui test");
 			Fijiyama_GUI gui=new Fijiyama_GUI();
+			gui.modeWindow=WINDOWIDLE;
 			gui.run("");
+			gui.modeWindow=WINDOWIDLE;
 			gui.startLaunchingInterface();
 			gui.modeWindow=WINDOWIDLE;
 			return;
@@ -1014,11 +1014,12 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 					if(regManager.getCurrentAction().typeAction==RegistrationAction.TYPEACTION_AUTO){	
 						if(regManager.estimatedTime>250 && modeWindow==WINDOWTWOIMG) {
 							if(!VitiDialogs.getYesNoUI("Warning: computation time","Computation time estimated to "+regManager.estimatedTime+" seconds\n"+
-								"Click Yes to run this action, no to go back to settings\n Hint : to reduce computation time, you can:\n"+
-									"-set levelMin and levelMax to a higher value"+
-									"-set strides to a higher value"+
-									"-set block size to a lesser value"+
-									"-reduce the number of iterations")) {enable(new int[] {RUN,RUNALL,FINISH,SAVE});return;}
+								"Click Yes to run this action, no to go back to settings\n.\n.\nHint : to reduce computation time, you can:\n"+
+									"\n-set levelMin and levelMax to a higher value"+
+									"\n-set strides to a higher value"+
+									"\n-reduce the number of iterations"+
+									"\n-set block size to a lesser value"
+									)) {enable(new int[] {RUN,RUNALL,FINISH,SAVE});return;}
 						}
 						disable(new int[] {RUN,SAVE,FINISH,SETTINGS,UNDO,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP});
 						//Automatic blockMatching registration

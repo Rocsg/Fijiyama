@@ -411,12 +411,14 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			}
 			Concatenator con=new Concatenator();
 			con.setIm5D(true);
-			return HyperStackConverter.toHyperStack(con.concatenate(imgTabMov,false), nbC, nbZ,nbT,"xyztc","Grayscale");
+			ImagePlus img=HyperStackConverter.toHyperStack(con.concatenate(imgTabMov,false), nbC, nbZ,nbT,"xyztc","Grayscale");
+			VitimageUtils.adjustImageCalibration(img, imgRef);
+			return img;
 		}
 		if(imgMov.getType()==4) {
 			ImagePlus[] channels = ChannelSplitter.split(imgMov);
 			for(int i=0;i<3;i++) {
-				VitimageUtils.adjustImageCalibration(channels[i], imgRef);
+				VitimageUtils.adjustImageCalibration(channels[i], imgMov);
 				channels[i]=transformImage(imgRef,channels[i],smoothingBeforeDownSampling);
 			}
 			ImagePlus ret=new ImagePlus("",RGBStackMerge.mergeStacks(channels[0].getStack(),channels[1].getStack(),channels[2].getStack(),true));
@@ -433,7 +435,9 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(img));
 		}
 		resampler.setTransform(this);
-		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
+		ImagePlus img=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov)));
+		VitimageUtils.adjustImageCalibration(img, imgRef);
+		return img;
 	}	
 	
 	public ImagePlus transformImage(int[]targetDims,double[]targetVoxs, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
@@ -757,7 +761,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 	
 	public ItkTransform simplify() {
-		double[][]transArray=this.toAffineArrayRepresentation();
 		Transform3D transIj=new Transform3D(this.toAffineArrayMonolineRepresentation());
 		return ItkTransform.ij3dTransformToItkTransform(transIj);		
 	}

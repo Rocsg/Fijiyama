@@ -341,8 +341,8 @@ public interface VitimageUtils {
 	}
 		
 	public static ImagePlus compositeNoAdjustOf(ImagePlus img1Source,ImagePlus img2Source){
-		ImagePlus img1=new Duplicator().run(img1Source);
-		ImagePlus img2=new Duplicator().run(img2Source);
+		ImagePlus img1=VitimageUtils.imageCopy(img1Source);
+		ImagePlus img2=VitimageUtils.imageCopy(img2Source);
 		IJ.run(img1,"8-bit","");
 		IJ.run(img2,"8-bit","");
 		ImageStack is=RGBStackMerge.mergeStacks(img1.getStack(),img2.getStack(),null,true);
