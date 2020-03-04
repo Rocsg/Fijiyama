@@ -27,6 +27,7 @@ import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
 import ij.plugin.HyperStackConverter;
 import ij.plugin.RGBStackMerge;
+import ij.process.ImageProcessor;
 import math3d.Point3d;
 import vib.FastMatrix;
 
@@ -1035,6 +1036,10 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	public static void transformImageWithGui() {
 		ImagePlus imgMov=VitiDialogs.chooseOneImageUI("Select the image to transform (moving image)","Select the image to transform (moving image)");
+		ImageProcessor ip=imgMov.getStack().getProcessor(imgMov.getNSlices()/2+1);
+		ip.resetMinAndMax();
+		double rangeMin=ip.getMin();
+		double rangeMax=ip.getMax();
 		if(imgMov==null) {IJ.showMessage("Moving image does not exist. Abort.");return;}
 		ImagePlus imgRef=VitiDialogs.chooseOneImageUI("Select the reference image, giving output dimensions (it can be the same)","Select the reference image, giving output dimensions (it can be the same)");
 		ItkTransform tr=VitiDialogs.chooseOneTransformsUI("Select the transform to apply , .txt for Itk linear and .transform.tif for Itk dense", "", false);
@@ -1042,6 +1047,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		if(imgRef==null) {IJ.showMessage("No reference image provided. Moving image will be used as reference image.");imgRef=VitimageUtils.imageCopy(imgMov);}
 		ImagePlus result=tr.transformImage(imgRef, imgMov, false);
 		result.setTitle("Transformed image");
+		result.setDisplayRange(rangeMin,rangeMax);
 		result.show();
 	}
 	

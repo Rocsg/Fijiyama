@@ -1398,6 +1398,7 @@ public class RegistrationManager{
 				else {
 					 hyperImg[index]=VitimageUtils.nullImage(referenceGeometryForTransforms);
 				}
+				IJ.run(hyperImg[index],"32-bit","");
 				VitimageUtils.setLabelOnAllSlices(hyperImg[index],"t="+this.times[nt]+" mod="+this.mods[nm]);
 			}
 		}
