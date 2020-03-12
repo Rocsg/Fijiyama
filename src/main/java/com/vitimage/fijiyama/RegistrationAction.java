@@ -362,7 +362,7 @@ public class RegistrationAction implements Serializable{
 	        in.close(); 
 	        file.close(); 
 	    }       catch(IOException ex)     {      IJ.log("IOException has been caught during reading from "+path);    } 
-	    		catch(ClassNotFoundException ex)     {        IJ.log("ClassNotFoundException has been caught during reading from "+path);    } 
+	     		catch(ClassNotFoundException ex)     {        IJ.log("ClassNotFoundException has been caught during reading from "+path);    } 
 	    return reg;
 	}
 	

@@ -247,6 +247,7 @@ public interface VitiDialogs {
 	public static ItkTransform chooseOneTransformsUI(String strGuess,String path,boolean autonomyLevel){
 		if(autonomyLevel==AUTOMATIC) return ItkTransform.readTransformFromFile(path);
 		OpenDialog od=new OpenDialog(strGuess);
+		IJ.log("Reading transform from file : "+od.getPath());
 		return(ItkTransform.readTransformFromFile(od.getPath()));
 	 }
 		

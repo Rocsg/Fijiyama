@@ -205,11 +205,13 @@ public class RegistrationManager{
 			File f=new File(dirReg,"RegistrationAction_Step_"+st+".ser");
 			RegistrationAction regTemp=RegistrationAction.readFromTxtFile(f.getAbsolutePath());
 			if(regTemp.isDone()) {
-				f=new File(dirReg,"Transform_Step_"+st+".txt");
-				IJ.log("Transformation lookup : "+f);
+				f=new File(dirReg,"Transform_Step_"+st+(((regTemp.typeAction!=1) || (regTemp.typeTrans!=Transform3DType.DENSE))?".txt":".transform.tif"));
+				IJ.log("Transformation lookup : "+f+" type "+regTemp.typeTrans);
+				
 				if(regTemp.typeTrans!=Transform3DType.DENSE || regTemp.typeAction!=1)trTemp=ItkTransform.readTransformFromFile(f.getAbsolutePath());
 				else trTemp=ItkTransform.readAsDenseField(f.getAbsolutePath());				
 			}
+			IJ.log(""+trTemp);
 			addTransformAndActionBlindlyForBuilding(trTemp,regTemp);
 		}
 		currentRegAction=regActions.get(step);

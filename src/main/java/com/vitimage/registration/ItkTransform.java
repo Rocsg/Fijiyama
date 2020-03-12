@@ -889,7 +889,13 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 		
 	public static ItkTransform readAsDenseField(String path) {
-		String shortPath = (path != null) ? path.substring(0,path.indexOf('.')) : "";
+		
+		if((path==null) || (! (path.substring(path.length()-14,path.length())).equals(".transform.tif"))) {
+			IJ.log("Wrong file for dense field : "+path+" \n A dense field should be identified with an extension .transform.tif");
+			return null;
+		}
+		
+		String shortPath = path.substring(0,path.length()-14);
 		ImagePlus[]trans=new ImagePlus[3];
 		trans[0]=IJ.openImage(shortPath+".x.tif");
 		trans[1]=IJ.openImage(shortPath+".y.tif");
@@ -900,10 +906,10 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	public static ItkTransform readTransformFromFile(String path) {
 		ItkTransform tr=null;
 		try{
-			if(path.charAt(path.length()-1) == 'f')tr=readAsDenseField(path);
+			if(path.charAt(path.length()-1) == 'f') tr=readAsDenseField(path);
 			else tr=new ItkTransform(SimpleITK.readTransform(path));
 			return tr;
-		} catch (Exception e) {		IJ.log("Wrong transform file. Please provide a   * .transform.tif file or a *.txt file with an ITK matrix in it");return null; }
+		} catch (Exception e) {		IJ.log("Wrong transform file or file selection was incompletely done in interface.\n Please select a   *.transform.tif file or a *.txt file");return null; }
 	}
 
 	public static String stringMatrix(String sTitre,double[]tab){
@@ -1043,7 +1049,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		if(imgMov==null) {IJ.showMessage("Moving image does not exist. Abort.");return;}
 		ImagePlus imgRef=VitiDialogs.chooseOneImageUI("Select the reference image, giving output dimensions (it can be the same)","Select the reference image, giving output dimensions (it can be the same)");
 		ItkTransform tr=VitiDialogs.chooseOneTransformsUI("Select the transform to apply , .txt for Itk linear and .transform.tif for Itk dense", "", false);
-		if(tr==null) {IJ.showMessage("No transform given. Abort");return;}
+		if(tr==null) {IJ.showMessage("No transform given in transformImageWithGui. Abort");return;}
 		if(imgRef==null) {IJ.showMessage("No reference image provided. Moving image will be used as reference image.");imgRef=VitimageUtils.imageCopy(imgMov);}
 		ImagePlus result=tr.transformImage(imgRef, imgMov, false);
 		result.setTitle("Transformed image");
