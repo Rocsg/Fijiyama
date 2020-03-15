@@ -291,7 +291,7 @@ public class TestingRegistrationPackage {
 	}
 	
 	public static int runTestLevel06Transform4D(String inputPath,String outputPath){
-		boolean buildingCase=true;
+		boolean buildingCase=false;
 		int errors=0;
 		
 		ImagePlus imgExp;
@@ -326,7 +326,7 @@ public class TestingRegistrationPackage {
 	}
 
 	public static int runTestLevel07Transform5D(String inputPath,String outputPath){
-		boolean buildingCase=true;
+		boolean buildingCase=false;
 		int errors=0;
 		ImagePlus imgIn;
 		ImagePlus imgExp;
