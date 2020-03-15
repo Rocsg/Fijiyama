@@ -51,6 +51,7 @@ public interface VitimageUtils {
 	}
 
 	
+
 	
 	/*Informations about system and virtual machine. Detection of Windows or Unix environments*/
 	public static String getSystemName(){
@@ -80,7 +81,14 @@ public interface VitimageUtils {
 	
 		
 	
-	
+	public static String getLowerStringInStringTab(String[]tab) {
+		if(tab.length<1)return null;
+		String min=tab[0];
+		for(int i=1;i<tab.length;i++) {
+			if(tab[i].compareTo(min)>0)min=tab[i];
+		}
+		return min;
+	}
 	
 	
 	/*Adjust position of frames and images on the screen*/
@@ -1623,7 +1631,8 @@ public interface VitimageUtils {
 	}
 	
 	public static int[]getDimensions(ImagePlus img){
-		return new int[] {img.getWidth(),img.getHeight(),img.getStackSize()};
+		if(img.getNChannels()>1 || img.getNFrames()>1)return new int[] {img.getWidth(),img.getHeight(),img.getNSlices()};
+		else return new int[] {img.getWidth(),img.getHeight(),img.getStackSize()};
 	}
 
 	public static double[]getDimensionsRealSpace(ImagePlus img){
@@ -2421,6 +2430,15 @@ public interface VitimageUtils {
 			e.printStackTrace();
 		}		
 	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	public static String[] stringArraySort(String[]tabStr) {
 		String[]tabRet=new String[tabStr.length];

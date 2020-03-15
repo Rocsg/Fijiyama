@@ -1748,7 +1748,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        }
 	       	int c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsX=Math.min(7,Math.max(c,3));
 	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsY=Math.min(7,Math.max(c,3));
-	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsZ=Math.min(7,Math.max(c,3));
+	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().bhsZ=Math.min(7,Math.max(c,0));
 
 	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().neighX=Math.min(7,Math.max(c,1));
 	       	c=(int)Math.round(gd.getNextNumber()); c=c<0 ? 0 : c; regManager.getCurrentAction().neighY=Math.min(7,Math.max(c,1));

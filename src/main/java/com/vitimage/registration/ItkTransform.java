@@ -152,7 +152,11 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 
 	
 	
-	
+	public static double[]getImageCenter(ImagePlus img){
+		double[]vals=VitimageUtils.getDimensionsRealSpace(img);
+		vals[0]/=2;		vals[1]/=2;		vals[2]/=2;
+		return vals;
+	}
 	
 	
 
@@ -399,9 +403,11 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	
 	
-	/*Transform images and points*/
+	/*Transform images and points. Work recursively : level 0=split frames and channels if any, level1=split RGB if any, level2=process resulting 3D stacks*/
 	//TODO : smoothingBeforeDownSampling.
 	public ImagePlus transformImage(ImagePlus imgRef, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
+		double minRange=imgMov.getDisplayRangeMin();
+		double maxRange=imgMov.getDisplayRangeMax();
 		if(imgMov.getNChannels()>1 || imgMov.getNFrames()>1) {
 			int nbZ=imgMov.getNSlices();
 			int nbT=imgMov.getNFrames();
@@ -414,15 +420,18 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			con.setIm5D(true);
 			ImagePlus img=HyperStackConverter.toHyperStack(con.concatenate(imgTabMov,false), nbC, nbZ,nbT,"xyztc","Grayscale");
 			VitimageUtils.adjustImageCalibration(img, imgRef);
+			if(img.getType()!=4)img.setDisplayRange(minRange, maxRange);
 			return img;
 		}
 		if(imgMov.getType()==4) {
 			ImagePlus[] channels = ChannelSplitter.split(imgMov);
 			for(int i=0;i<3;i++) {
 				VitimageUtils.adjustImageCalibration(channels[i], imgMov);
+				for(int z=1;z<=imgMov.getStackSize();z++)channels[i].getStack().setSliceLabel(imgMov.getStack().getSliceLabel(z), z);
 				channels[i]=transformImage(imgRef,channels[i],smoothingBeforeDownSampling);
 			}
 			ImagePlus ret=new ImagePlus("",RGBStackMerge.mergeStacks(channels[0].getStack(),channels[1].getStack(),channels[2].getStack(),true));
+			for(int z=1;z<=ret.getStackSize();z++)ret.getStack().setSliceLabel(channels[0].getStack().getSliceLabel(z), z);
 			VitimageUtils.adjustImageCalibration(ret, imgRef);
 			return ret;
 		}
@@ -438,6 +447,17 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		resampler.setTransform(this);
 		ImagePlus img=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov)));
 		VitimageUtils.adjustImageCalibration(img, imgRef);
+		if(img.getType()!=4)img.setDisplayRange(minRange, maxRange);
+		int Z=img.getStackSize();
+		double[]coords=ItkTransform.getImageCenter(img);
+		double[]voxs=VitimageUtils.getVoxelSizes(img);
+		for(int z=1;z<=Z;z++) {
+			coords[2]=z*voxs[2];
+			double []coordsTrans=this.transformPoint(coords);
+			int zFin=(int) Math.round(coordsTrans[2]/voxs[2]);
+			zFin=Math.max(1, Math.min(zFin, Z));
+			img.getStack().setSliceLabel(imgMov.getStack().getSliceLabel(zFin),z);
+		}
 		return img;
 	}	
 	
@@ -576,6 +596,16 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return new Point3d(coords[0],coords[1],coords[2]);
 	}
 
+	public double[] transformPoint(double[]coords) {
+		VectorDouble vect=new VectorDouble(3);
+		vect.set(0,coords[0]);
+		vect.set(1,coords[1]);
+		vect.set(2,coords[2]);
+		double []coordsOut=ItkImagePlusInterface.vectorDoubleToDoubleArray(this.transformPoint(vect));
+		return coordsOut;
+	}
+
+	
 	public Point3d transformPointInverse(Point3d pt) {
 		VectorDouble vect=new VectorDouble(3);
 		vect.set(0,pt.x);
@@ -719,7 +749,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return ret;
 	}
 	
-	public ItkTransform flattenDenseField(ImagePlus imgRef) {
+	public ItkTransform getFlattenDenseField(ImagePlus imgRef) {
 		if(!this.isDense) {IJ.showMessage("Trying to flatten non dense transform");System.exit(0);}
 		IJ.log("Flattening dense field transform with a geometry of "+TransformUtils.stringVector(VitimageUtils.getDimensions(imgRef), ""));
 		//Recuperer les dimensions
@@ -878,7 +908,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		String shortPath = (path != null) ? path.substring(0,path.indexOf('.')) : "";
 		ImagePlus[]trans=new ImagePlus[3];
 		
-		DisplacementFieldTransform df=new DisplacementFieldTransform((Transform)(this.flattenDenseField(imgRef)));
+		DisplacementFieldTransform df=new DisplacementFieldTransform((Transform)(this.getFlattenDenseField(imgRef)));
 		trans=ItkImagePlusInterface.convertDisplacementFieldToImagePlusArrayAndNorm(df.getDisplacementField());
 		VitimageUtils.printImageResume(trans[0]);
 		IJ.saveAsTiff(trans[0],shortPath+".x.tif");

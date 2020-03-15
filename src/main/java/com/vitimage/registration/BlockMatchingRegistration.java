@@ -118,6 +118,9 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		System.out.println("File compiled");
 	}
 
+	public BlockMatchingRegistration() {
+	}
+	
 	public BlockMatchingRegistration(ImagePlus imgRef,ImagePlus imgMov,Transform3DType transformationType,MetricType metricType,
 			double smoothingSigmaInPixels, double denseFieldSigma,int levelMin,int levelMax,int nbIterations,int sliceInt,ImagePlus mask,
 			int neighbourX,int neighbourY,int neighbourZ,int blockHalfSizeX,int blockHalfSizeY,int blockHalfSizeZ,int strideX,int strideY,int strideZ) {
@@ -331,7 +334,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				int indexTab=0;
 				nbBlocksTotal=nbBlocksX*nbBlocksY*nbBlocksZ;
 				if(nbBlocksTotal<0) {
-					IJ.showMessage("Bad parameters. Please set to default values");
+					IJ.showMessage("Bad parameters. Nb blocks=0. nbBlocksX="+nbBlocksX+" , nbBlocksY="+nbBlocksY+" , nbBlocksZ="+nbBlocksZ);
 					if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.currentTransform;
 					else return new ItkTransform();
 				}
@@ -693,7 +696,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.currentTransform;
 		else {
 			if(trInit.isDense()) {
-				ItkTransform trInv=(trInit.flattenDenseField(imgRefTemp).getInverseOfDenseField());
+				ItkTransform trInv=(trInit.getFlattenDenseField(imgRefTemp).getInverseOfDenseField());
 				return new ItkTransform(trInv.addTransform(this.currentTransform));
 			}
 			else return new ItkTransform(trInit.getInverse().addTransform(this.currentTransform));
