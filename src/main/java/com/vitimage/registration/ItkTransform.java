@@ -463,39 +463,9 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	public ImagePlus transformImage(int[]targetDims,double[]targetVoxs, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
 		String unit=imgMov.getCalibration().getUnit();
-		if(imgMov.getNChannels()>1 || imgMov.getNFrames()>1) {
-			int nbZ=imgMov.getNSlices();
-			int nbT=imgMov.getNFrames();
-			int nbC=imgMov.getNChannels();
-			ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstackFastBis(imgMov);
-			for(int i=0;i<imgTabMov.length;i++) {
-				imgTabMov[i]= transformImage(targetDims,targetVoxs, imgTabMov[i],smoothingBeforeDownSampling);
-			}
-			nbZ=targetDims[2];
-			Concatenator con=new Concatenator();
-			con.setIm5D(true);
-			VitimageUtils.printImageResume(imgTabMov[0]);
-			ImagePlus img= HyperStackConverter.toHyperStack(con.concatenate(imgTabMov,false), nbC, nbZ,nbT,"xyztc","Grayscale");
-			return img;
-		}
-		if(imgMov.getType()==4) {
-			ImagePlus[] channels = ChannelSplitter.split(imgMov);
-			for(int i=0;i<3;i++) {
-				VitimageUtils.adjustImageCalibration(channels[i], imgMov);
-				channels[i]=transformImage(targetDims,targetVoxs,channels[i],smoothingBeforeDownSampling);
-			}
-			ImagePlus ret=new ImagePlus("",RGBStackMerge.mergeStacks(channels[0].getStack(),channels[1].getStack(),channels[2].getStack(),true));
-			VitimageUtils.adjustImageCalibration(ret, targetVoxs,unit);
-			return ret;
-		}
-		int val=Math.min(  10    ,    Math.min(   imgMov.getWidth()/20    ,   imgMov.getHeight()/20  ));
-		int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(imgMov,val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(imgMov,imgMov.getWidth()-val-1,imgMov.getHeight()-val-1,0,val)*0.5    );
-		ResampleImageFilter resampler=new ResampleImageFilter();
-		resampler.setDefaultPixelValue(valMean);
-		resampler.setOutputSpacing(ItkImagePlusInterface.doubleArrayToVectorDouble(targetVoxs));
-		resampler.setSize(ItkImagePlusInterface.intArrayToVectorUInt32(targetDims));
-		resampler.setTransform(this);
-		return ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov)));
+		ImagePlus ref=ij.gui.NewImage.createImage("Ref",targetDims[0],targetDims[1],targetDims[2],imgMov.getBitDepth(),ij.gui.NewImage.FILL_BLACK);	
+		VitimageUtils.adjustImageCalibration(ref,targetVoxs, unit);
+		return transformImage(ref,imgMov,smoothingBeforeDownSampling);
 	}	
 
 	public static ImagePlus resampleImage(int[]targetDims,double[]targetVoxs, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
@@ -561,32 +531,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
 	}	
 	
-	public ImagePlus transformHyperImage(ImagePlus imgRef,ImagePlus hyperMov) {
-		VitimageUtils.printImageResume(imgRef);
-		VitimageUtils.printImageResume(hyperMov);
-		int nbZ=hyperMov.getNSlices();
-		int nbT=hyperMov.getNFrames();
-		int nbC=hyperMov.getNChannels();
-		ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstackFastBis(hyperMov);
-		for(int i=0;i<imgTabMov.length;i++) {
-			imgTabMov[i]= transformImage(imgRef, imgTabMov[i],false);
-		}
-		Concatenator con=new Concatenator();
-		con.setIm5D(true);
-		return HyperStackConverter.toHyperStack(con.concatenate(imgTabMov,false), nbC, nbZ,nbT,"xyztc","Grayscale");
-	}
 
-	//throw away this one
-	public ImagePlus transformHyperImage4D(ImagePlus hyperRef,ImagePlus hyperMov,int dimension) {
-		ImagePlus []imgTabRef=VitimageUtils.stacksFromHyperstack(hyperRef, dimension);
-		ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstack(hyperMov, dimension);
-		if(imgTabRef.length != imgTabMov.length)IJ.showMessage("Warning in transformHyperImage4D: tab sizes does not match");
-		for(int i=0;i<dimension;i++) {			
-			imgTabMov[i]= transformImage(imgTabRef[i], imgTabMov[i],false);
-		}
-		return Concatenator.run(imgTabMov);
-	}
-	
 	public Point3d transformPoint(Point3d pt) {
 		VectorDouble vect=new VectorDouble(3);
 		vect.set(0,pt.x);
