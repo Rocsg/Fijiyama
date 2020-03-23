@@ -221,6 +221,22 @@ public interface TransformUtils {
 		return str;
 	}
 
+	
+	public static String stringMatrixMN(String sTitre,double[][] confusionMatrix){
+		String s=new String();
+		s+=""+sTitre+" , matrice de taille "+confusionMatrix.length+" X "+confusionMatrix[0].length+"\n";
+		for(int i=0;i<confusionMatrix.length;i++){
+			s+="[ ";
+			for(int j=0;j<confusionMatrix[i].length-1;j++){
+				s+=VitimageUtils.dou(confusionMatrix[i][j]);
+				s+=" , ";
+			}
+			s+=VitimageUtils.dou(confusionMatrix[i][confusionMatrix[i].length-1])+" ] \n";
+		}
+		return s;
+	}	
+
+	
 	public static String stringVector(double []vect,String vectNom){
 		return(vectNom+" = [ "+vect[0]+" , "+vect[1]+" , "+vect[2]+" ]");
 	}

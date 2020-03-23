@@ -85,10 +85,15 @@ import ij.plugin.frame.RoiManager;
  * DOI unitary tests 
  * (None)
  * 
+ ******** Next evolutions ********* 
+ * Opening an ended series. Why is it crashing for the five time series ?
+ * DOI unitary tests running quasi-autonomously
+ * (None)
+ * 
  ******** User requests ********* 
  * (priority=2/3, difficulty=1/3) Make similarity possible for manual registration to handle miscalibration (Anne-Sophie Spilmont, Khalifa Diouf)
  * (priority=2/3, difficulty=1/3) Integration of interest point auto-detection on geometrical bases (Cedric Moisy)
- * (priority=3/3, difficulty=2/3) Hyperimage support (Jean-Luc and Cedric)
+ * (priority=3/3, difficulty=2/3) Hyperimage support (Jean-Luc and Cedric) --> Has to be tested
  * (priority=1/3, difficulty=2/3) Possibility of changing variance selection. Imply to version the fjm file to add new parameters to these archives
  * 
  */
@@ -96,8 +101,8 @@ import ij.plugin.frame.RoiManager;
 
 
 public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
-	public String versionName="Felicity ficus ";
-	public String timeVersionFlag="Release time : 2020-03-01 - 11:18 PM";
+	public String versionName="Gorgeous grapevine";
+	public String timeVersionFlag="  Release time : 2020-21-03 - 2:20 AM";
 	public String versionFlag=versionName+timeVersionFlag;
 	public ImagePlus imgView;
 	private boolean enableHighAcc=true;
@@ -280,7 +285,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		
 		reg.developerMode=true;
 		reg.debugMode=true;
-		reg.runTest();
+		reg.run("");
 	}
 	
 	public void run(String arg) {
@@ -288,74 +293,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			modeWindow=WINDOWIDLE;
 	}
 
-	public void runTest() {
-		System.out.println("Testing mode");
-		int TEST_TWO_IMGS=1;
-		int TEST_ABDOMEN=2;
-		int TEST_MULTIMODAL_SERIES=3;
-		int TEST_TIME_LAPSE_SERIES=4;
-		int TEST_GUI=5;
 
-		String nameDOI=VitiDialogs.chooseDirectoryUI("Localize Fijiyama_DOI dir, see https://imagej.net/Fijiyama)", "Select this DOI file");
-		String nameFile=new File(nameDOI).getName();
-		System.out.println("Fijiyama_DOI file selected : "+nameDOI);
-		if(!nameFile.equals("Fijiyama_DOI")){
-			IJ.showMessage("Bad Fijiyama_DOI file, or name changed. Abort");
-			return;
-		}
-		IJ.showMessage("Testing procedure\nTest 1 = two images\nTest 2 = Abdomen\nTest 3 = Multimodal series\nTest 4 = Time-lapse series\n5 = Test Gui");
-		int currentTest=VitiDialogs.chooseNumberUI("Choose the test (between 1 and 4)",1,5,1);
-		if(currentTest==TEST_GUI) {
-			System.out.println("Gui test");
-			Fijiyama_GUI gui=new Fijiyama_GUI();
-			gui.modeWindow=WINDOWIDLE;
-			gui.run("");
-			gui.modeWindow=WINDOWIDLE;
-			gui.startLaunchingInterface();
-			gui.modeWindow=WINDOWIDLE;
-			return;
-		}
-
-		regManager.createOutputPathAndFjmFile();
-		if(currentTest==TEST_TWO_IMGS) {
-			System.out.println("Two imgs test");
-			File dirCase=new File(nameDOI,"Case_01_Two_images");
-			File inputDir=new File(dirCase,"Input_data");
-			regManager.setupFromTwoImages(new String[] {new File(inputDir,"imgRef.tif").getAbsolutePath(),new File(inputDir,"imgMov.tif").getAbsolutePath()});
-			if(frameLaunch!=null)frameLaunch.setVisible(false);
-			modeWindow=WINDOWTWOIMG;
-			startTwoImagesRegistration();
-		}
-		if(currentTest==TEST_ABDOMEN) {
-			System.out.println("Abdomen test");
-			File dirCase=new File(nameDOI,"Case_02_Abdomen");
-			File inputDir=new File(dirCase,"Input_data");
-			regManager.setupFromTwoImages(new String[] {new File(inputDir,"RX.tif").getAbsolutePath(),new File(inputDir,"MRI.tif").getAbsolutePath()});
-			if(frameLaunch!=null)frameLaunch.setVisible(false);
-			modeWindow=WINDOWTWOIMG;
-			startTwoImagesRegistration();
-		}
-		if(currentTest==TEST_MULTIMODAL_SERIES) {
-			System.out.println("Multimodal series test");
-			File dirCase=new File(nameDOI,"Case_03_Cep_3_mods");
-			File inputDir=new File(dirCase,"Input_data");
-			modeWindow=WINDOWSERIEPROGRAMMING;
-			regManager.startSetupSerieFromScratch(3,inputDir.getAbsolutePath());
-		}
-		if(currentTest==TEST_TIME_LAPSE_SERIES) {
-			System.out.println("Time-lapse series test");
-			modeWindow=WINDOWSERIEPROGRAMMING;
-			File dirCase=new File(nameDOI,"Case_04_Time_series");
-			File inputDir=new File(dirCase,"Input_data");
-			modeWindow=WINDOWSERIEPROGRAMMING;
-			regManager.startSetupSerieFromScratch(4,inputDir.getAbsolutePath());
-		}
-		
-		
-
-
-	}
-	
 	public void startTwoImagesRegistration() {
 		this.mode=MODE_TWO_IMAGES;
 		this.modeWindow=WINDOWTWOIMG;
@@ -749,6 +687,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		else if(e.getSource()==removeSelectedButton) {
 			RegistrationAction regAct=regManager.removeLastAction();
 			listActions.setSelectedIndex(regAct.step);
+			updateList();
 			updateBoxFieldsFromRegistrationAction(regAct);
 		}
 		else if(((e.getSource()==boxTypeAction && boxTypeAction.hasFocus()) ||

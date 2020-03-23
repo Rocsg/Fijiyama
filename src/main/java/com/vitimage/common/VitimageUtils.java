@@ -3,6 +3,7 @@ package com.vitimage.common;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Frame;
+import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -22,6 +23,8 @@ import java.util.stream.Collectors;
 import org.itk.simple.Image;
 import org.itk.simple.OtsuThresholdImageFilter;
 import org.itk.simple.RecursiveGaussianImageFilter;
+
+
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
@@ -32,23 +35,20 @@ import ij.measure.Calibration;
 import ij.plugin.Duplicator;
 import ij.plugin.ImageCalculator;
 import ij.plugin.RGBStackMerge;
+import ij.process.ImageProcessor;
 import math3d.Point3d;
 
-public interface VitimageUtils {
+public class VitimageUtils {
 	public final static double EPSILON=0.00001;
-	public static int OP_ADD=1;
-	public static int OP_MULT=2;
-	public static int OP_DIV=3;
-	public static int OP_SUB=4;
-	public static int OP_MEAN=5;
+	public final static int OP_ADD=1;
+	public final static int OP_MULT=2;
+	public final static int OP_DIV=3;
+	public final static int OP_SUB=4;
+	public final static int OP_MEAN=5;
 	public final static String slash=File.separator;
 	public static final int ERROR_VALUE=-1;
 	public static final int COORD_OF_MAX_IN_TWO_LAST_SLICES=1;
 	public static final int COORD_OF_MAX_ALONG_Z=2;
-
-	public static void main(String[]args) {
-		System.out.println("File compiled");
-	}
 
 	
 
@@ -66,6 +66,11 @@ public interface VitimageUtils {
 		String os=System.getProperty("os.name").toLowerCase();
 		return (os.indexOf("win") >= 0);
 	}
+	
+	
+	public static boolean test() {
+		return true;
+	}
 
 	public static String getSystemNeededMemory(){
 		String os=System.getProperty("os.name").toLowerCase();
@@ -79,7 +84,7 @@ public interface VitimageUtils {
 		return	Runtime.getRuntime().availableProcessors();
 	}
 	
-		
+	
 	
 	public static String getLowerStringInStringTab(String[]tab) {
 		if(tab.length<1)return null;
@@ -255,6 +260,7 @@ public interface VitimageUtils {
 				valsSource[z]=(byte [])source.getStack().getProcessor(z+1).getPixels();
 				valsDest[z]=(byte [])dest.getStack().getProcessor(z+1).getPixels();
 				for(int x=0;x<X;x++)for(int y=0;y<Y;y++)valsDest[z][y*X+x]=valsSource[z][y*X+x];
+				//valsSource[z]=valsDest[z];
 			}			
 		}
 		if(source.getType() == ImagePlus.GRAY16) {
@@ -264,6 +270,7 @@ public interface VitimageUtils {
 				valsSource[z]=(short [])source.getStack().getProcessor(z+1).getPixels();
 				valsDest[z]=(short [])dest.getStack().getProcessor(z+1).getPixels();
 				for(int x=0;x<X;x++)for(int y=0;y<Y;y++)valsDest[z][y*X+x]=valsSource[z][y*X+x];
+				//valsSource[z]=valsDest[z];
 			}			
 		}
 		if(source.getType() == ImagePlus.GRAY32) {
@@ -273,6 +280,7 @@ public interface VitimageUtils {
 				valsSource[z]=(float [])source.getStack().getProcessor(z+1).getPixels();
 				valsDest[z]=(float [])dest.getStack().getProcessor(z+1).getPixels();
 				for(int x=0;x<X;x++)for(int y=0;y<Y;y++)valsDest[z][y*X+x]=valsSource[z][y*X+x];
+				//valsSource[z]=valsDest[z];
 			}			
 		}
 
@@ -283,6 +291,7 @@ public interface VitimageUtils {
 				valsSource[z]=(int [])source.getStack().getProcessor(z+1).getPixels();
 				valsDest[z]=(int [])dest.getStack().getProcessor(z+1).getPixels();
 				for(int x=0;x<X;x++)for(int y=0;y<Y;y++)valsDest[z][y*X+x]=valsSource[z][y*X+x];
+				//valsSource[z]=valsDest[z];
 			}			
 		}
 		//dest.changes=true;
@@ -439,7 +448,7 @@ public interface VitimageUtils {
 	
 	
 	
-	/* Conversion functions successive test. The last one is in use */	
+	/* Conversion functions successive test. The last one is in use 	
 	public static ImagePlus[]stacksFromHyperstack(ImagePlus hyper,int nb){
 		ImagePlus []ret=new ImagePlus[nb];
 		for(int i=0;i<nb;i++) {
@@ -487,7 +496,7 @@ public interface VitimageUtils {
 		}
 		return ret;
 	}
-	
+	*/
 	public static ImagePlus[]stacksFromHyperstackFastBis(ImagePlus hyper){
 		int nbZ=hyper.getNSlices();
 		int nbT=hyper.getNFrames();
@@ -497,7 +506,7 @@ public interface VitimageUtils {
 		for(int ic=0;ic<nbC;ic++) {
 			for(int it=0;it<nbT;it++) {
 				int i=ic*nbT+it;
-				System.out.println(ic+"/"+nbC+" ,  "+it+"/"+nbT);
+				IJ.log("Hyperstack to stack tab... "+ic+"/"+nbC+" ,  "+it+"/"+nbT);
 				ret[i] = new Duplicator().run(hyper, 1+ic, 1+ic, 1, nbZ, 1+it, 1+it);
 				VitimageUtils.adjustImageCalibration(ret[i],hyper);
 				IJ.run(ret[i],"Grays","");
@@ -909,10 +918,11 @@ public interface VitimageUtils {
 	
 	
 
-	/**
+	/**?.
 	 * Helper functions to access a part of image values, and to compute some statistics on these data
 	 *  */	
 	public static double[] stdAndMeanValueofImageAround(ImagePlus img,int x0,int y0,int z0,double ray) {
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
 		int xMax=img.getWidth();
 		int xm=(int)Math.round(x0-ray);
 		int xM=(int)Math.round(x0+ray);
@@ -1082,6 +1092,7 @@ public interface VitimageUtils {
 	}
 		
 	public static double []valuesOfBlockDouble(ImagePlus img,double xxm,double yym,double zzm,double xxM,double yyM,double zzM) {
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
 		int zImg=img.getStackSize();
 		int xMax=img.getWidth();
 
@@ -1180,6 +1191,7 @@ public interface VitimageUtils {
 	}
 	
 	public static ImagePlus[] meanAndVarOnlyValidValuesByte(ImagePlus img,int rayX) {
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
 		ImagePlus imgMean=new Duplicator().run(img);
 		VitimageUtils.adjustImageCalibration(imgMean, img);
 		IJ.run(imgMean,"32-bit","");
@@ -1188,9 +1200,7 @@ public interface VitimageUtils {
 		IJ.run(imgVar,"32-bit","");
 		ImagePlus imgMask=VitimageUtils.thresholdByteImage(img, 0,1);
 		int dimZ=img.getStackSize();
-		System.out.print("Moyenne et variance dans masque ...");
 		for(int z=1;z<=dimZ;z++) {
-			if(z%10==0)System.out.print("   "+z+"/"+dimZ);
 			imgMean.setSlice(z);
 			imgVar.setSlice(z);
 			imgMask.setSlice(z);
@@ -1203,11 +1213,11 @@ public interface VitimageUtils {
 			imgVar.deleteRoi();
 			imgMask.deleteRoi();
 		}
-		System.out.println("");
 		return new ImagePlus[] {imgMean,imgVar};
 	}
 	
 	public static double []valuesOfBlock(ImagePlus img,int xm,int ym,int zm,int xM,int yM,int zM) {
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
 		int xMax=img.getWidth();
 		if(zm<0)zm=0;
 		if(zM>img.getStackSize()-1)zM=img.getStackSize()-1;
@@ -1364,7 +1374,7 @@ public interface VitimageUtils {
 		return (hit<1);
 	}
 
-	public static double[][]getHistogram(ImagePlus img,int nbSlicesConsidered){
+/*	public static double[][]getHistogram(ImagePlus img,int nbSlicesConsidered){
 		if(img.getType()==ImagePlus.GRAY32 || img.getType()==ImagePlus.COLOR_256 || img.getType()==ImagePlus.COLOR_RGB){
 			VitiDialogs.notYet("GetHistogram of float image in VitimageUtils");
 			System.exit(0);
@@ -1387,7 +1397,7 @@ public interface VitimageUtils {
 		for(int b=0;b<nBins;b++) {histo[b]/=sum;histoCumul[b]/=sum;}
 		return new double[][] {histo,histoCumul};
 	}
-	
+	*//*
 	public static int[]getRange(ImagePlus img,double percentageDynamicCovered,int nbSlicesConsidered){
 		double firstWing=(100-percentageDynamicCovered)/2;
 		double secondWing=percentageDynamicCovered+firstWing;
@@ -1404,9 +1414,25 @@ public interface VitimageUtils {
 		System.out.println("Quantiles detectes : q2 a "+secondWing+" : index = "+secondIndex+" cumul="+histos[1][secondIndex]);
 		System.out.println("");
 		return new int[] {firstIndex,secondIndex};
-	}
+	}*/
 		
+	
+	
+	public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
+		int c=imgs[0].getNChannels();
+		int t=imgs[0].getNFrames();
+		int n=imgs.length;
+		ImagePlus []tabret=new ImagePlus[c*t*n];
+		for(int i=0;i<n;i++) {
+			ImagePlus[]tabTemp=VitimageUtils.stacksFromHyperstackFastBis(imgs[i]);
+			for(int j=0;j<c*t;j++)tabret[i*c*t+j]=tabTemp[j];
+		}
+		return tabret;
+	}
+	
+	
 	public static double meanValueofImageAround(ImagePlus img,int x0,int y0,int z0,double ray) {
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return 0;}
 		int xMax=img.getWidth();
 		int xm=(int)Math.round(x0-ray);
 		int xM=(int)Math.round(x0+ray);
@@ -1458,6 +1484,7 @@ public interface VitimageUtils {
 	}
 
 	public static double []valuesOfImageAround(ImagePlus img,int x0,int y0,int z0,double ray) {
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
 		int xMax=img.getWidth();
 		int xm=(int)Math.round(x0-ray);
 		int xM=(int)Math.round(x0+ray);
@@ -1505,6 +1532,74 @@ public interface VitimageUtils {
 		}
 		return ret;
 	}
+	
+	public static ImagePlus cropImageShort(ImagePlus img,int x0,int y0,int z0,int dimX,int dimY,int dimZ) {
+		if(img.getType()!=ImagePlus.GRAY16)return null;
+		ImagePlus out=ij.gui.NewImage.createImage("Mask",dimX,dimY,dimZ,16,ij.gui.NewImage.FILL_WHITE);		
+		VitimageUtils.adjustImageCalibration(out, img);
+		int xMax=img.getWidth();
+		for(int z=z0;z<z0+dimZ;z++) {
+			short[] valsImg=(short[])img.getStack().getProcessor(z+1).getPixels();
+			short[] valsOut=(short[])out.getStack().getProcessor(z-z0+1).getPixels();
+			for(int x=x0;x<x0+dimX;x++) {
+				for(int y=y0;y<y0+dimY;y++){
+					valsOut[dimX*(y-y0)+(x-x0)]=((short)(valsImg[xMax*y+x] & 0xffff));
+				}			
+			}
+			out.getStack().setSliceLabel(img.getStack().getSliceLabel(z+1), z-z0+1);
+		}
+		return out;
+	}
+	
+	public static double []valuesOfImageProcessor(ImageProcessor img,int x0,int y0,double ray) {
+		int xMax=img.getWidth();
+		int xm=(int)Math.round(x0-ray);
+		int xM=(int)Math.round(x0+ray);
+		int ym=(int)Math.round(y0-ray);
+		int yM=(int)Math.round(y0+ray);
+
+		if(xm<0)xm=0;
+		if(ym<0)ym=0;
+		if(xm>img.getWidth()-1)xm=img.getWidth()-1;
+		if(ym>img.getHeight()-1)ym=img.getHeight()-1;
+
+		if(xM<0)xM=0;
+		if(yM<0)yM=0;
+		if(xM>img.getWidth()-1)xM=img.getWidth()-1;
+		if(yM>img.getHeight()-1)yM=img.getHeight()-1;
+
+		int len=(xM-xm+1)*(yM-ym+1);
+		int hit=0;
+		double[] ret=new double[len];
+		if(img.getBitDepth() == 8) {
+			byte[] valsImg=(byte [])img.getPixels();
+			for(int x=xm;x<=xM;x++) {
+				for(int y=ym;y<=yM;y++) {
+						ret[hit++]= (int)(  (  (byte)valsImg[xMax*y+x])  & 0xff);
+				}
+			}			
+		}
+		else if(img.getBitDepth() == 16) {
+			short[] valsImg=(short[])img.getPixels();
+			for(int x=xm;x<=xM;x++) {
+				for(int y=ym;y<=yM;y++) {
+						ret[hit++]= (int)(  (  (short)valsImg[xMax*y+x])  & 0xffff);
+				}
+			}			
+		}
+		else if(img.getBitDepth() == 32) {
+			float[] valsImg=(float[])img.getPixels();
+			for(int x=xm;x<=xM;x++) {
+				for(int y=ym;y<=yM;y++) {
+						ret[hit++]=(  (  (float)valsImg[xMax*y+x]));
+				}
+			}			
+		}
+		return ret;
+	}
+
+	
+	
 	
 	public static int indmax(int[]tab) {
 		double max=-1000000;int indmax=0;
@@ -1892,7 +1987,7 @@ public interface VitimageUtils {
 		boolean doDouble=false;
 		if(pixelSpacing<2)pixelSpacing=2;
 		if(pixelSpacing>5)doDouble=true;
-		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getStackSize();
+		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getNSlices();
 		ImagePlus ret=IJ.createImage("", dimX, dimY, dimZ, 8);
 		VitimageUtils.adjustImageCalibration(ret,img);
 		for(int z=0;z<dimZ;z++) {
@@ -1920,6 +2015,16 @@ public interface VitimageUtils {
 		}	
 		return ret;
 	}
+	
+	
+	
+	public static boolean imagesHaveSameCharacteristics(ImagePlus img1,ImagePlus img2) {
+		double[][]voxs=new double[][] {VitimageUtils.getVoxelSizes(img1),VitimageUtils.getVoxelSizes(img2)};
+		int[][]dims=new int[][] {img1.getDimensions(),img2.getDimensions()};
+		for(int i=0;i<voxs[0].length;i++)if(Math.abs(voxs[0][i]-voxs[1][i])/voxs[0][i]>0.00000001)return false;
+		for(int i=0;i<dims[0].length;i++)if(dims[0][i]!=dims[1][i])return false;
+		return true;
+	}
 	 
 	public static Object[] getCorrespondanceListAsImagePlus(ImagePlus imgRef,ArrayList<double[][]>tabCorr,double[]curVoxSize,int sliceInt2,int blockStrideX,int blockStrideY,int blockStrideZ,int blockHalfSizeX,int blockHalfSizeY,int blockHalfSizeZ,boolean vectors) {
 		int [] dims=VitimageUtils.getDimensions(imgRef);		
@@ -1936,9 +2041,9 @@ public interface VitimageUtils {
 
 		
 		if(!vectors) {
-			int dx=Math.min(blockStrideX/2-1, blockHalfSizeX);
-			int dy=Math.min(blockStrideY/2-1, blockHalfSizeY);
-			int dz=Math.min(blockStrideZ/2-1, blockHalfSizeZ);
+			int dx=Math.max(0, Math.min(blockStrideX/2-1, blockHalfSizeX));
+			int dy=Math.max(0, Math.min(blockStrideY/2-1, blockHalfSizeY));
+			int dz=Math.max(0, Math.min(blockStrideZ/2-1, blockHalfSizeZ));
 			for(int cor=0;cor<tabCorr.size();cor++) {
 				int x=(int)Math.round(tabCorr.get(cor)[0][0]/voxS[0]*curVoxSize[0]  );
 				int y=(int)Math.round(tabCorr.get(cor)[0][1]/voxS[1]*curVoxSize[1]  );
@@ -2010,6 +2115,7 @@ public interface VitimageUtils {
 	}
 	
 	public static double[] caracterizeBackgroundOfImage(ImagePlus img) {
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
 		int samplSize=Math.min(15,img.getWidth()/10);
 		int x0=samplSize;
 		int y0=samplSize;
@@ -2084,6 +2190,7 @@ public interface VitimageUtils {
 	}
 
 	public static ImagePlus switchAxis(ImagePlus img,int switch_0XY_1XZ_2YZ) {
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
 		ImagePlus ret=null;
 		int X=img.getWidth();
 		int Y=img.getHeight();
@@ -2175,6 +2282,7 @@ public interface VitimageUtils {
 	}
 	
 	public static ImagePlus restrictionMaskForFadingHandling (ImagePlus img,int marginOut){
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
 		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getStackSize();
 		if(marginOut>dimZ/3)marginOut=dimZ/3;
 		ImagePlus ret=IJ.createImage("MaskRegistration_"+img.getTitle(), dimX, dimY, dimZ, 8);
@@ -2209,19 +2317,19 @@ public interface VitimageUtils {
 			gaussFilter.setSigma(sigmaX);
 			img=gaussFilter.execute(img);
 		}
-		else System.out.println("Gaussian filterin : no work with X");
+		else IJ.log("Gaussian filtering : no work with X");
 		if(imgIn.getHeight()>=4 && sigmaY>0) {
 			gaussFilter.setDirection(1);
 			gaussFilter.setSigma(sigmaY);
 			img=gaussFilter.execute(img);
 		}
-		else System.out.println("Gaussian filterin : no work with Y");
-		if(imgIn.getStackSize()>=4 && sigmaZ>0) {
+		else IJ.log("Gaussian filtering : no work with Y");
+		if(imgIn.getNSlices()>=4 && sigmaZ>0) {
 			gaussFilter.setDirection(2);
 			gaussFilter.setSigma(sigmaZ);
 			img=gaussFilter.execute(img);
 		}
-		else System.out.println("Gaussian filterin : no work with Z");
+		else IJ.log("Gaussian filtering : no work with Z");
 		
 		return ItkImagePlusInterface.itkImageToImagePlus(img);
 	}
@@ -2229,7 +2337,48 @@ public interface VitimageUtils {
 	
 
 	
+	public static int[][] getRoiAsCoords(Roi r) {
+		int type=r.getType();
+		int incr=0;
+		if(type==0) {//Rectangle
+			IJ.log("Roi type "+type+" rectangle");
+			final Rectangle rect = r.getBounds();
+			final int x0 = rect.x;			final int y0 = rect.y;
+			final int lastX = x0 + rect.width;  final int lastY = y0 + rect.height;
+			int[][]ret=new int[rect.width*rect.height][2];
+			for( int x = x0; x < lastX; x++ ) {
+				for( int y = y0; y < lastY; y++ ){
+					ret[incr++]=new int[] {x,y};
+				}
+			}	
+			return ret;
+		}
+		else if(type==1 || type==2) {//Ovale
+			IJ.log("Roi type "+type+" oval");
+			final Rectangle rect = r.getBounds();
+			final int x0 = rect.x;			final int y0 = rect.y;
+			final int lastX = x0 + rect.width;			final int lastY = y0 + rect.height;
+			for( int x = x0; x < lastX; x++ ) {				for( int y = y0; y < lastY; y++ ){					if(r.contains(x, y))					incr++;				}			}			
+			int[][]ret=new int[incr][2];
+			incr=0;
+			for( int x = x0; x < lastX; x++ ) {				for( int y = y0; y < lastY; y++ ){					if(r.contains(x, y))					ret[incr++]=new int[] {x,y};				}			}			
+			return ret;
+		}
+		else if(type>=3) {//Free
+			IJ.log("Roi type "+type+" other (freeline, shape, ...)");
+			int[] x = r.getPolygon().xpoints;
+			int[] y = r.getPolygon().ypoints;
+			final int n = r.getPolygon().npoints;
+			int[][]ret=new int[n][2];
+			for( int ind = 0; ind < n; ind++ ) {
+				ret[ind]=new int[] {x[ind],y[ind]};
+			}	
+			return ret;
+		}
+		else return null;
+	}
 	
+
 
 
 	
@@ -2326,9 +2475,31 @@ public interface VitimageUtils {
 					out[z][y*X+x]=((int)((in[z][y*X+x] & 0xffff )));
 				}			
 			}
+			ret.getStack().setSliceLabel(imgIn.getStack().getSliceLabel(z+1), z+1);
 		}
 		return ret;
 	}
+	
+	public static ImagePlus convertFloatToShortWithoutDynamicChanges(ImagePlus imgIn) {
+		ImagePlus ret=new Duplicator().run(imgIn);
+		IJ.run(ret,"16-bit","");
+		float[][] in=new float[imgIn.getStackSize()][];
+		short[][] out=new short[ret.getStackSize()][];
+		int X=imgIn.getWidth();
+		for(int z=0;z<imgIn.getStackSize();z++) {
+			in[z]=(float []) imgIn.getStack().getProcessor(z+1).getPixels();
+			out[z]=(short []) ret.getStack().getProcessor(z+1).getPixels();
+
+			for(int x=0;x<imgIn.getWidth();x++) {
+				for(int y=0;y<imgIn.getHeight();y++) {
+					out[z][y*X+x]=(short)((int)(Math.round(in[z][y*X+x])));
+				}			
+			}
+			ret.getStack().setSliceLabel(imgIn.getStack().getSliceLabel(z+1), z+1);
+		}
+		return ret;
+	}
+
 		
 	public static ImagePlus thresholdByteImage(ImagePlus img,double thresholdMin, double thresholdMax) {
 		ImagePlus ret=new Duplicator().run(img);
@@ -2449,6 +2620,17 @@ public interface VitimageUtils {
 		return tabRet;
 	}
 
+	
+	public static double[] doubleArraySort(double[]tab) {
+		double[]tabRet=new double[tab.length];
+		ArrayList<Double> list=new ArrayList<Double>();
+		for(double dou : tab)list.add(dou);
+		Collections.sort(list);
+		for(int i=0;i<list.size();i++)tabRet[i]=list.get(i);
+		return tabRet;
+	}
+
+
 	public static float hypot(float x, float y) {
 		return (float) Math.hypot(x, y);
 	}
@@ -2457,13 +2639,15 @@ public interface VitimageUtils {
 		return (float) Math.exp(-(x * x) / (2f * sigma * sigma));
 	}
 	
+	//TODO : weird surnumerous function that have to be suppressed : Duplicator make all the job
 	public static ImagePlus imageCopy(ImagePlus imgRef) {
 		ImagePlus ret=new Duplicator().run(imgRef);
 		VitimageUtils.adjustImageCalibration(ret, imgRef);
+		for(int z=0;z<imgRef.getStackSize();z++)ret.getStack().setSliceLabel(imgRef.getStack().getSliceLabel(z+1), z+1);
 		return ret;
 	}
 	
-	public static ImagePlus imageCopy(ImagePlus imgRef,String title) {
+	public static ImagePlus imageCopyWithSliceLabel(ImagePlus imgRef,String title) {
 		ImagePlus ret=new Duplicator().run(imgRef);
 		VitimageUtils.adjustImageCalibration(ret, imgRef);
 		for(int z=0;z<imgRef.getStackSize();z++) {
@@ -2473,6 +2657,16 @@ public interface VitimageUtils {
 		return ret;
 	}
 
+	
+	
+	public static ImagePlus[] imageTabCopy(ImagePlus []imgTabRef) {
+		ImagePlus []imgRetTab=new ImagePlus[imgTabRef.length];
+		for(int i=0;i<imgRetTab.length;i++)imgRetTab[i]=imageCopy(imgTabRef[i]);
+		return imgRetTab;
+	}
+	
+
+	
 	public static Date getDateFromString(String datStr) {
 		Date date=null;
 		try {
@@ -2483,12 +2677,26 @@ public interface VitimageUtils {
 		return date;
 	}
 
-	public static void setLabelOnAllSlices(ImagePlus img,String label) {
-		for(int i=0;i<img.getStack().getSize();i++)img.getStack().setSliceLabel(label,i+1);
+	public static void addLabelOnAllSlices(ImagePlus img,String label) {
+		for(int z=0;z<img.getNSlices();z++)for(int c=0;c<img.getNChannels();c++)for(int f=0;f<img.getNFrames();f++) {
+			String oldLab=img.getStack().getSliceLabel(getCorrespondingSliceInHyperImage(img, c, z, f));
+			String newLab=""+label+""+(oldLab==null ? "" : oldLab);
+			img.getStack().setSliceLabel(newLab,getCorrespondingSliceInHyperImage(img, c, z, f));
+		}
 	}
 	
 	
 	
+	
+	
+	
+	public static int getCorrespondingSliceInHyperImage(ImagePlus img,int c,int z,int f) {
+		int nbC=img.getNChannels();
+		int nbZ=img.getNSlices();
+		return nbC*nbZ*f+nbC*z+c+1;		
+	}
+	
+
 	
 	
 	

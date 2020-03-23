@@ -34,7 +34,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	public boolean computeSummary=false;
 	int maxIter=1000;
 	int fontSize=12;
-	int percentageBlocksSelectedByLTS=70;
+	public int percentageBlocksSelectedByLTS=70;
 	public Point3d[][] correspondanceProvidedAtStart;
 	public double[]globalR2Values=new double[maxIter];
 	public double[]blockR2ValuesBef=new double[maxIter];
@@ -112,15 +112,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 	
 	/** Starting points
-	 * 
 	 */
-	public static void main(String[] args) {
-		System.out.println("File compiled");
-	}
 
-	public BlockMatchingRegistration() {
-	}
-	
 	public BlockMatchingRegistration(ImagePlus imgRef,ImagePlus imgMov,Transform3DType transformationType,MetricType metricType,
 			double smoothingSigmaInPixels, double denseFieldSigma,int levelMin,int levelMax,int nbIterations,int sliceInt,ImagePlus mask,
 			int neighbourX,int neighbourY,int neighbourZ,int blockHalfSizeX,int blockHalfSizeY,int blockHalfSizeZ,int strideX,int strideY,int strideZ) {
@@ -175,6 +168,10 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		this.viewHeight=(int)(this.imgRef.getHeight()*zoomFactor);
 		this.viewWidth=(int)(this.imgRef.getWidth()*zoomFactor);
 
+	}
+
+	public BlockMatchingRegistration() {
+		// TODO Auto-generated constructor stub
 	}
 
 	public static BlockMatchingRegistration setupBlockMatchingRegistration(ImagePlus imgRef,ImagePlus imgMov,RegistrationAction regAct) {
@@ -603,6 +600,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 						levelStrideX*subSamplingFactors[0],levelStrideY*subSamplingFactors[1],levelStrideZ*subSamplingFactors[2],
 						blockSizeHalfX*subSamplingFactors[0],blockSizeHalfY*subSamplingFactors[1],blockSizeHalfZ*subSamplingFactors[2],false);
 					this.correspondancesSummary=(ImagePlus) obj[0];
+					
 					this.sliceIntCorr=1+(int) obj[1];	
 				}
 				if(displayR2) {
@@ -949,7 +947,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 		if(sliceRef==null) {
 			handleOutput("Starting graphical following tool...");
-			this.sliceRef=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.imgRef),this.sliceInt);
+			this.sliceRef=this.imgRef.duplicate();
+			this.sliceRef.setSlice(this.sliceInt);
 			if(flagRange)this.sliceRef.setDisplayRange(refRange[0], refRange[1]);
 			IJ.run(this.sliceRef,"8-bit","");
 			ImagePlus temp=VitimageUtils.writeTextOnImage(textIter,this.sliceRef,(this.fontSize*4)/3,0);
@@ -966,7 +965,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 			if(displayRegistration>1) {
 				ImagePlus tempImg=VitimageUtils.getBinaryGrid(this.imgRef, 10);
-				this.sliceGrid=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(tempImg,tempImg,false)),this.sliceInt);
+				this.sliceGrid=this.currentTransform.transformImage(tempImg,tempImg,false);
+				this.sliceGrid.setSlice(this.sliceInt);
 				this.sliceGrid.show();
 				this.sliceGrid.setTitle("Transform visualization on a uniform 3D grid");
 				this.sliceGrid.getWindow().setSize(this.viewWidth,this.viewHeight);
@@ -977,7 +977,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				tempImg=new Duplicator().run(imgRef);
 				IJ.run(tempImg,"32-bit","");
 				tempImg.getProcessor().set(0);
-				this.sliceCorr=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(tempImg),this.sliceIntCorr);
+				this.sliceCorr=tempImg;
+				this.sliceCorr.setSlice(this.sliceIntCorr);
 				this.sliceCorr.show();
 				this.sliceCorr.setTitle("Similarity heatmap");
 				this.sliceCorr.getWindow().setSize(this.viewWidth,this.viewHeight);
@@ -1004,14 +1005,14 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			this.sliceFuse.setSlice(this.sliceIntCorr);
 
 			if(displayRegistration>1) {
-				tempImg=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.correspondancesSummary),this.sliceIntCorr);
-				VitimageUtils.actualizeData(tempImg,this.sliceCorr);
+				tempImg=this.correspondancesSummary.duplicate();//setSlice
+				VitimageUtils.actualizeData(tempImg,this.sliceCorr);//TODO : do it using the reaffectation of the pixel value pointer. See in VitimageUtils.actualizeData
 				this.sliceCorr.setSlice(this.sliceIntCorr);
 
 				
 				tempImg=VitimageUtils.getBinaryGrid(this.imgRef, 10);
-				tempImg=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(tempImg,tempImg,false)),this.sliceInt);
-				VitimageUtils.actualizeData(tempImg,this.sliceGrid);
+				tempImg=this.currentTransform.transformImage(tempImg,tempImg,false);
+				VitimageUtils.actualizeData(tempImg,this.sliceGrid);//TODO : do it using the reaffectation of the pixel value pointer
 				this.sliceGrid.setSlice(this.sliceIntCorr);
 			}
 		}

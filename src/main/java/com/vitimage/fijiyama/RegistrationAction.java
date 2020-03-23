@@ -224,6 +224,94 @@ public class RegistrationAction implements Serializable{
 	}
 
 	
+	
+	
+	
+	
+	public RegistrationAction defineSettingsSimplyFromTwoImages(ImagePlus imgRef,ImagePlus imgMov) {
+		this.selectScore=95;
+		this.selectLTS=80;
+		this.selectRandom=100;
+		int nbStrideAtMaxLevel=30;
+		double minSubResolutionImageSizeLog2=5.0;//In power of two : min resolution=64;
+		double maxSubResolutionImageSizeLog2=7.0;//In power of two : max resolution=256
+		int strideMinZ=3;
+
+		int[]dimsTemp=VitimageUtils.getDimensions(imgRef);
+		double[]voxsTemp=VitimageUtils.getVoxelSizes(imgRef);
+		double[]sizesTemp=new double[] {dimsTemp[0]*voxsTemp[0],dimsTemp[1]*voxsTemp[1],dimsTemp[2]*voxsTemp[2]};				
+		sigmaDense=sizesTemp[0]/12;//Default : gaussian kernel for dense field estimation is 12 times smaller than image
+		double anisotropyVox=voxsTemp[2]/Math.max(voxsTemp[1],voxsTemp[0]);
+		this.levelMinLinear=0;
+		this.levelMinDense=0;
+		this.levelMaxLinear=0;
+		this.levelMaxDense=0;
+		boolean subZ=false;
+		iterationsBMLin=STD_BM_ITER;
+		iterationsBMDen=STD_BM_ITER/2;
+		iterationsITK=STD_ITK_ITER;
+		neighX=2;
+		neighY=2;
+		neighZ=2;
+		if((dimsTemp[2]>=5) && (anisotropyVox<3)) {//Cas 3D pur
+			subZ=true;
+			int []dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-minSubResolutionImageSizeLog2),
+						              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-minSubResolutionImageSizeLog2),
+					              	  (int)Math.floor(Math.log(dimsTemp[2])/Math.log(2)-minSubResolutionImageSizeLog2)};
+			levelMaxLinear=Math.min(Math.min(dimsLog2[0], dimsLog2[1]), dimsLog2[2]);
+			dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-maxSubResolutionImageSizeLog2),
+		              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-maxSubResolutionImageSizeLog2),
+	              	  (int)Math.floor(Math.log(dimsTemp[2])/Math.log(2)-maxSubResolutionImageSizeLog2)};
+			levelMinLinear=Math.max(Math.max(dimsLog2[0], dimsLog2[1]), dimsLog2[2]);	
+			if(levelMinLinear>levelMaxLinear)levelMinLinear=levelMaxLinear;
+			subsampleZ=1;
+			higherAcc=levelMinLinear<1 ? 1 : 0;
+			levelMinLinear=levelMinLinear<1 ? 1 : levelMinLinear;
+			levelMaxLinear= levelMaxLinear<levelMinLinear ? levelMinLinear : levelMaxLinear;
+		}
+		else {	
+			//If dimZ<5, case 2D --> no subsampleZ, levelMin and max defined using dimX and dimY, neighZ=0 BHSZ=0 strideZ=1;
+			//else if anisotropyVox>3 -> no subsampleZ levelMin and max defined using dimX and dimY, neighZ=3 BHSZ=prop strideZ=prop;
+			int []dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-minSubResolutionImageSizeLog2),
+		              (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-minSubResolutionImageSizeLog2) };
+			levelMaxLinear=Math.min(dimsLog2[0], dimsLog2[1]);
+			dimsLog2=new int[] {(int)Math.floor(Math.log(dimsTemp[0])/Math.log(2)-maxSubResolutionImageSizeLog2),
+			    (int)Math.floor(Math.log(dimsTemp[1])/Math.log(2)-maxSubResolutionImageSizeLog2)};
+			levelMinLinear=Math.max(dimsLog2[0], dimsLog2[1]);	
+			if(levelMinLinear>levelMaxLinear)levelMinLinear=levelMaxLinear;
+			subsampleZ=0;
+			higherAcc=levelMinLinear<1 ? 1 : 0;
+			levelMinLinear=levelMinLinear<1 ? 1 : levelMinLinear;
+			levelMaxLinear= levelMaxLinear<levelMinLinear ? levelMinLinear : levelMaxLinear;
+		}
+		int subFactorMin=(int)Math.round(Math.pow(2, -1+Math.max(1,levelMinLinear)));
+		int []targetDimsLevelMin=new int[] {dimsTemp[0]/subFactorMin,dimsTemp[1]/subFactorMin,dimsTemp[2]/(subZ ? subFactorMin : 1)};
+
+		int[]strides=new int[] { (int) Math.round(Math.max(1,Math.ceil(targetDimsLevelMin[0]/nbStrideAtMaxLevel))),
+								 (int) Math.round(Math.max(1,Math.ceil(targetDimsLevelMin[1]/nbStrideAtMaxLevel))),
+								 (int) Math.round(Math.max(strideMinZ,Math.ceil(targetDimsLevelMin[2]/nbStrideAtMaxLevel))) };
+		strideX=strides[0];
+		strideY=strides[1];
+		strideZ=strides[2];
+		bhsX=(int) Math.round(Math.min(7,Math.max(strides[0],3)));
+		bhsY=(int) Math.round(Math.min(7,Math.max(strides[1],3)));
+		bhsZ=(int) Math.round(Math.min(7,Math.max(strides[2],3)));
+		if(dimsTemp[2]<5) {//cas 2D
+			neighZ=0;
+			bhsZ=0;
+			strideZ=1;
+		}
+		if(this.levelMaxLinear>1)this.levelMaxDense=this.levelMaxLinear-1;
+		else this.levelMaxDense=1;
+		this.levelMinDense=this.levelMinLinear;
+		return this;
+	}
+
+	
+	
+	
+	
+	
 	public void updateFieldsFromBoxes(int actionSelectedIndex,int transSelectedIndex,int optimizerSelectedIndex,int displaySelectedIndex,int viewerManSelectedIndex,int modeWindow) {
 		this.typeAction=actionSelectedIndex;
 		this.typeTrans=(transSelectedIndex==0 ? Transform3DType.RIGID : transSelectedIndex==1 ? Transform3DType.SIMILARITY : Transform3DType.DENSE);
@@ -340,36 +428,7 @@ public class RegistrationAction implements Serializable{
 	
 	
 	
-	
-
-	// Serialization  
-	public void writeToFile(String path) {
-	    try    {    
-	        FileOutputStream file = new FileOutputStream(path); 
-	        ObjectOutputStream out = new ObjectOutputStream(file); 
-	        out.writeObject(this); 
-	        out.close(); 
-	        file.close(); 
-	    }    catch(IOException ex) {         IJ.log("IOException has been caught during writing to "+path);     } 
-	}
-
-	public static RegistrationAction readFromFile(String path) {
-		RegistrationAction reg=null;
-		try    {    
-	        FileInputStream file = new FileInputStream(path); 
-	        ObjectInputStream in = new ObjectInputStream(file); 
-	        reg = (RegistrationAction)in.readObject();        
-	        in.close(); 
-	        file.close(); 
-	    }       catch(IOException ex)     {      IJ.log("IOException has been caught during reading from "+path);    } 
-	     		catch(ClassNotFoundException ex)     {        IJ.log("ClassNotFoundException has been caught during reading from "+path);    } 
-	    return reg;
-	}
-	
-	
-
-	// Serialization in text file  
-	public void writeToTxtFile(String path) {
+	public String fullLengthDescription() {
 		String str="#Version="+this.currentSerialVersionUID+"\n";
 		str+="#IsDone="+(isDone ? 1 : 0)+"\n";
 		str+="#Step="+step+"\n";
@@ -410,6 +469,13 @@ public class RegistrationAction implements Serializable{
 		str+="#LevelMaxDense="+levelMaxDense+"\n";
 		str+="#IterationsBMDense="+iterationsBMDen+"\n";
 		str+="#LevelMinDense="+levelMinDense+"\n";
+		return str;
+	}
+
+
+	// Serialization in text file  
+	public void writeToTxtFile(String path) {
+		String str=fullLengthDescription();
 		VitimageUtils.writeStringInFile(str,path);
 	}
 

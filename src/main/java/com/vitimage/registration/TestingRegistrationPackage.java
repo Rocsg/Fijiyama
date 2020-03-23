@@ -11,6 +11,7 @@ import com.vitimage.fijiyama.Fijiyama_GUI;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
+import ij.plugin.Duplicator;
 
 public class TestingRegistrationPackage {
 
@@ -22,6 +23,7 @@ public class TestingRegistrationPackage {
 	public static void main(String[]args) {
 		@SuppressWarnings("unused")
 		ImageJ ij=new ImageJ();
+		
 		String[] paths=getInputOutputPathForRegistrationPackage();
 		String inputPath=new File(paths[0],"Input_data").getAbsolutePath();
 		String outputPath=paths[1];

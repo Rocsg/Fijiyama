@@ -29,10 +29,12 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.plugin.Concatenator;
+import ij.plugin.Duplicator;
 import ij.plugin.HyperStackConverter;
 import ij.plugin.Memory;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
+import ij.process.LUT;
 import math3d.Point3d;
 
 
@@ -53,7 +55,8 @@ public class RegistrationManager{
 	private boolean downSizingWhenNeeded=true;
 	int estimatedTime=0;
 	int estimatedGlobalTime=0;
-	
+	private int nbChannelsOfInputData=1;
+	private int nbTimesOfInputData=1;
 
 	private boolean first2dmessageHasBeenViewed=true;
 	private boolean first3dmessageHasBeenViewed=false;
@@ -80,7 +83,7 @@ public class RegistrationManager{
 	private int[][][]initDimensions;
 	private int[][][]dimensions;
 	private boolean isSubSampled[][];
-	private double[][][]imageRanges;
+	private double[][][][][]imageRanges;
 	private double[][][]initVoxs;
 	private double[][][]voxs;
 	public ImagePlus[][]images;
@@ -98,6 +101,8 @@ public class RegistrationManager{
 	private String stringTwoImgs="TwoImgs";
 	private int memoryFactorForGoodUX=100;//This is the maximum number of images that can be located in the RAM at the same time.
 	//It Will be used to set the max image size, and decide wheter subsampling or not for computation
+	private int[][] imageTypes;
+	private LUT[][][] imageLuts;
 	
 	
 	
@@ -196,7 +201,7 @@ public class RegistrationManager{
 	
 		//Check computer capacity and get a working copy of images
 		this.checkComputerCapacity(true);
-		this.openImagesAndCheckOversizing();
+		if(!this.openImagesAndCheckOversizing())return false;
 		ItkTransform trTemp = null;
 		
 		//Read the steps : all RegistrationAction serialized .ser object, and associated transform for those already computed
@@ -211,7 +216,6 @@ public class RegistrationManager{
 				if(regTemp.typeTrans!=Transform3DType.DENSE || regTemp.typeAction!=1)trTemp=ItkTransform.readTransformFromFile(f.getAbsolutePath());
 				else trTemp=ItkTransform.readAsDenseField(f.getAbsolutePath());				
 			}
-			IJ.log(""+trTemp);
 			addTransformAndActionBlindlyForBuilding(trTemp,regTemp);
 		}
 		currentRegAction=regActions.get(step);
@@ -234,7 +238,7 @@ public class RegistrationManager{
 		this.paths[movTime][movMod]=paths[1];
 
 		checkComputerCapacity(true);
-		openImagesAndCheckOversizing();
+		if(!openImagesAndCheckOversizing())return false;
 		addFirstActionOfPipeline();
 		String fjmPath=saveSerieToFjmFile();
 		unsetAllStructures();
@@ -284,7 +288,7 @@ public class RegistrationManager{
 		}
 		this.isSerie=true;
 		checkComputerCapacity(false);
-		openImagesAndCheckOversizing();
+		if(!openImagesAndCheckOversizing())return false;
 		this.stepBuild=0;
 		defineSerieRegistrationPipeline("BEGIN");
 		return true;
@@ -383,8 +387,8 @@ public class RegistrationManager{
 			this.mods=(strMods.length()==0 ? new String[] {""} : strMods.split(";"));
 			this.nTimes=this.times.length;
 			this.nMods=this.mods.length;
-			setupStructures();			
-		}catch(Exception e) {IJ.showMessage("Exception when reading parameters. Abort");e.printStackTrace();return false;}
+		} catch(Exception e) {IJ.showMessage("Exception when reading parameters. Abort");e.printStackTrace();return false;}
+		setupStructures();			
 		int []numberPerTime=new int[this.nTimes];
 		int []numberPerMod=new int[this.nMods];
 		int nbTot=0;
@@ -627,7 +631,9 @@ public class RegistrationManager{
 		this.dimensions=new int[this.nTimes][this.nMods][3];
 		this.initVoxs=new double[this.nTimes][this.nMods][3];
 		this.imageSizes=new double[this.nTimes][this.nMods];
-		this.imageRanges=new double[this.nTimes][this.nMods][2];
+		this.imageRanges=new double[this.nTimes][this.nMods][this.nbTimesOfInputData][this.nbChannelsOfInputData][2];
+		this.imageTypes=new int[this.nTimes][this.nMods];
+		this.imageLuts=new LUT[this.nTimes][this.nMods][];
 		this.voxs=new double[this.nTimes][this.nMods][3];	
 		this.transforms=(ArrayList<ItkTransform>[][])new ArrayList[this.nTimes][this.nMods];
 		for(int nt=0;nt<this.nTimes;nt++) {
@@ -635,6 +641,15 @@ public class RegistrationManager{
 				this.transforms[nt][nm]=new ArrayList<ItkTransform>();
 			}
 		}
+	}
+
+	public int valueAllTypes() {
+		for(int nt=0;nt<this.nTimes;nt++) {
+			for(int nm=0;nm<this.nMods;nm++) {
+				if(imageTypes[nt][nm]!=imageTypes[this.referenceTime][this.referenceModality])return -1;
+			}
+		}
+		return imageTypes[this.referenceTime][this.referenceModality];
 	}
 	
 	public void unsetAllStructures() {
@@ -670,7 +685,7 @@ public class RegistrationManager{
 		this.nSteps=0;
 	}
 	
-	public void openImagesAndCheckOversizing() {
+	public boolean openImagesAndCheckOversizing() {
 		String recapMain="There is oversized images, which can lead to very slow computation, or memory overflow.\n"+
 				"Your computer capability has been detected to :\n"+
 				" -> "+this.jvmMemory+" MB of RAM allowed for this plugin"+"\n -> "+this.nbCpu+" parallel threads for computation."+
@@ -679,17 +694,45 @@ public class RegistrationManager{
 				" as registration is memory/computation intensive. \n.\nProposed solution : Fijiyama can use a subsampling strategy in order to compute registration on smaller images\n"+
 				"Therefore, final resampled images will be computed using the initial data, to provide high-quality results\n\n"+
 				"Do you agree that Fijiyama subsample data before registration ?";
-		IJ.log("Checking oversized images. Limit="+this.maxImageSizeForRegistration);
+		IJ.log("Checking odversized images. Limit="+this.maxImageSizeForRegistration);
 		recapMain+="\n.\n.\nSummary of image sizes :\n";
 		String recap="";
 		ImagePlus img;
 		boolean thereIsBigImages=false;
 		int factor=1;
+		boolean initialImageHyperDimsDefined=false;
+		int mInit=0;
+		int tInit=0;
 		for(int nt=0;nt<this.nTimes;nt++) {
 			for(int nm=0;nm<this.nMods;nm++) {
 				if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 					if(this.transforms[nt][nm]==null)this.transforms[nt][nm]=new ArrayList<ItkTransform>();//If it is not the case, it is a startup from a file
 					ImagePlus imgTemp=IJ.openImage(this.paths[nt][nm]);
+					this.imageTypes[nt][nm]=imgTemp.getType();
+					if(initialImageHyperDimsDefined) {
+						if((this.nbChannelsOfInputData != imgTemp.getNChannels()) || (this.nbTimesOfInputData != imgTemp.getNFrames())) {
+							VitiDialogs.getYesNoUI("Critical fail","Critical fail : hyperdimensions does not match between\n"+
+									"First image : nb channels="+this.nbChannelsOfInputData+" , nt times="+this.nbTimesOfInputData+"\n"+
+									"-> From path : "+this.paths[tInit][mInit]+"\n.\n"+
+									"Current image : nb channels="+imgTemp.getNChannels()+" , nt times="+imgTemp.getNFrames()+"\n"+
+									"-> From path : "+this.paths[nt][nm]+"\n.\n. Aborting now. Please verify your data or contact the developers to get more insight about it.\n.\n"
+									+"If you want to register images that does not have the same hyperdimensions,\n"+
+									"please use the tool duplicate (CTRL+MAJ+D in ImageJ) to prepare data with same hyperdimensions\n"+
+									"Then register it, and after, use the Fijiyama tool \"Apply transformation\"\n"+
+									" to use the resulting transformations you computed");
+							this.freeMemory();
+							fijiyamaGui.closeAllViews();
+							return false;
+						}
+					}
+					else {
+						this.nbChannelsOfInputData=imgTemp.getNChannels();
+						this.nbTimesOfInputData=imgTemp.getNFrames();
+						this.imageRanges=new double[this.nTimes][this.nMods][this.nbTimesOfInputData][this.nbChannelsOfInputData][2];
+						initialImageHyperDimsDefined=true;
+						mInit=nm;
+						tInit=nt;
+					}
 					if(nt==this.referenceTime && nm==this.referenceModality)this.unit=imgTemp.getCalibration().getUnit();
 					initDimensions[nt][nm]=VitimageUtils.getDimensionsXYZCT(imgTemp);
 					dimensions[nt][nm]=VitimageUtils.getDimensions(imgTemp);
@@ -702,7 +745,6 @@ public class RegistrationManager{
 					}
 					else this.isSubSampled[nt][nm]=false;
 
-					IJ.log("Image "+nt+"-"+nm+" : size="+imageSizes[nt][nm]+" Mvoxels");
 				}
 			}
 		}
@@ -711,14 +753,20 @@ public class RegistrationManager{
 				for(int nm=0;nm<this.nMods;nm++) {
 					if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 						img=IJ.openImage(this.paths[nt][nm]);
+						this.imageLuts[nt][nm]=img.getLuts();
 						if(img.getType()==ImagePlus.COLOR_RGB)IJ.run(img,"8-bit","");
-						if(this.initDimensions[nt][nm][3]*this.initDimensions[nt][nm][4]>1)img=VitimageUtils.stacksFromHyperstackFastBis(img)[0];
-						ImageProcessor ip=img.getStack().getProcessor(img.getStackSize()/2+1);
-						ip.resetMinAndMax();
-						this.imageRanges[nt][nm][0]=ip.getMin();
-						this.imageRanges[nt][nm][1]=ip.getMax();
+						for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
+							for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
+								img.setC(nm2+1);
+								img.setT(nt2+1);
+								this.imageRanges[nt][nm][nt2][nm2][0]=img.getDisplayRangeMin();
+								this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();			
+								IJ.log("No big hyperimgs On a eu :"+TransformUtils.stringVectorN(this.imageRanges[nt][nm][nt2][nm2], ""));
+							}
+						}
+						img=new Duplicator().run(img,1,1,1,this.initDimensions[nt][nm][2],1,1);
 						this.images[nt][nm]=img;
-						this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0],this.imageRanges[nt][nm][1]);
+						this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][0][0],this.imageRanges[nt][nm][0][0][1]);
 						this.isSubSampled[nt][nm]=false;
 					}
 				}
@@ -751,7 +799,18 @@ public class RegistrationManager{
 						if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 							IJ.log("Processing image "+nt+"-"+nm+" . Initial voxel size="+VitimageUtils.dou(this.initVoxs[nt][nm][0])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][1])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][0])+" and dims="+this.dimensions[nt][nm][0]+"x"+this.dimensions[nt][nm][1]+"x"+this.dimensions[nt][nm][2]);
 							if(imageSizes[nt][nm]<=this.maxImageSizeForRegistration) {
-								this.images[nt][nm]=IJ.openImage(this.paths[nt][nm]);
+								img=IJ.openImage(this.paths[nt][nm]);
+								this.imageLuts[nt][nm]=img.getLuts();
+								if(img.getType()==ImagePlus.COLOR_RGB)IJ.run(img,"8-bit","");
+								for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
+									for(int nm2=0;nm2<this.nbTimesOfInputData;nm2++) {									
+										img.setC(nm2+1);
+										img.setT(nt2+1);
+										this.imageRanges[nt][nm][nt2][nm2][0]=img.getDisplayRangeMin();
+										this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();									
+									}
+								}
+								this.images[nt][nm]=new Duplicator().run(img,1,1,1,img.getNSlices(),1,1);
 								this.isSubSampled[nt][nm]=false;
 								IJ.log("   -> target voxel size="+VitimageUtils.dou(this.initVoxs[nt][nm][0])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][1])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][0])+" and dims="+this.dimensions[nt][nm][0]+"x"+this.dimensions[nt][nm][1]+"x"+this.dimensions[nt][nm][2]);
 							}
@@ -785,13 +844,21 @@ public class RegistrationManager{
 									else {factor=factorPow3;this.dimensions[nt][nm][0]/=factor;this.dimensions[nt][nm][1]/=factor;this.dimensions[nt][nm][2]/=factor;this.voxs[nt][nm][0]*=factor;this.voxs[nt][nm][1]*=factor;this.voxs[nt][nm][2]*=factor;
 									}					
 								}
-								img=IJ.openImage(this.paths[nt][nm]);if(this.initDimensions[nt][nm][3]*this.initDimensions[nt][nm][4]>1)img=VitimageUtils.stacksFromHyperstackFastBis(img)[0];
-								ImageProcessor ip=img.getStack().getProcessor(img.getStackSize()/2+1);
-								ip.resetMinAndMax();
-								this.imageRanges[nt][nm][0]=ip.getMin();
-								this.imageRanges[nt][nm][1]=ip.getMax();
+								img=IJ.openImage(this.paths[nt][nm]);
+								this.imageLuts[nt][nm]=img.getLuts();
+								if(img.getType()==ImagePlus.COLOR_RGB)IJ.run(img,"8-bit","");
+								for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
+									for(int nm2=0;nm2<this.nbTimesOfInputData;nm2++) {									
+										img.setC(nm2+1);
+										img.setT(nt2+1);
+										this.imageRanges[nt][nm][nt2][nm2][0]=img.getDisplayRangeMin();
+										this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();									
+										IJ.log("Big imgs On a eu :"+TransformUtils.stringVectorN(this.imageRanges[nt][nm][nt2][nm2], ""));
+									}
+								}
+								img=new Duplicator().run(img,1,1,1,this.initDimensions[nt][nm][2],1,1);
 								this.images[nt][nm]=ItkTransform.resampleImage(this.dimensions[nt][nm], this.voxs[nt][nm], img,false);
-								this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0],this.imageRanges[nt][nm][1]);
+								this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][0][0],this.imageRanges[nt][nm][0][0][1]);
 								IJ.log("   -> target voxel size="+VitimageUtils.dou(this.voxs[nt][nm][0])+"x"+VitimageUtils.dou(this.voxs[nt][nm][1])+"x"+VitimageUtils.dou(this.voxs[nt][nm][0])+" and dims="+this.dimensions[nt][nm][0]+"x"+this.dimensions[nt][nm][1]+"x"+this.dimensions[nt][nm][2]);
 							}	
 						}
@@ -805,12 +872,18 @@ public class RegistrationManager{
 						if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 							this.images[nt][nm]=IJ.openImage(this.paths[nt][nm]);
 							this.isSubSampled[nt][nm]=false;
-							img=IJ.openImage(this.paths[nt][nm]);if(this.initDimensions[nt][nm][3]*this.initDimensions[nt][nm][4]>1)img=VitimageUtils.stacksFromHyperstackFastBis(img)[0];
-							ImageProcessor ip=img.getStack().getProcessor(img.getStackSize()/2+1);
-							ip.resetMinAndMax();
-							this.imageRanges[nt][nm][0]=ip.getMin();
-							this.imageRanges[nt][nm][1]=ip.getMax();
-							this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0],this.imageRanges[nt][nm][1]);
+							this.imageLuts[nt][nm]=this.images[nt][nm].getLuts();
+							if(this.images[nt][nm].getType()==ImagePlus.COLOR_RGB)IJ.run(this.images[nt][nm],"8-bit","");
+							for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
+								for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
+									this.images[nt][nm].setC(nm2+1);
+									this.images[nt][nm].setT(nt2+1);
+									this.imageRanges[nt][nm][nt2][nm2][0]=this.images[nt][nm].getDisplayRangeMin();
+									this.imageRanges[nt][nm][nt2][nm2][1]=this.images[nt][nm].getDisplayRangeMax();									
+								}
+							}
+							this.images[nt][nm]=new Duplicator().run(this.images[nt][nm],1,1,1,this.initDimensions[nt][nm][2],1,1);
+							this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][0][0],this.imageRanges[nt][nm][0][0][1]);
 						}
 					}	
 				}
@@ -819,16 +892,36 @@ public class RegistrationManager{
 		img=null;
 		for(int nt=0;nt<this.nTimes;nt++)for(int nm=0;nm<this.nMods;nm++) if(imageExists(nt,nm)) {
 			if(this.transforms[nt][nm]==null) {transforms[nt][nm]=new ArrayList<ItkTransform>();}
-			if(this.images[nt][nm].getType()==ImagePlus.COLOR_RGB) {
-				IJ.run(this.images[nt][nm],"8-bit","");
-				ImageProcessor ip=this.images[nt][nm].getStack().getProcessor(this.images[nt][nm].getStackSize()/2+1);
-				ip.resetMinAndMax();
-				this.imageRanges[nt][nm][0]=ip.getMin();
-				this.imageRanges[nt][nm][1]=ip.getMax();
-			}
 		}
 		System.gc();
-		fijiyamaGui.viewSlice=images[referenceTime][referenceModality].getStackSize()/2+1;
+		fijiyamaGui.viewSlice=images[referenceTime][referenceModality].getNSlices()/2+1;
+
+		
+		IJ.log("-----------------------------\nSummary of image importation\n-----------------------------\n");
+		for(int nt=0;nt<this.nTimes;nt++) {
+			for(int nm=0;nm<this.nMods;nm++) {
+				if(!imageExists(nt,nm))IJ.log("\nTime "+nt+" Mod "+nm+" : no image");
+				else {
+					IJ.log("\nTime "+nt+" Mod "+nm+" : image exists. ");
+					IJ.log(" - Initial image dimensions : "+TransformUtils.stringVectorN(this.initDimensions[nt][nm],""));
+					IJ.log(" - Image size="+imageSizes[nt][nm]+" Mvoxels");
+					IJ.log(" - Used image in registration : "+VitimageUtils.imageResume(this.images[nt][nm]));
+					if(this.nbChannelsOfInputData*this.nbTimesOfInputData==1)	IJ.log(" - Detected ranges for canals and times : c0t0 :"+TransformUtils.stringVectorN(this.imageRanges[nt][nm][0][0],""));
+					else {
+						IJ.log(" - Detected ranges for canals and times ");
+						for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
+							for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {
+								IJ.log("   .....c"+nm2+"t"+nt2+" : "+TransformUtils.stringVectorN(this.imageRanges[nt][nm][nt2][nm2],""));
+							}
+						}
+					}
+				}				
+			}
+		}
+		IJ.log("-----------------------------\n");
+		
+
+		return true;
 	}
 
 	public void addFirstActionOfPipeline() {
@@ -922,6 +1015,8 @@ public class RegistrationManager{
 		
 		if(choice==0) {
 			referenceGeometryForTransforms=IJ.openImage(this.paths[referenceTime][referenceModality]);
+			int nZ=referenceGeometryForTransforms.getNSlices();
+			referenceGeometryForTransforms=new Duplicator().run(referenceGeometryForTransforms,1,1,1,nZ,1,1);
 		}
 		else {
 			GenericDialog gd2=new GenericDialog("Provide custom dimensions (and voxel sizes)");
@@ -1191,12 +1286,12 @@ public class RegistrationManager{
 			movCopy.setTitle(fijiyamaGui.displayedNameImage2);
 		}
 		IJ.setTool("point");
-		refCopy.show();refCopy.setSlice(refCopy.getStackSize()/2+1);refCopy.updateAndRepaintWindow();
+		refCopy.show();refCopy.setSlice(refCopy.getNSlices()/2+1);refCopy.updateAndRepaintWindow();
 		VitimageUtils.adjustFrameOnScreen((Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage1), 0,2);
 		RoiManager rm=RoiManager.getRoiManager();
 		rm.reset();
 		VitimageUtils.adjustFrameOnScreenRelative((Frame)rm,(Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage1),2,1,2);
-		movCopy.show();movCopy.setSlice(movCopy.getStackSize()/2+1);movCopy.updateAndRepaintWindow();
+		movCopy.show();movCopy.setSlice(movCopy.getNSlices()/2+1);movCopy.updateAndRepaintWindow();
 		VitimageUtils.adjustFrameOnScreenRelative((Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage2),rm,2,2,2);
 		if(!fijiyamaGui.getAutoRepMode() && first2dmessageHasBeenViewed)IJ.showMessage("Examine images, identify correspondances between images and use the Roi manager to build a list of corresponding points. Points should be given this way : \n- Point A  in image 1\n- Correspondant of point A  in image 2\n- Point B  in image 1\n- Correspondant of point B  in image 2\netc...\n"+
 		"Once done (at least 5-15 couples of corresponding points), push the \""+fijiyamaGui.getRunButtonText()+"\" button to stop\n\n");
@@ -1340,10 +1435,13 @@ public class RegistrationManager{
 	}
 	
 	public ImagePlus getViewOfImagesTransformedAndSuperposedSerieWithThisReference(ImagePlus referenceGeometryForTransforms,boolean saveIndividualImages) {
+		long t0= System.currentTimeMillis();
+		IJ.log("...Timing (at start) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 		final ItkTransform transformAlignementRef=(transforms[referenceTime][referenceModality].size()>0) ? getComposedTransform(referenceTime, referenceModality) : new ItkTransform();
 		ImagePlus[] hyperImg=new ImagePlus[nTimes*nMods];
 		ItkTransform[][]trsTemp=new ItkTransform[nTimes][nMods];
 		for(int nt=0;nt<this.nTimes;nt++) for(int nm=0;nm<this.nMods;nm++)trsTemp[nt][nm]=new ItkTransform();
+		IJ.log("...Timing (after transfo prep) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 
 		//For the times before the reference
 		for(int nt=0;nt<this.referenceTime;nt++) {
@@ -1363,6 +1461,7 @@ public class RegistrationManager{
 				}
 			}
 		}
+		IJ.log("...Timing (after steps 1, 2, 3) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 		//For the times after the reference and the reference
 		for(int nt=this.nTimes-1;nt>=this.referenceTime;nt--) {
 			//Step 1 : For each time, at the reference modality, compose the transforms from time to time to go to reference time
@@ -1381,39 +1480,259 @@ public class RegistrationManager{
 				}
 			}
 		}
+		IJ.log("...Timing (after steps 4, 5, 6) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 			
-		//Step 4 : Add alignment transform to both
+
+		
+		
+
+		
+		//Step 4 : Add alignment transform to both, then export images
+		ImagePlus imgTemp=IJ.openImage(this.paths[this.referenceTime][this.referenceModality]);
 		for(int nt=0;nt<this.nTimes;nt++) {
 			for(int nm=0;nm<this.nMods;nm++) {
 				int index=nm*this.nTimes+nt;
 				if(imageExists(nt, nm)) {
 					IJ.log("Computing result data for time "+times[nt]+" and modality "+mods[nm]);
+					IJ.log("...Timing (transforming image number "+nt+","+nm+", start) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 					trsTemp[nt][nm].addTransform(new ItkTransform(transformAlignementRef));
-					if(isSubSampled[nt][nm])hyperImg[index]=trsTemp[nt][nm].transformImage(referenceGeometryForTransforms,IJ.openImage(this.paths[nt][nm]), false);
-					else hyperImg[index]=trsTemp[nt][nm].transformImage(referenceGeometryForTransforms,images[nt][nm], false);
-					hyperImg[index].setDisplayRange(this.imageRanges[nt][nm][0], this.imageRanges[nt][nm][1]);
+					IJ.log("...Timing (transforming image number "+nt+","+nm+", transfo complete) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
+					imgTemp=IJ.openImage(this.paths[nt][nm]);
+					IJ.log("...Timing (transforming image number "+nt+","+nm+", image opened) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
+     			    hyperImg[index]=trsTemp[nt][nm].transformImage(referenceGeometryForTransforms,imgTemp, false,true,t0);
+					IJ.log("...Timing (transforming image number "+nt+","+nm+", image transformed) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 					if(saveIndividualImages) {
+						VitimageUtils.addLabelOnAllSlices(hyperImg[index],"t="+this.times[nt]+" mod="+this.mods[nm]);
 						IJ.saveAsTiff(hyperImg[index],nameForExport(nt, nm,true));
+						IJ.log("...Timing (transforming image number "+nt+","+nm+", result image saved) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 						trsTemp[nt][nm].writeToFileWithTypeDetection(nameForExport(nt, nm,false), referenceGeometryForTransforms);	
+						IJ.log("...Timing (transforming image number "+nt+","+nm+", dense transform saved) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 					}
 				}
 				else {
 					 hyperImg[index]=VitimageUtils.nullImage(referenceGeometryForTransforms);
 				}
-				IJ.run(hyperImg[index],"32-bit","");
-				VitimageUtils.setLabelOnAllSlices(hyperImg[index],"t="+this.times[nt]+" mod="+this.mods[nm]);
+				if(this.valueAllTypes()==ImagePlus.GRAY32 || this.valueAllTypes()==-1)IJ.run(hyperImg[index],"32-bit","");
+				IJ.log("Img t"+nt+" mod"+nm+" index "+index+"  ready. ");
 			}
 		}
+		IJ.log("...Timing (after individual export) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
+
 		//Compute and display the resulting hyperimage
 		Concatenator con=new Concatenator();
+		ImagePlus hypTemp=con.concatenate(VitimageUtils.hyperUnstack(hyperImg),false);
+		IJ.log("Image pile size before hyperstacking="+VitimageUtils.imageResume(hypTemp));
 		con.setIm5D(true);
-		ImagePlus hyperImage=HyperStackConverter.toHyperStack(con.concatenate(hyperImg,false), nMods, referenceGeometryForTransforms.getStackSize(),nTimes,"xyztc","Grayscale");
+		IJ.log("...Timing (after brute force concatenation) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
+
+		int futureM=nMods;
+		int futureT=nTimes;
+		double[][]rangesFinal=new double[1][1];
+		//LUT[]lutsFinal=new LUT[1];
+		String codeStacking="xyztc";
+		futureT=this.nbTimesOfInputData*this.nTimes;
+		futureM=this.nbChannelsOfInputData*this.nMods;
+		IJ.log("Case 0");
+		if(this.nTimes>1 && this.nMods>1 && this.nbChannelsOfInputData>1 && this.nbTimesOfInputData>1) {
+			//The hell here. Does nothing. None correction possible. Result 5D hyperimage will be messy interleaved. Hell inside, hell outside
+			IJ.showMessage("Input data is 5D images with \"m\" multiple modalities and \"t\" times (see the \"channel\" and \"Frame\" slicer).\n"+
+						   "You registered it along multiple mods and times\n"+
+						   "The resulting combined 5D hyperimage that will appear soon will be severely messy\n"+
+						   "Hopefully, the exported indivudal images will be good.");
+			rangesFinal=new double[this.nMods*this.nbChannelsOfInputData][2];
+			//lutsFinal=new LUT[this.nMods*this.nbChannelsOfInputData];
+			for(int nm1=0;nm1<this.nMods;nm1++)for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {
+				rangesFinal[nm1*this.nbChannelsOfInputData+nm2]=new double[] {this.imageRanges[this.referenceTime][this.referenceModality][0][nm2][0],this.imageRanges[this.referenceTime][this.referenceModality][nm1][0][1]};
+				//lutsFinal[nm1*this.nbChannelsOfInputData+nm2]=this.imageLuts[this.referenceTime][this.referenceModality][nm2];
+			}
+		}
+		else if(this.nTimes>1 && this.nMods>1 && this.nbChannelsOfInputData>1 && this.nbTimesOfInputData==1) {
+			IJ.log("Case 1");
+			IJ.showMessage("Input data is 4D images with \"m\" multiple modalities (see the \"channel\" slicer)."+
+						   "As You registered it along \"M\" multiple mods and \"T\" successive times,\n"+
+						   "The combined hyperimage will gather T and m on the same slicer\n.\n"+
+							"Hopefully, the exported indivudal images will be good.");
+			//As data come is Mods / Times / Nb Channels, and have to be stacked MOD / TIM, we gather Time and Nb Channels to ensure slicer coherence
+			futureM=nMods;
+			futureT=nTimes*this.nbChannelsOfInputData;
+			rangesFinal=new double[this.nMods][2];
+			//lutsFinal=new LUT[this.nMods];
+			for(int nm1=0;nm1<this.nMods;nm1++) {
+				rangesFinal[nm1]=new double[] {this.imageRanges[this.referenceTime][nm1][0][0][0],this.imageRanges[this.referenceTime][nm1][0][0][1]};
+				//lutsFinal[nm1]=this.imageLuts[this.referenceTime][nm1][0];
+			}
+		}
+		else if(this.nTimes==1 && this.nMods>1 && this.nbChannelsOfInputData>1 && this.nbTimesOfInputData>1) {
+			IJ.log("Case 1.5");
+			IJ.showMessage("Input data is 4D images with \"m\" multiple modalities and t multiple times (see the \"channel\" and \"frames\" slicers)."+
+						   "As You registered it along \"M\" multiple mods and \"T\" successive times,\n"+
+						   "The combined hyperimage could be a little bit messy to understand\n.\n"+
+							"Hopefully, the exported indivudal images will be good.");
+			//As data come is Mods / Times / Nb Channels, and have to be stacked MOD / TIM, we gather Time and Nb Channels to ensure slicer coherence
+			futureM=nMods*this.nbChannelsOfInputData;
+			futureT=this.nbTimesOfInputData;
+			rangesFinal=new double[this.nMods*this.nbChannelsOfInputData][2];
+			//lutsFinal=new LUT[this.nMods*this.nbChannelsOfInputData];
+			for(int nm1=0;nm1<this.nMods;nm1++) {
+				for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {
+					rangesFinal[nm1*this.nbChannelsOfInputData+nm2]=new double[] {this.imageRanges[this.referenceTime][nm1][0][nm2][0],this.imageRanges[this.referenceTime][nm1][0][nm2][1]};
+					//lutsFinal[nm1*this.nbChannelsOfInputData+nm2]=this.imageLuts[this.referenceTime][nm1][nm2];
+				}
+			}
+		}
+		else if(this.nTimes>1 && this.nMods>1 && this.nbChannelsOfInputData==1 && this.nbTimesOfInputData>1) {
+			IJ.showMessage("Input data is 4D images with \"t\" multiple time points (see the \"frame\" slicer)."+
+					   "As you registered it along \"M\" multiple mods and \"T\" successive times,\n"+
+					   "The combined hyperimage will gather T and t on the same slicer (\"Frames\")\n.\n"+
+						"Hopefully, the exported indivudal images will be good.");
+			IJ.log("Case 2");
+			rangesFinal=new double[this.nMods][2];
+			//lutsFinal=new LUT[this.nMods];
+			for(int nm1=0;nm1<this.nMods;nm1++){
+				rangesFinal[nm1]=new double[] {this.imageRanges[this.referenceTime][nm1][0][0][0],this.imageRanges[this.referenceTime][nm1][0][0][1]};
+				//lutsFinal[nm1]=this.imageLuts[this.referenceTime][nm1][0];
+			}
+		}
+		else if(this.nTimes>1 && this.nMods==1 && this.nbChannelsOfInputData>1 && this.nbTimesOfInputData>1) {
+			IJ.showMessage("Input data is 4D images with \"t\" multiple time points and m multiple modalities (see the \"frame\" and  \"channel\" slicers)."+
+					   "As you registered it along  \"T\" successive times,\n"+
+					   "The combined hyperimage will gather T and t on the same slicer (\"Frames\")\n. Combined image could be messy.\n"+
+						"Hopefully, the exported indivudal images will be good.");
+			IJ.log("Case 2.5");
+			rangesFinal=new double[this.nbChannelsOfInputData][2];
+			//lutsFinal=new LUT[this.nbChannelsOfInputData];
+			for(int nm1=0;nm1<this.nbChannelsOfInputData;nm1++){
+				rangesFinal[nm1]=new double[] {this.imageRanges[this.referenceTime][this.referenceModality][0][nm1][0],this.imageRanges[this.referenceTime][this.referenceModality][0][nm1][1]};
+				//lutsFinal[nm1]=this.imageLuts[this.referenceTime][this.referenceModality][nm1];
+			}
+		}
+		else if(this.nTimes==1 && this.nMods>1 && this.nbChannelsOfInputData==1 && this.nbTimesOfInputData>1) {
+			IJ.log("Case 3");
+			rangesFinal=new double[this.nMods][2];
+			//lutsFinal=new LUT[this.nMods];
+			for(int nm1=0;nm1<this.nMods;nm1++){
+				rangesFinal[nm1]=new double[] {this.imageRanges[this.referenceTime][nm1][0][0][0],this.imageRanges[this.referenceTime][nm1][0][0][1]};
+				//lutsFinal[nm1]=this.imageLuts[this.referenceTime][nm1][0];
+			}
+		}
+		else if(this.nTimes>1 && this.nMods==1 && this.nbChannelsOfInputData>1 && this.nbTimesOfInputData==1) {
+			IJ.log("Case 4");
+			//Here data come in Times / Mods, and have to be stacked that way
+			codeStacking="xyzct";
+			rangesFinal=new double[this.nbChannelsOfInputData][2];
+			//lutsFinal=new LUT[this.nbChannelsOfInputData];
+			for(int nm1=0;nm1<this.nbChannelsOfInputData;nm1++){
+				rangesFinal[nm1]=new double[] {this.imageRanges[this.referenceTime][this.referenceModality][0][nm1][0],this.imageRanges[this.referenceTime][this.referenceModality][0][nm1][1]};
+				//lutsFinal[nm1]=this.imageLuts[this.referenceTime][this.referenceModality][nm1];
+			}
+		}
+		else if(this.nMods>1 && this.nbChannelsOfInputData>1) {
+			IJ.log("Case 5");
+			//Here data come in Mods / mods, what should be an error. Let s guess that the the so-called Mods were Times, for a time-lapse
+			if(VitiDialogs.getYesNoUI("Warning","Your input data was 4D image with multiple modalities (m="+this.nbChannelsOfInputData+" on the \"Channels\" slicer),\n"+
+					   "Therefore, you registered these input images as multiple modalities (M="+this.nMods+"\n"+
+					   "You see that this makes a lot of modalities interleaving at the end,\n"+
+					   "and the result with interleaved \"M\" mods and \"m\" mods could be messy.\n.\n"+
+					   "In this situation, Fijiyama default choice is considering that you made a mistake,"+
+					   "and intend to register m multiple modalities of images having M multiple times\n.\n"+
+					   "If you whatever want everything being in messy interleaved modalities and no times, just answer \"No\"")) {
+				futureM=this.nbChannelsOfInputData;
+				futureT=this.nMods;
+				rangesFinal=new double[this.nbChannelsOfInputData][2];
+				//lutsFinal=new LUT[this.nbChannelsOfInputData];
+				for(int nm1=0;nm1<this.nbChannelsOfInputData;nm1++){
+					rangesFinal[nm1]=new double[] {this.imageRanges[this.referenceTime][this.referenceModality][0][nm1][0],this.imageRanges[this.referenceTime][this.referenceModality][0][nm1][1]};
+					//lutsFinal[nm1]=this.imageLuts[this.referenceTime][this.referenceModality][nm1];
+				}
+				codeStacking="xyzct";
+			}
+			else {
+				rangesFinal=new double[this.nMods*this.nbChannelsOfInputData][2];
+				//lutsFinal=new LUT[this.nMods*this.nbChannelsOfInputData];
+				for(int nm1=0;nm1<this.nMods;nm1++)for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {
+					rangesFinal[nm1*this.nbChannelsOfInputData+nm2]=new double[] {this.imageRanges[this.referenceTime][nm1][0][nm2][0],this.imageRanges[this.referenceTime][nm1][0][nm2][1]};
+					//lutsFinal[nm1*this.nbChannelsOfInputData+nm2]=this.imageLuts[this.referenceTime][nm1][nm2];
+				}
+				codeStacking="xyzct";
+			}
+		}
+		else if(this.nTimes>1 && this.nbTimesOfInputData>1) {
+			IJ.log("Case 6");
+			//Here data come in Times / times, what should be an error. Let s guess that the the so-called Times were Mods, for a multimod
+			if(VitiDialogs.getYesNoUI("Warning","Your input data was 4D image with multiple times (t="+this.nbTimesOfInputData+" on the \"Frames\" slicer),\n"+
+						   "Therefore, you registered these input images as successive imaging times (T="+this.nTimes+"\n"+
+						   "You see that this makes a lot of times interleaving at the end,\n"+
+						   "and the result with interleaved \"T\" times and \"t\" times could be messy.\n.\n"+
+						   "In this situation, Fijiyama default choice is considering that you made a mistake,"+
+						   "and intend to register T multiple modalities of images having t multiple times\n.\n"+
+						   "If you whatever want everything being in messy interleaved time and no modalities, just answer \"No\"")) {
+				futureM=this.nTimes;
+				futureT=this.nbTimesOfInputData;
+				rangesFinal=new double[this.nTimes][2];
+				//lutsFinal=new LUT[this.nTimes];
+				for(int nm1=0;nm1<this.nTimes;nm1++){
+					rangesFinal[nm1]=new double[] {this.imageRanges[nm1][this.referenceModality][0][0][0],this.imageRanges[nm1][this.referenceModality][0][0][1]};
+					//lutsFinal[nm1]=this.imageLuts[nm1][this.referenceModality][0];
+				}
+			}
+			else {
+				futureM=1;
+				futureT=this.nTimes*this.nbTimesOfInputData;
+				rangesFinal=new double[1][2];
+				//lutsFinal=new LUT[1];
+				for(int nm1=0;nm1<1;nm1++){
+					rangesFinal[nm1]=new double[] {this.imageRanges[this.referenceTime][this.referenceModality][0][0][0],this.imageRanges[this.referenceTime][this.referenceModality][0][0][1]};
+					//lutsFinal[nm1]=this.imageLuts[this.referenceTime][this.referenceModality][0];
+				}				
+			}
+		}
+		else  {
+			IJ.log("Case 7");
+			//Here data come in only Times, only Mods, or Times / Mods, and have to be stacked that way
+			rangesFinal=new double[this.nMods][2];
+			//lutsFinal=new LUT[this.nMods];
+			for(int nm1=0;nm1<this.nMods;nm1++){
+				rangesFinal[nm1]=new double[] {this.imageRanges[this.referenceTime][nm1][0][0][0],this.imageRanges[this.referenceTime][nm1][0][0][1]};
+				//lutsFinal[nm1]=this.imageLuts[this.referenceTime][nm1][0];
+			}
+		}
+		IJ.log("Case 9");
+		ImagePlus hyperImage=null;
+		IJ.log("...Timing (after managing chans/times range) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
+		IJ.log("Stacking into an hyperimage with dims : Canals="+futureM+" , Zslices="+referenceGeometryForTransforms.getNSlices()+" , Times="+futureT);
 		
+		
+		
+		
+		
+		
+		if(valueAllTypes()==ImagePlus.COLOR_RGB) {
+			hypTemp.setDimensions(futureM, referenceGeometryForTransforms.getNSlices(), futureT);
+			if(codeStacking=="xyzct")(new HyperStackConverter()).shuffle(hypTemp,HyperStackConverter.ZCT );
+			if(codeStacking=="xyztc")(new HyperStackConverter()).shuffle(hypTemp,HyperStackConverter.ZTC );
+			if(codeStacking=="xyczt")(new HyperStackConverter()).shuffle(hypTemp,HyperStackConverter.CZT );
+			hyperImage=hypTemp.duplicate();
+			IJ.log("...Timing (after hyperstack reordering) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
+		}
+		else {
+			IJ.log("Starting hyperstacking "+futureM+" , "+referenceGeometryForTransforms.getNSlices()+" , "+futureT+" , "+codeStacking );
+			hyperImage=HyperStackConverter.toHyperStack(hypTemp, futureM, referenceGeometryForTransforms.getNSlices(),futureT,codeStacking,"Grayscale");
+			for(int c=1;c<=futureM;c++) {
+				IJ.log("On canal "+c+"setting range to "+rangesFinal[c-1][0]+" to "+rangesFinal[c-1][1]);
+				hyperImage.setC(c);
+				hyperImage.setDisplayRange(rangesFinal[c-1][0], rangesFinal[c-1][1]);
+				//hyperImage.setLut(lutsFinal[c-1]);
+			}
+			hyperImage.setC(1);
+			IJ.log("...Timing (after hyperstack reordering) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
+		}
 		if(WindowManager.getImage(fijiyamaGui.displayedNameCombinedImage) != null) {WindowManager.getImage(fijiyamaGui.displayedNameCombinedImage).close();}
 		
 		hyperImage.show();
-		VitimageUtils.waitFor(1000);
+		VitimageUtils.waitFor(200);
 		hyperImage.setTitle(fijiyamaGui.displayedNameCombinedImage);
+		IJ.log("...Timing (after opening corresponding ImageWindow for visualization) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
+		IJ.log("End of sequence, timer closing.");
 		return hyperImage;
 
 	}
@@ -1421,6 +1740,7 @@ public class RegistrationManager{
 	public ImagePlus getViewOfImagesTransformedAndSuperposedTwoImg() {
 		ImagePlus imgMovCurrentState,imgRefCurrentState,imgView;
 		ItkTransform trMov,trRef = null;
+
 		//Update views
 		if(this.transforms[movTime][movMod].size()==0 && this.transforms[refTime][refMod].size()==0 ) {
 			imgRefCurrentState=this.images[refTime][refMod];
@@ -1433,17 +1753,17 @@ public class RegistrationManager{
 				trMov.addTransform(trRef);
 			}
 			imgMovCurrentState= trMov.transformImage(this.images[refTime][refMod],this.images[movTime][movMod],false);
-			imgMovCurrentState.setDisplayRange(this.imageRanges[movTime][movMod][0], this.imageRanges[movTime][movMod][1]);
+			imgMovCurrentState.setDisplayRange(this.imageRanges[movTime][movMod][0][0][0], this.imageRanges[movTime][movMod][0][0][1]);
 	
 			imgRefCurrentState= (trRef==null)? new ItkTransform().transformImage(this.images[refTime][refMod],this.images[refTime][refMod],false) : trRef.transformImage(this.images[refTime][refMod],this.images[refTime][refMod],false);
-			imgRefCurrentState.setDisplayRange(this.imageRanges[refTime][refMod][0], this.imageRanges[refTime][refMod][1]);
+			imgRefCurrentState.setDisplayRange(this.imageRanges[refTime][refMod][0][0][0], this.imageRanges[refTime][refMod][0][0][1]);
 		}
-		imgRefCurrentState.setDisplayRange(this.imageRanges[refTime][refMod][0], this.imageRanges[refTime][refMod][1]);
-		imgMovCurrentState.setDisplayRange(this.imageRanges[movTime][movMod][0], this.imageRanges[movTime][movMod][1]);
+		imgRefCurrentState.setDisplayRange(this.imageRanges[refTime][refMod][0][0][0], this.imageRanges[refTime][refMod][0][0][1]);
+		imgMovCurrentState.setDisplayRange(this.imageRanges[movTime][movMod][0][0][0], this.imageRanges[movTime][movMod][0][0][1]);
 		
 		//Compose images
 		imgView=VitimageUtils.compositeNoAdjustOf(imgRefCurrentState,imgMovCurrentState,step==0 ? "Superimposition before registration" : "Registration results after "+(step)+" step"+((step>1)?"s":""));
-		int viewSlice=this.images[refTime][refMod].getStackSize()/2;
+		int viewSlice=this.images[refTime][refMod].getNSlices()/2;
 		imgView.setSlice(viewSlice);
 		return imgView;
 	}
@@ -1624,11 +1944,11 @@ public class RegistrationManager{
 	}
 	
 	public double[] getCurrentRefRange() {
-		return imageRanges[currentRegAction.refTime][currentRegAction.refMod];
+		return imageRanges[currentRegAction.refTime][currentRegAction.refMod][0][0];
 	}
 	
 	public double[] getCurrentMovRange() {
-		return imageRanges[currentRegAction.movTime][currentRegAction.movMod];
+		return imageRanges[currentRegAction.movTime][currentRegAction.movMod][0][0];
 	}
 	
 	public ItkTransform getCurrentRefComposedTransform() {
