@@ -16,7 +16,11 @@ public class TestingFijiyamaPackage {
 	public TestingFijiyamaPackage() {
 		// TODO Auto-generated constructor stub
 	}
+
+	
+
 	public static void main(String[]args) {
+		
 		ImageJ ij=new ImageJ();
 		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/test.tif");
 		LUT[] luts = img.getLuts();

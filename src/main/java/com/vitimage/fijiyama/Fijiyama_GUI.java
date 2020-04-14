@@ -1330,7 +1330,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public void updateList() {
 		this.listActions.setModel(regManager.getPipelineAslistModelForGUI());
 		this.listActions.setSelectedIndex(regManager.getStep());
-		ScrollUtil.scroll(listActions,ScrollUtil.SELECTED,new int[] {listActions.getSelectedIndex(),regManager.getNbSteps()+1});
+		com.vitimage.fijiyama.ScrollUtil.scroll(listActions,com.vitimage.fijiyama.ScrollUtil.SELECTED,new int[] {listActions.getSelectedIndex(),regManager.getNbSteps()+1});
 	}
 			
 	public void updateEstimatedTime() {

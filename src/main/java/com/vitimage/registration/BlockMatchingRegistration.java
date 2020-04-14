@@ -181,7 +181,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				imgRef.getStackSize()/2,null  ,			regAct.neighX,regAct.neighY,regAct.neighZ,			regAct.bhsX,regAct.bhsY,regAct.bhsZ, 			regAct.strideX,regAct.strideY,regAct.strideZ);
 	}
 
-	
+
 	
 	/** Run algorithm from an initial situation (trInit), and return the final transform (including trInit)
  */

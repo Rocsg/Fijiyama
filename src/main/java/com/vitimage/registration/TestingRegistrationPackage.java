@@ -4,6 +4,10 @@ import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import org.itk.simple.DisplacementFieldJacobianDeterminantFilter;
+import org.itk.simple.DisplacementFieldTransform;
+
+import com.vitimage.common.TransformUtils;
 import com.vitimage.common.VitiDialogs;
 import com.vitimage.common.VitimageUtils;
 import com.vitimage.fijiyama.Fijiyama_GUI;
@@ -11,19 +15,122 @@ import com.vitimage.fijiyama.Fijiyama_GUI;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
+import ij.gui.Roi;
+import ij.io.Opener;
 import ij.plugin.Duplicator;
+import ij.plugin.ImageInfo;
+import ij.plugin.filter.Convolver;
+import math3d.Point3d;
 
 public class TestingRegistrationPackage {
+
+	
 
 	public TestingRegistrationPackage() {
 		// TODO Auto-generated constructor stub
 	}
 
 	
+	
+	
+	public static void buildTestDataForJacobianStuff() {
+		//Open a standard image with multiple canals
+		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Traitements/Sorgho/Test SSM1/Out_input_Fijiyama/Input/hyperImage_T0.tif");
+		ItkTransform tr=ItkTransform.readAsDenseField("/home/fernandr/Bureau/Traitements/Sorgho/Test SSM1/Out_input_Fijiyama/Output/Registration_files/Transform_Step_6.transform.tif");
+		double sigma=VitimageUtils.getDimensionsRealSpace(img)[0]/15.0;
+		ImagePlus resMaison=tr.getJacobianHomeMadeBecauseOfUnavoidedCoreDumpIssueWithSimpleITKDisplacementFieldJacobianDeterminantFilter(img,sigma,40);
+		ImagePlus resITK=ItkTransform.getJacobian(tr, img, 40);
+		resMaison.setTitle("Maison");
+		resITK.setTitle("resITK");
+		resMaison.show();
+		resITK.show();
+		VitimageUtils.waitFor(10000000);
+		
+		ImagePlus imgBig=IJ.openImage("/home/fernandr/Bureau/Temp/TestJac/img_T1_M1.tif");
+		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/Temp/TestJac/testImg.tif");
+		System.out.println();
+		for(int z=0;z<imgRef.getStackSize();z++)imgRef.getStack().setSliceLabel(imgRef.getStack().getSliceLabel(z+1)+"_EXTENSIVE", z+1);
+		
+		double[]imageCenter=VitimageUtils.getImageCenter(imgRef, true);
+		imgRef.show();
+		imgRef.setTitle("Ref");
+		//Build a transform that push the image to the right
+		ItkTransform rigidTranslation=ItkTransform.getRigidTransform(imageCenter, new double[] {0,0,0}, new double[] {-3,0,0});
+		ImagePlus testRig=rigidTranslation.transformImage(imgRef, imgRef);
+		testRig.show();
+		testRig.setTitle("Rigid");
+		
+		int diff=2;
+		Point3d []ptMov =new Point3d [] {
+				new Point3d(imageCenter[0]+diff,imageCenter[1],imageCenter[2]),
+				new Point3d(imageCenter[0]-diff,imageCenter[1],imageCenter[2]),
+				new Point3d(imageCenter[0],imageCenter[1]+diff,imageCenter[2]),
+				new Point3d(imageCenter[0],imageCenter[1],imageCenter[2]-diff)
+				};
+		Point3d []ptRef =new Point3d [] {
+				new Point3d(imageCenter[0]+diff/1.1,imageCenter[1],imageCenter[2]),
+				new Point3d(imageCenter[0]-diff/1.1,imageCenter[1],imageCenter[2]),
+				new Point3d(imageCenter[0],imageCenter[1]+diff/1.2,imageCenter[2]),
+				new Point3d(imageCenter[0],imageCenter[1],imageCenter[2]-diff),
+				};
+		
+		ItkTransform homotheticPart=ItkTransform.estimateBestAffine3D(ptRef, ptMov);
+		System.out.println(homotheticPart);
+		ImagePlus testHomo=homotheticPart.transformImage(imgRef, imgRef);
+		testHomo.show();
+		testHomo.setTitle("Homo");
+		
+		//Build a vector field that make a lot of stuff in the right part, and nothing on the left part
+		int nZ=5;
+		int nX=30;
+		int nY=30;
+		double[]dimsReal=VitimageUtils.getDimensionsRealSpace(imgRef);
+		double deltaCible=dimsReal[1]/10;
+		Point3d[][]correspondancesPoints=new Point3d[2][nZ*nX*nY];
+		for(int x=0;x<nX;x++)for(int y=0;y<nY;y++)for(int z=0;z<nZ;z++) {
+			double deltaX=0;
+			double deltaY=(y<nY/2) ? 0 : (x<nX/2 ? -deltaCible : deltaCible);
+			double deltaZ=0;
+			int ind=x*nY*nZ+y*nZ+z;
+			correspondancesPoints[0][ind]=new Point3d(x*1.0/nX*dimsReal[0] , y*1.0/nY*dimsReal[1]  ,  z*1.0/nZ*dimsReal[2]);
+			correspondancesPoints[1][ind]=new Point3d(x*1.0/nX*dimsReal[0] +deltaX, y*1.0/nY*dimsReal[1] +deltaY ,  z*1.0/nZ*dimsReal[2] +deltaZ );
+		}
+		
+		
+		ItkTransform trr=new ItkTransform(new DisplacementFieldTransform(ItkTransform.computeDenseFieldFromSparseCorrespondancePoints(correspondancesPoints, imgRef, deltaCible, false)));
+		
+		//Buld a transform that make a translation to the right
+		
+		//Open the associated vector field that was used, with things in it (contractions)
+		
+		//
+		//In one canal, add 
+		VitimageUtils.waitFor(1000000);
+	}
+	
+	
+	
+	public static void makeLittleTests() {
+		//buildTestDataForJacobianStuff();
+		//testKhi2();
+		VitimageUtils.waitFor(2000000);
+		System.exit(0);
+
+		ItkTransform tr=ItkTransform.readAsDenseField("/home/fernandr/Bureau/Traitements/Sorgho/Test SSM1/Out_input_Fijiyama/Output/Registration_files/Transform_Step_6.transform.tif");
+		ImagePlus imgRef=IJ.openImage("/home/fernandr/Bureau/Traitements/Sorgho/Test SSM1/Out_input_Fijiyama/Output/Exported_data/hyperImage_T0_after_registration.tif");
+		ImagePlus grid=tr.viewAsGrid3D(imgRef, 10);
+		grid.show();
+		
+		
+	}
+	
+	
 	public static void main(String[]args) {
+		
 		@SuppressWarnings("unused")
 		ImageJ ij=new ImageJ();
-		
+
+		makeLittleTests();
 		String[] paths=getInputOutputPathForRegistrationPackage();
 		String inputPath=new File(paths[0],"Input_data").getAbsolutePath();
 		String outputPath=paths[1];

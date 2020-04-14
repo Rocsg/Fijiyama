@@ -114,13 +114,7 @@
 		    <version>4.0.3</version>
 		</dependency>
 		
-		<!-- <dependency>
-		    <groupId>lma</groupId>
-		    <artifactId>lma</artifactId>
-		    <version>1.0</version>
-		    <scope>system</scope>
-			<systemPath>${basedir}/lib/lma/lma-jar/1.0/lma-1.0.jar</systemPath>
-		</dependency>-->
+
 
 		<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-math3 -->
 		<dependency>

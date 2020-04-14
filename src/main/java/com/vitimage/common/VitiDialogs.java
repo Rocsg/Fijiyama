@@ -33,7 +33,7 @@ public interface VitiDialogs {
 	public final static boolean AUTOMATIC=true;
 	public final static String OS_SEPARATOR=System.getProperties().getProperty("file.separator");
 
-	
+	 
 	/** 
 	 * UI generic functions to access images
 	 * */
