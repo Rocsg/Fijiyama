@@ -116,6 +116,7 @@ public class RegistrationManager{
 	}
 
 	public boolean setupFromFjmFile(String pathToFjmFile) {
+		System.out.println("Starting setup");
 		unsetAllStructures();
 		//Verify the configuration file, and detect registration style: serie or two images
 		if(pathToFjmFile==null || (!(new File(pathToFjmFile).exists())) ||
@@ -220,10 +221,12 @@ public class RegistrationManager{
 		}
 		currentRegAction=regActions.get(step);
 		this.unit=this.images[this.referenceTime][this.referenceModality].getCalibration().getUnit();
+		System.out.println("Finishing setup");
 		return true;
 	}
 	
 	public boolean setupFromTwoImages(String[]providedPaths) {	
+		System.out.println("Starting from two imags");
 		String[]paths=(providedPaths!=null ? providedPaths :  getRefAndMovPaths());
 		if(paths==null)return false;
 		if(providedPaths==null)if(!createOutputPathAndFjmFile())return false;//Else it is testing
@@ -232,11 +235,11 @@ public class RegistrationManager{
 		this.referenceTime=0;this.referenceModality=0;
 		this.refTime=0;this.refMod=0;
 		this.movTime=0;this.movMod=1;
+		System.out.println("Starting 2");
 		
 		setupStructures();
 		this.paths[refTime][refMod]=paths[0];
 		this.paths[movTime][movMod]=paths[1];
-
 		checkComputerCapacity(true);
 		if(!openImagesAndCheckOversizing())return false;
 		addFirstActionOfPipeline();
@@ -711,18 +714,21 @@ public class RegistrationManager{
 					this.imageTypes[nt][nm]=imgTemp.getType();
 					if(initialImageHyperDimsDefined) {
 						if((this.nbChannelsOfInputData != imgTemp.getNChannels()) || (this.nbTimesOfInputData != imgTemp.getNFrames())) {
-							VitiDialogs.getYesNoUI("Critical fail","Critical fail : hyperdimensions does not match between\n"+
-									"First image : nb channels="+this.nbChannelsOfInputData+" , nt times="+this.nbTimesOfInputData+"\n"+
-									"-> From path : "+this.paths[tInit][mInit]+"\n.\n"+
-									"Current image : nb channels="+imgTemp.getNChannels()+" , nt times="+imgTemp.getNFrames()+"\n"+
-									"-> From path : "+this.paths[nt][nm]+"\n.\n. Aborting now. Please verify your data or contact the developers to get more insight about it.\n.\n"
-									+"If you want to register images that does not have the same hyperdimensions,\n"+
-									"please use the tool duplicate (CTRL+MAJ+D in ImageJ) to prepare data with same hyperdimensions\n"+
+							this.nbChannelsOfInputData=Math.max(this.nbChannelsOfInputData,imgTemp.getNChannels());
+							this.imageRanges=new double[this.nTimes][this.nMods][this.nbTimesOfInputData][this.nbChannelsOfInputData][2];
+							VitiDialogs.getYesNoUI("Warning","Warning : hyperdimensions does not match between\n"+
+									"First images and "+
+									"current image : nb channels="+imgTemp.getNChannels()+" , nt times="+imgTemp.getNFrames()+"\n"+
+									"-> From path : "+this.paths[nt][nm]+"\n.\n. Chosen number channels is set to max between both : "+this.nbChannelsOfInputData+".\n.\n"
+									+"Another way to register images that does not have the same hyperdimensions,\n"+
+									"is to use the tool duplicate (CTRL+MAJ+D in ImageJ) to prepare data with same hyperdimensions\n"+
 									"Then register it, and after, use the Fijiyama tool \"Apply transformation\"\n"+
 									" to use the resulting transformations you computed");
-							this.freeMemory();
-							fijiyamaGui.closeAllViews();
-							return false;
+							
+							//this.freeMemory();
+							//fijiyamaGui.closeAllViews();
+							//return false;
+							
 						}
 					}
 					else {
@@ -757,7 +763,7 @@ public class RegistrationManager{
 						if(img.getType()==ImagePlus.COLOR_RGB)IJ.run(img,"8-bit","");
 						for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
 							for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
-								img.setC(nm2+1);
+								img.setC(Math.min(img.getNChannels(), nm2+1));
 								img.setT(nt2+1);
 								this.imageRanges[nt][nm][nt2][nm2][0]=img.getDisplayRangeMin();
 								this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();			
@@ -803,8 +809,8 @@ public class RegistrationManager{
 								this.imageLuts[nt][nm]=img.getLuts();
 								if(img.getType()==ImagePlus.COLOR_RGB)IJ.run(img,"8-bit","");
 								for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
-									for(int nm2=0;nm2<this.nbTimesOfInputData;nm2++) {									
-										img.setC(nm2+1);
+									for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
+										img.setC(Math.min(img.getNChannels(),nm2+1));
 										img.setT(nt2+1);
 										this.imageRanges[nt][nm][nt2][nm2][0]=img.getDisplayRangeMin();
 										this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();									
@@ -848,8 +854,8 @@ public class RegistrationManager{
 								this.imageLuts[nt][nm]=img.getLuts();
 								if(img.getType()==ImagePlus.COLOR_RGB)IJ.run(img,"8-bit","");
 								for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
-									for(int nm2=0;nm2<this.nbTimesOfInputData;nm2++) {									
-										img.setC(nm2+1);
+									for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
+										img.setC(Math.min(img.getNChannels(),nm2+1));
 										img.setT(nt2+1);
 										this.imageRanges[nt][nm][nt2][nm2][0]=img.getDisplayRangeMin();
 										this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();									
@@ -876,7 +882,7 @@ public class RegistrationManager{
 							if(this.images[nt][nm].getType()==ImagePlus.COLOR_RGB)IJ.run(this.images[nt][nm],"8-bit","");
 							for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
 								for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
-									this.images[nt][nm].setC(nm2+1);
+									this.images[nt][nm].setC(Math.min(this.images[nt][nm].getNChannels(), nm2+1));
 									this.images[nt][nm].setT(nt2+1);
 									this.imageRanges[nt][nm][nt2][nm2][0]=this.images[nt][nm].getDisplayRangeMin();
 									this.imageRanges[nt][nm][nt2][nm2][1]=this.images[nt][nm].getDisplayRangeMax();									
@@ -1499,7 +1505,7 @@ public class RegistrationManager{
 					IJ.log("...Timing (transforming image number "+nt+","+nm+", transfo complete) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 					imgTemp=IJ.openImage(this.paths[nt][nm]);
 					IJ.log("...Timing (transforming image number "+nt+","+nm+", image opened) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
-     			    hyperImg[index]=trsTemp[nt][nm].transformImage(referenceGeometryForTransforms,imgTemp, false,true,t0);
+   hyperImg[index]=trsTemp[nt][nm].transformImage(referenceGeometryForTransforms,imgTemp, false,true,t0,true);
 					IJ.log("...Timing (transforming image number "+nt+","+nm+", image transformed) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 					if(saveIndividualImages) {
 						VitimageUtils.addLabelOnAllSlices(hyperImg[index],"t="+this.times[nt]+" mod="+this.mods[nm]);
@@ -1518,6 +1524,8 @@ public class RegistrationManager{
 		}
 		IJ.log("...Timing (after individual export) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 
+
+		
 		//Compute and display the resulting hyperimage
 		Concatenator con=new Concatenator();
 		ImagePlus hypTemp=con.concatenate(VitimageUtils.hyperUnstack(hyperImg),false);
@@ -1525,6 +1533,8 @@ public class RegistrationManager{
 		con.setIm5D(true);
 		IJ.log("...Timing (after brute force concatenation) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 
+		
+		
 		int futureM=nMods;
 		int futureT=nTimes;
 		double[][]rangesFinal=new double[1][1];

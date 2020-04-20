@@ -35,11 +35,16 @@ public class TestingRegistrationPackage {
 	
 	public static void buildTestDataForJacobianStuff() {
 		//Open a standard image with multiple canals
-		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Traitements/Sorgho/Test SSM1/Out_input_Fijiyama/Input/hyperImage_T0.tif");
-		ItkTransform tr=ItkTransform.readAsDenseField("/home/fernandr/Bureau/Traitements/Sorgho/Test SSM1/Out_input_Fijiyama/Output/Registration_files/Transform_Step_6.transform.tif");
+		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Traitements/Sorgho/Tests/Test SSM1/Out_input_Fijiyama/Input/hyperImage_T0.tif");
+		ItkTransform tr=ItkTransform.readAsDenseField("/home/fernandr/Bureau/Traitements/Sorgho/Tests/Test SSM1/Out_input_Fijiyama/Output/Registration_files/Transform_Step_6.transform.tif");
 		double sigma=VitimageUtils.getDimensionsRealSpace(img)[0]/15.0;
 		ImagePlus resMaison=tr.getJacobianHomeMadeBecauseOfUnavoidedCoreDumpIssueWithSimpleITKDisplacementFieldJacobianDeterminantFilter(img,sigma,40);
-		ImagePlus resITK=ItkTransform.getJacobian(tr, img, 40);
+		ImagePlus resITK=null;
+		for(int i=0;i<10;i++) {
+			System.out.println(i);
+			resITK=ItkTransform.getJacobian(tr, img, 40);
+			resMaison=tr.getJacobianHomeMadeBecauseOfUnavoidedCoreDumpIssueWithSimpleITKDisplacementFieldJacobianDeterminantFilter(img,sigma,40);
+		}
 		resMaison.setTitle("Maison");
 		resITK.setTitle("resITK");
 		resMaison.show();
@@ -113,6 +118,7 @@ public class TestingRegistrationPackage {
 	public static void makeLittleTests() {
 		//buildTestDataForJacobianStuff();
 		//testKhi2();
+		buildTestDataForJacobianStuff();
 		VitimageUtils.waitFor(2000000);
 		System.exit(0);
 
@@ -126,9 +132,19 @@ public class TestingRegistrationPackage {
 	
 	
 	public static void main(String[]args) {
-		
+		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/A_Test/Jacobian/With maps/map1.tif");
+		double[]center=VitimageUtils.getImageCenter(img, true);
+		double alpha=1.2;
+		Point3d[]setRef=new Point3d[] {new Point3d(center[0],center[1],center[2]) , new Point3d(center[0]-1,center[1],center[2]) , new Point3d(center[0],center[1]-1,center[2]) , new Point3d(center[0],center[1],center[2]-1) };  
+		Point3d[]setMov=new Point3d[] {new Point3d(center[0],center[1],center[2]) , new Point3d(center[0]-alpha,center[1],center[2]) , new Point3d(center[0],center[1]-alpha,center[2]) , new Point3d(center[0],center[1],center[2]-1) };  
+		ItkTransform tr=ItkTransform.estimateBestSimilarity3D(setRef, setMov);
+		System.out.println(tr);
+		ImagePlus temp=tr.transformImage(img,img);
+		temp.show();
+		img.show();
 		@SuppressWarnings("unused")
 		ImageJ ij=new ImageJ();
+		VitimageUtils.waitFor(10000000);
 
 		makeLittleTests();
 		String[] paths=getInputOutputPathForRegistrationPackage();

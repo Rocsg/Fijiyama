@@ -1475,13 +1475,18 @@ public class VitimageUtils {
 	
 	
 	public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
-		int c=imgs[0].getNChannels();
+		int cmax=0;
+		for(int i=0;i<imgs.length;i++)if(imgs[i].getNChannels()>cmax)cmax=imgs[i].getNChannels();
+		int c=cmax;
 		int t=imgs[0].getNFrames();
 		int n=imgs.length;
 		ImagePlus []tabret=new ImagePlus[c*t*n];
 		for(int i=0;i<n;i++) {
 			ImagePlus[]tabTemp=VitimageUtils.stacksFromHyperstackFastBis(imgs[i]);
-			for(int j=0;j<c*t;j++)tabret[i*c*t+j]=tabTemp[j];
+			ImagePlus[]tabTemp2=new ImagePlus[cmax*t];
+			for(int j=0;j<tabTemp.length;j++)tabTemp2[j]=tabTemp[j];
+			for(int j=tabTemp.length;j<tabTemp2.length;j++)tabTemp2[j]=VitimageUtils.nullImage(tabTemp[0]);
+			for(int j=0;j<c*t;j++)tabret[i*c*t+j]=tabTemp2[j];
 		}
 		return tabret;
 	}

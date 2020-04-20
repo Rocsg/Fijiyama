@@ -62,9 +62,6 @@ import ij.plugin.frame.RoiManager;
  * Benjamin Schmid, Johannes Schindelin, Albert Cardona (et al) for the ImageJ 3dviewer.
  * The ITK and SimpleITK team that sets registration algorithms freely available
  * Gregoire Malandain, Sebastien Ourselin and Olivier Commowick for explanations about Block-Matching
- * Jean-Luc Verdeil for his support to new technology in plant science
- * Cedric Moisy for his ambition to make tech' available where it is not
- * Christophe Pradal for his contribution and inspiration
  * 
 
  * TODO : 
@@ -99,6 +96,9 @@ import ij.plugin.frame.RoiManager;
  */
 
 
+//TODO : when using Fijiyama for BM1, encountered a non-blocking bug : on a manual registration (the first, I think), the ref image was given with all the channels.
+// The same situation reproduces then with the last step of dense field registration
+//Seems to be ok, just the image 1125 that is weird
 
 public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public String versionName="Gorgeous grapevine";

@@ -1002,18 +1002,18 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			VitimageUtils.actualizeData(tempImg,this.sliceFuse);
 				if(this.flagSingleView)this.sliceFuse.setTitle("Registration is running. Red=Reference, Green=moving, Gray=score. Level="+level+" Iter="+iteration+" "+this.info);
 			else this.sliceFuse.setTitle("Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info);
-			this.sliceFuse.setSlice(this.sliceIntCorr);
+			//this.sliceFuse.setSlice(this.sliceIntCorr);
 
 			if(displayRegistration>1) {
 				tempImg=this.correspondancesSummary.duplicate();//setSlice
 				VitimageUtils.actualizeData(tempImg,this.sliceCorr);//TODO : do it using the reaffectation of the pixel value pointer. See in VitimageUtils.actualizeData
-				this.sliceCorr.setSlice(this.sliceIntCorr);
+				//this.sliceCorr.setSlice(this.sliceIntCorr);
 
 				
 				tempImg=VitimageUtils.getBinaryGrid(this.imgRef, 10);
 				tempImg=this.currentTransform.transformImage(tempImg,tempImg,false);
 				VitimageUtils.actualizeData(tempImg,this.sliceGrid);//TODO : do it using the reaffectation of the pixel value pointer
-				this.sliceGrid.setSlice(this.sliceIntCorr);
+				//this.sliceGrid.setSlice(this.sliceIntCorr);
 			}
 		}
 		
