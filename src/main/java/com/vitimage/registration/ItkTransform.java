@@ -826,8 +826,10 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		VectorDouble coords=new VectorDouble(3);
 		VectorDouble coordsTrans=new VectorDouble(3);
 		for(int k=0;k<dimZ;k++) {
-			System.out.println(k);
-			if (( (dimZ<100) && (k%10==0) ) || (dimZ<300 && (k%30==0)) || (k%60)==0) {IJ.log(" "+((k*100)/dimZ)+" %"); }
+			if(dimZ>200 && k%20==0)IJ.log("Flattening vector field, processing slice "+k+"/"+dimZ);
+			if(dimZ<200 && dimZ>50 && k%10==0)IJ.log("Flattening vector field, processing slice "+k+"/"+dimZ);
+			if(dimZ<50 && dimZ>4 && k%5==0)IJ.log("Flattening vector field, processing slice "+k+"/"+dimZ);
+			if(dimZ<4)IJ.log("Flattening vector field, processing slice "+k+"/"+dimZ);
 			float[]tabX=(float[])ret[0].getStack().getProcessor(k+1).getPixels();
 			float[]tabY=(float[])ret[1].getStack().getProcessor(k+1).getPixels();
 			float[]tabZ=(float[])ret[2].getStack().getProcessor(k+1).getPixels();

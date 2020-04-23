@@ -306,7 +306,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 			//resample the mask image
 			if(this.mask !=null) {
-				this.resampler.setDefaultPixelValue(255);
+				this.resampler.setDefaultPixelValue(1);
 				imgMaskTemp=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(this.mask)));
 			}
 			timesLev[lev][3]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
@@ -899,7 +899,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		for(int i=0;i<tabIn.length;i++) {
 			double []vals=VitimageUtils.valuesOfBlock(imgMaskAtScale,	(int)tabIn[i][0], (int)tabIn[i][1], (int)tabIn[i][2], (int)tabIn[i][0]+bSX,  (int)tabIn[i][1]+bSY,  (int)tabIn[i][2]+bSZ);
 			for(int j=0;j<vals.length;j++) {
-				if(vals[j]<255-epsilon)isOut[i]=1;
+				if(vals[j]<1-epsilon)isOut[i]=1;
 			}
 			if(isOut[i]==1)n--;
 		}
@@ -947,6 +947,10 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 		if(sliceRef==null) {
 			handleOutput("Starting graphical following tool...");
+			if(mask!=null) {
+				mask.setTitle("Mask in use for image ref");
+				mask.show();
+			}
 			this.sliceRef=this.imgRef.duplicate();
 			this.sliceRef.setSlice(this.sliceInt);
 			if(flagRange)this.sliceRef.setDisplayRange(refRange[0], refRange[1]);
@@ -1025,6 +1029,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		if(this.displayRegistration>0) {
 			this.sliceFuse.changes=false;
 			this.sliceFuse.close();
+			if(this.mask!=null)this.mask.close();
 		}
 		if(this.displayRegistration==2) {
 			this.sliceGrid.changes=false;

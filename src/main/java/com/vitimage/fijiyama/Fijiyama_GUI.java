@@ -542,7 +542,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		IJ.log(versionFlag);
 		this.modeWindow=WINDOWIDLE;
 		sosButton=new JButton("Help");
-		runTwoImagesButton=new JButton("Two images registation (training mode)");
+		runTwoImagesButton=new JButton("Two images registration (training mode)");
 		runSerieButton=new JButton("Series registration (N-times and/or N-modalities)");
 		transformButton=new JButton("Apply a computed transform to another image");
 		composeTransformsButton=new JButton("Compose successive transformations into a single one");
@@ -782,12 +782,13 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 				public void run() 
 				{	
 					showHyperImage(regManager.getViewOfImagesTransformedAndSuperposedSerieWithThisReference(regManager.images[regManager.referenceTime][regManager.referenceModality],false),waitingTimeHyperImage);
+					enable(new int[] {FINISH,SAVE,RUN});
+					enableChainIfPossible();
 				}
 			});
 			regManager.finishCurrentAction(new ItkTransform());
-			if(passThroughActivated)passThrough("View finished");
+			if(passThroughActivated)unpassThrough("Please wait for the resulting combined hyperimage to build and appear on your screen\nbefore going on the pipeline.");
 			addLog("Viewing ok.", 1);
-			enable(new int[] {FINISH,SAVE,RUN});
 			return;
 		}
 		
@@ -845,7 +846,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			if(runButton.getText().equals("Position ok") || runButton.getText().equals("Axis ok")){
 				disable(new int[] {RUN,RUNALL,SAVE,FINISH,UNDO, SETTINGS,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP});
 				actionAborted=true;
-				unpassThrough();			
+				unpassThrough("Manual registration interruption caught. Manual mode activated.");			
 				disable(new int[] {RUN,RUNALL,ABORT});
 				if((WindowManager.getImage(displayedNameImage1)!=null)) {WindowManager.getImage(displayedNameImage1).changes=false;WindowManager.getImage(displayedNameImage1).close();}
 				if((WindowManager.getImage(displayedNameImage2)!=null)) {WindowManager.getImage(displayedNameImage2).changes=false;WindowManager.getImage(displayedNameImage2).close();}
@@ -874,7 +875,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 				}
 				disable(new int[] {RUN,RUNALL,SAVE,FINISH,UNDO, SETTINGS,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP});
 				actionAborted=true;
-				unpassThrough();			
+				unpassThrough("Registration interruption caught. Manual mode activated.");			
 				while(!bmRegistration.bmIsInterruptedSucceeded) {
 					VitimageUtils.waitFor(200);
 					bmRegistration.bmIsInterrupted=true;
@@ -892,7 +893,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 				int trial=0;
 				disable(new int[] {RUN,RUNALL,SAVE,FINISH,UNDO, SETTINGS,BOXACT,BOXOPT,BOXTIME,BOXTRANS,BOXDISP});
 				actionAborted=true;
-				unpassThrough();			
+				unpassThrough("Registration interruption caught. Manual mode activated.");			
 				while(itkManager != null && itkManager.registrationThread!=null && itkManager.registrationThread.isAlive() && trial<100) {
 					trial++;
 					VitimageUtils.waitFor(200);	
@@ -976,7 +977,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							bmRegistration.minBlockVariance=0.04;
 							bmRegistration.displayRegistration=regManager.getCurrentAction().typeAutoDisplay;
 							bmRegistration.displayR2=false;
-							if(modeWindow==WINDOWTWOIMG && regManager.getCurrentAction().typeTrans==Transform3DType.DENSE) {
+
+							if(regManager.isBionanoImagesWithCapillary)bmRegistration.mask=regManager.maskImageArray[regManager.getCurrentAction().refTime][regManager.getCurrentAction().refMod].duplicate();
+							else if(modeWindow==WINDOWTWOIMG && regManager.getCurrentAction().typeTrans==Transform3DType.DENSE) {
 								regManager.setPathToMask();
 								if(regManager.maskImage!=null)bmRegistration.mask=VitimageUtils.imageCopy(regManager.maskImage);
 							}
@@ -1290,7 +1293,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			public void run() 
 			{			
 				if(regManager.getCurrentAction().typeAction==0 || regManager.getCurrentAction().typeAction==2) {
-					unpassThrough();
+					unpassThrough("Next step cannot be handled automatically : axis alignment or manual registration.");
 					return;
 				}
 				disable(new int[] {RUN,RUNALL,ABORT,UNDO});
@@ -1304,9 +1307,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		else disable(RUNALL);
 	}
 	
-	public void unpassThrough() {
+	public void unpassThrough(String s) {
 		if(!passThroughActivated)return;
-		IJ.showMessage("Chain run is finished : next action need human intervention");
+		IJ.showMessage("Chain run is finished\n"+s);
 		enable(new int[] {RUN,RUNALL});
 		passThroughActivated=false;
 		if(regManager.getStep()>0)enable(UNDO);

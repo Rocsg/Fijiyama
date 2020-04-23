@@ -40,6 +40,7 @@ import math3d.Point3d;
 
 public class RegistrationManager{
 	ImagePlus maskImage=null;
+	ImagePlus[][]maskImageArray=null;
 	String pathToMask="None";
 	int recursiveCalls=0;
 	public int stepBuild=0;
@@ -61,6 +62,7 @@ public class RegistrationManager{
 	private boolean first2dmessageHasBeenViewed=true;
 	private boolean first3dmessageHasBeenViewed=false;
 	
+	public boolean isBionanoImagesWithCapillary;
 	public boolean isSerie=false;
 	public String serieOutputPath;
 	private String serieInputPath;
@@ -612,10 +614,6 @@ public class RegistrationManager{
 			this.step++;
 			regActions.add(RegistrationAction.copyWithModifiedElements(RegistrationAction.copyWithModifiedElements(regActions.get(0),refTime,refMod,movTime,movMod,step),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
 		}
-		if(regActions.size()>0 && regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_SAVE) {
-			this.step++;
-			regActions.add(RegistrationAction.copyWithModifiedElements(RegistrationAction.copyWithModifiedElements(regActions.get(0),refTime,refMod,movTime,movMod,step),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
-		}
 		this.step++;
 		regActions.add(RegistrationAction.copyWithModifiedElements(RegistrationAction.copyWithModifiedElements(regActions.get(0),refTime,refMod,movTime,movMod,step),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_EXPORT));
 		if(fijiyamaGui.developerMode)printRegActions("Global pipeline at export",regActions);
@@ -711,24 +709,23 @@ public class RegistrationManager{
 				if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 					if(this.transforms[nt][nm]==null)this.transforms[nt][nm]=new ArrayList<ItkTransform>();//If it is not the case, it is a startup from a file
 					ImagePlus imgTemp=IJ.openImage(this.paths[nt][nm]);
+					if( ! isBionanoImagesWithCapillary && (VitimageUtils.isBionanoImageWithCapillary(imgTemp)) ) {
+						isBionanoImagesWithCapillary=true;
+						this.maskImageArray=new ImagePlus[this.nTimes][this.nMods];
+					}
 					this.imageTypes[nt][nm]=imgTemp.getType();
 					if(initialImageHyperDimsDefined) {
 						if((this.nbChannelsOfInputData != imgTemp.getNChannels()) || (this.nbTimesOfInputData != imgTemp.getNFrames())) {
 							this.nbChannelsOfInputData=Math.max(this.nbChannelsOfInputData,imgTemp.getNChannels());
 							this.imageRanges=new double[this.nTimes][this.nMods][this.nbTimesOfInputData][this.nbChannelsOfInputData][2];
-							VitiDialogs.getYesNoUI("Warning","Warning : hyperdimensions does not match between\n"+
+							IJ.showMessage("Warning","Warning : hyperdimensions does not match between\n"+
 									"First images and "+
 									"current image : nb channels="+imgTemp.getNChannels()+" , nt times="+imgTemp.getNFrames()+"\n"+
 									"-> From path : "+this.paths[nt][nm]+"\n.\n. Chosen number channels is set to max between both : "+this.nbChannelsOfInputData+".\n.\n"
 									+"Another way to register images that does not have the same hyperdimensions,\n"+
 									"is to use the tool duplicate (CTRL+MAJ+D in ImageJ) to prepare data with same hyperdimensions\n"+
 									"Then register it, and after, use the Fijiyama tool \"Apply transformation\"\n"+
-									" to use the resulting transformations you computed");
-							
-							//this.freeMemory();
-							//fijiyamaGui.closeAllViews();
-							//return false;
-							
+									" to use the resulting transformations you computed");							
 						}
 					}
 					else {
@@ -738,6 +735,7 @@ public class RegistrationManager{
 						initialImageHyperDimsDefined=true;
 						mInit=nm;
 						tInit=nt;
+						isBionanoImagesWithCapillary=VitimageUtils.isBionanoImageWithCapillary(imgTemp);
 					}
 					if(nt==this.referenceTime && nm==this.referenceModality)this.unit=imgTemp.getCalibration().getUnit();
 					initDimensions[nt][nm]=VitimageUtils.getDimensionsXYZCT(imgTemp);
@@ -769,6 +767,9 @@ public class RegistrationManager{
 								this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();			
 								IJ.log("No big hyperimgs On a eu :"+TransformUtils.stringVectorN(this.imageRanges[nt][nm][nt2][nm2], ""));
 							}
+						}
+						if(isBionanoImagesWithCapillary) {
+							this.maskImageArray[nt][nm]=new Duplicator().run(img,5,5,1,this.initDimensions[nt][nm][2],1,1);
 						}
 						img=new Duplicator().run(img,1,1,1,this.initDimensions[nt][nm][2],1,1);
 						this.images[nt][nm]=img;
@@ -817,6 +818,7 @@ public class RegistrationManager{
 									}
 								}
 								this.images[nt][nm]=new Duplicator().run(img,1,1,1,img.getNSlices(),1,1);
+								if(isBionanoImagesWithCapillary)this.maskImageArray[nt][nm]=new Duplicator().run(img,5,5,1,img.getNSlices(),1,1);
 								this.isSubSampled[nt][nm]=false;
 								IJ.log("   -> target voxel size="+VitimageUtils.dou(this.initVoxs[nt][nm][0])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][1])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][0])+" and dims="+this.dimensions[nt][nm][0]+"x"+this.dimensions[nt][nm][1]+"x"+this.dimensions[nt][nm][2]);
 							}
@@ -862,9 +864,14 @@ public class RegistrationManager{
 										IJ.log("Big imgs On a eu :"+TransformUtils.stringVectorN(this.imageRanges[nt][nm][nt2][nm2], ""));
 									}
 								}
+								if(isBionanoImagesWithCapillary)this.maskImageArray[nt][nm]=new Duplicator().run(img,5,5,1,this.initDimensions[nt][nm][2],1,1);
+								this.maskImageArray[nt][nm]=ItkTransform.resampleImage(this.dimensions[nt][nm], this.voxs[nt][nm], this.maskImageArray[nt][nm],false);
+
 								img=new Duplicator().run(img,1,1,1,this.initDimensions[nt][nm][2],1,1);
 								this.images[nt][nm]=ItkTransform.resampleImage(this.dimensions[nt][nm], this.voxs[nt][nm], img,false);
 								this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][0][0],this.imageRanges[nt][nm][0][0][1]);
+
+
 								IJ.log("   -> target voxel size="+VitimageUtils.dou(this.voxs[nt][nm][0])+"x"+VitimageUtils.dou(this.voxs[nt][nm][1])+"x"+VitimageUtils.dou(this.voxs[nt][nm][0])+" and dims="+this.dimensions[nt][nm][0]+"x"+this.dimensions[nt][nm][1]+"x"+this.dimensions[nt][nm][2]);
 							}	
 						}
@@ -888,6 +895,7 @@ public class RegistrationManager{
 									this.imageRanges[nt][nm][nt2][nm2][1]=this.images[nt][nm].getDisplayRangeMax();									
 								}
 							}
+							if(isBionanoImagesWithCapillary)this.maskImageArray[nt][nm]=new Duplicator().run(this.images[nt][nm],5,5,1,this.initDimensions[nt][nm][2],1,1);
 							this.images[nt][nm]=new Duplicator().run(this.images[nt][nm],1,1,1,this.initDimensions[nt][nm][2],1,1);
 							this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][0][0],this.imageRanges[nt][nm][0][0][1]);
 						}
@@ -1073,7 +1081,7 @@ public class RegistrationManager{
 		if(this.step==regActions.size()-1) {//Si c est la derniere action
 			if(fijiyamaGui.modeWindow==Fijiyama_GUI.WINDOWSERIERUNNING) {
 				fijiyamaGui.serieIsFinished();
-				fijiyamaGui.unpassThrough();
+				fijiyamaGui.unpassThrough("End of pipeline ! Congratulations.");
 				return null;
 			}
 			else{
@@ -1509,6 +1517,10 @@ public class RegistrationManager{
 					IJ.log("...Timing (transforming image number "+nt+","+nm+", image transformed) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 					if(saveIndividualImages) {
 						VitimageUtils.addLabelOnAllSlices(hyperImg[index],"t="+this.times[nt]+" mod="+this.mods[nm]);
+						if(isBionanoImagesWithCapillary) {
+							for(int c=1;c<hyperImg[index].getNChannels();c++) {hyperImg[index].setC(c);IJ.run(hyperImg[index],"Fire","");}
+							hyperImg[index].setC(1);
+						}
 						IJ.saveAsTiff(hyperImg[index],nameForExport(nt, nm,true));
 						IJ.log("...Timing (transforming image number "+nt+","+nm+", result image saved) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 						trsTemp[nt][nm].writeToFileWithTypeDetection(nameForExport(nt, nm,false), referenceGeometryForTransforms);	
@@ -1731,13 +1743,15 @@ public class RegistrationManager{
 				IJ.log("On canal "+c+"setting range to "+rangesFinal[c-1][0]+" to "+rangesFinal[c-1][1]);
 				hyperImage.setC(c);
 				hyperImage.setDisplayRange(rangesFinal[c-1][0], rangesFinal[c-1][1]);
-				//hyperImage.setLut(lutsFinal[c-1]);
+				if(isBionanoImagesWithCapillary) {
+					IJ.run(hyperImage,"Fire","");
+				}
 			}
 			hyperImage.setC(1);
 			IJ.log("...Timing (after hyperstack reordering) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 		}
 		if(WindowManager.getImage(fijiyamaGui.displayedNameCombinedImage) != null) {WindowManager.getImage(fijiyamaGui.displayedNameCombinedImage).close();}
-		
+		if(saveIndividualImages) IJ.saveAsTiff(hyperImage, nameForResultingCombinedHyperImage());
 		hyperImage.show();
 		VitimageUtils.waitFor(200);
 		hyperImage.setTitle(fijiyamaGui.displayedNameCombinedImage);
@@ -1897,6 +1911,12 @@ public class RegistrationManager{
 				IJ.log(" # "+listAct.get(i));
 			}
 		}
+	}
+	
+	public String nameForResultingCombinedHyperImage() {
+		String dirpath=new File(this.serieOutputPath,"Exported_data").getAbsolutePath();
+		String prefix="resulting_combined_hyperimage.tif";
+		return new File(dirpath,prefix).getAbsolutePath();
 	}
 	
 	public String nameForExport(int nt,int nm,boolean yesForImageNoForTransform) {

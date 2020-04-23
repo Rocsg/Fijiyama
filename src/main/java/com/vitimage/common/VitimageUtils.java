@@ -1220,6 +1220,8 @@ public class VitimageUtils {
 		return new ImagePlus[] {imgMean,imgVar};
 	}
 	
+	
+	
 	public static double []valuesOfBlock(ImagePlus img,int xm,int ym,int zm,int xM,int yM,int zM) {
 		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
 		int xMax=img.getWidth();
@@ -3039,10 +3041,20 @@ public class VitimageUtils {
 
 
 	
+	public static boolean isBionanoImageWithCapillary(ImagePlus img) {
+		if(isSorghoHyperImage(img))return true;
+		return false;
+	}
+	
 
-	
-	
-	
+	public static boolean isSorghoHyperImage(ImagePlus img) {
+		if(img.getStack().getSliceLabel(1)==null)return false;
+		if(! img.getStack().getSliceLabel(1).contains("M0MAP"))return false;
+		if(  (Math.abs(VitimageUtils.getVoxelVolume(img)-0.001)/VitimageUtils.getVoxelVolume(img))>EPSILON)return false;
+		IJ.log("Detected experience : Sorgho\n");
+		return true;
+	}
+
 	
 	
 	
