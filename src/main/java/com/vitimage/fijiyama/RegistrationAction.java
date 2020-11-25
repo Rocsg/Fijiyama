@@ -68,6 +68,7 @@ public class RegistrationAction implements Serializable{
 	public int subsampleZ=0;
 	public OptimizerType itkOptimizerType=OptimizerType.ITK_AMOEBA;
 	public double learningRate=0.3;
+	public double paramOpt=8;
 
 	public RegistrationAction(Fijiyama_GUI fijiyamaGui,RegistrationManager regManager) {
 		adjustSettings(fijiyamaGui,regManager);
@@ -79,6 +80,33 @@ public class RegistrationAction implements Serializable{
 	
 	public RegistrationAction() {}
 
+	
+	public static int getNumber(Transform3DType t) {
+		switch (t) {
+		case TRANSLATION : return 1;
+		case EULER2D : return 2;
+		case VERSOR : return 3;
+		case EULER : return 4;
+		case RIGID : return 5;
+		case SIMILARITY : return 6;
+		case AFFINE : return 7;
+		case DENSE : return 8;
+		default : return 9;
+		}
+	}
+	
+	public static boolean isValidOrder(RegistrationAction r1, RegistrationAction r2) {
+		if(r1.typeAction > r2.typeAction)return false;
+		if(r1.typeAction < r2.typeAction)return true;
+		else return getNumber(r1.typeTrans)<=getNumber(r2.typeTrans);
+	}
+	
+	
+	public static boolean isValidOrder(Transform3DType t1, Transform3DType t2) {
+		return getNumber(t1)<=getNumber(t2);
+	}
+	
+	
 	public RegistrationAction(RegistrationAction regAct) {
 		nameAction=regAct.nameAction;
 		nameSubject=regAct.nameSubject;
@@ -444,7 +472,7 @@ public class RegistrationAction implements Serializable{
 		str+="#TypeManViewer="+typeManViewer+"\n";
 		str+="#EstimatedTime="+estimatedTime+"\n";
 		str+="#TypeTrans="+(typeTrans==Transform3DType.RIGID ? 0 : typeTrans==Transform3DType.SIMILARITY ? 1 : 2)+"\n";
-		str+="#SigmaResampling="+sigmaResampling+"\n";
+		str+="#ParamOpt="+paramOpt+"\n";
 		str+="#SigmaDense="+sigmaDense+"\n";
 		str+="#LevelMinLinear="+levelMinLinear+"\n";
 		str+="#LevelMaxLinear="+levelMaxLinear+"\n";
@@ -502,7 +530,7 @@ public class RegistrationAction implements Serializable{
 		reg.typeManViewer=Integer.parseInt(lines[12]);
 		reg.estimatedTime=Integer.parseInt(lines[13]);
 		reg.typeTrans=Integer.parseInt(lines[14])==0 ? Transform3DType.RIGID : Integer.parseInt(lines[14])==1 ? Transform3DType.SIMILARITY : Transform3DType.DENSE;
-		reg.sigmaResampling=Double.parseDouble(lines[15]);
+		reg.paramOpt=Double.parseDouble(lines[15]);
 		reg.sigmaDense=Double.parseDouble(lines[16]);
 		reg.levelMinLinear =Integer.parseInt(lines[17]);
 		reg.higherAcc =Integer.parseInt(lines[19]);
@@ -532,8 +560,8 @@ public class RegistrationAction implements Serializable{
 		else {
 			reg.learningRate=0.3;
 			reg.levelMaxDense=2;
-			reg.iterationsBMDen=2;
-			reg.levelMinDense=2;
+			reg.iterationsBMDen=6;
+			reg.levelMinDense=1;
 		}
 		return reg;
 	}

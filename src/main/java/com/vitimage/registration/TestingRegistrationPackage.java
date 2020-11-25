@@ -11,6 +11,7 @@ import com.vitimage.common.TransformUtils;
 import com.vitimage.common.VitiDialogs;
 import com.vitimage.common.VitimageUtils;
 import com.vitimage.fijiyama.Fijiyama_GUI;
+import com.vitimage.fijiyama.RegistrationAction;
 
 import ij.IJ;
 import ij.ImageJ;
@@ -39,9 +40,20 @@ public class TestingRegistrationPackage {
 		String[] paths=getInputOutputPathForRegistrationPackage();
 		String inputPath=new File(paths[0],"Input_data").getAbsolutePath();
 		String outputPath=paths[1];
-		runTest(inputPath,outputPath);
+//		runTest(inputPath,outputPath);
+		runTestFijiyamaSupport();
 	}
 
+	public static void runTestFijiyamaSupport() {
+		//Last support : Cedric M.
+		String dir="/home/fernandr/Bureau/A_Test/Cedric/Case_1/";
+		RegistrationAction regAct=RegistrationAction.readFromTxtFile(dir+"regAct.txt");
+		ImagePlus imgRef=IJ.openImage(dir+"imgRef.tif");
+		ImagePlus imgMov=IJ.openImage(dir+"imgMov.tif");
+		BlockMatchingRegistration bm=BlockMatchingRegistration.setupBlockMatchingRegistration(imgRef,imgMov,regAct);
+		bm.runBlockMatching(null,false);
+	}
+	
 	public static String[]getInputOutputPathForRegistrationPackage(){
 		String inputPath,outputPath;
 		if(new File("/home/fernandr").exists()) {

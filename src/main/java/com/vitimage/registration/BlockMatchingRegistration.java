@@ -114,13 +114,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	/** Starting points
 	 */
 
-	public BlockMatchingRegistration(ImagePlus imgRef,ImagePlus imgMov,Transform3DType transformationType,MetricType metricType,
-			double smoothingSigmaInPixels, double denseFieldSigma,int levelMin,int levelMax,int nbIterations,int sliceInt,ImagePlus mask,
+	public BlockMatchingRegistration(ImagePlus imgReff,ImagePlus imgMovv,Transform3DType transformationType,MetricType metricType,
+			double smoothingSigmaInPixels, double denseFieldSigma,int levelMin,int levelMax,int nbIterations,int sliceInt,ImagePlus maskk,
 			int neighbourX,int neighbourY,int neighbourZ,int blockHalfSizeX,int blockHalfSizeY,int blockHalfSizeZ,int strideX,int strideY,int strideZ) {
-		if(imgRef.getWidth()<imgRef.getStackSize()*4)noSubScaleZ=false;
+		if(imgReff.getWidth()<imgReff.getStackSize()*4)noSubScaleZ=false;
 		this.resampler=new ResampleImageFilter();
-		this.imgRef=VitimageUtils.imageCopy(imgRef);
-		this.imgMov=VitimageUtils.imageCopy(imgMov);
+		this.imgRef=VitimageUtils.imageCopy(imgReff);
+		this.imgMov=VitimageUtils.imageCopy(imgMovv);
 		if(this.imgRef.getType() != 32)IJ.run(imgRef,"32-bit","");
 		if(this.imgMov.getType() != 32)IJ.run(imgMov,"32-bit","");
 		this.metricType=metricType;
@@ -147,7 +147,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		this.minBlockVariance=VitimageUtils.statistics1D(VitimageUtils.valuesOfBlock(imgRef, 0, 0, dims[2]/2, dims[0]-1, dims[1]-1, dims[2]/2))[0]/10.0;
 		this.sliceInt=sliceInt;
 		this.sliceIntCorr=sliceInt;
-		this.mask=mask;
+		this.mask=maskk;
 		this.blockSizeHalfX=blockHalfSizeX;
 		this.blockSizeHalfY=blockHalfSizeY;
 		this.blockSizeHalfZ=blockHalfSizeZ;
@@ -167,8 +167,15 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		zoomFactor=  (dims[0]<280 ? 0.8 : 1)*Math.min((screenHeight/2)/dims[1]  ,  (screenWidth/2)/dims[0]) ; 
 		this.viewHeight=(int)(this.imgRef.getHeight()*zoomFactor);
 		this.viewWidth=(int)(this.imgRef.getWidth()*zoomFactor);
-
 	}
+	
+	
+	public void adjustZoomFactor(double newZoom) {
+		this.zoomFactor=newZoom;
+		this.viewHeight=(int)(this.imgRef.getHeight()*zoomFactor);
+		this.viewWidth=(int)(this.imgRef.getWidth()*zoomFactor);		
+	}
+	
 
 	public BlockMatchingRegistration() {
 		// TODO Auto-generated constructor stub
@@ -186,20 +193,27 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	/** Run algorithm from an initial situation (trInit), and return the final transform (including trInit)
  */
 	@SuppressWarnings("unchecked")
-	public ItkTransform runBlockMatching(ItkTransform trInit) {
+	public ItkTransform runBlockMatching(ItkTransform trInit,boolean stressTest) {
+		System.out.println("Dims vox before="+VitimageUtils.imageResume(imgMov));
 		double[]timesGlob=new double[20];
 		double[][]timesLev=new double[nbLevels][20];
 		double[][][]timesIter=new double[nbLevels][nbIterations][20];
 		long t0= System.currentTimeMillis();
 		timesGlob[0]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 		handleOutput("Absolute time at start="+t0);
-		double progress=0;IJ.showProgress(progress);
+//		double progress=0;IJ.showProgress(progress);
 		if(trInit==null)this.currentTransform=new ItkTransform();
 		else this.currentTransform=new ItkTransform(trInit);
 		handleOutput(new Date().toString());
 		//Initialize various artifacts
 		ImagePlus imgRefTemp=null;
 		ImagePlus imgMovTemp=null;
+		if(stressTest) {
+			handleOutput("BlockMatching preparation stress test");
+		}
+		else {
+			handleOutput("Standard blockMatching preparation");
+		}
 		handleOutput("------------------------------");
 		handleOutput("| Block Matching registration|");
 		handleOutput("------------------------------");
@@ -243,7 +257,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		int nbProc=this.defaultCoreNumber;
 		double timeFactor=0.000000003;
 		ImagePlus imgMaskTemp=null;
-		progress=0.05;IJ.showProgress(progress);
+//		progress=0.05;IJ.showProgress(progress);
 
 		//for each scale
 		timesGlob[2]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
@@ -313,19 +327,20 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 		
 			//for each iteration
+			System.out.println("ImageType");
 			for(int iter=0;iter<nbIterations;iter++) {
 				timesLev[lev][4]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 				timesIter[lev][iter][0]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
-				progress=0.1+0.9*(lev*1.0/nbLevels+(iter*1.0/nbIterations)*1.0/nbLevels);IJ.showProgress(progress);
+//				progress=0.1+0.9*(lev*1.0/nbLevels+(iter*1.0/nbIterations)*1.0/nbLevels);IJ.showProgress(progress);
 				handleOutput("\n   --> Iteration "+(iter+1) +"/"+this.nbIterations);
 				
 				this.resampler.setTransform(this.currentTransform);
 				this.resampler.setDefaultPixelValue(this.imgMovDefaultValue);
+
+				
 				imgMovTemp=VitimageUtils.gaussianFilteringIJ(this.imgMov, this.successiveSmoothingSigma[lev], this.successiveSmoothingSigma[lev], this.successiveSmoothingSigma[lev]);
 				imgMovTemp=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMovTemp)));
 				timesIter[lev][iter][1]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
-
-				
 
 				//Prepare a coordinate summary tabs for this blocks, compute and store their sigma
 				int indexTab=0;
@@ -393,6 +408,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				final double [][][]blocksProp=createBlockPropsFromBlockList(blocksRef,nbProc);
 				imgRefTempThread=imgRefTemp.duplicate();
 				imgMovTempThread=imgMovTemp.duplicate();
+				
+				
 				AtomicInteger atomNumThread=new AtomicInteger(0);
 				AtomicInteger curProcessedBlock=new AtomicInteger(0);
 				AtomicInteger flagAlert=new AtomicInteger(0);
@@ -411,6 +428,9 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 							double[][][]correspondancesThread=new double[blocksProp[numThread].length][][];
 							//for each fixed block
 							for(int fixBl=0;fixBl<blocksProp[numThread].length && !interrupted();fixBl++) {
+								if(fixBl==0 && numThread==0) {
+									
+								}
 								//extract ref block data in moving image
 								int x0=(int)Math.round(blocksPropThread[fixBl][0]);
 								int y0=(int)Math.round(blocksPropThread[fixBl][1]);
@@ -486,10 +506,22 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 					};  		
 				}				
 				timesIter[lev][iter][7]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
-				VitimageUtils.startAndJoin(threads);
+				if(stressTest) {
+					System.out.println("Stress test area");
+					VitimageUtils.startNoJoin(threads);
+					VitimageUtils.waitFor(10000);
+					for(int th=0;th<this.threads.length;th++)this.threads[th].interrupt();     
+					VitimageUtils.waitFor(200);
+					bmIsInterrupted=true;
+					handleOutput("Stress test passed.\n");
+					System.out.println("Out from stress test area");
+				}
+				else VitimageUtils.startAndJoin(threads);
+				
 				if(bmIsInterrupted) {
+					System.out.println("BM Is INt zone");
 					bmIsInterruptedSucceeded=true;
-					VitimageUtils.waitFor(1000);
+					VitimageUtils.waitFor(200);
 					int nbAlive=1;
 					while(nbAlive>0) {
 						nbAlive=0;
@@ -498,6 +530,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 					}
 					this.closeLastImages();
 					this.freeMemory();					
+					System.out.println("UNTIL THERE");
 					return null;
 				}
 				for(int i=0;i<threads.length;i++)threads[i]=null;
@@ -830,6 +863,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			}
 			tabPt[2][ind]=new Point3d((tabInit[2][0]),tabInit[2][1],-distance);
 			ind++;
+			if(i==0)IJ.log("Point numero "+i+"("+tabPt[0][ind-1]+" -> "+tabPt[0][ind-1]+" : "+tabPt[2][i].x);
 		}
 		//Compute mean val of the selection variable, before selecting
 		double meanVar=0;
@@ -892,6 +926,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	}
 
 	public double[][] trimUsingMask(double [][]tabIn,ImagePlus imgMaskAtScale,int bSX,int bSY,int bSZ){
+		imgMaskAtScale.show();
+		VitimageUtils.waitFor(100000);
 		double epsilon=10E-4;
 		int[]isOut=new int[tabIn.length];
 		int n=tabIn.length;
@@ -947,9 +983,9 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 		if(sliceRef==null) {
 			handleOutput("Starting graphical following tool...");
-			if(mask!=null) {
-				mask.setTitle("Mask in use for image ref");
-				mask.show();
+			if(this.mask!=null) {
+				this.mask.setTitle("Mask in use for image ref");
+				this.mask.show();
 			}
 			this.sliceRef=this.imgRef.duplicate();
 			this.sliceRef.setSlice(this.sliceInt);

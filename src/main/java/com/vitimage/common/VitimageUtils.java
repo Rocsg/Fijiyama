@@ -16,6 +16,7 @@ import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.stream.Collectors;
@@ -23,6 +24,10 @@ import java.util.stream.Collectors;
 import org.itk.simple.Image;
 import org.itk.simple.OtsuThresholdImageFilter;
 import org.itk.simple.RecursiveGaussianImageFilter;
+import org.itk.simple.ResampleImageFilter;
+
+import com.vitimage.common.TransformUtils.VolumeComparator;
+import com.vitimage.registration.ItkTransform;
 
 import java.io.*;
 import java.net.URL;
@@ -42,7 +47,10 @@ import ij.plugin.HyperStackConverter;
 import ij.plugin.ImageCalculator;
 import ij.plugin.ImageInfo;
 import ij.plugin.RGBStackMerge;
+import ij.plugin.filter.Convolver;
+import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
+import ij.process.StackConverter;
 import math3d.Point3d;
 
 public class VitimageUtils {
@@ -56,8 +64,50 @@ public class VitimageUtils {
 	public static final int ERROR_VALUE=-1;
 	public static final int COORD_OF_MAX_IN_TWO_LAST_SLICES=1;
 	public static final int COORD_OF_MAX_ALONG_Z=2;
+	public final static double bionanoCapillaryRadius=1.15/2;//size in mm in the bionanoNMRI lab
 
+	public static ImagePlus cropImageByte(ImagePlus img,int x0,int y0,int z0,int dimX,int dimY,int dimZ) {
+		if(img.getType()!=ImagePlus.GRAY8)return null;
+		ImagePlus out=ij.gui.NewImage.createImage("Mask",dimX,dimY,dimZ,8,ij.gui.NewImage.FILL_WHITE);		
+		VitimageUtils.adjustImageCalibration(out, img);
+		int xMax=img.getWidth();
+		for(int z=z0;z<z0+dimZ;z++) {
+			byte[] valsImg=(byte[])img.getStack().getProcessor(z+1).getPixels();
+			byte[] valsOut=(byte[])out.getStack().getProcessor(z-z0+1).getPixels();
+			for(int x=x0;x<x0+dimX;x++) {
+				for(int y=y0;y<y0+dimY;y++){
+					valsOut[dimX*(y-y0)+(x-x0)]=((byte)(valsImg[xMax*y+x] & 0xff));
+				}			
+			}
+		}
+		return out;
+	}
 	
+	
+	public static double computeRiceSigmaFromBackgroundValuesStatic(double meanBg,double sigmaBg) {
+		boolean debug=true;
+		double val1=meanBg * Math.sqrt(2.0/Math.PI);
+		double val2=sigmaBg * Math.sqrt(2.0/(4.0-Math.PI));
+		if(debug && Math.abs((val1-val2)/val2) >0.3) System.out.println("Warning : Acquisition > computeRiceSigmaStatic. Given :M="+meanBg+" , S="+sigmaBg+" gives sm="+val1+" , ss="+val2+"  .sm/ss="+VitimageUtils.dou(val1/val2)+". Using the first one..");
+		
+		return val1;
+	}
+	
+	public static ImagePlus Sub222(ImagePlus img) {
+		ResampleImageFilter res=new ResampleImageFilter();
+		res.setDefaultPixelValue(0);
+		res.setTransform(new ItkTransform());
+		double []voxInit=VitimageUtils.getVoxelSizes(img);
+		int []dimInit=VitimageUtils.getDimensions(img);
+		for(int i=0;i<3;i++) {
+			voxInit[i]*=2;
+			dimInit[i]/=2;
+		}
+		res.setOutputSpacing(ItkImagePlusInterface.doubleArrayToVectorDouble(voxInit));
+		res.setSize(ItkImagePlusInterface.intArrayToVectorUInt32(dimInit));
+		return ItkImagePlusInterface.itkImageToImagePlus(res.execute(ItkImagePlusInterface.imagePlusToItkImage(img)));
+	}
+
 
 	
 	/*Informations about system and virtual machine. Detection of Windows or Unix environments*/
@@ -135,6 +185,58 @@ public class VitimageUtils {
 	public static void adjustImageOnScreenRelative(ImagePlus img1,ImagePlus img2Reference,int xPosition,int yPosition,int distance) {
 		adjustFrameOnScreenRelative(img1.getWindow(),img2Reference.getWindow(), xPosition, yPosition,distance);
 	}
+	
+	public static ImagePlus hyperStackingFrames(ImagePlus[]img) {
+		Concatenator con=new Concatenator();
+		con.setIm5D(true);
+		ImagePlus hypTemp=con.concatenate(img,true);
+		String codeStacking="xyztc";
+		ImagePlus hyperImage=HyperStackConverter.toHyperStack(hypTemp, 1, img[0].getNSlices(),img.length,codeStacking,"Grayscale");
+		return hyperImage;
+	}
+
+
+	public static ImagePlus hyperStackFrameToHyperStackChannel(ImagePlus img) {
+		ImagePlus[]imgs=VitimageUtils.stacksFromHyperstackFastBis(img);
+		return VitimageUtils.hyperStackingChannels(imgs);
+	}
+
+	public static ImagePlus hyperStackChannelToHyperStackFrame(ImagePlus img) {
+		ImagePlus[]imgs=VitimageUtils.stacksFromHyperstackFastBis(img);
+		return VitimageUtils.hyperStackingFrames(imgs);
+	}
+
+	
+	public static ImagePlus hyperStackingChannels(ImagePlus[]img) {
+		Concatenator con=new Concatenator();
+		con.setIm5D(true);
+		ImagePlus hypTemp=con.concatenate(img,true);
+		String codeStacking="xyzct";
+		ImagePlus hyperImage=HyperStackConverter.toHyperStack(hypTemp, img.length, img[0].getNSlices(),1,codeStacking,"Grayscale");
+		return hyperImage;
+	}
+	
+	public static ImagePlus uncropImageByte(ImagePlus img,int x0,int y0,int z0,int dimX,int dimY,int dimZ) {
+		if(img.getType()!=ImagePlus.GRAY8)return null;
+		int oldDimX=img.getWidth();
+		int oldDimY=img.getHeight();
+		int oldDimZ=img.getStackSize();
+		
+		ImagePlus out=ij.gui.NewImage.createImage("Mask",dimX,dimY,dimZ,8,ij.gui.NewImage.FILL_BLACK);		
+		VitimageUtils.adjustImageCalibration(out, img);
+		for(int z=z0;z<z0+oldDimZ && z<z0+dimZ;z++) {
+			byte[] valsImg=(byte[])img.getStack().getProcessor(z-z0+1).getPixels();
+			byte[] valsOut=(byte[])out.getStack().getProcessor(z+1).getPixels();
+			for(int x=x0;x<x0+oldDimX && x<x0+dimX;x++) {
+				for(int y=y0;y<y0+oldDimY && y<y0+dimY;y++){
+					valsOut[dimX*(y)+(x)]=((byte)(valsImg[oldDimX*(y-y0)+(x-x0)] & 0xff));
+				}			
+			}
+		}
+		return out;
+	}
+	
+
 
 	public static void adjustFrameOnScreenRelative(Frame currentFrame,Frame referenceFrame,int xPosition,int yPosition,int distance) {
 		if(xPosition==3) {currentFrame.setLocation(referenceFrame.getLocationOnScreen().x,referenceFrame.getLocationOnScreen().y);return;}
@@ -246,10 +348,489 @@ public class VitimageUtils {
 	}
 	
 
+	/**
+	 * Main automated detectors : axis detection and inoculation point detection. Usable for both MRI T1, T2, and X ray images
+	 * @param img1
+	 * @param acqType
+	 * @return
+	 */
+/*	public static Point3d[] detectAxis(ImagePlus img1,AcquisitionType acqType){
+		ImagePlus img=new Duplicator().run(img1);
+		boolean debug=false;
+		int xMax=img.getWidth();
+		int yMax=img.getHeight();
+		int zMax=img.getStackSize();
+		double vX=img.getCalibration().pixelWidth;
+		double vY=img.getCalibration().pixelHeight;
+		double vZ=img.getCalibration().pixelDepth;
+		double xMoyUp=0,yMoyUp=0,zMoyUp=0;
+		double xMoyDown=1,yMoyDown=1,zMoyDown=1;
+		int hitsUp=0,hitsDown=0;
+
+		//Step 1 : apply gaussian filtering and convert to 8 bits
+		if(acqType != AcquisitionType.RX)img=VitimageUtils.gaussianFiltering(img, 18*0.035 , 18*0.035 , 3*0.5);
+		img.getProcessor().setMinAndMax(
+				acqType==AcquisitionType.MRI_T1_SEQ ? 200 : 10000, 
+				acqType==AcquisitionType.MRI_T1_SEQ ? 3000 : 50000);
+		StackConverter sc=new StackConverter(img);
+		sc.convertToGray8();
+		if(debug)imageChecking(img,"fin step1 ");
+
+		//Step 2 : apply automatic threshold
+		ByteProcessor[] maskTab=new ByteProcessor[zMax];
+
+		if(VitimageUtils.isRX(img))img=VitimageUtils.eraseBorder(img);
+		if(debug)imageChecking(img,"after Erase ");
+		if(!VitimageUtils.isT2(img)) {
+			
+			System.out.println("Mask lookup for center of object, case of hign SNR (T1 or RX)");
+			for(int z=0;z<zMax;z++){
+				maskTab[z]=(ByteProcessor) img.getStack().getProcessor(z+1);
+				maskTab[z].setAutoThreshold("Otsu dark");
+				maskTab[z]=maskTab[z].createMask();
+			}
+		}
+		else {
+			System.out.println("Mask lookup for center of object, case of low SNR (T2)");
+			for(int z=0;z<zMax;z++){
+				maskTab[z]=(ByteProcessor) img.getStack().getProcessor(z+1);
+				maskTab[z].setThreshold(20,255,1);
+				maskTab[z]=maskTab[z].createMask();
+			}
+			
+		}
+			
+			
+		//Step 2.1 : Extract two substacks for the upper part and the lower part of the object
+		ImageStack stackUp = new ImageStack(xMax, yMax);	
+		ImageStack stackDown = new ImageStack(xMax, yMax);
+		int zQuarter=zMax/4;
+		int zVentile=zMax/40;
+		zVentile=(zVentile < 10 ? 10 : zVentile);
+		if(zMax<zVentile*2+2)zVentile=zMax/2-1;
+		for(int i=0;i<zVentile;i++) {
+			stackUp.addSlice("",maskTab[zMax/2+zQuarter-zVentile+i] );//de zmax/2 +zQuarter-zVentile à zMax/2 + zQuarter-zVentile5 --> ajouter zMax/2 à la fin			
+			stackDown.addSlice("",maskTab[zMax/2-zQuarter+i+1] );//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
+		}
+		ImagePlus imgUp=new ImagePlus("upMASK",stackUp);
+		VitimageUtils.adjustImageCalibration(imgUp, img);
+		if(debug)imageChecking(imgUp);				
+		ImagePlus imgUpCon=connexe(imgUp,0,29,0,10E10,6,2,false);
+		if(debug)imageChecking(imgUpCon,"imgUpCon");
+		
+		ImagePlus imgDown=new ImagePlus("downMASK",stackDown);
+		VitimageUtils.adjustImageCalibration(imgDown, img);
+		if(debug)imageChecking(imgDown);
+		ImagePlus imgDownCon=connexe(imgDown,0,29,0,10E10,6,2,false);
+		if(debug)imageChecking(imgDownCon,"imgDownCon");
+		IJ.saveAsTiff(imgUpCon,"/home/fernandr/Bureau/pouet.tif");
+		
+		if(VitimageUtils.isNullImage(imgUpCon)) {
+			System.out.println("Handling case of void moelle");
+			if(debug)imageChecking(imgUp,"Up init");
+			imgUpCon=VitimageUtils.gaussianFiltering(imgUp, 30*vX, 30*vY, 3*vZ);
+			if(debug)imageChecking(imgUpCon,"Apres filtrage");
+			//imgUpCon.show();
+			//VitimageUtils.waitFor(10000);
+			imgUpCon=VitimageUtils.getBinaryMask(imgUpCon, 253);
+			if(debug)imageChecking(imgUpCon,"Apres seuillage");
+			imgUpCon=connexe(imgUpCon,30,256,0,10E10,6,1,false);
+			if(debug)imageChecking(imgUpCon,"Apres connexe");
+		}
+
+		if(VitimageUtils.isNullImage(imgDownCon)) {
+			System.out.println("Handling case of void moelle");
+			if(debug)imageChecking(imgDown,"Down init");
+			imgDownCon=VitimageUtils.gaussianFiltering(imgDown, 30*vX, 30*vY, 3*vZ);
+			if(debug)imageChecking(imgDownCon,"Apres filtrage");
+			imgDownCon=VitimageUtils.getBinaryMask(imgDownCon, 254);
+			if(debug)imageChecking(imgDownCon,"Apres seuillage");
+			imgDownCon=connexe(imgDownCon,30,256,0,10E10,6,1,false);
+			if(debug)imageChecking(imgDownCon,"Apres connexe");
+		}
+		
+		System.out.println("There");
+		
+		//Step 3 : compute the two centers of mass
+		short[][]valsDownCon=new short[zQuarter][];
+		short[][]valsUpCon=new short[zQuarter][];
+		for(int z=0;z<zVentile;z++){
+			valsDownCon[z]=(short[])(imgDownCon).getStack().getProcessor(z+1).getPixels();
+			valsUpCon[z]=(short[])(imgUpCon).getStack().getProcessor(z+1).getPixels();
+		}
+
+		for(int x=0;x<xMax;x++){
+			for(int y=0;y<yMax;y++){
+				for(int z=0;z<zVentile;z++){								
+					if(valsDownCon[z][xMax*y+x]==((short)255)){//We are in the first part of the object
+						hitsDown++;
+						xMoyDown+=x;yMoyDown+=y;zMoyDown+=z;
+					}
+					if(valsUpCon[z][xMax*y+x]==((short	)255)){//We are in the first part of the object
+						hitsUp++;
+						xMoyUp+=x;yMoyUp+=y;zMoyUp+=z;
+					}
+				}
+			}
+		}
+		System.out.println("Here");
+
+		if(hitsUp==0)hitsUp=1;
+		if(hitsDown==0)hitsDown=1;
+		xMoyUp=xMoyUp/hitsUp;//Center of mass computation. 
+		yMoyUp=yMoyUp/hitsUp;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
+		zMoyUp=zMoyUp/hitsUp+zMax/2+zQuarter-zVentile;//due to the extraction of a substack zmax/2-zQuarter+1 - zmax/2     zMax/2+zQuarter-zVentile
+
+		xMoyDown=xMoyDown/hitsDown;//Center of mass computation. 
+		yMoyDown=yMoyDown/hitsDown;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
+		zMoyDown=zMoyDown/hitsDown+zMax/2-zQuarter+1;//due to the extraction of a substack zmax/2 - zmax/2+zQuarter       zMax/2-zQuarter+1
+		debug =true;
+		if(debug) {
+			System.out.println("HitsUp="+hitsUp+" ..Center of mass up = "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
+			System.out.println("HitsDown="+hitsDown+" ..Center of mass down = "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+		}
+		System.out.println("Here");
+
+		xMoyUp=xMoyUp*vX;		
+		yMoyUp=yMoyUp*vY;		
+		zMoyUp=zMoyUp*vZ;	
+		xMoyDown=xMoyDown*vX;		
+		yMoyDown=yMoyDown*vY;		
+		zMoyDown=zMoyDown*vZ;		
+		if(debug) {
+			System.out.println("Center of mass up (coord reel)= "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
+			System.out.println("Center of mass down (coord reel)= "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+		}
+		System.out.println("THere");
+
+		//Step 4 : compute the axis vector, that will stands for Z vector after alignement
+		double[]vectZ=TransformUtils.normalize(new double[] {xMoyUp - xMoyDown , yMoyUp - yMoyDown , zMoyUp - zMoyDown});
+		double[][]axisVerificationMatrix=VitiDialogs.inspectAxis( img1 ,vectZ,new Point3d(xMoyUp*0.5+xMoyDown*0.5 , yMoyUp*0.5+yMoyDown*0.5 , zMoyUp*0.5+zMoyDown*0.5 ),0);
+		double []vectZbis=axisVerificationMatrix[0];
+		double epsilon=0.0000001;
+		if(TransformUtils.norm(TransformUtils.vectorialSubstraction(vectZbis,vectZ))>epsilon) {//Une erreur a été corrigée par l'utilisateur
+			System.out.println("En effet il y a eu modification");
+			xMoyUp=axisVerificationMatrix[1][0];xMoyDown=axisVerificationMatrix[2][0];
+			yMoyUp=axisVerificationMatrix[1][1];yMoyDown=axisVerificationMatrix[2][1];
+			zMoyUp=axisVerificationMatrix[1][2];zMoyDown=axisVerificationMatrix[2][2];
+			vectZ=vectZbis;
+		}
+
+		
+		System.out.println("Vecteur axial ="+TransformUtils.stringVector(vectZ,""));
+		double []vectXtmp=new double[] {1,0,0};
+		double []vectX=TransformUtils.normalize(TransformUtils.vectorialSubstraction(vectXtmp, TransformUtils.proj_u_of_v(vectZ, vectXtmp)));
+		System.out.println("Vecteur orthogonal ="+TransformUtils.stringVector(vectX,""));
+
+		
+		
+		
+
+		//Step 5 : compute the three points
+		Point3d origine=new Point3d(xMoyUp*0.5+xMoyDown*0.5 , yMoyUp*0.5+yMoyDown*0.5 , zMoyUp*0.5+zMoyDown*0.5 );
+		Point3d ptUp= new Point3d(origine.x + vectZ[0]   ,  origine.y + vectZ[1] , origine.z + vectZ[2]);
+		Point3d ptRight= new Point3d(origine.x + vectX[0]   ,  origine.y + vectX[1] , origine.z + vectX[2]);
+		return new Point3d[] {origine,ptUp,ptRight};
+	}
+*/
 	
 	
+	public static ImagePlus getBinaryMask(ImagePlus img,double threshold) {
+		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getStackSize();
+		int type=(img.getType()==ImagePlus.GRAY8 ? 8 : img.getType()==ImagePlus.GRAY16 ? 16 : img.getType()==ImagePlus.GRAY32 ? 32 : 24);
+		ImagePlus ret=IJ.createImage("", dimX, dimY, dimZ, 8);
+		VitimageUtils.adjustImageCalibration(ret,img);
+		if(type==8) {
+			for(int z=0;z<dimZ;z++) {
+				byte []tabImg=(byte[])img.getStack().getProcessor(z+1).getPixels();
+				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					for(int y=0;y<dimY;y++) {
+						if( (tabImg[dimX*y+x] & 0xff) >= (byte)(((int)Math.round(threshold)) & 0xff)  )tabRet[dimX*y+x]=(byte)(255 & 0xff);
+						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
+					}
+				}
+			}
+		}
+		else if(type==16) {
+			for(int z=0;z<dimZ;z++) {
+				short []tabImg=(short[])img.getStack().getProcessor(z+1).getPixels();
+				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					for(int y=0;y<dimY;y++) {
+						if( (tabImg[dimX*y+x] & 0xffff) >= (short)(((int)Math.round(threshold)) & 0xffff)  )tabRet[dimX*y+x]=(byte)(255 & 0xff);
+						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
+					}
+				}
+			}
+		}
+		else if(type==32) {
+			for(int z=0;z<dimZ;z++) {
+				float []tabImg=(float[])img.getStack().getProcessor(z+1).getPixels();
+				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					for(int y=0;y<dimY;y++) {
+						if( (tabImg[dimX*y+x]) >= threshold )tabRet[dimX*y+x]=(byte)(255 & 0xff);
+						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
+					}
+				}
+			}
+		}
+		else VitiDialogs.notYet("getBinary Mask type "+type);
+		return ret;
+	}
+
+	/**
+	 * Connected components utilities
+	 * @param img
+	 * @param computeZaxisOnly
+	 * @param cornersCoordinates
+	 * @param ignoreUnattemptedDimensions
+	 * @return
+	 */
+	public static ImagePlus connexe(ImagePlus img,double threshLow,double threshHigh,double volumeLow,double volumeHigh,int connexity,int selectByVolume,boolean noVerbose) {
+		boolean debug=!noVerbose;
+		if(debug)System.out.println("Depart connexe");
+		int yMax=img.getHeight();
+		int xMax=img.getWidth();
+		int zMax=img.getStack().getSize();
+		double vX=img.getCalibration().pixelWidth;
+		double vY=img.getCalibration().pixelHeight;
+		double vZ=img.getCalibration().pixelDepth;
+		double voxVolume=vX*vY*vZ;
+		int[][]connexions;
+		int[]volume;
+		if(debug)System.out.println("Allocations 1, en MegaInt : "+(0.000001*xMax*yMax*zMax));
+		int[][][]tabIn=new int[xMax][yMax][zMax];
+		if(0.000001*xMax*yMax*zMax>20) {
+			if(debug)System.out.println("Allocations 2, en MegaInt : "+(0.000001*xMax*yMax*zMax/20));
+			connexions=new int[xMax*yMax*zMax/20][2];
+			if(debug)System.out.println("Allocations 3, en MegaInt : "+(0.000001*xMax*yMax*zMax/20));
+			volume=new int[xMax*yMax*zMax/20];
+		}
+		else {
+			if(debug)System.out.println("Allocations 2, en MegaInt : "+(0.000001*xMax*yMax*zMax/5));
+			connexions=new int[xMax*yMax*zMax/5][2];
+			if(debug)System.out.println("Allocations 3, en MegaInt : "+(0.000001*xMax*yMax*zMax/5));
+			volume=new int[xMax*yMax*zMax/5];
+		}
+		int[][]neighbours=new int[][]{{1,0,0,0},{1,1,0,0},{0,1,0,0},{0,0,1,0},{1,0,1,0},{1,1,1,0},{0,1,1,0} };
+		int curComp=0;
+		int indexConnexions=0;
+		if(debug)System.out.println("Choix d'un type");
+		switch(img.getType()) {
+		case ImagePlus.GRAY8:
+			byte[] imgInB;
+			for(int z=0;z<zMax;z++) {
+				imgInB=(byte[])(img.getStack().getProcessor(z+1).getPixels());
+				for(int x=0;x<xMax;x++)for(int y=0;y<yMax;y++)if(  ((float)(imgInB[x+xMax*y] & 0xff) < threshHigh )  && ((float)((imgInB[x+xMax*y]) & 0xff) >= threshLow) )tabIn[x][y][z]=-1;
+			}
+			break;
+		case ImagePlus.GRAY16:
+			short[] imgInS;
+			for(int z=0;z<zMax;z++) {
+				imgInS=(short[])(img.getStack().getProcessor(z+1).getPixels());
+				for(int x=0;x<xMax;x++)for(int y=0;y<yMax;y++)if(  ((float)(imgInS[x+xMax*y] & 0xffff) < threshHigh )  && ((float)((imgInS[x+xMax*y]) & 0xffff) >=threshLow) )tabIn[x][y][z]=-1;					
+			}
+			break;
+		case ImagePlus.GRAY32:
+			float[] imgInF;
+			for(int z=0;z<zMax;z++) {
+				imgInF=(float[])(img.getStack().getProcessor(z+1).getPixels());
+				for(int x=0;x<xMax;x++)for(int y=0;y<yMax;y++)if(  ((imgInF[x+xMax*y]) < threshHigh )  && (((imgInF[x+xMax*y])) >= threshLow) )tabIn[x][y][z]=-1;					
+			}
+			break;
+		}
+
+		if(debug)System.out.println("Boucle principale");
+		//Boucle principale
+		for(int x=0;x<xMax;x++) {
+			for(int y=0;y<yMax;y++) {
+				for(int z=0;z<zMax;z++) {
+					if(tabIn[x][y][z]==0)continue;//Point du fond
+					if(tabIn[x][y][z]==-1) {
+						tabIn[x][y][z]=(++curComp);//New object
+						if(curComp==volume.length) {
+							//agrandir le tableau de volumes de 20 %
+							int[]volumeBigger=new int[(14*volume.length)/10];
+							if(debug)System.out.println("Volumes array touch to limit. Raising size to "+(14*volume.length)/10);
+							for(int i=0;i<curComp;i++) {
+								volumeBigger[i]=volume[i];
+								volumeBigger[i]=volume[i];
+							}
+							volume=volumeBigger;
+						}
+
+						volume[curComp]++;
+					}
+					if(tabIn[x][y][z]>0) {//Here we need to explore the neighbours
+						for(int nei=0;nei<7;nei++)neighbours[nei][3]=1;//At the beginning, every neighbour is possible. 
+						//    Z axis
+						//     /|\ 6---------5         
+						//      | /|        /|
+						//      |/ |       / |  
+						//      3---------4  |
+						//      |  |      |  |
+						//      |  2------|--1
+						//      | /       | /
+						//      |/        |/
+						//      X---------0-----> X axis
+ 						//
+						//Then we need to reduce access according to images dims and chosen connexity
+						if(x==xMax-1)neighbours[0][3]=neighbours[1][3]=neighbours[4][3]=neighbours[5][3]=0;
+						if(y==yMax-1)neighbours[1][3]=neighbours[2][3]=neighbours[5][3]=neighbours[6][3]=0;
+						if(z==zMax-1)neighbours[3][3]=neighbours[4][3]=neighbours[5][3]=neighbours[6][3]=0;
+						if(connexity==4)neighbours[1][3]=neighbours[3][3]=neighbours[4][3]=neighbours[5][3]=neighbours[6][3]=0;
+						if(connexity==6)neighbours[1][3]=neighbours[4][3]=neighbours[5][3]=neighbours[6][3]=0;
+						if(connexity==8)neighbours[3][3]=neighbours[4][3]=neighbours[5][3]=neighbours[6][3]=0;
+						if(connexity==18)neighbours[5][3]=0;
+
+						//Given these neighbours, we can visit them
+						for(int nei=0;nei<7;nei++) {
+							if(neighbours[nei][3]==1) {
+								//System.out.println("Go, avec nei="+nei+" x="+x+" y="+y+" z"+z+" NEIS={"+neighbours[nei][0]+","+neighbours[nei][1]+","+neighbours[nei][2]"}");
+								if(tabIn[x+neighbours[nei][0]][y+neighbours[nei][1]][z+neighbours[nei][2]]==0)continue;
+								if(tabIn[x+neighbours[nei][0]][y+neighbours[nei][1]][z+neighbours[nei][2]]==-1) {
+									tabIn[x+neighbours[nei][0]][y+neighbours[nei][1]][z+neighbours[nei][2]]=tabIn[x][y][z];
+									volume[tabIn[x][y][z]]++;
+								}
+								else {
+									if(indexConnexions==connexions.length) {
+										//agrandir le tableau de connexions de 20 %
+										int[][]connexionsBigger=new int[(14*connexions.length)/10][2];
+										if(debug)System.out.println("Connexions array touch to limit. Raising size to "+(14*connexions.length)/10);
+										for(int i=0;i<indexConnexions;i++) {
+											connexionsBigger[i][0]=connexions[i][0];
+											connexionsBigger[i][1]=connexions[i][1];
+										}
+										connexions=connexionsBigger;
+									}
+									connexions[indexConnexions][0]=tabIn[x+neighbours[nei][0]][y+neighbours[nei][1]][z+neighbours[nei][2]];
+									connexions[indexConnexions++][1]=tabIn[x][y][z];
+								}
+							}
+						}
+					}
+				}	
+			}			
+		}
+
+		//System.out.println("Resolution des conflits entre groupes connexes");
+		//Resolution des groupes d'objets connectes entre eux (formes en U, et cas plus compliqués)
+		int[]lut = resolveConnexitiesGroupsAndExclude(connexions,indexConnexions,curComp+1,volume,volumeLow/voxVolume,volumeHigh/voxVolume,selectByVolume,noVerbose);
+
+
+		//Build computed image of objects
+		ImagePlus imgOut=ij.gui.NewImage.createImage(img.getShortTitle()+"_"+connexity+"CON",xMax,yMax,zMax,16,ij.gui.NewImage.FILL_BLACK);
+		short[] imgOutTab;
+		for(int z=0;z<zMax;z++) {
+			imgOutTab=(short[])(imgOut.getStack().getProcessor(z+1).getPixels());
+			for(int x=0;x<xMax;x++)for(int y=0;y<yMax;y++) imgOutTab[x+xMax*y] = (short) ( lut[tabIn[x][y][z]]  );
+		}
+		imgOut.getProcessor().setMinAndMax(0,lut[curComp+1]);
+		VitimageUtils.adjustImageCalibration(imgOut, img);
+		return imgOut;	
+	}
 	
+	public static int[] resolveConnexitiesGroupsAndExclude(int  [][] connexions,int nbCouples,int n,int []volume,double volumeLowP,double volumeHighP,int selectByVolume,boolean noVerbose) {
+		int[]prec=new int[n];
+		int[]lut=new int[n+1];
+		int[]next=new int[n];
+		int[]label=new int[n];
+		for(int i=0;i<n;i++) {label[i]=i;prec[i]=0;next[i]=0;}
+
+		int indA,indB,valMin,valMax,indMin,indMax;
+		for(int couple=0;couple<nbCouples;couple++) {
+			indA=connexions[couple][0];
+			indB=connexions[couple][1];
+			if(label[indA]==label[indB])continue;
+			if(label[indA]<label[indB]) {
+				valMin=label[indA];
+				indMin=indA;
+				valMax=label[indB];
+				indMax=indB;
+			}
+			else {
+				valMin=label[indB];
+				indMin=indB;
+				valMax=label[indA];
+				indMax=indA;
+			}
+			while(next[indMin]>0)indMin=next[indMin];
+			while(prec[indMax]>0)indMax=prec[indMax];
+			prec[indMax]=indMin;
+			next[indMin]=indMax;
+			while(next[indMin]>0) {
+				indMin=next[indMin];
+				label[indMin]=valMin;
+			}
+		}
+		//Compute number of objects and volume
+		for (int i=1;i<n ;i++){
+			if(label[i]!=i) {
+				volume[label[i]]+=volume[i];
+				volume[i]=0;
+			}
+		}
+		//copy and sort volumes
+		Object [][]tabSort=new Object[n][2];
+		int selectedIndex=0;
+		for (int i=0;i<n ;i++) {
+			tabSort[i][0]=new Double(volume[i]);
+			tabSort[i][1]=new Integer(i);
+		}
+
+
+		Arrays.sort(tabSort,new VolumeComparator());
+		if(selectByVolume>n)selectByVolume=n;
+		if(selectByVolume<1)selectByVolume=0;
+		if(selectByVolume!=0)selectedIndex=((Integer)(tabSort[n-selectByVolume][1])).intValue();
+
+		//Exclude too big or too small objects,
+		int displayedValue=1;
+		for (int i=1;i<n ;i++){
+			if(selectByVolume!=0) {
+				if(i==selectedIndex)lut[i]=255;
+				else lut[i]=0;
+			}
+			else if( (volume[i]>0) && (volume[i]>=volumeLowP) && (volume[i]<=volumeHighP) ) {
+				lut[i]=displayedValue++;
+			}
+		}
+		if(displayedValue>65000) {System.out.println("Warning : connexe , "+(displayedValue-1)+" connected components");}
+		else if(! noVerbose)System.out.println("Number of connected components detected : "+(selectByVolume>0 ? 1 : (displayedValue-1)));
+
+		//Group labels
+		for (int i=0;i<n ;i++){
+			lut[i]=lut[label[i]];
+		}
+		//Tricky little parameters to provide a good display after operation;
+		if(selectByVolume !=0)lut[n]=255;
+		else lut[n]=displayedValue;
+		return lut;
+	}
+
+
 	
+	public static ImagePlus subXYZ(ImagePlus imgIn,double[]factors,boolean bilinear) {
+		System.out.print("Subsampling XYZ with factors "+TransformUtils.stringVector(factors,""));
+		ImagePlus out=VitimageUtils.imageCopy(imgIn);
+		int []dimsNew=VitimageUtils.getDimensions(imgIn);
+		System.out.print(TransformUtils.stringVector(dimsNew,"Dims before"));
+		for(int d=0;d<3;d++) {
+			dimsNew[d]=(int)(Math.ceil( dimsNew[d]*factors[d] ));
+		}
+		System.out.print(TransformUtils.stringVector(dimsNew,"Dims target"));
+//		out.show();
+		out.setTitle("Temp for resizing");
+		System.out.println("\nScale..."+", "+"x="+factors[0]+" y="+factors[1]+" z="+factors[2]+" width="+dimsNew[0]+" height="+dimsNew[1]+" depth="+dimsNew[2]+" interpolation="+(bilinear ?"Bilinear average":"None")+" process create");
+		IJ.run(out, "Scale...", "x="+factors[0]+" y="+factors[1]+" z="+factors[2]+" width="+dimsNew[0]+" height="+dimsNew[1]+" depth="+dimsNew[2]+" interpolation="+(bilinear ?"Bilinear average":"None")+" process create");
+		out=IJ.getImage();
+		out.hide();
+		System.out.println();
+		return out;
+	}
+
 	
 	
 	
@@ -425,6 +1006,13 @@ public class VitimageUtils {
 				threads[ithread].join();  
 		} catch (InterruptedException ie) {  	System.out.println(ie.getStackTrace());throw new RuntimeException(ie);  }  
 	}   
+	
+	public static void startNoJoin(Thread[] threads){  
+		for (int ithread = 0; ithread < threads.length; ++ithread){  
+			threads[ithread].setPriority(Thread.NORM_PRIORITY);  
+			threads[ithread].start();  
+		}
+	}   
 
 	public static void startAndJoin(Thread thread){  
 		thread.setPriority(Thread.NORM_PRIORITY);  
@@ -452,10 +1040,9 @@ public class VitimageUtils {
 	
 	
 	
+	///These ones should be refactored : it is only for wekaSave
 	
 	
-	
-	/* Conversion functions successive test. The last one is in use 	
 	public static ImagePlus[]stacksFromHyperstack(ImagePlus hyper,int nb){
 		ImagePlus []ret=new ImagePlus[nb];
 		for(int i=0;i<nb;i++) {
@@ -491,8 +1078,8 @@ public class VitimageUtils {
 			}
 		}
 		return ret;
-	}
-		
+	} 
+			
 	public static ImagePlus[]stacksFromHyperstackFast(ImagePlus hyper,int nb){
 		ImagePlus []ret=new ImagePlus[nb];
 		int sli=hyper.getStackSize()/nb;
@@ -503,7 +1090,29 @@ public class VitimageUtils {
 		}
 		return ret;
 	}
-	*/
+
+	public static ImagePlus compositeRGBByte(ImagePlus img1Source,ImagePlus img2Source,ImagePlus img3Source,double coefR,double coefG,double coefB){
+		ImagePlus img1=new Duplicator().run(img1Source);
+		ImagePlus img2=new Duplicator().run(img2Source);
+		ImagePlus img3=new Duplicator().run(img3Source);
+		IJ.run(img1,"Multiply...","value="+coefR+" stack");
+		IJ.run(img2,"Multiply...","value="+coefG+" stack");
+		IJ.run(img3,"Multiply...","value="+coefB+" stack");
+		ImageStack is=RGBStackMerge.mergeStacks(img1.getStack(),img2.getStack(),img3.getStack(),true);
+		ImagePlus img=new ImagePlus("Composite",is);
+		VitimageUtils.adjustImageCalibration(img, img1Source);
+		return img;
+	}
+
+	
+	
+	
+	
+	//End
+	
+	
+	
+	
 	public static ImagePlus[]stacksFromHyperstackFastBis(ImagePlus hyper){
 		int nbZ=hyper.getNSlices();
 		int nbT=hyper.getNFrames();
@@ -513,7 +1122,7 @@ public class VitimageUtils {
 		for(int ic=0;ic<nbC;ic++) {
 			for(int it=0;it<nbT;it++) {
 				int i=ic*nbT+it;
-				IJ.log("Hyperstack to stack tab... "+ic+"/"+nbC+" ,  "+it+"/"+nbT);
+				//IJ.log("Hyperstack to stack tab... "+ic+"/"+nbC+" ,  "+it+"/"+nbT);
 				ret[i] = new Duplicator().run(hyper, 1+ic, 1+ic, 1, nbZ, 1+it, 1+it);
 				VitimageUtils.adjustImageCalibration(ret[i],hyper);
 				IJ.run(ret[i],"Grays","");
@@ -595,6 +1204,11 @@ public class VitimageUtils {
 		}
 		return img;
 	}
+	
+	public static int getPixelIndex(int x,int X,int y){
+		return X*y+x;
+	}
+	
 	
 	public static ImagePlus drawCircleInImage(ImagePlus imgIn,double ray,int x0,int y0,int z0,int value) {
 		if(imgIn.getType() != ImagePlus.GRAY8)return imgIn;
@@ -1332,6 +1946,99 @@ public class VitimageUtils {
 		}
 		return max;	
 	}
+
+	
+	public static void main(String[]args) {
+		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/test.tif");
+		getMaskAsCoords(img);
+		
+	}
+	
+	public static int[][] getMaskAsCoords(ImagePlus img) {
+		int[]dims=VitimageUtils.getDimensions(img);
+		if(dims[2]>1) {IJ.showMessage("Warning in VitimageUtils : extracting 2D coords from multi slices image. Return null");return null;}
+		int xM=dims[0];
+		int yM=dims[1];
+		ArrayList<int[]>arRet=new ArrayList<int[]>();
+		if(img.getType() == ImagePlus.GRAY8) {
+			byte[]valsImg=(byte [])img.getStack().getProcessor(1).getPixels();
+			for(int x=0;x<xM;x++) {
+				for(int y=0;y<yM;y++) {
+					if ((valsImg[xM*y+x] & 0xff )> 0)arRet.add(new int[] {x,y}); 
+				}
+			}			
+		}
+		if(img.getType() == ImagePlus.GRAY16) {
+			short[]valsImg=(short [])img.getStack().getProcessor(1).getPixels();
+			for(int x=0;x<xM;x++) {
+				for(int y=0;y<yM;y++) {
+					if ((valsImg[xM*y+x] & 0xffff )> 0)arRet.add(new int[] {x,y}); 
+				}
+			}			
+		}
+		if(img.getType() == ImagePlus.GRAY32) {
+			float[]valsImg=(float [])img.getStack().getProcessor(1).getPixels();
+			for(int x=0;x<xM;x++) {
+				for(int y=0;y<yM;y++) {
+					if ((valsImg[xM*y+x])> 0)arRet.add(new int[] {x,y}); 
+				}
+			}			
+		}
+		int[][]tab=arRet.toArray(new int[arRet.size()][2]);
+		System.out.println(TransformUtils.stringMatrixMN("", tab));
+		return tab;
+	}
+
+
+	
+	public static ImagePlus maxOfImageArrayDouble(ImagePlus [][]imgs) {
+		double max=0;
+		int xM=imgs[0][0].getWidth();
+		int yM=imgs[0][0].getHeight();
+		int zM=imgs[0][0].getStackSize();
+		ImagePlus ret=imgs[0][0].duplicate();
+		float[]valsImg;
+		float[]valsRet;
+		for(int z=0;z<zM;z++) {
+			valsRet=(float [])ret.getStack().getProcessor(z+1).getPixels();
+			for(int i=0;i<imgs.length;i++) {
+				for(int j=0;j<imgs[i].length;j++) {
+					valsImg=(float [])imgs[i][j].getStack().getProcessor(z+1).getPixels();
+					for(int x=0;x<xM;x++) {
+						for(int y=0;y<yM;y++) {
+							if ((valsImg[xM*y+x])> valsRet[xM*y+x])valsRet[xM*y+x]=valsImg[xM*y+x]; 
+						}
+					}			
+				}
+			}
+		}
+		return ret;
+	}
+
+	public static ImagePlus maxOfImageArrayShort(ImagePlus [][]imgs) {
+		double max=0;
+		int xM=imgs[0][0].getWidth();
+		int yM=imgs[0][0].getHeight();
+		int zM=imgs[0][0].getStackSize();
+		ImagePlus ret=imgs[0][0].duplicate();
+		short[]valsImg;
+		short[]valsRet;
+		for(int z=0;z<zM;z++) {
+			valsRet=(short [])ret.getStack().getProcessor(z+1).getPixels();
+			for(int i=0;i<imgs.length;i++) {
+				for(int j=0;j<imgs[i].length;j++) {
+					valsImg=(short [])imgs[i][j].getStack().getProcessor(z+1).getPixels();
+					for(int x=0;x<xM;x++) {
+						for(int y=0;y<yM;y++) {
+							if (  ((int)(valsImg[xM*y+x] & 0xffff)) > ((int)valsRet[xM*y+x] & 0xffff)  ) valsRet[xM*y+x]=valsImg[xM*y+x]; 
+						}
+					}			
+				}
+			}
+		}
+		return ret;
+	}
+	
 	
 	public static int []indMaxOfImage(ImagePlus img) {
 		int[]coords=new int[3];
@@ -1596,42 +2303,232 @@ public class VitimageUtils {
 		return ret;
 	}
 	
-	public static ImagePlus cropImageShort(ImagePlus img,int x0,int y0,int z0,int dimX,int dimY,int dimZ) {
+	public static void transferProperties(ImagePlus source,ImagePlus target) {
+		target.setProperty("Info",(String)source.getProperty("Info"));
+	}
+	
+	public static ImagePlus cropImageShort(ImagePlus img,int x0,int y0,int z0,int dimXX,int dimYY,int dimZZ) {
 		if(img.getType()!=ImagePlus.GRAY16)return null;
-		ImagePlus out=ij.gui.NewImage.createImage("Mask",dimX,dimY,dimZ,16,ij.gui.NewImage.FILL_WHITE);		
+		int[]dims=VitimageUtils.getDimensions(img);
+		int X=dims[0];int Y=dims[1];int Z=dims[2];
+		int xm=(int)Math.max(0, x0);
+		int xM=(int)Math.min(xm+dimXX-1,X-1);
+		int dimX=xM-xm+1;
+		int ym=(int)Math.max(0, y0);
+		int yM=(int)Math.min(ym+dimYY-1,Y-1);
+		int dimY=yM-ym+1;
+		int zm=(int)Math.max(0, z0);
+		int zM=(int)Math.min(zm+dimZZ-1,Z-1);
+		int dimZ=zM-zm+1;		
+		
+		ImagePlus out=ij.gui.NewImage.createImage("Mask",dimX,dimY,dimZ,16,ij.gui.NewImage.FILL_BLACK);		
 		VitimageUtils.adjustImageCalibration(out, img);
-		int xMax=img.getWidth();
-		for(int z=z0;z<z0+dimZ;z++) {
+		for(int z=zm;z<zm+dimZ;z++) {
 			short[] valsImg=(short[])img.getStack().getProcessor(z+1).getPixels();
-			short[] valsOut=(short[])out.getStack().getProcessor(z-z0+1).getPixels();
-			for(int x=x0;x<x0+dimX;x++) {
-				for(int y=y0;y<y0+dimY;y++){
-					valsOut[dimX*(y-y0)+(x-x0)]=((short)(valsImg[xMax*y+x] & 0xffff));
+			short[] valsOut=(short[])out.getStack().getProcessor(z-zm+1).getPixels();
+			for(int x=xm;x<xm+dimX;x++) {
+				for(int y=ym;y<ym+dimY;y++){
+					valsOut[dimX*(y-ym)+(x-xm)]=((short)(valsImg[X*y+x] & 0xffff));
 				}			
 			}
-			out.getStack().setSliceLabel(img.getStack().getSliceLabel(z+1), z-z0+1);
+			out.getStack().setSliceLabel(img.getStack().getSliceLabel(z+1), z-zm+1);
 		}
+		transferProperties(img, out);
 		return out;
 	}
 
-	public static ImagePlus cropImageFloat(ImagePlus img,int x0,int y0,int z0,int dimX,int dimY,int dimZ) {
+	public static ImagePlus cropImageFloat(ImagePlus img,int x0,int y0,int z0,int dimXX,int dimYY,int dimZZ) {
 		if(img.getType()!=ImagePlus.GRAY32)return null;
-		ImagePlus out=ij.gui.NewImage.createImage("Mask",dimX,dimY,dimZ,32,ij.gui.NewImage.FILL_WHITE);		
+		int[]dims=VitimageUtils.getDimensions(img);
+		int X=dims[0];int Y=dims[1];int Z=dims[2];
+		int xm=(int)Math.max(0, x0);
+		int xM=(int)Math.min(xm+dimXX-1,X-1);
+		int dimX=xM-xm+1;
+		int ym=(int)Math.max(0, y0);
+		int yM=(int)Math.min(ym+dimYY-1,Y-1);
+		int dimY=yM-ym+1;
+		int zm=(int)Math.max(0, z0);
+		int zM=(int)Math.min(zm+dimZZ-1,Z-1);
+		int dimZ=zM-zm+1;		
+		
+		ImagePlus out=ij.gui.NewImage.createImage("Mask",dimX,dimY,dimZ,32,ij.gui.NewImage.FILL_BLACK);		
 		VitimageUtils.adjustImageCalibration(out, img);
-		int xMax=img.getWidth();
-		for(int z=z0;z<z0+dimZ;z++) {
+		for(int z=zm;z<zm+dimZ;z++) {
 			float[] valsImg=(float[])img.getStack().getProcessor(z+1).getPixels();
-			float[] valsOut=(float[])out.getStack().getProcessor(z-z0+1).getPixels();
-			for(int x=x0;x<x0+dimX;x++) {
-				for(int y=y0;y<y0+dimY;y++){
-					valsOut[dimX*(y-y0)+(x-x0)]=valsImg[xMax*y+x];
+			float[] valsOut=(float[])out.getStack().getProcessor(z-zm+1).getPixels();
+			for(int x=xm;x<xm+dimX;x++) {
+				for(int y=ym;y<ym+dimY;y++){
+					valsOut[dimX*(y-ym)+(x-xm)]=((float)(valsImg[X*y+x]));
 				}			
 			}
-			out.getStack().setSliceLabel(img.getStack().getSliceLabel(z+1), z-z0+1);
+			out.getStack().setSliceLabel(img.getStack().getSliceLabel(z+1), z-zm+1);
 		}
+		transferProperties(img, out);
 		return out;
 	}
 
+	
+	public static int[][]capillaryCoordinatesAlongZ(ImagePlus img3DT,int[]coords,double capillaryRadius){
+		ImagePlus img3D=img3DT.duplicate();
+		IJ.run(img3D,"32-bit","");
+		int[][]ret=new int[img3D.getNSlices()][2];
+		int[]dims=VitimageUtils.getDimensions(img3D);
+		double[]voxs=VitimageUtils.getVoxelSizes(img3D);
+		
+		Duplicator dup=new Duplicator();
+		int rayPix=(int)Math.round(capillaryRadius/(voxs[0]));
+		int semiRayPix=rayPix/2;
+		int lookupRadius=(int)Math.round(1.5*rayPix);
+
+		int xMed=coords[0];int yMed=coords[1];int zMed=dims[2]/2;
+		double[]capVals=new double[dims[2]];
+		ImagePlus imgTemp;
+		int xLast=xMed,yLast=yMed;
+		long t0= System.currentTimeMillis();
+		System.out.println("Initial coords of capillary on central slice : "+xMed+" , "+yMed+" , "+zMed);
+		
+		for(int z=zMed;z>=0;z--) {
+			//Extract a patch around the finding of upside
+			imgTemp=VitimageUtils.cropImageFloat(img3D,xLast-lookupRadius,yLast-lookupRadius,z, lookupRadius*2,lookupRadius*2,1);
+			//Find cap center in it
+			int[]coordsNew=findCapillaryCenterInSlice(imgTemp,capillaryRadius);
+			//Update coordinates of last
+			xLast=xLast-lookupRadius+coordsNew[0];
+			yLast=yLast-lookupRadius+coordsNew[1];
+			System.out.println("Found best="+xLast+","+yLast+" at slice "+z);
+			ret[z][0]=xLast;
+			ret[z][1]=yLast;
+		}
+		xLast=xMed;
+		yLast=yMed;
+		for(int z=zMed;z<dims[2];z++) {
+			//Extract a patch around the finding of upside
+			imgTemp=VitimageUtils.cropImageFloat(img3D,xLast-lookupRadius,yLast-lookupRadius, z, lookupRadius*2,lookupRadius*2,1);
+			
+			//Find cap center in it
+			int[]coordsNew=findCapillaryCenterInSlice(imgTemp,capillaryRadius);
+			
+			//Update coordinates of last
+			xLast=xLast-lookupRadius+coordsNew[0];
+			yLast=yLast-lookupRadius+coordsNew[1];
+			System.out.println("Found best="+xLast+","+yLast+" at slice "+z);
+	
+			ret[z][0]=xLast;
+			ret[z][1]=yLast;
+		}
+		return ret;
+	}
+	
+	public static double[]capillaryValuesAlongZStatic(ImagePlus img3D,int[]coords,double capillaryRadius){
+		double[]voxs=VitimageUtils.getVoxelSizes(img3D);
+		int[]dims=VitimageUtils.getDimensions(img3D);
+		int rayPix=(int)Math.round(capillaryRadius/(voxs[0]));
+		int semiRayPix=rayPix/2;
+		int lookupRadius=(int)Math.round(1.5*rayPix);
+
+		int xMed=coords[0];int yMed=coords[1];int zMed=dims[2]/2;
+		double[]capVals=new double[dims[2]];
+		ImagePlus imgTemp;
+		int xLast=xMed,yLast=yMed;
+
+		for(int z=zMed;z>=0;z--) {
+			//Extract a patch around the finding of upside
+			imgTemp=VitimageUtils.cropImageFloat(img3D,xLast-lookupRadius,yLast-lookupRadius,z, lookupRadius*2,lookupRadius*2,1);
+			//Find cap center in it
+			int[]coordsNew=findCapillaryCenterInSlice(imgTemp,capillaryRadius);
+			
+			//Update coordinates of last
+			xLast=xLast-lookupRadius+coordsNew[0];
+			yLast=yLast-lookupRadius+coordsNew[1];
+
+			//Gather information of M0 value
+			double[]stats=VitimageUtils.statistics1D(VitimageUtils.valuesOfBlock(img3D,xLast-semiRayPix, yLast-semiRayPix, z-1,xLast+semiRayPix, yLast+semiRayPix, z+1));
+			IJ.log("Capillary detected at z="+z+" at coordinates "+xLast+", "+yLast+" with M0="+stats[0]+" std="+stats[1]);
+			capVals[z]=stats[0];
+		}
+		xLast=xMed;
+		yLast=yMed;
+		for(int z=zMed;z<dims[2];z++) {
+			//Extract a patch around the finding of upside
+			imgTemp=VitimageUtils.cropImageFloat(img3D,xLast-lookupRadius,yLast-lookupRadius, z, lookupRadius*2,lookupRadius*2,1);
+			
+			//Find cap center in it
+			int[]coordsNew=findCapillaryCenterInSlice(imgTemp,capillaryRadius);
+			
+			//Update coordinates of last
+			xLast=xLast-lookupRadius+coordsNew[0];
+			yLast=yLast-lookupRadius+coordsNew[1];
+			
+			//Gather information of M0 value
+			double[]stats=VitimageUtils.statistics1D(VitimageUtils.valuesOfBlock(img3D,xLast-semiRayPix, yLast-semiRayPix, z-1,xLast+semiRayPix, yLast+semiRayPix, z+1));
+			System.out.println("Capillary detected at z="+z+" at coordinates "+xLast+", "+yLast+" with M0="+stats[0]+" std="+stats[1]);
+			capVals[z]=stats[0];
+		}
+		return capVals;
+	}
+	
+
+	
+	
+	public static int[] findCapillaryCenterInSlice(ImagePlus imgTemp,double capillaryRadius) {
+		ImagePlus img=imgTemp.duplicate();
+		double[]voxs=VitimageUtils.getVoxelSizes(img);		
+		int rayPix=(int)Math.round(capillaryRadius/(voxs[0]));
+		int raySquare=rayPix*rayPix;
+		int kernelSize=3*rayPix;
+		if (kernelSize%2==0)kernelSize++;
+		int distX,distY;
+		float[]kernel=new float[kernelSize*kernelSize];
+		for(int i=0;i<kernelSize;i++)for(int j=0;j<kernelSize;j++) {
+			distX=(i-(kernelSize/2));
+			distY=(j-(kernelSize/2));
+			kernel[i*kernelSize+j]=((distX*distX+distY*distY)<raySquare) ? 1 : -1;
+		}
+		new Convolver().convolve(img.getProcessor(), kernel, kernelSize, kernelSize);
+		img=VitimageUtils.makeOperationOnOneImage(img,2,-1, false);
+		int[]coordsOfMax=VitimageUtils.indMaxOfImage(img);
+		return coordsOfMax;
+	}
+
+	
+
+
+	public static ImagePlus getAntiCapillaryMask(ImagePlus img,double capillaryRadius) {
+		//Find capillary in the central slice
+		ImagePlus imgSlice=new Duplicator().run(img,1,1,img.getNSlices()/2+1,img.getNSlices()/2+1,1,1);
+		if(imgSlice.getType()!=ImagePlus.GRAY32)IJ.run(imgSlice,"32-bit","");
+		int []coordsCentral=findCapillaryCenterInSlice(imgSlice,capillaryRadius);
+		int[][]capillaryCenters=capillaryCoordinatesAlongZ(img,coordsCentral,capillaryRadius);
+
+		ImagePlus ret=new Duplicator().run(img,1,1,1,img.getNSlices(),1,1);
+		IJ.run(ret,"32-bit","");
+		ret=VitimageUtils.makeOperationOnOneImage(ret, 2, 0, true);
+		int radiusCapLarge=(int)Math.round(capillaryRadius*2.0/VitimageUtils.getVoxelSizes(img)[0]);
+		int radiusSquare=radiusCapLarge*radiusCapLarge;
+		int radiusCapShort=(int)Math.round(capillaryRadius*0.7/VitimageUtils.getVoxelSizes(img)[0]);
+		int radiusSquareShort=radiusCapShort*radiusCapShort;
+		
+		int dimX=ret.getWidth();
+		int dimY=ret.getHeight();
+		for(int z=0;z<img.getNSlices();z++) {
+			System.out.println("Pour z="+z+" found "+capillaryCenters[z][0]+" , "+capillaryCenters[z][1]);
+			float[]retVal=(float[])ret.getStack().getProcessor(z+1).getPixels();
+			int xm=Math.max(0,capillaryCenters[z][0]-radiusCapLarge);
+			int ym=Math.max(0,capillaryCenters[z][1]-radiusCapLarge);
+			int xM=Math.min(dimX-1,capillaryCenters[z][0]+radiusCapLarge);
+			int yM=Math.min(dimY-1,capillaryCenters[z][1]+radiusCapLarge);
+			for(int x=xm;x<=xM;x++)			for(int y=ym;y<=yM;y++) {
+				if( (x-capillaryCenters[z][0])*(x-capillaryCenters[z][0]) + (y-capillaryCenters[z][1]) * (y-capillaryCenters[z][1]) < radiusSquareShort )retVal[dimX*y+x]=4;
+				else if( (x-capillaryCenters[z][0])*(x-capillaryCenters[z][0]) + (y-capillaryCenters[z][1]) * (y-capillaryCenters[z][1]) < radiusSquare )retVal[dimX*y+x]=2;
+				else retVal[dimX*y+x]=0;
+			}
+		}
+		return ret;
+	}
+
+	
+	
+	
 	
 	public static double []valuesOfImageProcessor(ImageProcessor img,int x0,int y0,double ray) {
 		int xMax=img.getWidth();
@@ -2035,6 +2932,18 @@ public class VitimageUtils {
 		return vals;
 	}
 
+	
+	public static String getPathOfHomeLinux() {
+		return System.getProperty("user.home");
+	}
+	
+	public static String getNameOfUserLinux() {
+		return new File(getPathOfHomeLinux()).getName();
+	}
+
+	
+	
+	
 	public static void writeStringInFile(String text,String file) {
 		if(file ==null)return;
 		try {
@@ -2286,6 +3195,17 @@ public class VitimageUtils {
 		hyperImg.getStack().setSliceLabel(newLab, VitimageUtils.getCorrespondingSliceInHyperImage(hyperImg, c, z, t));
 	}
 
+	
+	public static ImagePlus restoreType(ImagePlus img, int targetType) {
+		int imgType=img.getType();
+		if(targetType==imgType)return img;
+		if(targetType==ImagePlus.GRAY32 && imgType==ImagePlus.GRAY16)return convertShortToFloatWithoutDynamicChanges(img);
+		if(targetType==ImagePlus.GRAY32 && imgType==ImagePlus.GRAY8)return convertByteToFloatWithoutDynamicChanges(img);
+		if(targetType==ImagePlus.GRAY16 && imgType==ImagePlus.GRAY32)return convertFloatToShortWithoutDynamicChanges(img);
+		if(targetType==ImagePlus.GRAY8 && imgType==ImagePlus.GRAY32)return convertByteToFloatWithoutDynamicChanges(img);
+		IJ.showMessage("Unexpected conversion in VitimageUtils restoreType : original type="+imgType+" and targetType="+targetType);
+		return null;
+	}
 	
 	
 	public static ImagePlus makeOperationBetweenTwoImages(ImagePlus in1,ImagePlus in2,int op_1add_2mult_3div_4sub,boolean make32bitResult) {
@@ -2607,8 +3527,10 @@ public class VitimageUtils {
 		int nbC=img.getNChannels();
 		double []voxs=VitimageUtils.getVoxelSizes(img);
 		ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstackFastBis(img);
-		for(int i=0;i<imgTabMov.length;i++) 
+		for(int i=0;i<imgTabMov.length;i++) {
 			imgTabMov[i]= VitimageUtils.cropImageFloat(imgTabMov[i], x0, y0, z0, xf-x0+1, yf-y0+1, zf-z0+1);
+			System.out.println("Processing i="+i+imageResume(imgTabMov[i]));
+		}
 		Concatenator con=new Concatenator();
 		con.setIm5D(true);
 		ImagePlus img2=con.concatenate(imgTabMov,false);
@@ -2626,8 +3548,7 @@ public class VitimageUtils {
 	public static int getAveraging(ImagePlus img) {
 		String[]strLines=new ImageInfo().getImageInfo(img).split("\n");
 		for(String str : strLines)if(str.contains("Number of Averages"))return Integer.parseInt(str.split(": ")[1].split(" ")[0]);
-		IJ.showMessage("Warning in VitimageUtils.getAveraging : no Number of Averages metadata found for image "+VitimageUtils.imageResume(img));
-		return 1;
+		return 2;
 	}
 		
 	public static double getRepetitionTime(ImagePlus img) {
@@ -2639,16 +3560,25 @@ public class VitimageUtils {
 	
 	public static boolean isBouture(ImagePlus img) {
 		String patientName=VitimageUtils.getPatientName(img);
+		if(patientName.contains("BOUTURE"))return true;
+		if( patientName.contains("_muscat_") || patientName.contains("_ugni_") || patientName.contains("_vigne_") || patientName.contains("_MMC_") || patientName.contains("_MSC_") || patientName.contains("_SSC_") || patientName.contains("_SO4_") || patientName.contains("_I_") || patientName.contains("Merlot") )return true;
+		if( patientName.contains("_J") && (patientName.contains("_B") || patientName.contains("DS") ||patientName.contains("PAL") || patientName.contains("PCH") || patientName.contains("NP") || patientName.contains("EL") || patientName.contains("CT"))) return true;
+		patientName=img.getStack().getShortSliceLabel(1);
+		if(patientName==null)patientName="";
 		System.out.println("BOUTURE OBS : "+patientName);
-		if( patientName.contains("_J") && ( patientName.contains("PCH") || patientName.contains("NP") || patientName.contains("EL") || patientName.contains("CT"))) return true;
+		if(patientName.contains("BOUTURE"))return true;
+		if( patientName.contains("_muscat_") || patientName.contains("_ugni_") || patientName.contains("_vigne_") || patientName.contains("_MMC_") || patientName.contains("_MSC_") || patientName.contains("_SSC_") || patientName.contains("_SO4_") || patientName.contains("_I_") || patientName.contains("Merlot") )return true;
+		if( patientName.contains("_J") && (patientName.contains("_B") || patientName.contains("DS") ||patientName.contains("PAL") || patientName.contains("PCH") || patientName.contains("NP") || patientName.contains("EL") || patientName.contains("CT"))) return true;
 		return false;
 	}
 	
 	
 	public static String getPatientName(ImagePlus img) {
+	//	System.out.println("CRASH "+imageResume(img));
+		if(new ImageInfo().getImageInfo(img)==null)return "";
 		String[]strLines=new ImageInfo().getImageInfo(img).split("\n");
 		for(String str : strLines)if(str.contains("Patient ID"))return str.split(": ")[1].split(" ")[0];
-		IJ.showMessage("Warning in VitimageUtils.getAveraging : no Patient ID metadata found for image "+VitimageUtils.imageResume(img));
+		//No patient Name
 		return "";
 	}
 
@@ -2681,11 +3611,14 @@ public class VitimageUtils {
 			}
 			ret.getStack().setSliceLabel(imgIn.getStack().getSliceLabel(z+1), z+1);
 		}
+		transferProperties(imgIn, ret);
+		
 		return ret;
 	}
 	
 	public static ImagePlus convertFloatToShortWithoutDynamicChanges(ImagePlus imgIn) {
 		ImagePlus ret=new Duplicator().run(imgIn);
+		if(imgIn.getType()==ImagePlus.GRAY16)return ret;
 		IJ.run(ret,"16-bit","");
 		float[][] in=new float[imgIn.getStackSize()][];
 		short[][] out=new short[ret.getStackSize()][];
@@ -2701,6 +3634,8 @@ public class VitimageUtils {
 			}
 			ret.getStack().setSliceLabel(imgIn.getStack().getSliceLabel(z+1), z+1);
 		}
+		transferProperties(imgIn, ret);
+		
 		return ret;
 	}
 
@@ -2748,7 +3683,10 @@ public class VitimageUtils {
 
 	}
 
-
+	public static ImagePlus thresholdFloatImage(ImagePlus img,double thresholdMin, double thresholdMax) {
+		return getFloatBinaryMask(img,thresholdMin,thresholdMax);
+	}
+	
 	public static ImagePlus getFloatBinaryMask(ImagePlus img,double valMin, double valMax) {
 		ImagePlus ret=new Duplicator().run(img);
 		IJ.run(ret,"32-bit","");
@@ -2810,6 +3748,8 @@ public class VitimageUtils {
 				}			
 			}
 		}
+		transferProperties(imgIn, ret);
+		
 		return ret;
 	}
 	
@@ -2883,6 +3823,19 @@ public class VitimageUtils {
 	
 	
 	
+	
+	public static String[] stringArraySortByTrValue(String[]tabStr) {
+		String[]tabRet=new String[tabStr.length];
+		for(int i=0;i<tabRet.length;i++)tabRet[i]=tabStr[i];
+		for(int i=0;i<tabRet.length;i++)for(int j=0;j<tabRet.length-1;j++) {
+			if(Integer.parseInt(tabRet[j].replace("TR", "")) > Integer.parseInt(tabRet[j+1].replace("TR", ""))) {
+				String s=tabRet[j];tabRet[j]=tabRet[j+1];tabRet[j+1]=s;
+
+			}
+		}
+		return tabRet;
+	}
+
 	
 	
 	
@@ -3043,20 +3996,204 @@ public class VitimageUtils {
 	
 	public static boolean isBionanoImageWithCapillary(ImagePlus img) {
 		if(isSorghoHyperImage(img))return true;
+		if(isVitimageHyperImage(img))return true;
 		return false;
 	}
 	
+	public static boolean isGe3d(ImagePlus img) {
+		String info=(String)img.getProperty("Info");
+		if(info==null)return false;
+		if(info.contains("GE3D_BIONANO"))return true;
+		return false;
+	}
+	
+	
+	public static ImagePlus maskWithoutCapillaryInGe3DImage(ImagePlus img) {
+		//ImagePlus ret=getAntiCapillaryMask(img);
+		return null; //TODO
+	}
 
 	public static boolean isSorghoHyperImage(ImagePlus img) {
+		System.out.println("Sorgho detection starting step 1");
 		if(img.getStack().getSliceLabel(1)==null)return false;
+		System.out.println("Sorgho detection starting step 2");
 		if(! img.getStack().getSliceLabel(1).contains("M0MAP"))return false;
-		if(  (Math.abs(VitimageUtils.getVoxelVolume(img)-0.001)/VitimageUtils.getVoxelVolume(img))>EPSILON)return false;
-		IJ.log("Detected experience : Sorgho\n");
+		System.out.println("Sorgho detection starting step 3");
+//		if(  (Math.abs(VitimageUtils.getVoxelVolume(img)-0.001)/VitimageUtils.getVoxelVolume(img))>EPSILON)return false; Temporary set in comment
+		System.out.println("Sorgho detection starting step 4");
 		return true;
 	}
 
 	
-	
-	
+	public static boolean isVitimageHyperImage(ImagePlus img) {
+		System.out.println(VitimageUtils.imageResume(img));
+		if(img.getStack().getSliceLabel(1)==null)return false;
+		if(img.getStack().getSliceLabel(1).length()==0)return false;
+		if(! img.getStack().getSliceLabel(1).contains("M0MAP"))return false;
+		if(img.getNSlices()!=40)return false;
+		IJ.log("Detected experience : Vitimage\n");
+		return true;
+	}
+
+	public static Point3d[] detectAxisIrmT1(ImagePlus img,int delayForReacting){
+		boolean debug=false;
+		int xMax=img.getWidth();
+		int yMax=img.getHeight();
+		int zMax=img.getStackSize();
+		double vX=img.getCalibration().pixelWidth;
+		double vY=img.getCalibration().pixelHeight;
+		double vZ=img.getCalibration().pixelDepth;
+		double xMoyUp=0,yMoyUp=0,zMoyUp=0;
+		double xMoyDown=1,yMoyDown=1,zMoyDown=1;
+		int hitsUp=0,hitsDown=0;
+
+		//Step 1 : apply gaussian filtering and convert to 8 bits
+		img=VitimageUtils.gaussianFiltering(img, 18*0.035 , 18*0.035 , 3*0.5);
+		img.getProcessor().setMinAndMax(0,1);
+		StackConverter sc=new StackConverter(img);
+		sc.convertToGray8();
+		if(debug)imageChecking(img,"fin step1 ");
+
+		//Step 2 : apply automatic threshold
+		ByteProcessor[] maskTab=new ByteProcessor[zMax];
+
+		System.out.println("Mask lookup for center of object, case of hign SNR (T1 or RX)");
+		for(int z=0;z<zMax;z++){
+			maskTab[z]=(ByteProcessor) img.getStack().getProcessor(z+1);
+			maskTab[z].setAutoThreshold("Otsu dark");
+			maskTab[z]=maskTab[z].createMask();
+		}
+			
+			
+		//Step 2.1 : Extract two substacks for the upper part and the lower part of the object
+		ImageStack stackUp = new ImageStack(xMax, yMax);	
+		ImageStack stackDown = new ImageStack(xMax, yMax);
+		int zQuarter=zMax/4;
+		int zVentile=zMax/40;
+		zVentile=(zVentile < 10 ? 10 : zVentile);
+		if(zMax<zVentile*2+2)zVentile=zMax/2-1;
+		for(int i=0;i<zVentile;i++) {
+			stackUp.addSlice("",maskTab[zMax/2+zQuarter-zVentile+i] );//de zmax/2 +zQuarter-zVentile à zMax/2 + zQuarter-zVentile5 --> ajouter zMax/2 à la fin			
+			stackDown.addSlice("",maskTab[zMax/2-zQuarter+i+1] );//de zmax/2-5 à zMax/2   --> ajouter zMax/2-5 à la fin
+		}
+		ImagePlus imgUp=new ImagePlus("upMASK",stackUp);
+		VitimageUtils.adjustImageCalibration(imgUp, img);
+		if(debug)imageChecking(imgUp);				
+		ImagePlus imgUpCon=connexe(imgUp,0,29,0,10E10,6,2,true);
+		if(debug)imageChecking(imgUpCon,"imgUpCon");
+		
+		ImagePlus imgDown=new ImagePlus("downMASK",stackDown);
+		VitimageUtils.adjustImageCalibration(imgDown, img);
+		if(debug)imageChecking(imgDown);
+		ImagePlus imgDownCon=connexe(imgDown,0,29,0,10E10,6,2,true);
+		if(debug)imageChecking(imgDownCon,"imgDownCon");
+		IJ.saveAsTiff(imgUpCon,"/home/fernandr/Bureau/pouet.tif");
+		
+		if(VitimageUtils.isNullImage(imgUpCon)) {
+			System.out.println("Handling case of void moelle");
+			if(debug)imageChecking(imgUp,"Up init");
+			imgUpCon=VitimageUtils.gaussianFiltering(imgUp, 30*vX, 30*vY, 3*vZ);
+			if(debug)imageChecking(imgUpCon,"Apres filtrage");
+			//imgUpCon.show();
+			//VitimageUtils.waitFor(10000);
+			imgUpCon=VitimageUtils.getBinaryMask(imgUpCon, 253);
+			if(debug)imageChecking(imgUpCon,"Apres seuillage");
+			imgUpCon=connexe(imgUpCon,30,256,0,10E10,6,1,true);
+			if(debug)imageChecking(imgUpCon,"Apres connexe");
+		}
+
+		if(VitimageUtils.isNullImage(imgDownCon)) {
+			System.out.println("Handling case of void moelle");
+			if(debug)imageChecking(imgDown,"Down init");
+			imgDownCon=VitimageUtils.gaussianFiltering(imgDown, 30*vX, 30*vY, 3*vZ);
+			if(debug)imageChecking(imgDownCon,"Apres filtrage");
+			imgDownCon=VitimageUtils.getBinaryMask(imgDownCon, 254);
+			if(debug)imageChecking(imgDownCon,"Apres seuillage");
+			imgDownCon=connexe(imgDownCon,30,256,0,10E10,6,1,true);
+			if(debug)imageChecking(imgDownCon,"Apres connexe");
+		}
+		
+		
+		
+		//Step 3 : compute the two centers of mass
+		short[][]valsDownCon=new short[zQuarter][];
+		short[][]valsUpCon=new short[zQuarter][];
+		for(int z=0;z<zVentile;z++){
+			valsDownCon[z]=(short[])(imgDownCon).getStack().getProcessor(z+1).getPixels();
+			valsUpCon[z]=(short[])(imgUpCon).getStack().getProcessor(z+1).getPixels();
+		}
+
+		for(int x=0;x<xMax;x++){
+			for(int y=0;y<yMax;y++){
+				for(int z=0;z<zVentile;z++){								
+					if(valsDownCon[z][xMax*y+x]==((short)255)){//We are in the first part of the object
+						hitsDown++;
+						xMoyDown+=x;yMoyDown+=y;zMoyDown+=z;
+					}
+					if(valsUpCon[z][xMax*y+x]==((short	)255)){//We are in the first part of the object
+						hitsUp++;
+						xMoyUp+=x;yMoyUp+=y;zMoyUp+=z;
+					}
+				}
+			}
+		}
+		System.out.println("hERE");
+		if(hitsUp==0)hitsUp=1;
+		if(hitsDown==0)hitsDown=1;
+		xMoyUp=xMoyUp/hitsUp;//Center of mass computation. 
+		yMoyUp=yMoyUp/hitsUp;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
+		zMoyUp=zMoyUp/hitsUp+zMax/2+zQuarter-zVentile;//due to the extraction of a substack zmax/2-zQuarter+1 - zmax/2     zMax/2+zQuarter-zVentile
+
+		xMoyDown=xMoyDown/hitsDown;//Center of mass computation. 
+		yMoyDown=yMoyDown/hitsDown;//Double type stands a 15 digits precisions; which is enough here, until #voxels < 5.10^12 
+		zMoyDown=zMoyDown/hitsDown+zMax/2-zQuarter+1;//due to the extraction of a substack zmax/2 - zmax/2+zQuarter       zMax/2-zQuarter+1
+
+		if(debug) {
+			System.out.println("HitsUp="+hitsUp+" ..Center of mass up = "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
+			System.out.println("HitsDown="+hitsDown+" ..Center of mass down = "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+		}
+
+		xMoyUp=xMoyUp*vX;		
+		yMoyUp=yMoyUp*vY;		
+		zMoyUp=zMoyUp*vZ;	
+		xMoyDown=xMoyDown*vX;		
+		yMoyDown=yMoyDown*vY;		
+		zMoyDown=zMoyDown*vZ;		
+		if(debug) {
+			System.out.println("Center of mass up (coord reel)= "+xMoyUp+"  ,  "+yMoyUp+"  ,  "+zMoyUp);
+			System.out.println("Center of mass down (coord reel)= "+xMoyDown+"  ,  "+yMoyDown+"  ,  "+zMoyDown);
+		}
+
+		//Step 4 : compute the axis vector, that will stands for Z vector after alignement
+		double[]vectZ=TransformUtils.normalize(new double[] {xMoyUp - xMoyDown , yMoyUp - yMoyDown , zMoyUp - zMoyDown});
+		double[][]axisVerificationMatrix=VitiDialogs.inspectAxis( img ,vectZ,new Point3d(xMoyUp*0.5+xMoyDown*0.5 , yMoyUp*0.5+yMoyDown*0.5 , zMoyUp*0.5+zMoyDown*0.5 ),0);
+		double []vectZbis=axisVerificationMatrix[0];
+		double epsilon=0.0000001;
+		if(TransformUtils.norm(TransformUtils.vectorialSubstraction(vectZbis,vectZ))>epsilon) {//Une erreur a été corrigée par l'utilisateur
+			System.out.println("En effet il y a eu modification");
+			xMoyUp=axisVerificationMatrix[1][0];xMoyDown=axisVerificationMatrix[2][0];
+			yMoyUp=axisVerificationMatrix[1][1];yMoyDown=axisVerificationMatrix[2][1];
+			zMoyUp=axisVerificationMatrix[1][2];zMoyDown=axisVerificationMatrix[2][2];
+			vectZ=vectZbis;
+		}
+
+		
+		System.out.println("Vecteur axial ="+TransformUtils.stringVector(vectZ,""));
+		double []vectXtmp=new double[] {1,0,0};
+		double []vectX=TransformUtils.normalize(TransformUtils.vectorialSubstraction(vectXtmp, TransformUtils.proj_u_of_v(vectZ, vectXtmp)));
+		System.out.println("Vecteur orthogonal ="+TransformUtils.stringVector(vectX,""));
+
+		
+		
+		
+
+		//Step 5 : compute the three points
+		Point3d origine=new Point3d(xMoyUp*0.5+xMoyDown*0.5 , yMoyUp*0.5+yMoyDown*0.5 , zMoyUp*0.5+zMoyDown*0.5 );
+		Point3d ptUp= new Point3d(origine.x + vectZ[0]   ,  origine.y + vectZ[1] , origine.z + vectZ[2]);
+		Point3d ptRight= new Point3d(origine.x + vectX[0]   ,  origine.y + vectX[1] , origine.z + vectX[2]);
+		return new Point3d[] {origine,ptUp,ptRight};
+	}
+
+
 
 }

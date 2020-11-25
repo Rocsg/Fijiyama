@@ -101,8 +101,10 @@ import ij.plugin.frame.RoiManager;
 //Seems to be ok, just the image 1125 that is weird
 
 public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
-	public String versionName="Gorgeous grapevine";
-	public String timeVersionFlag="  Release time : 2020-21-03 - 2:20 AM";
+	public boolean doStressTest=false;
+	public boolean isSurvivorVncTunnelLittleDisplay=false;
+	public String versionName="Handsome honeysuckle";
+	public String timeVersionFlag="  Release time : 2020-09-02 - 22:55 PM";
 	public String versionFlag=versionName+timeVersionFlag;
 	public ImagePlus imgView;
 	private boolean enableHighAcc=true;
@@ -248,6 +250,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 	protected boolean comboBoxChanged=false;
 	private RegistrationManager regManager;
+	private Font mySurvivalFontForLittleDisplays=null;
+	private boolean undoButtonHasBeenPressed=false;
 	
 
 
@@ -261,6 +265,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	/*Starting points*************************************************************************************************************/
 	public Fijiyama_GUI() {
 		super("FijiYama : a versatile registration tool for Fiji");
+		if(new File("/users/bionanonmri/").exists()) {
+			this.isSurvivorVncTunnelLittleDisplay=true;
+			IJ.showMessage("Detected Bionano server. \nSurvival display, but numerous cores");
+		}
 		regManager=new RegistrationManager(this);
 		this.screenHeight=Toolkit.getDefaultToolkit().getScreenSize().height;
 		this.screenWidth=Toolkit.getDefaultToolkit().getScreenSize().width;
@@ -340,10 +348,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		JPanel consolePanel=new JPanel();
 		consolePanel.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));
 		consolePanel.setLayout(new GridLayout(1,1,0,0));
-		logArea.setSize(600,80);
+		logArea.setSize(isSurvivorVncTunnelLittleDisplay ? 400 : 600,isSurvivorVncTunnelLittleDisplay ?  57 : 80);
 		logArea.setBackground(new Color(10,10,10));
 		logArea.setForeground(new Color(245,255,245));
-		logArea.setFont(new Font(Font.DIALOG,Font.PLAIN,14));
+		logArea.setFont(new Font(Font.DIALOG,Font.PLAIN,isSurvivorVncTunnelLittleDisplay ? 10 : 14));
 		JScrollPane jscroll=new JScrollPane(logArea);
         logArea.setLineWrap(true);
         logArea.setWrapStyleWord(true);
@@ -351,8 +359,44 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
        //Panel with step settings, used for registration of two images, and when programming registration pipelines for series
 		JPanel stepSettingsPanel=new JPanel();
-		stepSettingsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));		
-		stepSettingsPanel.setLayout(new GridLayout(9,2,15,10));
+		mySurvivalFontForLittleDisplays=null;
+		if(isSurvivorVncTunnelLittleDisplay ) {
+			stepSettingsPanel.setBorder(BorderFactory.createEmptyBorder(0,0,5,0));		
+			stepSettingsPanel.setLayout(new GridLayout(8,2,6,4));
+			String name=boxTypeTrans.getFont().getFamily();
+			mySurvivalFontForLittleDisplays=new Font(name,Font.BOLD,11);
+			labelNextAction.setFont(mySurvivalFontForLittleDisplays);
+			logArea.setFont(mySurvivalFontForLittleDisplays);
+			boxTypeAction.setFont(mySurvivalFontForLittleDisplays);
+			labelTransformation.setFont(mySurvivalFontForLittleDisplays);
+			boxTypeTrans.setFont(mySurvivalFontForLittleDisplays);
+			labelOptimizer.setFont(mySurvivalFontForLittleDisplays);
+			boxOptimizer.setFont(mySurvivalFontForLittleDisplays);
+			labelView.setFont(mySurvivalFontForLittleDisplays);
+			boxDisplay.setFont(mySurvivalFontForLittleDisplays);
+			labelViewMan.setFont(mySurvivalFontForLittleDisplays);
+			boxDisplayMan.setFont(mySurvivalFontForLittleDisplays);
+			labelTime1.setFont(mySurvivalFontForLittleDisplays);
+			labelTime2.setFont(mySurvivalFontForLittleDisplays);
+			settingsButton.setFont(mySurvivalFontForLittleDisplays);
+			settingsDefaultButton.setFont(mySurvivalFontForLittleDisplays);
+			sosButton.setFont(mySurvivalFontForLittleDisplays);
+			finishButton.setFont(mySurvivalFontForLittleDisplays);
+			runThroughButton.setFont(mySurvivalFontForLittleDisplays);
+			runButton.setFont(mySurvivalFontForLittleDisplays);
+			saveButton.setFont(mySurvivalFontForLittleDisplays);
+			abortButton.setFont(mySurvivalFontForLittleDisplays);
+			undoButton.setFont(mySurvivalFontForLittleDisplays);
+			validatePipelineButton.setFont(mySurvivalFontForLittleDisplays);
+			removeSelectedButton.setFont(mySurvivalFontForLittleDisplays);
+			addActionButton.setFont(mySurvivalFontForLittleDisplays);
+			goBackStepButton.setFont(mySurvivalFontForLittleDisplays);
+			runNextStepButton.setFont(mySurvivalFontForLittleDisplays);
+		}
+		else{
+			stepSettingsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));		
+			stepSettingsPanel.setLayout(new GridLayout(9,2,15,10));
+		}
 
 		stepSettingsPanel.add(labelNextAction);
 		stepSettingsPanel.add(boxTypeAction);		
@@ -365,11 +409,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		stepSettingsPanel.add(labelViewMan);
 		stepSettingsPanel.add(boxDisplayMan);
 		stepSettingsPanel.add(new JLabel(""));
-		stepSettingsPanel.add(new JLabel(""));
+		if(! isSurvivorVncTunnelLittleDisplay )stepSettingsPanel.add(new JLabel(""));
 		stepSettingsPanel.add(labelTime1);
 		stepSettingsPanel.add(labelTime2);		
 		stepSettingsPanel.add(new JLabel(""));
-		stepSettingsPanel.add(new JLabel(""));
+		if(! isSurvivorVncTunnelLittleDisplay )stepSettingsPanel.add(new JLabel(""));
 		stepSettingsPanel.add(settingsButton);
 		stepSettingsPanel.add(settingsDefaultButton);
 
@@ -398,8 +442,14 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		//Panel with buttons for the context of two image registration
 		JPanel buttonsPanel=new JPanel();
 		if(this.modeWindow==WINDOWTWOIMG) {
-			buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
-			buttonsPanel.setLayout(new GridLayout(2,3,40,40));
+			if(isSurvivorVncTunnelLittleDisplay ) {
+				buttonsPanel.setBorder(BorderFactory.createEmptyBorder(0,0,5,0));
+				buttonsPanel.setLayout(new GridLayout(2,3,10,10));
+			}
+			else {
+				buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
+				buttonsPanel.setLayout(new GridLayout(2,3,40,40));
+			}
 			buttonsPanel.add(runButton);
 			buttonsPanel.add(abortButton);
 			buttonsPanel.add(undoButton);
@@ -416,13 +466,14 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			colorStdActivatedButton=runButton.getBackground();
 			colorGreenRunButton=new Color(100,255,100);
 			
-			abortButton.setToolTipText("<html><p width=\"500\">" +"Abort means killing a running operation and come back to the state before you clicked on Start this action."+
+			int width=isSurvivorVncTunnelLittleDisplay ? 350 : 500;
+			abortButton.setToolTipText("<html><p width=\""+(width)+"\">" +"Abort means killing a running operation and come back to the state before you clicked on Start this action."+
 									   "Automatic registration is harder to kill. Please insist on this button until its colour fades to gray"+"</p></html>");
-			finishButton.setToolTipText("<html><p width=\"500\">" +"Export aligned images and computed transformations"+"</p></html>");
-			saveButton.setToolTipText("<html><p width=\"500\">" +"Save the current state of the plugin in a .fjm file, including the transformations and image paths."+
+			finishButton.setToolTipText("<html><p width=\""+(width)+"\">" +"Export aligned images and computed transformations"+"</p></html>");
+			saveButton.setToolTipText("<html><p width=\""+(width)+"\">" +"Save the current state of the plugin in a .fjm file, including the transformations and image paths."+
 										" This .ijm file can be loaded later to restart from this point"+"</p></html>");
-			sosButton.setToolTipText("<html><p width=\"500\">" +"Opens a contextual help"+"</p></html>");
-			undoButton.setToolTipText("<html><p width=\"500\">" +"Undo delete the previous action, and recover the previous state of transformations and images"+"</p></html>");
+			sosButton.setToolTipText("<html><p width=\""+(width)+"\">" +"Opens a contextual help"+"</p></html>");
+			undoButton.setToolTipText("<html><p width=\""+(width)+"\">" +"Undo delete the previous action, and recover the previous state of transformations and images"+"</p></html>");
 			
 			setRunToolTip(MAIN);
 			this.colorIdle=abortButton.getBackground();
@@ -432,8 +483,14 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 		
 		else if(this.modeWindow==WINDOWSERIEPROGRAMMING) {
-			buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
-			buttonsPanel.setLayout(new GridLayout(2,2,40,40));
+			if(isSurvivorVncTunnelLittleDisplay ) {
+				buttonsPanel.setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
+				buttonsPanel.setLayout(new GridLayout(2,2,10,10));
+			}
+			else{
+				buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
+				buttonsPanel.setLayout(new GridLayout(2,2,40,40));				
+			}
 			buttonsPanel.add(addActionButton);
 			buttonsPanel.add(removeSelectedButton);
 			buttonsPanel.add(validatePipelineButton);
@@ -444,17 +501,24 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			validatePipelineButton.addActionListener(this);
 			sosButton.addActionListener(this);
 
-			addActionButton.setToolTipText("<html><p width=\"500\">" +"Click to add an action (bottom list), and configure it using upper menus"+"</p></html>");
-			removeSelectedButton.setToolTipText("<html><p width=\"500\">" +"Remove the selected action (bottom list) from the global pipeline"+"</p></html>");
-			validatePipelineButton.setToolTipText("<html><p width=\"500\">" +"Validate the global processing pipeline, and go to next step"+"</p></html>");
+			int width=isSurvivorVncTunnelLittleDisplay ? 350 : 500;
+			addActionButton.setToolTipText("<html><p width=\""+(width)+"\">" +"Click to add an action (bottom list), and configure it using upper menus"+"</p></html>");
+			removeSelectedButton.setToolTipText("<html><p width=\""+(width)+"\">" +"Remove the selected action (bottom list) from the global pipeline"+"</p></html>");
+			validatePipelineButton.setToolTipText("<html><p width=\""+(width)+"\">" +"Validate the global processing pipeline, and go to next step"+"</p></html>");
 
 			enable(SETTINGS);
 			listActions.setSelectedIndex(0);
 		}
 		
 		else if(this.modeWindow==WINDOWSERIERUNNING) {
-			buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
-			buttonsPanel.setLayout(new GridLayout(2,3,40,40));
+			if(isSurvivorVncTunnelLittleDisplay ) {
+				buttonsPanel.setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
+				buttonsPanel.setLayout(new GridLayout(2,3,10,10));
+			}
+			else{
+				buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
+				buttonsPanel.setLayout(new GridLayout(2,3,40,40));			
+			}
 			buttonsPanel.add(runButton);
 			buttonsPanel.add(abortButton);
 			buttonsPanel.add(undoButton);
@@ -468,7 +532,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			abortButton.addActionListener(this);
 			sosButton.addActionListener(this);
 
-			runButton.setToolTipText("<html><p width=\"500\">" +"Click here to run the next step in the global pipeline (see the black console log)"+"</p></html>");
+			int width=isSurvivorVncTunnelLittleDisplay ? 350 : 500;
+			runButton.setToolTipText("<html><p width=\""+(width)+"\">" +"Click here to run the next step in the global pipeline (see the black console log)"+"</p></html>");
 			if(regManager.getStep()>0)enable(UNDO);
 			else disable(UNDO);
 			disable(new int[] {BOXOPT,BOXACT,BOXTIME,BOXTRANS,BOXDISP,BOXDISPMAN,SETTINGS,GOBACKSTEP,ABORT});
@@ -477,12 +542,26 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 		//Panel with list of actions, used for registration of two images, and when programming registration pipelines for series
 		JPanel titleActionPanel=new JPanel();
-		titleActionPanel.setBorder(BorderFactory.createEmptyBorder(5,25,0,25));
-		titleActionPanel.setLayout(new GridLayout(1,1,10,10));
-		titleActionPanel.add(new JLabel(this.modeWindow==WINDOWSERIEPROGRAMMING ?  "Global registration pipeline : add/remove an action, select an action to modify it (using the menus), then approve the pipeline)" : "Global registration pipeline "));
 		JPanel listActionPanel=new JPanel();
-		listActionPanel.setBorder(BorderFactory.createEmptyBorder(5,10,10,10));
-		listActionPanel.setLayout(new GridLayout(1,1,10,10));
+		if(isSurvivorVncTunnelLittleDisplay ) {
+			titleActionPanel.setBorder(BorderFactory.createEmptyBorder(5,0,0,0));
+			titleActionPanel.setLayout(new GridLayout(1,1,0,0));
+		}
+		else {
+			titleActionPanel.setBorder(BorderFactory.createEmptyBorder(5,25,0,25));
+			titleActionPanel.setLayout(new GridLayout(1,1,10,10));			
+		}
+		JLabel jlab=new JLabel(this.modeWindow==WINDOWSERIEPROGRAMMING ?  "Global registration pipeline : add/remove an action, select an action to modify it (using the menus), then approve the pipeline)" : "Global registration pipeline ");
+		if(this.isSurvivorVncTunnelLittleDisplay)jlab.setFont(mySurvivalFontForLittleDisplays);
+		titleActionPanel.add(jlab);
+		if(isSurvivorVncTunnelLittleDisplay ) {
+			listActionPanel.setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
+			listActionPanel.setLayout(new GridLayout(1,1,0,0));
+		}
+		else {
+			listActionPanel.setBorder(BorderFactory.createEmptyBorder(5,10,10,10));
+			listActionPanel.setLayout(new GridLayout(1,1,10,10));		
+		}
 		listActionPanel.add(actionsPane);
 		listActions.addMouseListener(new MouseListener() {
 			public void mouseClicked(MouseEvent e) {actionClickedInList();}
@@ -494,9 +573,15 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 		//Main frame and main panel
 		registrationFrame=new JFrame();
-		registrationFrame.setSize(750,850);
 		JPanel registrationPanelGlobal=new JPanel();
-		registrationPanelGlobal.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+		if(isSurvivorVncTunnelLittleDisplay ) {
+			registrationFrame.setSize(600,680);
+			registrationPanelGlobal.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+		}
+		else {
+			registrationFrame.setSize(750,850);
+			registrationPanelGlobal.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));			
+		}
 		registrationPanelGlobal.setLayout(new BoxLayout(registrationPanelGlobal, BoxLayout.Y_AXIS));
 		registrationPanelGlobal.add(new JSeparator());
 		registrationPanelGlobal.add(jscroll);
@@ -511,7 +596,12 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		registrationFrame.add(registrationPanelGlobal);
 		registrationFrame.setTitle("Fijiyama registration manager ");
 		registrationFrame.pack();
-		registrationFrame.setSize(750,850);
+		if(isSurvivorVncTunnelLittleDisplay ) {
+			registrationFrame.setSize(600,680);
+		}
+		else {
+			registrationFrame.setSize(750,850);
+		}
 		
 		registrationFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		registrationFrame.addWindowListener(new WindowAdapter(){
@@ -674,10 +764,31 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	/* Listeners for serie programming interface*/
 	public void performActionInProgrammingSerieInterface(ActionEvent e) {
 		if(e.getSource()==validatePipelineButton) {
+			boolean isValid=true;
+			int defect=0;
+			for(int i=0;i<regManager.regActions.size()-1;i++) {
+				if(!RegistrationAction.isValidOrder(regManager.regActions.get(i),regManager.regActions.get(i+1))) {
+					defect=i;
+					isValid=false;
+				}
+			}
+			if(!isValid) {
+				IJ.showMessage("Wrong pipeline : transforms should go in a logical order. \nA rougher transformation goes before finer, and manual goes before automatic\n.The problem was encountered between "+
+			"steps "+(""+defect)+" and "+(defect+1));
+				return;
+			}
 			regManager.defineSerieRegistrationPipeline("SEND FROM INTERFACE");
 		}
 		
 		else if(e.getSource()==addActionButton) {
+			boolean isValid=true;
+			int defect=regManager.regActions.size()-2;
+			if(regManager.regActions.size()>=2 && (!RegistrationAction.isValidOrder(regManager.regActions.get(regManager.regActions.size()-2),regManager.regActions.get(regManager.regActions.size()-1)))) isValid=false;
+			if(!isValid) {
+				IJ.showMessage("Wrong pipeline : transforms should go in a logical order. \nA rougher transformation goes before finer, and manual goes before automatic\n.The problem was encountered between "+
+			"steps "+(""+defect)+" and "+(defect+1));
+				return;
+			}
 			regManager.setStep(regManager.regActions.size()-1);
 			RegistrationAction regAct=regManager.switchToFollowingAction();
 			listActions.setSelectedIndex(regAct.step);
@@ -762,7 +873,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			if(modeWindow==WINDOWTWOIMG)regManager.getCurrentAction().typeAction=RegistrationAction.TYPEACTION_EXPORT;
 			VitimageUtils.waitFor(20);
 			regManager.getCurrentAction().setDone();
-			regManager.exportImagesAndComposedTransforms();
+			double valType= (modeWindow==WINDOWSERIERUNNING) ? regManager.getCurrentAction().paramOpt : 8;
+			regManager.exportImagesAndComposedTransforms(valType);
 			regManager.finishCurrentAction(new ItkTransform());
 			enable(new int[] {FINISH,SAVE,RUN});
 			enableChainIfPossible();
@@ -781,7 +893,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			exec.submit(new Runnable() {
 				public void run() 
 				{	
-					showHyperImage(regManager.getViewOfImagesTransformedAndSuperposedSerieWithThisReference(regManager.images[regManager.referenceTime][regManager.referenceModality],false),waitingTimeHyperImage);
+					showHyperImage(regManager.getViewOfImagesTransformedAndSuperposedSerieWithThisReference(regManager.images[regManager.referenceTime][regManager.referenceModality],false,false,""),waitingTimeHyperImage);
 					enable(new int[] {FINISH,SAVE,RUN});
 					enableChainIfPossible();
 				}
@@ -821,7 +933,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		}
 		
 		if(e.getSource()==undoButton && regManager.getStep()>0) {
-			if(!VitiDialogs.getYesNoUI("Undo", "Undo will remove last action and restore previous state. Confirm ?"))return;
+			if(!undoButtonHasBeenPressed)if(!VitiDialogs.getYesNoUI("Undo", "Undo will remove last action and restore previous state. Confirm ?"))return;
+			undoButtonHasBeenPressed=true;
 			addLog("Undoing last action...", 1);
 			disable(new int[] {RUN,RUNALL,SAVE,FINISH,UNDO});
 			if(modeWindow==WINDOWSERIERUNNING)regManager.undoLastActionInSerieContext();
@@ -967,28 +1080,33 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							addLog("Starting Block-matching registration...", 1);
 							actionAborted=false;
 							runButton.setText("Running Blockmatching...");
-							bmRegistration=BlockMatchingRegistration.setupBlockMatchingRegistration(regManager.getCurrentRefImage(),regManager.getCurrentMovImage(),regManager.getCurrentAction());
-							bmRegistration.consoleOutputActivated=false;
-							bmRegistration.timingMeasurement=developerMode;
-							bmRegistration.refRange=regManager.getCurrentRefRange();
-							bmRegistration.movRange=regManager.getCurrentMovRange();
-							bmRegistration.flagRange=true;
-							bmRegistration.percentageBlocksSelectedByScore=regManager.getCurrentAction().selectScore;
-							bmRegistration.minBlockVariance=0.04;
-							bmRegistration.displayRegistration=regManager.getCurrentAction().typeAutoDisplay;
-							bmRegistration.displayR2=false;
-
-							if(regManager.isBionanoImagesWithCapillary)bmRegistration.mask=regManager.maskImageArray[regManager.getCurrentAction().refTime][regManager.getCurrentAction().refMod].duplicate();
-							else if(modeWindow==WINDOWTWOIMG && regManager.getCurrentAction().typeTrans==Transform3DType.DENSE) {
-								regManager.setPathToMask();
-								if(regManager.maskImage!=null)bmRegistration.mask=VitimageUtils.imageCopy(regManager.maskImage);
+							ItkTransform trTemp=null;
+							for(int phase=(doStressTest ? 0 : 1);phase<2;phase++) {
+								bmRegistration=BlockMatchingRegistration.setupBlockMatchingRegistration(regManager.getCurrentRefImage(),regManager.getCurrentMovImage(),regManager.getCurrentAction());
+								bmRegistration.consoleOutputActivated=isSurvivorVncTunnelLittleDisplay;
+								bmRegistration.timingMeasurement=developerMode;
+								bmRegistration.refRange=regManager.getCurrentRefRange();
+								bmRegistration.movRange=regManager.getCurrentMovRange();
+								bmRegistration.flagRange=true;
+								bmRegistration.percentageBlocksSelectedByScore=regManager.getCurrentAction().selectScore;
+								bmRegistration.minBlockVariance=0.04;
+								bmRegistration.displayRegistration=regManager.getCurrentAction().typeAutoDisplay;
+								bmRegistration.displayR2=false;
+	
+								if(regManager.isBionanoImagesWithCapillary)bmRegistration.mask=regManager.maskImageArray[regManager.getCurrentAction().refTime][regManager.getCurrentAction().refMod].duplicate();
+								if(regManager.isGe3d)bmRegistration.mask=VitimageUtils.maskWithoutCapillaryInGe3DImage(regManager.getCurrentRefImage());
+								else if(modeWindow==WINDOWTWOIMG && regManager.getCurrentAction().typeTrans==Transform3DType.DENSE) {
+									regManager.setPathToMask();
+									if(regManager.maskImage!=null)bmRegistration.mask=VitimageUtils.imageCopy(regManager.maskImage);
+								}
+								else if(modeWindow==WINDOWSERIERUNNING && regManager.getCurrentAction().typeTrans==Transform3DType.DENSE) {
+									if(regManager.setMaskImage())bmRegistration.mask=VitimageUtils.imageCopy(regManager.maskImage);
+								}
+								bmRegistration.returnComposedTransformationIncludingTheInitialTransformationGiven=false;
+								enable(ABORT);
+								if(isSurvivorVncTunnelLittleDisplay)bmRegistration.adjustZoomFactor(0.5);
+								trTemp=bmRegistration.runBlockMatching(regManager.getCurrentMovComposedTransform(),phase==0);
 							}
-							else if(modeWindow==WINDOWSERIERUNNING && regManager.getCurrentAction().typeTrans==Transform3DType.DENSE) {
-								if(regManager.setMaskImage())bmRegistration.mask=VitimageUtils.imageCopy(regManager.maskImage);
-							}
-							bmRegistration.returnComposedTransformationIncludingTheInitialTransformationGiven=false;
-							enable(ABORT);
-							ItkTransform trTemp=bmRegistration.runBlockMatching(regManager.getCurrentMovComposedTransform());
 							disable(ABORT);
 							if(! actionAborted) {
 								regManager.finishCurrentAction(trTemp);
@@ -1659,7 +1777,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        gd.addChoice("Min subsampling factor (low=slow)",levelsMax, levelsMax[regManager.getCurrentAction().getLevelMin()-1]);
 	        if(enableHighAcc)gd.addChoice("Higher accuracy (subpixellic level)", new String[] {"Yes","No"},regManager.getCurrentAction().higherAcc==1 ? "Yes":"No");
 
-	        gd.addMessage("Blocks dimensions. Blocks are image subparts\nCompared to establish correspondances between ref and mov images");
+	        gd.addMessage("Blocks dimensions (image subparts to compare in ref and mov)");
 	        gd.addNumericField("Block half-size along X", regManager.getCurrentAction().bhsX, 0, 3, "subsampled pixels");
 	        gd.addNumericField("... along Y", regManager.getCurrentAction().bhsY, 0, 3, "subsampled pixels");
 	        gd.addNumericField("... along Z", regManager.getCurrentAction().bhsZ, 0, 3, "subsampled pixels");
@@ -1669,7 +1787,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        gd.addNumericField("... along Y", regManager.getCurrentAction().neighY, 0, 3, "subsampled pixels");
 	        gd.addNumericField("... along Z",  regManager.getCurrentAction().neighZ, 0, 3, "subsampled pixels");
 
-	        gd.addMessage("Spacing between two successive blocks\nalong each dimension");
+	        gd.addMessage("Spacing between successive blocks along each dimension");
 	        gd.addNumericField("Striding along X", regManager.getCurrentAction().strideX, 0, 3, "subsampled pixels");
 	        gd.addNumericField("... along Y",  regManager.getCurrentAction().strideY, 0, 3, "subsampled pixels");
 	        gd.addNumericField("... along Z",  regManager.getCurrentAction().strideZ, 0, 3, "subsampled pixels");
@@ -1679,7 +1797,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        if(this.boxTypeTrans.getSelectedIndex()==2)gd.addNumericField("Sigma for dense field smoothing", regManager.getCurrentAction().sigmaDense, 3, 12, regManager.getUnit());
 	        gd.addNumericField("Percentage of blocks selected by score", regManager.getCurrentAction().selectScore, 0, 3, "%");
 	        if(this.boxTypeTrans.getSelectedIndex()!=2)gd.addNumericField("Percentage kept in Least-trimmed square", regManager.getCurrentAction().selectLTS, 0, 3, "%");	        
-
+	        if(this.isSurvivorVncTunnelLittleDisplay)gd.setFont(mySurvivalFontForLittleDisplays);
 	        gd.showDialog();
 	        if (gd.wasCanceled()) return;	        
 	        int a=gd.getNextChoiceIndex()+1; regManager.getCurrentAction().setLevelMax(a);
@@ -1717,6 +1835,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        gd.addNumericField("Number of iterations per level",  regManager.getCurrentAction().iterationsITK, 0, 5, "iterations");
 	        gd.addNumericField("Learning rate",  regManager.getCurrentAction().learningRate, 4, 8, " no unit");
 
+	        if(this.isSurvivorVncTunnelLittleDisplay)gd.setFont(mySurvivalFontForLittleDisplays);
 	        gd.showDialog();
 	        if (gd.wasCanceled()) return;	        
 	        int param1=gd.getNextChoiceIndex()+1; 
@@ -1846,34 +1965,35 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	}
 	
 	public void handleKeyPress(KeyEvent e) {
-		if(sosLevel==2 && e.getKeyCode()==83) {sosLevel=0;sendingOutAnSos();return;}
-		if(sosLevel==1 && e.getKeyCode()==79)sosLevel=2;
-		if(sosLevel==0 && e.getKeyCode()==83)sosLevel=1;
-		if(regInterrogationLevel==2 && e.getKeyCode()==71) {regInterrogationLevel=0;moreAboutRegAction();return;}
-		if(regInterrogationLevel==1 && e.getKeyCode()==69)regInterrogationLevel=2;
-		if(regInterrogationLevel==0 && e.getKeyCode()==82)regInterrogationLevel=1;
+//		System.out.println("Got a key pressed : "+e.getKeyCode()+" = "+e.getKeyChar());
+		if(sosLevel==2 && e.getKeyChar()=='s') {sosLevel=0;sendingOutAnSos();return;}
+		if(sosLevel==1 && e.getKeyChar()=='o')sosLevel=2;
+		if(sosLevel==0 && e.getKeyChar()=='s')sosLevel=1;
+		if(regInterrogationLevel==2 && e.getKeyChar()=='g') {regInterrogationLevel=0;moreAboutRegAction();return;}
+		if(regInterrogationLevel==1 && e.getKeyChar()=='e')regInterrogationLevel=2;
+		if(regInterrogationLevel==0 && e.getKeyChar()=='r')regInterrogationLevel=1;
 		if(regManager==null) return;
 		if(regManager.universe==null)return;
 		if(regManager.universe.getSelected()==null)return;
 		double[]vectTrans=TransformUtils.multiplyVector(VitimageUtils.getDimensionsRealSpace(regManager.getCurrentRefImage()),0.01);
 		double angle=0.5*Math.PI/180.0;//~1 degree
 		//Translations
-		if(e.getKeyCode()==100) {regManager.universe.getSelected().applyTranslation((float)(-vectTrans[0]), 0, 0);return;}
-		if(e.getKeyCode()==102) {regManager.universe.getSelected().applyTranslation((float)vectTrans[0], 0, 0);return;}
-		if(e.getKeyCode()==104) {regManager.universe.getSelected().applyTranslation(0, (float)(-vectTrans[1]), 0);return;}
-		if(e.getKeyCode()==98) {regManager.universe.getSelected().applyTranslation(0, (float)vectTrans[1], 0);return;}
-		if(e.getKeyCode()==96) {regManager.universe.getSelected().applyTranslation(0, 0, (float)vectTrans[0]);return;}
-		if(e.getKeyCode()==101) {regManager.universe.getSelected().applyTranslation(0, 0, (float)(-vectTrans[0]));return;}
+		if(e.getKeyChar()=='4') {regManager.universe.getSelected().applyTranslation((float)(-vectTrans[0]), 0, 0);return;}
+		if(e.getKeyChar()=='6') {regManager.universe.getSelected().applyTranslation((float)vectTrans[0], 0, 0);return;}
+		if(e.getKeyChar()=='8') {regManager.universe.getSelected().applyTranslation(0, (float)(-vectTrans[1]), 0);return;}
+		if(e.getKeyChar()=='2') {regManager.universe.getSelected().applyTranslation(0, (float)vectTrans[1], 0);return;}
+		if(e.getKeyChar()=='0') {regManager.universe.getSelected().applyTranslation(0, 0, (float)vectTrans[0]);return;}
+		if(e.getKeyChar()=='5') {regManager.universe.getSelected().applyTranslation(0, 0, (float)(-vectTrans[0]));return;}
 
 		//Rotations
 		Transform3D tr=null;
 		double[]angles=new double[3];		
 		if(e.getKeyCode()==79)angles[1]=angle;
 		if(e.getKeyCode()==80)angles[1]=-angle;
-		if(e.getKeyCode()==103)angles[0]=angle;
-		if(e.getKeyCode()==105)angles[0]=-angle;
-		if(e.getKeyCode()==99)angles[2]=angle;
-		if(e.getKeyCode()==97)angles[2]=-angle;		
+		if(e.getKeyChar()=='7')angles[0]=angle;
+		if(e.getKeyChar()=='9')angles[0]=-angle;
+		if(e.getKeyChar()=='3')angles[2]=angle;
+		if(e.getKeyChar()=='1')angles[2]=-angle;		
 		double[]imageCenter=VitimageUtils.getImageCenter(regManager.getCurrentRefImage(),true);		
 		ItkTransform itkTr=ItkTransform.getRigidTransform(imageCenter, angles, new double[] {0,0,0});
 		tr=ItkTransform.itkTransformToIj3dTransform(itkTr); 

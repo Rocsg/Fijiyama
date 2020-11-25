@@ -154,10 +154,10 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		SamplingStrategy samplStrat=SamplingStrategy.NONE;
 		
 		this.addStepToQueue( levelMin,     levelMax    ,     1     ,   nIterations  , learningRate   ,       transformType,    null,
-				opt  , ScalerType.SCALER_PHYSICAL, null ,
+				opt  , ScalerType.NONE/*ScalerType.SCALER_PHYSICAL*/, null ,
 		false,         CenteringStrategy.IMAGE_CENTER,    samplStrat  );
 
-		this.transform=new ItkTransform(transformInit);
+		this.transform=ItkTransform.itkTransformFromCoefs(new double[] {1,0,0,0,0,1,0,0,0,0,1,0});//new ItkTransform(transformInit);
 		this.register();
 		if(this.itkRegistrationInterrupted)return null;
 		if(this.returnComposedTransformationIncludingTheInitialTransformationGiven) return this.transform;

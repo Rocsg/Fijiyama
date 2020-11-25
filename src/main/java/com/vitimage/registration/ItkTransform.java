@@ -480,16 +480,44 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			ImagePlus []imgTabMov=VitimageUtils.stacksFromHyperstackFastBis(imgMov);
 			if(timeActions)IJ.log("...Timing (HPM after hyperunstacking) : "+VitimageUtils.dou((System.currentTimeMillis()-initialTime)/1000.0)+" s");
 			ImagePlus mult=null;
-			if(extensive) {
-				mult=ItkTransform.getJacobian(this,imgRef,60);
+			//Si pas extensif, pas de jacobien.
+				//Si pas dense, c'est pas long. On envoie.
+				//Mais si dense, c est long quand meme. Alors on flatten.
+			//Si extensif, jacobien. 
+				//Si pas dense, c'est pas long. On envoie.
+				//Mais si dense, on flatten
+			
+			ItkTransform trTemp=null;
+			if(!isDense) {
+				if(extensive) {				
+					mult=ItkTransform.getJacobian(this,imgRef,60);
+					double value2=VitimageUtils.getVoxelVolume(imgRef)/VitimageUtils.getVoxelVolume(imgMov);
+					mult=VitimageUtils.makeOperationOnOneImage(mult, 2, value2, false);
+				}
+				trTemp=this;
+			}
+			else {
+				Image itkImg=this.getFlattenDenseFieldAsDisplacementFieldImage(imgRef);
+				if(extensive) {				
+					mult=ItkTransform.getJacobianOfDisplacementField(itkImg,imgRef,60);
+					double value2=VitimageUtils.getVoxelVolume(imgRef)/VitimageUtils.getVoxelVolume(imgMov);
+					mult=VitimageUtils.makeOperationOnOneImage(mult, 2, value2, false);
+				}
+				trTemp=new ItkTransform(new DisplacementFieldTransform(itkImg));
+			}
+				
+			if(extensive) {				
+				mult=ItkTransform.getJacobian(trTemp,imgRef,60);
 				double value2=VitimageUtils.getVoxelVolume(imgRef)/VitimageUtils.getVoxelVolume(imgMov);
 				mult=VitimageUtils.makeOperationOnOneImage(mult, 2, value2, false);
 			}
 			for(int i=0;i<imgTabMov.length;i++) {
-				imgTabMov[i]= transformImage(imgRef, imgTabMov[i],smoothingBeforeDownSampling,timeActions,initialTime,false);
+				imgTabMov[i]= trTemp.transformImage(imgRef, imgTabMov[i],smoothingBeforeDownSampling,timeActions,initialTime,false);
 				String lab=imgTabMov[i].getStack().getSliceLabel(1);
 				if(extensive && (lab != null) && (lab.contains("M0MAP") || lab.contains("T1SEQ") || lab.contains("T2SEQ") ||  lab.contains("T1T2SEQ") || lab.contains("EXTENSIVE"))) {
+					int type=imgTabMov[i].getType();
 					imgTabMov[i]=VitimageUtils.makeOperationBetweenTwoImages(imgTabMov[i],mult,2,true);
+					imgTabMov[i]=VitimageUtils.restoreType(imgTabMov[i],type);
 				}
 				if(timeActions)IJ.log("...Timing (HPM after transforming stack "+i+"/"+imgTabMov.length+") : "+VitimageUtils.dou((System.currentTimeMillis()-initialTime)/1000.0)+" s");
 				IJ.log("Transforming index "+i+"/"+imgTabMov.length + " : "+VitimageUtils.imageResume(imgTabMov[i]));
@@ -523,7 +551,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		resampler.setDefaultPixelValue(valMean);
 		resampler.setTransform(this);
 		ImagePlus img=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov)));		
-		
+
 		VitimageUtils.adjustImageCalibration(img, imgRef);
 		img.setDisplayRange(minRange, maxRange);
 		int Zout=img.getNSlices();
@@ -557,6 +585,15 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return transformImage(ref,imgMov,smoothingBeforeDownSampling);
 	}	
 
+	
+	public ImagePlus transformImageExtensive(int[]targetDims,double[]targetVoxs, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
+		String unit=imgMov.getCalibration().getUnit();
+		ImagePlus ref=ij.gui.NewImage.createImage("Ref",targetDims[0],targetDims[1],targetDims[2],imgMov.getBitDepth(),ij.gui.NewImage.FILL_BLACK);	
+		VitimageUtils.adjustImageCalibration(ref,targetVoxs, unit);
+		return transformImageExtensive(ref,imgMov);
+	}	
+
+	
 	public static ImagePlus resampleImage(int[]targetDims,double[]targetVoxs, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
 		return (new ItkTransform()).transformImage(targetDims,targetVoxs,imgMov,smoothingBeforeDownSampling);
 	}	
@@ -716,21 +753,9 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	public static ImagePlus getJacobian(ItkTransform tr2,ImagePlus imgRef,int percentageThreshold) {
 		if(tr2.isDense) {
-			/*//			System.out.println("Processing dense jacobian : nothing");
-			return VitimageUtils.setImageToValue(imgRef, 1);
-			
-			DisplacementFieldTransform df=new DisplacementFieldTransform( new Transform(tr2.getFlattenDenseField(imgRef)));
-			ImagePlus jac=tr2.getJacobian(df.getDisplacementField(),percentageThreshold);
-			return VitimageUtils.clipFloatImage(jac, 1-percentageThreshold/100.0,1+percentageThreshold/100.0);*/
-
-			System.out.println("Processing dense jacobian");
-			Image df=tr2.getFlattenDenseFieldAsDisplacementFieldImage(imgRef);
-			ImagePlus jac=ItkTransform.getJacobian(df,percentageThreshold);
-			System.out.println("Clipping from "+(1-percentageThreshold/100.0)+" to "+(1+percentageThreshold/100.0));
-			return VitimageUtils.clipFloatImage(jac, 1-percentageThreshold/100.0,1+percentageThreshold/100.0);
+			return getJacobianOfDisplacementField(tr2.getFlattenDenseFieldAsDisplacementFieldImage(imgRef), imgRef,percentageThreshold);
 		}
 		else {
-//			System.out.println("Processing affine jacobian");
 			ItkTransform tr=tr2.simplify();
 			double det=ItkTransform.itkTransformToIj3dTransform(tr).determinant();
 			ImagePlus ret=VitimageUtils.setImageToValue(imgRef, det);
@@ -738,6 +763,10 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		}
 	}
 	
+	public static ImagePlus getJacobianOfDisplacementField(Image df,ImagePlus imgRef,int percentageThreshold) {
+		ImagePlus jac=ItkTransform.getJacobian(df,percentageThreshold);
+		return VitimageUtils.clipFloatImage(jac, 1-percentageThreshold/100.0,1+percentageThreshold/100.0);
+	}
 	
 	
 	public static ImagePlus getJacobian(Image denseField,int percentageThreshold) {

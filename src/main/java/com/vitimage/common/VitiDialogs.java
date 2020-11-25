@@ -1,5 +1,10 @@
 package com.vitimage.common;
+import java.awt.Color;
+
 import javax.swing.JFileChooser;
+
+import org.scijava.vecmath.Color3f;
+import org.scijava.java3d.Transform3D;
 
 import com.vitimage.registration.ItkTransform;
 
@@ -573,6 +578,46 @@ public interface VitiDialogs {
 						"Please consider sending a feature request to : romainfernandez06@gmail.com");
 	}
 	
+    public static ItkTransform manualRegistrationIn3D(ImagePlus imRef,ImagePlus imMov) {
+    	ImagePlus imgRef=new Duplicator().run(imRef);
+    	VitimageUtils.adjustImageCalibration(imgRef,imRef);
+    	imgRef.setTitle("imgRef3D");
+    	ImagePlus imgMov=new Duplicator().run(imMov);
+    	VitimageUtils.adjustImageCalibration(imgMov,imMov);
+    	ij3d.Image3DUniverse univ=new ij3d.Image3DUniverse();
+		univ.show();
+		univ.addContent(imgRef, new Color3f(Color.red),"imgRef",50,new boolean[] {true,true,true},1,0 );
+		univ.addContent(imgMov, new Color3f(Color.green),"imgMov",50,new boolean[] {true,true,true},1,0 );
+		ij3d.ImageJ3DViewer.select("imgRef");
+		ij3d.ImageJ3DViewer.lock();
+		ij3d.ImageJ3DViewer.select("imgMov");
+		int iter=0;    	
+		imgRef.show();
+		VitiDialogs.getYesNoUI("","Red volume is fixed, green volume can move.\n Use the 3d viewer to adjust the green volume with the red volume using the mouse.\n Click-drag=rotate , Shift+Click-drag=translate.\nClose imgRef3D to confirm transformation is done");		
+		while(WindowManager.getImage("imgRef3D")!=null) {
+			VitimageUtils.waitFor(1000);
+			System.out.print(iter+++" ");
+		}
+    	
+    	Transform3D tr=new Transform3D();
+		double[]tab=new double[16];
+		univ.getContent("imgMov").getLocalRotate().getTransform(tr);
+		tr.get(tab);
+		ItkTransform itRot=ItkTransform.array16ElementsToItkTransform(tab);
+		univ.getContent("imgMov").getLocalTranslate().getTransform(tr);
+		tr.get(tab);
+		ItkTransform itTrans=ItkTransform.array16ElementsToItkTransform(tab);
+		itTrans.addTransform(itRot);
+		itTrans=itTrans.simplify();
+		System.out.println("Global transform computed : "+itTrans);
+		ItkTransform ret=new ItkTransform(itTrans.getInverse());
+		univ.removeAllContents();
+		univ.close();
+    	univ=null;    
+    	return ret;
+    }
+        
+
 
 }
 	

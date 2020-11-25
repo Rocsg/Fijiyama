@@ -3,6 +3,7 @@ package com.vitimage.fijiyama;
 import java.awt.Color;
 import java.awt.Frame;
 import java.io.File;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import javax.swing.DefaultListModel;
 import javax.swing.JPanel;
 import javax.swing.ListModel;
 
+import org.apache.commons.io.FileUtils;
 import org.scijava.java3d.Transform3D;
 import org.scijava.vecmath.Color3f;
 
@@ -35,6 +37,8 @@ import ij.plugin.Memory;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
+import ij3d.ImageJ3DViewer;
+import ij3d.shortcuts.ShortCuts;
 import math3d.Point3d;
 
 
@@ -105,6 +109,7 @@ public class RegistrationManager{
 	//It Will be used to set the max image size, and decide wheter subsampling or not for computation
 	private int[][] imageTypes;
 	private LUT[][][] imageLuts;
+	public boolean isGe3d=false;
 	
 	
 	
@@ -327,7 +332,7 @@ public class RegistrationManager{
 	}
 	
 	public void setPathToMask() {
-		if(!VitiDialogs.getYesNoUI("Use a mask for dense transform estimations ?","Fijiyama can prevent estimating deformations in interest area, to keep their shape untouched\nSelect \"Yes\" to provide a mask, or \"No\" instead. "))pathToMask="None";
+		if(VitiDialogs.getYesNoUI("Compute without mask ?","Fijiyama can prevent estimating deformations in interest area, to keep their shape untouched\nSelect \"Yes\" if you don't care (most common case), or \"No\" to provide a mask. "))pathToMask="None";
 		else pathToMask=VitiDialogs.chooseOneRoiPathUI("Choose mask image","Choose mask image");
 		if(pathToMask==null)pathToMask="None";
 		setMaskImage();
@@ -355,7 +360,17 @@ public class RegistrationManager{
 		this.serieOutputPath=VitiDialogs.chooseDirectoryUI("Select an output directory for your work","Select an empty output directory to begin a new work");
 		if(this.serieOutputPath==null) {IJ.showMessage("No output path given. Abort");return false ;}
 		String[]files=new File(this.serieOutputPath).list();
-		if(files.length!=0)  {IJ.showMessage("Directory already contains files. \nChoose an empty directory to begin your new experiment\nor select \"Open a previous study\" to go on an experiment");return createOutputPathAndFjmFile() ;}
+		if(files.length!=0)  {
+			IJ.showMessage("Directory already contains files. \nAn empty directory is needed to begin a new experiment\n(or select \"Open a previous study\" to go on an experiment)");
+			if(VitiDialogs.getYesNoUI("Remove older contents ?", "Do you want to erase all the contents of this directory : \n\n"+this.serieOutputPath+"\n.\n!! Warning : this action cannot be undone !!")) {
+				try {FileUtils.deleteDirectory(new File(this.serieOutputPath));} catch (IOException e) {e.printStackTrace();}
+				new File(this.serieOutputPath).mkdir();
+			}
+			else {
+				IJ.showMessage("Please select another directory");
+				return createOutputPathAndFjmFile() ;
+			}
+		}
 		new File(this.serieOutputPath,"Registration_files").mkdirs();
 		new File(this.serieOutputPath,"Exported_data").mkdirs();	
 		this.name="Fijiyama_series_"+new SimpleDateFormat("yyyy-MM-dd_hh-mm").format(new Date());
@@ -558,31 +573,72 @@ public class RegistrationManager{
 	}
 	
 	public void sequenceStepsOfTheCreatedPipeline(ArrayList<RegistrationAction>interTimes,ArrayList<ArrayList<RegistrationAction> >interMods) {
+		System.out.println("Sequencing start");
+
+	
 		this.step=-1;
 		this.regActions=new ArrayList<RegistrationAction>();
-		int[]typeSuccessives=new int[] {0,1};//Manual actions, followed by automatic actions
-		for(int type : typeSuccessives) {
+		int[]typeSuccessives=new int[] {0,1,1,1};//Manual actions, followed by automatic rigid action, followed by automatic sim and dense actions
+		Transform3DType[][]transTypeSuccessives=new Transform3DType[][] {{Transform3DType.RIGID,Transform3DType.SIMILARITY},{Transform3DType.RIGID,Transform3DType.RIGID},{Transform3DType.SIMILARITY,Transform3DType.SIMILARITY},{Transform3DType.DENSE,Transform3DType.DENSE}};//Manual actions, followed by automatic rigid action, followed by automatic sim and dense actions
+		int nType=typeSuccessives.length;
+		boolean[]thereIsSome=new boolean[nType];
+		int []numberPhase=new int[nType];
+		
+		//Inventory of number for each category
+		System.out.println("Here 2");
+		for(int n=0;n<nType;n++) {
+			for(int i=0;interTimes!=null && i<interTimes.size();i++) {
+				RegistrationAction reg=interTimes.get(i);
+				Transform3DType typ1=transTypeSuccessives[n][0];
+				Transform3DType typ2=transTypeSuccessives[n][1];
+				if(reg.typeAction==typeSuccessives[n] && (reg.typeTrans==typ1 || reg.typeTrans==typ2))  thereIsSome[n]=true;
+			
+			}
+			for(int i=0;interMods!=null && i<interMods.size();i++) {
+				if(interMods.get(i)==null || interMods.get(i).size()==0)continue;
+				for(int j=0;j<interMods.get(i).size();j++) {
+					RegistrationAction reg=interMods.get(i).get(j);
+					Transform3DType typ1=transTypeSuccessives[n][0];
+					Transform3DType typ2=transTypeSuccessives[n][1];
+					if(reg.typeAction==typeSuccessives[n] && (reg.typeTrans==typ1 || reg.typeTrans==typ2))thereIsSome[n]=true;
+				}
+			}
+		}
+
+		for(int n=0;n<nType;n++) System.out.println(thereIsSome[n]);
+		//Detect phase number for each, and which one is final step
+		int lastFoundIndex=0;
+		for(int n=nType-1;(n>=0) && (lastFoundIndex==0) ;n--) {
+			if(thereIsSome[n])lastFoundIndex=n;
+		}
+		int incr=1;
+		for(int n=0;n<nType;n++) {
+			if(thereIsSome[n])numberPhase[n]=incr++;
+		}
+		//numberPhase[lastFoundIndex]+=8;
+		int delta;
+		for(int ind =0;ind<typeSuccessives.length;ind++) {
+			int type=typeSuccessives[ind];
+			Transform3DType typ1=transTypeSuccessives[ind][0];
+			Transform3DType typ2=transTypeSuccessives[ind][1];
+			delta=0;
 			for(int tRef=0;tRef<this.nTimes-1;tRef++) {
 				if(tRef<this.referenceTime) {
 					refTime=tRef+1;refMod=referenceModality;
 					movTime=tRef;movMod=referenceModality;
 				}
 				else {
-					refTime=tRef;refMod=referenceModality;
+						refTime=tRef;refMod=referenceModality;
 					movTime=tRef+1;movMod=referenceModality;
 				}
 				for(int regSt=0;regSt<interTimes.size();regSt++) {
-					if(interTimes.get(regSt).typeAction==type) {
+					if(interTimes.get(regSt).typeAction==type && (interTimes.get(regSt).typeTrans==typ1 || interTimes.get(regSt).typeTrans==typ2)) {
 						this.step++;
 						regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(regSt),refTime,refMod,movTime,movMod,step));
+						delta++;
 					}
 				}
 			}
-			if(regActions.size()>0 && regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_SAVE) {
-				this.step++;
-				regActions.add(RegistrationAction.copyWithModifiedElements(interTimes.get(0),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_SAVE));
-			}
-			
 			for(int tRef=0;tRef<this.nTimes;tRef++) {
 				refTime=tRef;refMod=referenceModality;
 				movTime=tRef;
@@ -590,35 +646,35 @@ public class RegistrationManager{
 					movMod=mMov;
 					if(refMod != movMod && imageExists(movTime, movMod)) {
 						for(int regSt=0;regSt<interMods.get(movMod).size();regSt++) {
-							if(interMods.get(movMod).get(regSt).typeAction==type) {
+							if(interMods.get(movMod).get(regSt).typeAction==type && (interMods.get(movMod).get(regSt).typeTrans==typ1 || interMods.get(movMod).get(regSt).typeTrans==typ2)) {
 								this.step++;
 								regActions.add(RegistrationAction.copyWithModifiedElements(interMods.get(movMod).get(regSt),refTime,refMod,movTime,movMod,step));
+								delta++;
 							}
 						}
 					}
 				}
 			}
-			if(regActions.size()>0 && regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_VIEW) {
-				this.step++;
-				
-				regActions.add(new RegistrationAction().setActionTo(RegistrationAction.TYPEACTION_VIEW).setStepTo(step));
-			}
-			if(regActions.size()>0 && regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_SAVE) {
+			if(thereIsSome[ind] && delta>0) {
 				this.step++;
 				regActions.add(new RegistrationAction().setActionTo(RegistrationAction.TYPEACTION_SAVE).setStepTo(step));
+				this.step++;
+				RegistrationAction reg=new RegistrationAction().setActionTo(RegistrationAction.TYPEACTION_EXPORT).setStepTo(step);				
+				reg.paramOpt=numberPhase[ind];
+				regActions.add(reg);
 			}
 		}
+
 		this.step++;
 		regActions.add(RegistrationAction.copyWithModifiedElements(RegistrationAction.copyWithModifiedElements(regActions.get(0),refTime,refMod,movTime,movMod,step),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_ALIGN));
-		if(regActions.size()>0 && regActions.get(regActions.size()-1).typeAction!=RegistrationAction.TYPEACTION_VIEW) {
-			this.step++;
-			regActions.add(RegistrationAction.copyWithModifiedElements(RegistrationAction.copyWithModifiedElements(regActions.get(0),refTime,refMod,movTime,movMod,step),refTime,refMod,movTime,movMod,step).setActionTo(RegistrationAction.TYPEACTION_VIEW));
-		}
 		this.step++;
-		regActions.add(RegistrationAction.copyWithModifiedElements(RegistrationAction.copyWithModifiedElements(regActions.get(0),refTime,refMod,movTime,movMod,step),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_EXPORT));
+		RegistrationAction reg=RegistrationAction.copyWithModifiedElements(RegistrationAction.copyWithModifiedElements(regActions.get(0),refTime,refMod,movTime,movMod,step),referenceTime,referenceModality,referenceTime,referenceModality,step).setActionTo(RegistrationAction.TYPEACTION_EXPORT);
+		reg.paramOpt=8;
+		regActions.add(reg);
 		if(fijiyamaGui.developerMode)printRegActions("Global pipeline at export",regActions);
 		this.nSteps=this.step;
 		this.step=0;
+		System.out.println("Sequencing end");
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -704,14 +760,19 @@ public class RegistrationManager{
 		boolean initialImageHyperDimsDefined=false;
 		int mInit=0;
 		int tInit=0;
+		boolean rxDetected=false;
 		for(int nt=0;nt<this.nTimes;nt++) {
 			for(int nm=0;nm<this.nMods;nm++) {
 				if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 					if(this.transforms[nt][nm]==null)this.transforms[nt][nm]=new ArrayList<ItkTransform>();//If it is not the case, it is a startup from a file
 					ImagePlus imgTemp=IJ.openImage(this.paths[nt][nm]);
+					if(detectRX(imgTemp))rxDetected=true;
 					if( ! isBionanoImagesWithCapillary && (VitimageUtils.isBionanoImageWithCapillary(imgTemp)) ) {
 						isBionanoImagesWithCapillary=true;
 						this.maskImageArray=new ImagePlus[this.nTimes][this.nMods];
+					}
+					if( ! isGe3d && (VitimageUtils.isGe3d(imgTemp)) ) {
+						isGe3d=true;
 					}
 					this.imageTypes[nt][nm]=imgTemp.getType();
 					if(initialImageHyperDimsDefined) {
@@ -769,7 +830,10 @@ public class RegistrationManager{
 							}
 						}
 						if(isBionanoImagesWithCapillary) {
-							this.maskImageArray[nt][nm]=new Duplicator().run(img,5,5,1,this.initDimensions[nt][nm][2],1,1);
+							this.maskImageArray[nt][nm]=new Duplicator().run(img,4,4,1,this.initDimensions[nt][nm][2],1,1);
+							this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], 2,10E8);
+							this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],1, -1, true);
+							this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],2, -1, true);
 						}
 						img=new Duplicator().run(img,1,1,1,this.initDimensions[nt][nm][2],1,1);
 						this.images[nt][nm]=img;
@@ -818,7 +882,14 @@ public class RegistrationManager{
 									}
 								}
 								this.images[nt][nm]=new Duplicator().run(img,1,1,1,img.getNSlices(),1,1);
-								if(isBionanoImagesWithCapillary)this.maskImageArray[nt][nm]=new Duplicator().run(img,5,5,1,img.getNSlices(),1,1);
+								if(isBionanoImagesWithCapillary) {
+									this.maskImageArray[nt][nm]=new Duplicator().run(img,4,4,1,img.getNSlices(),1,1);
+									this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], 2,10E8);
+									this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],1, -1, true);
+									this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],2, -1, true);
+//									this.maskImageArray[nt][nm].show();
+//									this.maskImageArray[nt][nm].setTitle("Debug in Registration manager");
+								}
 								this.isSubSampled[nt][nm]=false;
 								IJ.log("   -> target voxel size="+VitimageUtils.dou(this.initVoxs[nt][nm][0])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][1])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][0])+" and dims="+this.dimensions[nt][nm][0]+"x"+this.dimensions[nt][nm][1]+"x"+this.dimensions[nt][nm][2]);
 							}
@@ -864,8 +935,16 @@ public class RegistrationManager{
 										IJ.log("Big imgs On a eu :"+TransformUtils.stringVectorN(this.imageRanges[nt][nm][nt2][nm2], ""));
 									}
 								}
-								if(isBionanoImagesWithCapillary)this.maskImageArray[nt][nm]=new Duplicator().run(img,5,5,1,this.initDimensions[nt][nm][2],1,1);
-								this.maskImageArray[nt][nm]=ItkTransform.resampleImage(this.dimensions[nt][nm], this.voxs[nt][nm], this.maskImageArray[nt][nm],false);
+								if(isBionanoImagesWithCapillary) {
+									this.maskImageArray[nt][nm]=new Duplicator().run(img,4,4,1,this.initDimensions[nt][nm][2],1,1);
+									this.maskImageArray[nt][nm]=ItkTransform.resampleImage(this.dimensions[nt][nm], this.voxs[nt][nm], this.maskImageArray[nt][nm],false);
+									this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], 2,10E8);
+									this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],1, -1, true);
+									this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],2, -1, true);
+//									this.maskImageArray[nt][nm].show();
+									//									this.maskImageArray[nt][nm].setTitle("Debug in Registration manager");
+									//VitimageUtils.waitFor(10000000);
+								}
 
 								img=new Duplicator().run(img,1,1,1,this.initDimensions[nt][nm][2],1,1);
 								this.images[nt][nm]=ItkTransform.resampleImage(this.dimensions[nt][nm], this.voxs[nt][nm], img,false);
@@ -895,7 +974,15 @@ public class RegistrationManager{
 									this.imageRanges[nt][nm][nt2][nm2][1]=this.images[nt][nm].getDisplayRangeMax();									
 								}
 							}
-							if(isBionanoImagesWithCapillary)this.maskImageArray[nt][nm]=new Duplicator().run(this.images[nt][nm],5,5,1,this.initDimensions[nt][nm][2],1,1);
+							if(isBionanoImagesWithCapillary) {
+								this.maskImageArray[nt][nm]=new Duplicator().run(this.images[nt][nm],4,4,1,this.initDimensions[nt][nm][2],1,1);
+								this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], 2,10E8);
+								this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],1, -1, true);
+								this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],2, -1, true);
+		//						this.maskImageArray[nt][nm].show();
+			//					this.maskImageArray[nt][nm].setTitle("Debug in Registration manager");
+			//				VitimageUtils.waitFor(10000000);
+							}
 							this.images[nt][nm]=new Duplicator().run(this.images[nt][nm],1,1,1,this.initDimensions[nt][nm][2],1,1);
 							this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][0][0],this.imageRanges[nt][nm][0][0][1]);
 						}
@@ -934,7 +1021,7 @@ public class RegistrationManager{
 		}
 		IJ.log("-----------------------------\n");
 		
-
+		if(rxDetected)isBionanoImagesWithCapillary=false;
 		return true;
 	}
 
@@ -948,7 +1035,9 @@ public class RegistrationManager{
 	
 	
 	
-	
+	public boolean detectRX(ImagePlus img) {
+		return(img.getStack().getSliceLabel(1).substring(0, 6).equals("slice0"));		
+	}
 	
 	
 	/* Instance Export-Save-Load routines**********************************************************************************************/
@@ -1008,7 +1097,8 @@ public class RegistrationManager{
 		return (new File(this.serieOutputPath,this.name+".fjm").getAbsolutePath());
 	}
 
-	public void exportImagesAndComposedTransforms() {
+	public void exportImagesAndComposedTransforms(double typeExport) {
+		int val=(int)Math.round(typeExport);
 		//Ask for target dimensions
 		ImagePlus referenceGeometryForTransforms;
 		//ItkTransform transformAlignementRef=(transforms[referenceTime][referenceModality].size()>0) ? getComposedTransform(referenceTime, referenceModality) : new ItkTransform();
@@ -1023,9 +1113,13 @@ public class RegistrationManager{
 		gd.addMessage("\nChoose the target dimensions to export both images");
 		gd.addMessage("If you feel lost, please choose the first option : Dimensions of reference image.\n.\n.");
 		gd.addChoice("Choose target dimensions", new String[] {"Dimensions of reference image","Provide custom dimensions"}, "Dimensions of reference image");
-		gd.showDialog();
-        if (gd.wasCanceled()) return;	        
-		int choice=gd.getNextChoiceIndex();
+
+		int choice=0;
+		if(val>=8) {
+			gd.showDialog();
+	        if (gd.wasCanceled()) return;	        
+	        choice=gd.getNextChoiceIndex();
+		}
 		
 		if(choice==0) {
 			referenceGeometryForTransforms=IJ.openImage(this.paths[referenceTime][referenceModality]);
@@ -1047,8 +1141,11 @@ public class RegistrationManager{
 	        referenceGeometryForTransforms=new ItkTransform().transformImage(outputDimensions, outputVoxs,this.images[refTime][refMod], false);			
 		}
 
-		getViewOfImagesTransformedAndSuperposedSerieWithThisReference(referenceGeometryForTransforms,true);
-		IJ.showMessage("All images are exported in the target directory : \n"+(new File(this.serieOutputPath,"Exported_data").getAbsolutePath())+"\nAll 3D images can be combined in a hyper image using ImageJ menus");
+		String s=(val>=8) ? "_FINAL" : ("_After_Phase_"+(val%8));
+		boolean saveIndividualImages=(val>=8);
+		getViewOfImagesTransformedAndSuperposedSerieWithThisReference(referenceGeometryForTransforms,saveIndividualImages,true,s);
+		if(val>=8)IJ.showMessage("The combined hyperimage, and the individual registered images are exported in the target directory : \n"+(new File(this.serieOutputPath,"Exported_data").getAbsolutePath())+"\n");
+//		else IJ.showMessage("The intermediary combined hyperimage (code="+s+" is exported in the target directory : \n"+(new File(this.serieOutputPath,"Exported_data").getAbsolutePath())+"\n");
 	}
 		
 
@@ -1193,9 +1290,16 @@ public class RegistrationManager{
 		
 
 
-	
-	
-	
+/*	
+	shortcut.File\ >\ Quit=ctrl pressed W
+			shortcut.View\ >\ Fullscreen=ctrl pressed F
+			#shortcut.View\ >\ Set\ view\ >\ +\ YZ=pressed NUMPAD4
+			Show_Local_Coordinate_System_When_Adding_Content=false
+			Startup_Width=512
+			shortcut.Edit\ >\ Delete=pressed DELETE
+			Show_Global_Coordinate_System=true
+			Background=[0.0,0.0,0.0]
+	*/
 	
 	
 	
@@ -1205,6 +1309,8 @@ public class RegistrationManager{
 		IJ.run(refCopy,"8-bit","");
 		this.universe=new ij3d.Image3DUniverse();
 		universe.show();
+		ShortCuts sho=universe.getShortcuts();
+		sho.clearShortCut("View > Set view > + YZ");
 		String sentence="";
 		if(imgMov!=null) {
 			ImagePlus movCopy=VitimageUtils.imageCopy(imgMov);		
@@ -1223,8 +1329,10 @@ public class RegistrationManager{
 		}
 		ij3d.ImageJ3DViewer.select("movCopy");
 		universe.getSelected().showCoordinateSystem(true);
+		universe.getSelected().setThreshold(80);
 		ij3d.ImageJ3DViewer.select("refCopy");
 		universe.getSelected().showCoordinateSystem(true);
+		universe.getSelected().setThreshold(80);
 		if(fijiyamaGui.isRunningTwoImagesTraining()) {
 			universe.setSize(fijiyamaGui.lastViewSizes[0], fijiyamaGui.lastViewSizes[1]);
 			VitimageUtils.adjustFrameOnScreenRelative((Frame)((JPanel)(this.universe.getCanvas().getParent())).getParent().getParent().getParent(),fijiyamaGui.imgView.getWindow(),1,1,10);
@@ -1448,7 +1556,7 @@ public class RegistrationManager{
 		return new Point3d[][] {pRef,pMov};
 	}
 	
-	public ImagePlus getViewOfImagesTransformedAndSuperposedSerieWithThisReference(ImagePlus referenceGeometryForTransforms,boolean saveIndividualImages) {
+	public ImagePlus getViewOfImagesTransformedAndSuperposedSerieWithThisReference(ImagePlus referenceGeometryForTransforms,boolean saveIndividualImages,boolean saveCombined,String suffixCombined) {
 		long t0= System.currentTimeMillis();
 		IJ.log("...Timing (at start) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 		final ItkTransform transformAlignementRef=(transforms[referenceTime][referenceModality].size()>0) ? getComposedTransform(referenceTime, referenceModality) : new ItkTransform();
@@ -1513,7 +1621,11 @@ public class RegistrationManager{
 					IJ.log("...Timing (transforming image number "+nt+","+nm+", transfo complete) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 					imgTemp=IJ.openImage(this.paths[nt][nm]);
 					IJ.log("...Timing (transforming image number "+nt+","+nm+", image opened) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
-   hyperImg[index]=trsTemp[nt][nm].transformImage(referenceGeometryForTransforms,imgTemp, false,true,t0,true);
+					System.out.println("Juste avant crash");
+					System.out.println("nt="+nt);
+					System.out.println("Transforming with reference="+VitimageUtils.imageResume(referenceGeometryForTransforms));
+					System.out.println("Transforming imgTemp="+VitimageUtils.imageResume(imgTemp));
+					hyperImg[index]=trsTemp[nt][nm].transformImage(referenceGeometryForTransforms,imgTemp, false,true,t0,false);//!VitimageUtils.isBouture(imgTemp)
 					IJ.log("...Timing (transforming image number "+nt+","+nm+", image transformed) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 					if(saveIndividualImages) {
 						VitimageUtils.addLabelOnAllSlices(hyperImg[index],"t="+this.times[nt]+" mod="+this.mods[nm]);
@@ -1557,7 +1669,7 @@ public class RegistrationManager{
 		IJ.log("Case 0");
 		if(this.nTimes>1 && this.nMods>1 && this.nbChannelsOfInputData>1 && this.nbTimesOfInputData>1) {
 			//The hell here. Does nothing. None correction possible. Result 5D hyperimage will be messy interleaved. Hell inside, hell outside
-			IJ.showMessage("Input data is 5D images with \"m\" multiple modalities and \"t\" times (see the \"channel\" and \"Frame\" slicer).\n"+
+			if(saveIndividualImages)IJ.showMessage("Input data is 5D images with \"m\" multiple modalities and \"t\" times (see the \"channel\" and \"Frame\" slicer).\n"+
 						   "You registered it along multiple mods and times\n"+
 						   "The resulting combined 5D hyperimage that will appear soon will be severely messy\n"+
 						   "Hopefully, the exported indivudal images will be good.");
@@ -1570,7 +1682,7 @@ public class RegistrationManager{
 		}
 		else if(this.nTimes>1 && this.nMods>1 && this.nbChannelsOfInputData>1 && this.nbTimesOfInputData==1) {
 			IJ.log("Case 1");
-			IJ.showMessage("Input data is 4D images with \"m\" multiple modalities (see the \"channel\" slicer)."+
+			if(saveIndividualImages)IJ.showMessage("Input data is 4D images with \"m\" multiple modalities (see the \"channel\" slicer)."+
 						   "As You registered it along \"M\" multiple mods and \"T\" successive times,\n"+
 						   "The combined hyperimage will gather T and m on the same slicer\n.\n"+
 							"Hopefully, the exported indivudal images will be good.");
@@ -1586,7 +1698,7 @@ public class RegistrationManager{
 		}
 		else if(this.nTimes==1 && this.nMods>1 && this.nbChannelsOfInputData>1 && this.nbTimesOfInputData>1) {
 			IJ.log("Case 1.5");
-			IJ.showMessage("Input data is 4D images with \"m\" multiple modalities and t multiple times (see the \"channel\" and \"frames\" slicers)."+
+			if(saveIndividualImages)IJ.showMessage("Input data is 4D images with \"m\" multiple modalities and t multiple times (see the \"channel\" and \"frames\" slicers)."+
 						   "As You registered it along \"M\" multiple mods and \"T\" successive times,\n"+
 						   "The combined hyperimage could be a little bit messy to understand\n.\n"+
 							"Hopefully, the exported indivudal images will be good.");
@@ -1603,7 +1715,7 @@ public class RegistrationManager{
 			}
 		}
 		else if(this.nTimes>1 && this.nMods>1 && this.nbChannelsOfInputData==1 && this.nbTimesOfInputData>1) {
-			IJ.showMessage("Input data is 4D images with \"t\" multiple time points (see the \"frame\" slicer)."+
+			if(saveIndividualImages)IJ.showMessage("Input data is 4D images with \"t\" multiple time points (see the \"frame\" slicer)."+
 					   "As you registered it along \"M\" multiple mods and \"T\" successive times,\n"+
 					   "The combined hyperimage will gather T and t on the same slicer (\"Frames\")\n.\n"+
 						"Hopefully, the exported indivudal images will be good.");
@@ -1616,7 +1728,7 @@ public class RegistrationManager{
 			}
 		}
 		else if(this.nTimes>1 && this.nMods==1 && this.nbChannelsOfInputData>1 && this.nbTimesOfInputData>1) {
-			IJ.showMessage("Input data is 4D images with \"t\" multiple time points and m multiple modalities (see the \"frame\" and  \"channel\" slicers)."+
+			if(saveIndividualImages)IJ.showMessage("Input data is 4D images with \"t\" multiple time points and m multiple modalities (see the \"frame\" and  \"channel\" slicers)."+
 					   "As you registered it along  \"T\" successive times,\n"+
 					   "The combined hyperimage will gather T and t on the same slicer (\"Frames\")\n. Combined image could be messy.\n"+
 						"Hopefully, the exported indivudal images will be good.");
@@ -1651,13 +1763,12 @@ public class RegistrationManager{
 		else if(this.nMods>1 && this.nbChannelsOfInputData>1) {
 			IJ.log("Case 5");
 			//Here data come in Mods / mods, what should be an error. Let s guess that the the so-called Mods were Times, for a time-lapse
-			if(VitiDialogs.getYesNoUI("Warning","Your input data was 4D image with multiple modalities (m="+this.nbChannelsOfInputData+" on the \"Channels\" slicer),\n"+
+			if(!saveIndividualImages || !VitiDialogs.getYesNoUI("Warning","Your input data was 4D image with multiple modalities (m="+this.nbChannelsOfInputData+" on the \"Channels\" slicer),\n"+
 					   "Therefore, you registered these input images as multiple modalities (M="+this.nMods+"\n"+
 					   "You see that this makes a lot of modalities interleaving at the end,\n"+
-					   "and the result with interleaved \"M\" mods and \"m\" mods could be messy.\n.\n"+
-					   "In this situation, Fijiyama default choice is considering that you made a mistake,"+
-					   "and intend to register m multiple modalities of images having M multiple times\n.\n"+
-					   "If you whatever want everything being in messy interleaved modalities and no times, just answer \"No\"")) {
+					   "If this is what you mean, answer Yes.\nElsewhere, If you think you made a mistake,"+
+					   "and intend to register m multiple modalities of images having M multiple times instead, "+
+					   "answer  \"No\"")) {
 				futureM=this.nbChannelsOfInputData;
 				futureT=this.nMods;
 				rangesFinal=new double[this.nbChannelsOfInputData][2];
@@ -1681,13 +1792,12 @@ public class RegistrationManager{
 		else if(this.nTimes>1 && this.nbTimesOfInputData>1) {
 			IJ.log("Case 6");
 			//Here data come in Times / times, what should be an error. Let s guess that the the so-called Times were Mods, for a multimod
-			if(VitiDialogs.getYesNoUI("Warning","Your input data was 4D image with multiple times (t="+this.nbTimesOfInputData+" on the \"Frames\" slicer),\n"+
+			if(!saveIndividualImages || !VitiDialogs.getYesNoUI("Warning","Your input data was 4D image with multiple times (t="+this.nbTimesOfInputData+" on the \"Frames\" slicer),\n"+
 						   "Therefore, you registered these input images as successive imaging times (T="+this.nTimes+"\n"+
 						   "You see that this makes a lot of times interleaving at the end,\n"+
-						   "and the result with interleaved \"T\" times and \"t\" times could be messy.\n.\n"+
-						   "In this situation, Fijiyama default choice is considering that you made a mistake,"+
-						   "and intend to register T multiple modalities of images having t multiple times\n.\n"+
-						   "If you whatever want everything being in messy interleaved time and no modalities, just answer \"No\"")) {
+						   "If this is what you mean, answer Yes.\nElsewhere, If you think you made a mistake,"+
+						   "and intend to register T multiple modalities of images having t multiple times instead, "+
+						   "answer  \"No\"")) {
 				futureM=this.nTimes;
 				futureT=this.nbTimesOfInputData;
 				rangesFinal=new double[this.nTimes][2];
@@ -1750,11 +1860,12 @@ public class RegistrationManager{
 			hyperImage.setC(1);
 			IJ.log("...Timing (after hyperstack reordering) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 		}
-		if(WindowManager.getImage(fijiyamaGui.displayedNameCombinedImage) != null) {WindowManager.getImage(fijiyamaGui.displayedNameCombinedImage).close();}
-		if(saveIndividualImages) IJ.saveAsTiff(hyperImage, nameForResultingCombinedHyperImage());
+		//if(WindowManager.getImage(fijiyamaGui.displayedNameCombinedImage) != null) {WindowManager.getImage(fijiyamaGui.displayedNameCombinedImage).close();}
+		if(saveCombined) IJ.saveAsTiff(hyperImage, nameForResultingCombinedHyperImage(suffixCombined));
 		hyperImage.show();
 		VitimageUtils.waitFor(200);
-		hyperImage.setTitle(fijiyamaGui.displayedNameCombinedImage);
+		hyperImage.setTitle(suffixCombined);
+		//hyperImage.setTitle(fijiyamaGui.displayedNameCombinedImage);
 		IJ.log("...Timing (after opening corresponding ImageWindow for visualization) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 		IJ.log("End of sequence, timer closing.");
 		return hyperImage;
@@ -1913,9 +2024,9 @@ public class RegistrationManager{
 		}
 	}
 	
-	public String nameForResultingCombinedHyperImage() {
+	public String nameForResultingCombinedHyperImage(String suffix) {
 		String dirpath=new File(this.serieOutputPath,"Exported_data").getAbsolutePath();
-		String prefix="resulting_combined_hyperimage.tif";
+		String prefix="combined_hyperimage_"+suffix+".tif";
 		return new File(dirpath,prefix).getAbsolutePath();
 	}
 	

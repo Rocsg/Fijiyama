@@ -2,6 +2,7 @@ package com.vitimage.fijiyama;
 
 import java.io.File;
 
+import com.vitimage.common.SentenceOfTheDay;
 import com.vitimage.common.VitiDialogs;
 import com.vitimage.common.VitimageUtils;
 
@@ -20,7 +21,6 @@ public class TestingFijiyamaPackage {
 	
 
 	public static void main(String[]args) {
-		
 		ImageJ ij=new ImageJ();
 		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/test.tif");
 		LUT[] luts = img.getLuts();
