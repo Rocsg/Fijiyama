@@ -830,10 +830,16 @@ public class RegistrationManager{
 							}
 						}
 						if(isBionanoImagesWithCapillary) {
-							this.maskImageArray[nt][nm]=new Duplicator().run(img,4,4,1,this.initDimensions[nt][nm][2],1,1);
-							this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], 2,10E8);
-							this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],1, -1, true);
-							this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],2, -1, true);
+							if(img.getNChannels()>=4 && (img.getStack().getSliceLabel(VitimageUtils.getCorrespondingSliceInHyperImage(img, 3, 0, 0)).contains("MASKMAP")) ){ 
+								this.maskImageArray[nt][nm]=new Duplicator().run(img,4,4,1,this.initDimensions[nt][nm][2],1,1);
+								this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], 2,10E8);
+								this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],1, -1, true);
+								this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],2, -1, true);
+							}
+							else {
+								this.maskImageArray[nt][nm]=new Duplicator().run(img,1,1,1,this.initDimensions[nt][nm][2],1,1);
+								this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], -10E8,10E8);
+							}
 						}
 						img=new Duplicator().run(img,1,1,1,this.initDimensions[nt][nm][2],1,1);
 						this.images[nt][nm]=img;
@@ -882,14 +888,23 @@ public class RegistrationManager{
 									}
 								}
 								this.images[nt][nm]=new Duplicator().run(img,1,1,1,img.getNSlices(),1,1);
+
+								
 								if(isBionanoImagesWithCapillary) {
-									this.maskImageArray[nt][nm]=new Duplicator().run(img,4,4,1,img.getNSlices(),1,1);
-									this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], 2,10E8);
-									this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],1, -1, true);
-									this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],2, -1, true);
-//									this.maskImageArray[nt][nm].show();
-//									this.maskImageArray[nt][nm].setTitle("Debug in Registration manager");
+									if(img.getNChannels()>=4 && (img.getStack().getSliceLabel(VitimageUtils.getCorrespondingSliceInHyperImage(img, 3, 0, 0)).contains("MASKMAP")) ){ 
+										this.maskImageArray[nt][nm]=new Duplicator().run(img,4,4,1,img.getNSlices(),1,1);
+										this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], 2,10E8);
+										this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],1, -1, true);
+										this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],2, -1, true);
+									}
+									else {
+										this.maskImageArray[nt][nm]=new Duplicator().run(img,1,1,1,img.getNSlices(),1,1);
+										this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], -10E8,10E8);
+									}
 								}
+
+								
+								
 								this.isSubSampled[nt][nm]=false;
 								IJ.log("   -> target voxel size="+VitimageUtils.dou(this.initVoxs[nt][nm][0])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][1])+"x"+VitimageUtils.dou(this.initVoxs[nt][nm][0])+" and dims="+this.dimensions[nt][nm][0]+"x"+this.dimensions[nt][nm][1]+"x"+this.dimensions[nt][nm][2]);
 							}
@@ -935,17 +950,24 @@ public class RegistrationManager{
 										IJ.log("Big imgs On a eu :"+TransformUtils.stringVectorN(this.imageRanges[nt][nm][nt2][nm2], ""));
 									}
 								}
-								if(isBionanoImagesWithCapillary) {
-									this.maskImageArray[nt][nm]=new Duplicator().run(img,4,4,1,this.initDimensions[nt][nm][2],1,1);
-									this.maskImageArray[nt][nm]=ItkTransform.resampleImage(this.dimensions[nt][nm], this.voxs[nt][nm], this.maskImageArray[nt][nm],false);
-									this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], 2,10E8);
-									this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],1, -1, true);
-									this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],2, -1, true);
-//									this.maskImageArray[nt][nm].show();
-									//									this.maskImageArray[nt][nm].setTitle("Debug in Registration manager");
-									//VitimageUtils.waitFor(10000000);
-								}
 
+								if(isBionanoImagesWithCapillary) {
+									if(img.getNChannels()>=4 && (img.getStack().getSliceLabel(VitimageUtils.getCorrespondingSliceInHyperImage(img, 3, 0, 0)).contains("MASKMAP")) ){ 
+										this.maskImageArray[nt][nm]=new Duplicator().run(img,4,4,1,this.initDimensions[nt][nm][2],1,1);
+										this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], 2,10E8);
+										this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],1, -1, true);
+										this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],2, -1, true);
+									}
+									else {
+										this.maskImageArray[nt][nm]=new Duplicator().run(img,1,1,1,this.initDimensions[nt][nm][2],1,1);
+										this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], -10E8,10E8);
+										
+									}
+								}
+								
+								
+								
+								
 								img=new Duplicator().run(img,1,1,1,this.initDimensions[nt][nm][2],1,1);
 								this.images[nt][nm]=ItkTransform.resampleImage(this.dimensions[nt][nm], this.voxs[nt][nm], img,false);
 								this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][0][0],this.imageRanges[nt][nm][0][0][1]);
@@ -974,15 +996,26 @@ public class RegistrationManager{
 									this.imageRanges[nt][nm][nt2][nm2][1]=this.images[nt][nm].getDisplayRangeMax();									
 								}
 							}
+		
+							
 							if(isBionanoImagesWithCapillary) {
-								this.maskImageArray[nt][nm]=new Duplicator().run(this.images[nt][nm],4,4,1,this.initDimensions[nt][nm][2],1,1);
-								this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], 2,10E8);
-								this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],1, -1, true);
-								this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],2, -1, true);
-		//						this.maskImageArray[nt][nm].show();
-			//					this.maskImageArray[nt][nm].setTitle("Debug in Registration manager");
-			//				VitimageUtils.waitFor(10000000);
+								if(this.images[nt][nm].getNChannels()>=4 && (this.images[nt][nm].getStack().getSliceLabel(VitimageUtils.getCorrespondingSliceInHyperImage(this.images[nt][nm], 3, 0, 0)).contains("MASKMAP")) ){ 
+									this.maskImageArray[nt][nm]=new Duplicator().run(this.images[nt][nm],4,4,1,this.initDimensions[nt][nm][2],1,1);
+									this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], 2,10E8);
+									this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],1, -1, true);
+									this.maskImageArray[nt][nm]=VitimageUtils.makeOperationOnOneImage(this.maskImageArray[nt][nm],2, -1, true);
+								}
+								else {
+									this.maskImageArray[nt][nm]=new Duplicator().run(this.images[nt][nm],1,1,1,this.initDimensions[nt][nm][2],1,1);
+									this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], -10E8,10E8);
+									
+								}
 							}
+							
+							
+							
+							
+							
 							this.images[nt][nm]=new Duplicator().run(this.images[nt][nm],1,1,1,this.initDimensions[nt][nm][2],1,1);
 							this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][0][0],this.imageRanges[nt][nm][0][0][1]);
 						}

@@ -926,8 +926,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	}
 
 	public double[][] trimUsingMask(double [][]tabIn,ImagePlus imgMaskAtScale,int bSX,int bSY,int bSZ){
-		imgMaskAtScale.show();
-		VitimageUtils.waitFor(100000);
 		double epsilon=10E-4;
 		int[]isOut=new int[tabIn.length];
 		int n=tabIn.length;
