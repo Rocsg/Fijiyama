@@ -584,7 +584,12 @@ public class RegistrationAction implements Serializable{
 		else return iterationsBMLin;
 	}
 	
-	
+	public int getIterationsBMLinear() {
+		return iterationsBMLin;
+	}
+	public int getIterationsBMNonLinear() {
+		return iterationsBMDen;
+	}
 	
 	public void setLevelMax(int lev) {
 		if(typeTrans==Transform3DType.DENSE) {
@@ -595,7 +600,21 @@ public class RegistrationAction implements Serializable{
 		}
 	}
 	
-	
+	public void setLevelMaxLinear(int lev) {
+		levelMaxLinear=lev;
+	}
+
+	public void setLevelMaxNonLinear(int lev) {
+		levelMaxDense=lev;
+	}
+
+	public void setLevelMinLinear(int lev) {
+		levelMinLinear=lev;
+	}
+
+	public void setLevelMinNonLinear(int lev) {
+		levelMinDense=lev;
+	}
 	
 	public void setLevelMin(int lev) {
 		if(typeTrans==Transform3DType.DENSE) {
@@ -613,7 +632,17 @@ public class RegistrationAction implements Serializable{
 	}
 	
 	
+	public void setIterationsBMLinear(int it) {
+		iterationsBMLin=it;
+	}
 	
+	
+	public void setIterationsBMNonLinear(int it) {
+		iterationsBMDen=it;
+	}
+	
+	
+
 	
 	
 	

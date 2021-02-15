@@ -93,6 +93,7 @@ public class RegistrationManager{
 	private double[][][]initVoxs;
 	private double[][][]voxs;
 	public ImagePlus[][]images;
+	public double[][][]globalRanges;
 	private double[][]imageSizes;//In Mvoxels
 	private int maxImageSizeForRegistration=12;//In Mvoxels
 	public String unit="mm";
@@ -150,8 +151,8 @@ public class RegistrationManager{
 		this.name=lines[1].split("=")[1];
 		//this.serieOutputPath=(lines[3].split("=")[1]);
 		this.serieInputPath=(lines[4].split("=")[1]);
-		this.step=Integer.parseInt(lines[7].split("=")[1]);
-		this.nSteps=Integer.parseInt(lines[8].split("=")[1]);
+		this.step=safeParsePositiveInt(lines[7].split("=")[1]);
+		this.nSteps=safeParsePositiveInt(lines[8].split("=")[1]);
 		
 		if(! isSerie) {
 			fijiyamaGui.mode=Fijiyama_GUI.MODE_TWO_IMAGES;
@@ -168,17 +169,17 @@ public class RegistrationManager{
 		else {
 			fijiyamaGui.mode=Fijiyama_GUI.MODE_SERIE;
 			fijiyamaGui.modeWindow=Fijiyama_GUI.WINDOWSERIERUNNING;
-			this.referenceTime=Integer.parseInt(lines[5].split("=")[1]);
-			this.referenceModality=Integer.parseInt(lines[6].split("=")[1]);
+			this.referenceTime=safeParsePositiveInt(lines[5].split("=")[1]);
+			this.referenceModality=safeParsePositiveInt(lines[6].split("=")[1]);
 			//Read modalities
-			this.nMods=Integer.parseInt(lines[10].split("=")[1]);
+			this.nMods=safeParsePositiveInt(lines[10].split("=")[1]);
 			if(this.nMods>1) {
 				this.mods=new String[this.nMods];
 				for(int i=0;i<this.nMods;i++)this.mods[i]=lines[11+i].split("=")[1];
 			}
 			
 			//Read times and nSteps
-			this.nTimes=Integer.parseInt(lines[12+this.nMods].split("=")[1]);
+			this.nTimes=safeParsePositiveInt(lines[12+this.nMods].split("=")[1]);
 			if(this.nTimes>1) {
 				this.times=new String[this.nTimes];
 				for(int i=0;i<this.nTimes;i++) {
@@ -231,6 +232,37 @@ public class RegistrationManager{
 		System.out.println("Finishing setup");
 		return true;
 	}
+	
+	public static boolean isInteger(String s) {
+		try {
+			int a=Integer.parseInt(s);	
+		}catch (Exception e) {return false;}
+		return true;
+	}
+
+	
+	public static int safeParsePositiveInt(String s) {
+		int ERR_CODE=-999999999;
+		int ret=ERR_CODE;
+		try {
+			ret=Integer.parseInt(s);	
+		}catch (Exception e) {int a=1;}
+		if(ret!=ERR_CODE)return ret;
+		
+		ret=0;
+		int nbChars=s.length();
+		boolean isInteger=false;
+		int index=0;
+		while((index<(s.length()-1) && !isInteger(""+s.charAt(index)))){index++;}
+		while((index<(s.length()-1) && isInteger(""+s.charAt(index)))){
+			String s2=""+s.charAt(index);
+			ret*=10;
+			ret+=Integer.parseInt(s2);
+			index++;
+		}
+		return ret;
+	}
+	
 	
 	public boolean setupFromTwoImages(String[]providedPaths) {	
 		System.out.println("Starting from two imags");
@@ -343,17 +375,26 @@ public class RegistrationManager{
 		else {maskImage=IJ.openImage(pathToMask);return true;}		
 	}
 	
+	
+	
+	
+	
+	
 	/*Setup helpers ********************************************************************************************************************/
 	public String[] getRefAndMovPaths() {
-		String pathToRef;
-		try{pathToRef=VitiDialogs.openJFileUI("Choose a reference (fixed) image", "", "");} catch (Exception e) {return null;}
-		if(pathToRef==null)return null;
-		String dirRef=new File(pathToRef).getParent();
-		VitimageUtils.waitFor(200);
-		String pathToMov;
-		try{pathToMov=VitiDialogs.openJFileUI("Choose a moving image to align with the reference image", dirRef, "");} catch (Exception e) {return null;}
-		if( (pathToMov==null))return null;
-		else return (new String[] {pathToRef,pathToMov}  );
+		try {
+			String pathToRef;
+			try{pathToRef=VitiDialogs.openJFileUI("Choose a reference (fixed) image", "", "");} catch (Exception e) {return null;}
+			if(pathToRef==null)return null;
+			String dirRef=new File(pathToRef).getParent();
+			VitimageUtils.waitFor(200);
+			String pathToMov;
+			try{pathToMov=VitiDialogs.openJFileUI("Choose a moving image to align with the reference image", dirRef, "");} catch (Exception e) {return null;}
+			if( (pathToMov==null))return null;
+			else return (new String[] {pathToRef,pathToMov}  );
+		}
+		catch (NoClassDefFoundError er) {IJ.showMessage("Warning : you haven't installed ImageJ-ITK as expected (see tutorial for more information)");System.exit(0);};
+		return null;
 	}
 		
 	public boolean createOutputPathAndFjmFile() {
@@ -681,6 +722,7 @@ public class RegistrationManager{
 	public void setupStructures() {
 		regActions=new ArrayList<RegistrationAction>();
 		trActions=new ArrayList<ItkTransform>();
+		this.globalRanges=new double[this.nTimes][this.nMods][2];
 		this.images=new ImagePlus[this.nTimes][this.nMods];
 		this.isSubSampled=new boolean[this.nTimes][this.nMods];
 		this.paths=new String[this.nTimes][this.nMods];
@@ -714,6 +756,7 @@ public class RegistrationManager{
 		regActions=null;
 		trActions=null;
 		this.images=null;
+		this.globalRanges=null;
 		this.isSubSampled=null;
 		this.paths=null;
 		this.initDimensions=null;
@@ -742,6 +785,11 @@ public class RegistrationManager{
 		this.nSteps=0;
 	}
 	
+
+	public String osIndependantPath(String s) {
+		return s.replace("\\\\", "\\").replace("\\", "\\\\");
+	}
+	
 	public boolean openImagesAndCheckOversizing() {
 		String recapMain="There is oversized images, which can lead to very slow computation, or memory overflow.\n"+
 				"Your computer capability has been detected to :\n"+
@@ -765,7 +813,15 @@ public class RegistrationManager{
 			for(int nm=0;nm<this.nMods;nm++) {
 				if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 					if(this.transforms[nt][nm]==null)this.transforms[nt][nm]=new ArrayList<ItkTransform>();//If it is not the case, it is a startup from a file
-					ImagePlus imgTemp=IJ.openImage(this.paths[nt][nm]);
+					System.out.println("\nDebug RX");
+					System.out.println("NT="+nt+" NM="+nm);
+					System.out.println("Instruction=");
+					System.out.println("ImagePlus imgTemp=IJ.openImage("+this.paths[nt][nm]+");");
+					File f=new File(this.paths[nt][nm]);
+					if(f.isFile()) {System.out.println("Le fichier existe");}
+					else {System.out.println("Le fichier n' existe pas");}
+					ImagePlus imgTemp=IJ.openImage(osIndependantPath(this.paths[nt][nm]));
+
 					if(detectRX(imgTemp))rxDetected=true;
 					if( ! isBionanoImagesWithCapillary && (VitimageUtils.isBionanoImageWithCapillary(imgTemp)) ) {
 						isBionanoImagesWithCapillary=true;
@@ -841,9 +897,12 @@ public class RegistrationManager{
 								this.maskImageArray[nt][nm]=VitimageUtils.getFloatBinaryMask(this.maskImageArray[nt][nm], -10E8,10E8);
 							}
 						}
-						img=new Duplicator().run(img,1,1,1,this.initDimensions[nt][nm][2],1,1);
+						int can=VitimageUtils.getChannelOfMaxT1MinT2Sequence(img);
+						img=new Duplicator().run(img,can+1,can+1,1,this.initDimensions[nt][nm][2],1,1);
 						this.images[nt][nm]=img;
-						this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][0][0],this.imageRanges[nt][nm][0][0][1]);
+						this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][can][0],this.imageRanges[nt][nm][0][can][1]);
+						this.globalRanges[nt][nm][0]=this.imageRanges[nt][nm][0][can][0];
+						this.globalRanges[nt][nm][1]=this.imageRanges[nt][nm][0][can][1];
 						this.isSubSampled[nt][nm]=false;
 					}
 				}
@@ -887,8 +946,10 @@ public class RegistrationManager{
 										this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();									
 									}
 								}
-								this.images[nt][nm]=new Duplicator().run(img,1,1,1,img.getNSlices(),1,1);
-
+								int can=VitimageUtils.getChannelOfMaxT1MinT2Sequence(img);
+								this.images[nt][nm]=new Duplicator().run(img,can+1,can+1,1,img.getNSlices(),1,1);
+								this.globalRanges[nt][nm][0]=this.imageRanges[nt][nm][0][can][0];
+								this.globalRanges[nt][nm][1]=this.imageRanges[nt][nm][0][can][1];
 								
 								if(isBionanoImagesWithCapillary) {
 									if(img.getNChannels()>=4 && (img.getStack().getSliceLabel(VitimageUtils.getCorrespondingSliceInHyperImage(img, 3, 0, 0)).contains("MASKMAP")) ){ 
@@ -967,11 +1028,12 @@ public class RegistrationManager{
 								
 								
 								
-								
-								img=new Duplicator().run(img,1,1,1,this.initDimensions[nt][nm][2],1,1);
+								int can=VitimageUtils.getChannelOfMaxT1MinT2Sequence(img);
+								img=new Duplicator().run(img,can+1,can+1,1,this.initDimensions[nt][nm][2],1,1);
 								this.images[nt][nm]=ItkTransform.resampleImage(this.dimensions[nt][nm], this.voxs[nt][nm], img,false);
-								this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][0][0],this.imageRanges[nt][nm][0][0][1]);
-
+								this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][can][0],this.imageRanges[nt][nm][0][can][1]);
+								this.globalRanges[nt][nm][0]=this.imageRanges[nt][nm][0][can][0];
+								this.globalRanges[nt][nm][1]=this.imageRanges[nt][nm][0][can][1];
 
 								IJ.log("   -> target voxel size="+VitimageUtils.dou(this.voxs[nt][nm][0])+"x"+VitimageUtils.dou(this.voxs[nt][nm][1])+"x"+VitimageUtils.dou(this.voxs[nt][nm][0])+" and dims="+this.dimensions[nt][nm][0]+"x"+this.dimensions[nt][nm][1]+"x"+this.dimensions[nt][nm][2]);
 							}	
@@ -1015,9 +1077,12 @@ public class RegistrationManager{
 							
 							
 							
-							
-							this.images[nt][nm]=new Duplicator().run(this.images[nt][nm],1,1,1,this.initDimensions[nt][nm][2],1,1);
-							this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][0][0][0],this.imageRanges[nt][nm][0][0][1]);
+							int can=VitimageUtils.getChannelOfMaxT1MinT2Sequence(this.images[nt][nm]);
+
+							this.images[nt][nm]=new Duplicator().run(this.images[nt][nm],can+1,can+1,1,this.initDimensions[nt][nm][2],1,1);
+							this.images[nt][nm].setDisplayRange(this.imageRanges[nt][nm][can][0][0],this.imageRanges[nt][nm][can][0][1]);
+							this.globalRanges[nt][nm][0]=this.imageRanges[nt][nm][0][can][0];
+							this.globalRanges[nt][nm][1]=this.imageRanges[nt][nm][0][can][1];
 						}
 					}	
 				}
@@ -1069,6 +1134,10 @@ public class RegistrationManager{
 	
 	
 	public boolean detectRX(ImagePlus img) {
+		if(img==null)return false;
+		if(img.getStack()==null) return false;
+		if(img.getStack().getSliceLabel(1)==null)return false;
+		if(img.getStack().getSliceLabel(1).length()<6)return false;		
 		return(img.getStack().getSliceLabel(1).substring(0, 6).equals("slice0"));		
 	}
 	
@@ -1456,6 +1525,7 @@ public class RegistrationManager{
 	
 	public ItkTransform finish2dManualRegistration(){
 		RoiManager rm=RoiManager.getRoiManager();
+		ImagePlus imgTemp=WindowManager.getImage(fijiyamaGui.displayedNameImage1).duplicate();
 		Point3d[][]pointTab=convertLandmarksToPoints(WindowManager.getImage(fijiyamaGui.displayedNameImage1),WindowManager.getImage(fijiyamaGui.displayedNameImage2),true);
 		WindowManager.getImage(fijiyamaGui.displayedNameImage1).changes=false;
 		WindowManager.getImage(fijiyamaGui.displayedNameImage2).changes=false;
@@ -1465,6 +1535,7 @@ public class RegistrationManager{
 		if(currentRegAction.typeAction==RegistrationAction.TYPEACTION_MAN) {
 			if(currentRegAction.typeTrans==Transform3DType.RIGID)trans=ItkTransform.estimateBestRigid3D(pointTab[1],pointTab[0]);
 			else if(currentRegAction.typeTrans==Transform3DType.SIMILARITY)trans=ItkTransform.estimateBestSimilarity3D(pointTab[1],pointTab[0]);
+			else if(currentRegAction.typeTrans==Transform3DType.DENSE)trans=pointTab[0].length==0 ? new ItkTransform() : ItkTransform.estimateBestDense3D(pointTab[1],pointTab[0],imgTemp,currentRegAction.sigmaDense);
 		}
 		else if(currentRegAction.typeAction==RegistrationAction.TYPEACTION_ALIGN) {
 			if(currentRegAction.typeTrans==Transform3DType.RIGID)trans=ItkTransform.estimateBestRigid3D(pointTab[0],pointTab[1]);
@@ -1920,14 +1991,11 @@ public class RegistrationManager{
 				trRef=getComposedTransform(refTime, refMod);
 				trMov.addTransform(trRef);
 			}
-			imgMovCurrentState= trMov.transformImage(this.images[refTime][refMod],this.images[movTime][movMod],false);
-			imgMovCurrentState.setDisplayRange(this.imageRanges[movTime][movMod][0][0][0], this.imageRanges[movTime][movMod][0][0][1]);
-	
+			imgMovCurrentState= trMov.transformImage(this.images[refTime][refMod],this.images[movTime][movMod],false);	
 			imgRefCurrentState= (trRef==null)? new ItkTransform().transformImage(this.images[refTime][refMod],this.images[refTime][refMod],false) : trRef.transformImage(this.images[refTime][refMod],this.images[refTime][refMod],false);
-			imgRefCurrentState.setDisplayRange(this.imageRanges[refTime][refMod][0][0][0], this.imageRanges[refTime][refMod][0][0][1]);
 		}
-		imgRefCurrentState.setDisplayRange(this.imageRanges[refTime][refMod][0][0][0], this.imageRanges[refTime][refMod][0][0][1]);
-		imgMovCurrentState.setDisplayRange(this.imageRanges[movTime][movMod][0][0][0], this.imageRanges[movTime][movMod][0][0][1]);
+		imgRefCurrentState.setDisplayRange(this.globalRanges[refTime][refMod][0], this.globalRanges[refTime][refMod][1]);
+		imgMovCurrentState.setDisplayRange(this.globalRanges[movTime][movMod][0], this.globalRanges[movTime][movMod][1]);
 		
 		//Compose images
 		imgView=VitimageUtils.compositeNoAdjustOf(imgRefCurrentState,imgMovCurrentState,step==0 ? "Superimposition before registration" : "Registration results after "+(step)+" step"+((step>1)?"s":""));
@@ -2118,11 +2186,11 @@ public class RegistrationManager{
 	}
 	
 	public double[] getCurrentRefRange() {
-		return imageRanges[currentRegAction.refTime][currentRegAction.refMod][0][0];
+		return globalRanges[currentRegAction.refTime][currentRegAction.refMod];
 	}
 	
 	public double[] getCurrentMovRange() {
-		return imageRanges[currentRegAction.movTime][currentRegAction.movMod][0][0];
+		return globalRanges[currentRegAction.movTime][currentRegAction.movMod];
 	}
 	
 	public ItkTransform getCurrentRefComposedTransform() {

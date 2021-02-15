@@ -104,7 +104,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public boolean doStressTest=false;
 	public boolean isSurvivorVncTunnelLittleDisplay=false;
 	public String versionName="Handsome honeysuckle";
-	public String timeVersionFlag="  Release time : 2020-09-02 - 22:55 PM";
+	public String timeVersionFlag="  Release time : 2020-12-16 - 21:39 PM";
 	public String versionFlag=versionName+timeVersionFlag;
 	public ImagePlus imgView;
 	private boolean enableHighAcc=true;
@@ -185,7 +185,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	private String[]textOptimizers=new String[] {"Block-Matching","ITK"};
 	private String[]textTransformsBM=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)","Vector field "};
 	private String[]textTransformsITK=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)"};
-	private String[]textTransformsMAN=new String[] {"Rigid (no deformations)",};
+	private String[]textTransformsMAN=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)","Vector field "};
 	private String[]textTransformsALIGN=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)"};
 	private String[]textDisplayITK=new String[] {"0-Only at the end (faster)","1-Dynamic display (slower)"};
 	private String[]textDisplayBM=new String[] {"0-Only at the end (faster)","1-Dynamic display (slower)","2-Also display score map (slower+)"};
@@ -252,6 +252,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	private RegistrationManager regManager;
 	private Font mySurvivalFontForLittleDisplays=null;
 	private boolean undoButtonHasBeenPressed=false;
+	private int yogiteaLevel=0;
 	
 
 
@@ -1167,14 +1168,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							addLog("Wrong arguments. Manual registration is over...", 1);
 							return;
 						}
-						if(regManager.getCurrentAction().typeTrans==Transform3DType.DENSE && regManager.getCurrentAction().typeManViewer==RegistrationAction.VIEWER_2D) {
-							IJ.showMessage("Warning : transform is set to Vector field. But the 3d viewer can only compute Rigid and Similarity transform."+
-								"Please select automatic block matching registration to compute a dense vector field");
-							enable(new int[] {RUN,UNDO,FINISH});
-							enableChainIfPossible();							
-							addLog("Wrong arguments. Manual registration is over...", 1);
-							return;
-						}
+						
 	
 						//Starting manual registration
 						if(runButton.getText().equals("Start this action")) {
@@ -1219,7 +1213,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							}
 							
 							//Verify number of landmarks, and return if the number of couples is < 5
-							if((regManager.getCurrentAction().typeManViewer==RegistrationAction.VIEWER_2D) && (RoiManager.getInstance().getCount()<10 ) ) {IJ.showMessage("Please identify at least 10 points (5 correspondance couples)");enable(new int[] {RUN,RUNALL});return;}
+							if((regManager.getCurrentAction().typeManViewer==RegistrationAction.VIEWER_2D) && (RoiManager.getInstance().getCount()<10 ) && regManager.getCurrentAction().typeTrans != Transform3DType.DENSE ) {IJ.showMessage("Please identify at least 10 points (5 correspondance couples)");enable(new int[] {RUN,RUNALL});return;}
 							
 							//Closing manual registration
 							disable(new int[] {ABORT,RUN,RUNALL});
@@ -1740,7 +1734,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			if(this.boxTypeAction.getSelectedIndex()==1)textToDisplay="<html>"+startPar+"<b>Automatic registration of two images</b>"+"<br/>"+""+nextPar+bmText;
 			if(this.boxTypeAction.getSelectedIndex()==2)textToDisplay="<html>"+startPar+"<b>Axis alignment registration of two images</b>"+"<br/>"+""+nextPar+axisText;
 		}
-		textToDisplay+="<b>Citing this work :</b> R. Fernandez and C. Moisy, <i>Fijiyama : a versatile registration tool for 3D multimodal time-lapse monitoring of biological tissues in Fiji</i> (under review)"+saut+
+		textToDisplay+="<b>Citing this work :</b> R. Fernandez and C. Moisy (2020) <i>Fijiyama : a registration tool for 3D multimodal time-lapse imaging</i> Bioinformatics</i> (under review)"+saut+
 				"<b>Credits :</b> this work was supported by the \"Plan deperissement du vignoble\"   </p>";
 		IJ.showMessage("Fijiyama contextual help", textToDisplay);
 		enable(SOS);
@@ -1972,6 +1966,13 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(regInterrogationLevel==2 && e.getKeyChar()=='g') {regInterrogationLevel=0;moreAboutRegAction();return;}
 		if(regInterrogationLevel==1 && e.getKeyChar()=='e')regInterrogationLevel=2;
 		if(regInterrogationLevel==0 && e.getKeyChar()=='r')regInterrogationLevel=1;
+		if(yogiteaLevel==6 && e.getKeyChar()=='a') {yogiteaLevel=0;VitimageUtils.getRelaxingPopup("",true);return;}
+		if(yogiteaLevel==5 && e.getKeyChar()=='e')yogiteaLevel=6;
+		if(yogiteaLevel==4 && e.getKeyChar()=='t')yogiteaLevel=5;
+		if(yogiteaLevel==3 && e.getKeyChar()=='i')yogiteaLevel=4;
+		if(yogiteaLevel==2 && e.getKeyChar()=='g')yogiteaLevel=3;
+		if(yogiteaLevel==1 && e.getKeyChar()=='o')yogiteaLevel=2;
+		if(yogiteaLevel==0 && e.getKeyChar()=='y')yogiteaLevel=1;
 		if(regManager==null) return;
 		if(regManager.universe==null)return;
 		if(regManager.universe.getSelected()==null)return;

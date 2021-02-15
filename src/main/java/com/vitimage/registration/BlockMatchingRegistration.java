@@ -116,8 +116,9 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 	public BlockMatchingRegistration(ImagePlus imgReff,ImagePlus imgMovv,Transform3DType transformationType,MetricType metricType,
 			double smoothingSigmaInPixels, double denseFieldSigma,int levelMin,int levelMax,int nbIterations,int sliceInt,ImagePlus maskk,
-			int neighbourX,int neighbourY,int neighbourZ,int blockHalfSizeX,int blockHalfSizeY,int blockHalfSizeZ,int strideX,int strideY,int strideZ) {
+			int neighbourX,int neighbourY,int neighbourZ,int blockHalfSizeX,int blockHalfSizeY,int blockHalfSizeZ,int strideX,int strideY,int strideZ,int displayReg) {
 		if(imgReff.getWidth()<imgReff.getStackSize()*4)noSubScaleZ=false;
+		this.displayRegistration=displayReg;
 		this.resampler=new ResampleImageFilter();
 		this.imgRef=VitimageUtils.imageCopy(imgReff);
 		this.imgMov=VitimageUtils.imageCopy(imgMovv);
@@ -185,7 +186,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return new BlockMatchingRegistration(imgRef,imgMov,regAct.typeTrans,MetricType.SQUARED_CORRELATION,
 				regAct.sigmaResampling,regAct.sigmaDense , regAct.higherAcc==1 ? -1 : (regAct.typeTrans==Transform3DType.DENSE ? regAct.levelMinDense : regAct.levelMinLinear),
 				regAct.typeTrans==Transform3DType.DENSE ? regAct.levelMaxDense : regAct.levelMaxLinear,regAct.typeTrans==Transform3DType.DENSE ? regAct.iterationsBMDen : regAct.iterationsBMLin,
-				imgRef.getStackSize()/2,null  ,			regAct.neighX,regAct.neighY,regAct.neighZ,			regAct.bhsX,regAct.bhsY,regAct.bhsZ, 			regAct.strideX,regAct.strideY,regAct.strideZ);
+				imgRef.getStackSize()/2,null  ,			regAct.neighX,regAct.neighY,regAct.neighZ,			regAct.bhsX,regAct.bhsY,regAct.bhsZ, 			regAct.strideX,regAct.strideY,regAct.strideZ,regAct.typeAutoDisplay);
 	}
 
 
@@ -194,6 +195,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
  */
 	@SuppressWarnings("unchecked")
 	public ItkTransform runBlockMatching(ItkTransform trInit,boolean stressTest) {
+		System.out.println("Wil display ?"+displayRegistration);
 		System.out.println("Dims vox before="+VitimageUtils.imageResume(imgMov));
 		double[]timesGlob=new double[20];
 		double[][]timesLev=new double[nbLevels][20];
@@ -863,7 +865,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			}
 			tabPt[2][ind]=new Point3d((tabInit[2][0]),tabInit[2][1],-distance);
 			ind++;
-			if(i==0)IJ.log("Point numero "+i+"("+tabPt[0][ind-1]+" -> "+tabPt[0][ind-1]+" : "+tabPt[2][i].x);
 		}
 		//Compute mean val of the selection variable, before selecting
 		double meanVar=0;
@@ -878,7 +879,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		//Sort and reorganize back
 		if(isLTS)Arrays.sort(tmp, new PointTabComparatorByDistanceLTS());
 		else Arrays.sort(tmp, new PointTabComparatorByScore());
-		for(int i=0;i<tabPt.length;i++)		for(int j=0;j<tabPt[0].length;j++)tabPt[i][j]=tmp[j][i];
+		for(int i=0;i<tabPt.length;i++)		for(int j=0;j<tabPt[0].length	;j++)tabPt[i][j]=tmp[j][i];
 		
 		//Keep this.percentageBlocksSelectedByVariance
 		int lastRemoval=(int)Math.round(tabPt[0].length*((100-(isLTS ? percentageKeepLTS : percentageKeepScore))/100.0));
@@ -963,6 +964,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
  */
 
 	public void updateViews(int level,int iteration,int subpixellic,String textTrans) {
+		System.out.println("Entering and "+displayRegistration);
 		String textIter=String.format("Level=%1d/%1d - Iter=%3d/%3d - %s",
 				level+1,this.levelMax-this.levelMin+1,
 				iteration+1,this.nbIterations,subpixellic>0 ? ("subpixellic 1/"+((int)Math.pow(2,subpixellic))+" pixel") :""
@@ -975,6 +977,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		handleOutput("Updating the views...");
 		this.sliceMov=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(this.imgRef,this.imgMov,false)),this.sliceInt);
 		if(flagRange)this.sliceMov.setDisplayRange(movRange[0], movRange[1]);
+		else this.sliceMov.resetDisplayRange();
 		IJ.run(this.sliceMov,"8-bit","");
 		this.sliceMov=VitimageUtils.writeTextOnImage(textIter,this.sliceMov,(this.fontSize*4)/3,0);
 		if(textTrans!=null)this.sliceMov=VitimageUtils.writeTextOnImage(textTrans,this.sliceMov,this.fontSize,1);
@@ -988,13 +991,15 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			this.sliceRef=this.imgRef.duplicate();
 			this.sliceRef.setSlice(this.sliceInt);
 			if(flagRange)this.sliceRef.setDisplayRange(refRange[0], refRange[1]);
-			IJ.run(this.sliceRef,"8-bit","");
+			else this.sliceRef.resetDisplayRange();
+			IJ.run(this.sliceRef,"8-bit","");//TEST EN COURS
 			ImagePlus temp=VitimageUtils.writeTextOnImage(textIter,this.sliceRef,(this.fontSize*4)/3,0);
 			if(textTrans!=null)temp=VitimageUtils.writeTextOnImage(textTrans,temp,this.fontSize,1);
 			if(flagSingleView)this.sliceFuse=(flagRange ? VitimageUtils.compositeNoAdjustOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving, Gray=score. Level=0 Iter=0 "+this.info) : 
 				VitimageUtils.compositeOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving, Gray=score. Level=0 Iter=0 "+this.info));
 			else this.sliceFuse=flagRange ? VitimageUtils.compositeNoAdjustOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info) : 
 				VitimageUtils.compositeOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info);
+
 			this.sliceFuse.show();
 			this.sliceFuse.getWindow().setSize(this.viewWidth*(viewFuseBigger?2:1),this.viewHeight*(viewFuseBigger?2:1));
 			this.sliceFuse.getCanvas().fitToWindow();

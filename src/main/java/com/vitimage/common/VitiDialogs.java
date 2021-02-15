@@ -69,6 +69,13 @@ public interface VitiDialogs {
         	return imgRet;
 	}
 
+	public static String chooseOneImageUIPath(String strGuess,String strImg1) {
+       		OpenDialog od1=new OpenDialog("Select "+strImg1);
+       		return od1.getPath();
+	}
+
+	
+	
 	public static String chooseOneRoiPathUI(String strGuess,String strImg1) {
    		OpenDialog od1=new OpenDialog("Select "+strGuess);
    		return od1.getPath();
@@ -299,6 +306,15 @@ public interface VitiDialogs {
 		}
 	
 	}
+
+	public static String saveImageUIPath(String strGuess,String title) {
+		SaveDialog sd=new SaveDialog(strGuess,title,"");
+		if(sd.getDirectory()==null ||  sd.getFileName()==null)return null;
+		String pathSave=sd.getDirectory()+""+sd.getFileName();
+		return pathSave;
+	}
+
+	
 	
 	public static void saveTextFileUI(String text,String strGuess,String suggestedDir,String title,String extension){
 		SaveDialog sd=new SaveDialog(strGuess,title,extension);

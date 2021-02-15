@@ -169,6 +169,11 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return fastMatrixToItkTransform(FastMatrix.bestRigid( setMov, setRef, false ));
 	}
 
+	public static ItkTransform estimateBestDense3D(Point3d[]setRef,Point3d[]setMov,ImagePlus imgRef,double sigma) {
+		return new ItkTransform(new DisplacementFieldTransform(computeDenseFieldFromSparseCorrespondancePoints(new Point3d[][] {setMov,setRef},imgRef,sigma,true)));
+	}
+
+	
 	public static ItkTransform estimateBestSimilarity3D(Point3d[]setRef,Point3d[]setMov) {
 		FastMatrix fm=FastMatrix.bestRigid( setMov, setRef, true );
 		IJ.log("Similarity transform computed. Coefficient of dilation : "+Math.pow(fm.det(),0.333333));
@@ -544,7 +549,8 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			VitimageUtils.adjustImageCalibration(ret, imgRef);
 			return ret;
 		}
-		double valMean=imgMov.getStack().getProcessor(imgMov.getNSlices()/2+1).getMin();
+		double valMean=imgMov.getStack().getVoxel(0, 0, 0);
+		//double valMean=VitimageUtils.minOfImage(new Duplicator().run(imgMov, imgMov.getNSlices()/2+1,imgMov.getNSlices()/2+1));
 //		LUT lut=imgMov.getLuts()[0];
 		ResampleImageFilter resampler=new ResampleImageFilter();
 		resampler.setReferenceImage(ItkImagePlusInterface.imagePlusToItkImage(imgRef));
