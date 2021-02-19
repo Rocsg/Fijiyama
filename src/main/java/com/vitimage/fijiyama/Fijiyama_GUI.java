@@ -104,7 +104,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public boolean doStressTest=false;
 	public boolean isSurvivorVncTunnelLittleDisplay=false;
 	public String versionName="Handsome honeysuckle";
-	public String timeVersionFlag="  Release time : 2020-12-16 - 21:39 PM";
+	public String timeVersionFlag="  Release time : 2021-02-18 - 19:38 PM";
 	public String versionFlag=versionName+timeVersionFlag;
 	public ImagePlus imgView;
 	private boolean enableHighAcc=true;
@@ -1327,6 +1327,8 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							disable(new int[] {BOXACT,FINISH,SAVE,SETTINGS,UNDO});
 							runButton.setText("Axis ok");
 							ImagePlus imgRefCurrentState=regManager.getCurrentRefImage();
+							imgRefCurrentState.show();
+							imgRefCurrentState.setTitle("debug");
 							if(regManager.axisAlignmentDone())imgRefCurrentState=regManager.getCurrentRefComposedTransform().transformImage(regManager.getCurrentRefImage(),regManager.getCurrentRefImage(),false);
 							imgRefCurrentState.setDisplayRange(regManager.getCurrentRefRange()[0],regManager.getCurrentRefRange()[1]);
 

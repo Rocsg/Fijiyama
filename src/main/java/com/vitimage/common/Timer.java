@@ -12,6 +12,10 @@ public class Timer {
 		return VitimageUtils.dou(0.001*(System.currentTimeMillis()-initTime));
 	}
 
+	public double getInitTime() {
+		return VitimageUtils.dou(0.001*initTime);
+	}
+
 	public int getAbsoluteDay() {
 		return (int)Math.floor((System.currentTimeMillis()/(1000.0*86400)));
 	}

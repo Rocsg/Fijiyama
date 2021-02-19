@@ -1408,6 +1408,7 @@ public class RegistrationManager{
 	/*Manual registration routines ********************************************************************************************************************/	
 	public void start3dManualRegistration(ImagePlus imgRef,ImagePlus imgMov) {
 		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
+		VitimageUtils.adjustContrast3d(refCopy,99,1.2);		
 		IJ.run(refCopy,"8-bit","");
 		this.universe=new ij3d.Image3DUniverse();
 		universe.show();
@@ -1425,7 +1426,7 @@ public class RegistrationManager{
 		else {
 			ImagePlus movCopy=VitimageUtils.getBinaryGrid(refCopy,17,true,false);
 			universe.removeAllContents();
-			universe.addContent(refCopy, new Color3f(Color.red),"movCopy",50,new boolean[] {true,true,true},1,0 );
+			universe.addContent(refCopy, new Color3f(Color.green),"movCopy",50,new boolean[] {true,true,true},1,0 );
 			universe.addOrthoslice(movCopy, new Color3f(Color.white),"refCopy",50,new boolean[] {true,true,true},1);
 			sentence="Move the red volume (reference image) to fit with the white lines (image axis).";
 		}
@@ -1527,6 +1528,11 @@ public class RegistrationManager{
 		RoiManager rm=RoiManager.getRoiManager();
 		ImagePlus imgTemp=WindowManager.getImage(fijiyamaGui.displayedNameImage1).duplicate();
 		Point3d[][]pointTab=convertLandmarksToPoints(WindowManager.getImage(fijiyamaGui.displayedNameImage1),WindowManager.getImage(fijiyamaGui.displayedNameImage2),true);
+		for(int i=0;i<pointTab.length;i++) {
+			for(int j=0;j<pointTab[i].length;j++) {
+				System.out.println("Point "+i+" "+j+" : "+pointTab[i][j].x+","+pointTab[i][j].y+","+pointTab[i][j].z);
+			}
+		}
 		WindowManager.getImage(fijiyamaGui.displayedNameImage1).changes=false;
 		WindowManager.getImage(fijiyamaGui.displayedNameImage2).changes=false;
 		WindowManager.getImage(fijiyamaGui.displayedNameImage1).close();
@@ -1542,7 +1548,8 @@ public class RegistrationManager{
 			else if(currentRegAction.typeTrans==Transform3DType.SIMILARITY)trans=ItkTransform.estimateBestSimilarity3D(pointTab[0],pointTab[1]);
 		}
 		rm.close();
-    	return trans;		
+		System.out.println("Obtained matrix : "+trans.drawableString());
+		return trans;		
 	}
 	
 	public ItkTransform finish2dEvaluation(){
@@ -1725,8 +1732,6 @@ public class RegistrationManager{
 					IJ.log("...Timing (transforming image number "+nt+","+nm+", transfo complete) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 					imgTemp=IJ.openImage(this.paths[nt][nm]);
 					IJ.log("...Timing (transforming image number "+nt+","+nm+", image opened) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
-					System.out.println("Juste avant crash");
-					System.out.println("nt="+nt);
 					System.out.println("Transforming with reference="+VitimageUtils.imageResume(referenceGeometryForTransforms));
 					System.out.println("Transforming imgTemp="+VitimageUtils.imageResume(imgTemp));
 					hyperImg[index]=trsTemp[nt][nm].transformImage(referenceGeometryForTransforms,imgTemp, false,true,t0,false);//!VitimageUtils.isBouture(imgTemp)
@@ -2174,10 +2179,23 @@ public class RegistrationManager{
 	
 	/* Getters/setters and simple access informations**************************************************************************************/
 	public boolean axisAlignmentDone() {
-		return (transforms[referenceTime][referenceModality].size() > 0);
+		System.out.println("IS alignement done "+referenceTime+" , "+referenceModality+" ? "+transforms[referenceTime][referenceModality].size());
+		for(int i=0;i<transforms.length;i++) {
+			for(int j=0;j<transforms[i].length;j++) {
+				System.out.println("TRANSFORMS "+i+","+j+" : "+transforms[i][j].size());
+				if((i==0) && (j==0)) {
+					for(int k=0;k<transforms[i][j].size();k++) {
+						System.out.println(transforms[referenceTime][referenceModality].get(k).drawableString());
+					}
+				}
+			}
+		}
+		
+		return false;//(transforms[referenceTime][referenceModality].size() > 0);
 	}
 	
 	public ImagePlus getCurrentRefImage() {
+		System.out.println("CURRENT REF="+currentRegAction.refTime+" "+currentRegAction.refMod);
 		return images[currentRegAction.refTime][currentRegAction.refMod];		                              
 	}
 

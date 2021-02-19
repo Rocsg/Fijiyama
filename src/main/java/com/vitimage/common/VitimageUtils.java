@@ -59,6 +59,7 @@ import ij.plugin.StackCombiner;
 import ij.plugin.filter.Convolver;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
+import ij.process.ImageStatistics;
 import ij.process.LUT;
 import ij.process.StackConverter;
 import math3d.Point3d;
@@ -3392,8 +3393,35 @@ public class VitimageUtils {
 		return new double[] {globStats[0],globStats[1]};
 	}
 	
+	public static double getMaxValueForContrastIntelligent(ImagePlus img,int channel,int time,int z,double percentageKeep,double factor) {
+		int nBins=1000;
+		int cOld=img.getC();
+		int tOld=img.getT();
+		int zOld=img.getZ();
+		img.setC(channel);
+		img.setT(time);
+		img.setZ(z);
+		ImageStatistics stats = img.getStatistics(ImagePlus.AREA+ImagePlus.MEAN+ImagePlus.MODE+ImagePlus.MIN_MAX, nBins);
+		double[] y = stats.histogram();
+		double wid=stats.binSize;
+		double sum=0;for(double yy : y)sum+=yy;
+		double cum=0;int indexFin=0;
+		while(cum<sum*(percentageKeep/100.0)){cum+=y[indexFin++];}
+		return (factor*(wid*indexFin));
+	}
+
+	
+	public static void adjustContrast3d(ImagePlus img,double percentageKeepNormalisation,double factorViewNormalisation) {
+		double range=getMaxValueForContrastIntelligent(img,1,img.getNSlices()/2,1,percentageKeepNormalisation,factorViewNormalisation);
+		img.setDisplayRange(0, range);
+		img.updateAndDraw();
+	}
+	
 	public static ImagePlus makeOperationOnOneImage(ImagePlus in,int op_1add_2mult_3div_4sub,double val,boolean copyBefore) {
 		ImagePlus img=null;
+		int a=1;
+		int b=a*a;
+		System.out.println();
 		if(copyBefore) {
 			img=new Duplicator().run(in);
 		}
