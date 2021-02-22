@@ -1408,7 +1408,7 @@ public class RegistrationManager{
 	/*Manual registration routines ********************************************************************************************************************/	
 	public void start3dManualRegistration(ImagePlus imgRef,ImagePlus imgMov) {
 		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
-		VitimageUtils.adjustContrast3d(refCopy,99,1.2);		
+		VitimageUtils.adjustContrast3d(refCopy, 99,1.2);
 		IJ.run(refCopy,"8-bit","");
 		this.universe=new ij3d.Image3DUniverse();
 		universe.show();
@@ -1417,7 +1417,10 @@ public class RegistrationManager{
 		String sentence="";
 		if(imgMov!=null) {
 			ImagePlus movCopy=VitimageUtils.imageCopy(imgMov);		
+			movCopy.duplicate().show();
+			VitimageUtils.adjustContrast3d(movCopy, 99,1.2);
 			IJ.run(movCopy,"8-bit","");
+			movCopy.show();
 			universe.removeAllContents();
 			universe.addContent(refCopy, new Color3f(Color.red),"refCopy",50,new boolean[] {true,true,true},1,0 );
 			universe.addContent(movCopy, new Color3f(Color.green),"movCopy",50,new boolean[] {true,true,true},1,0 );
@@ -2179,7 +2182,7 @@ public class RegistrationManager{
 	
 	/* Getters/setters and simple access informations**************************************************************************************/
 	public boolean axisAlignmentDone() {
-		System.out.println("IS alignement done "+referenceTime+" , "+referenceModality+" ? "+transforms[referenceTime][referenceModality].size());
+/*		System.out.println("IS alignement done "+referenceTime+" , "+referenceModality+" ? "+transforms[referenceTime][referenceModality].size());
 		for(int i=0;i<transforms.length;i++) {
 			for(int j=0;j<transforms[i].length;j++) {
 				System.out.println("TRANSFORMS "+i+","+j+" : "+transforms[i][j].size());
@@ -2190,12 +2193,12 @@ public class RegistrationManager{
 				}
 			}
 		}
-		
+	*/	
 		return false;//(transforms[referenceTime][referenceModality].size() > 0);
 	}
 	
 	public ImagePlus getCurrentRefImage() {
-		System.out.println("CURRENT REF="+currentRegAction.refTime+" "+currentRegAction.refMod);
+		//System.out.println("CURRENT REF="+currentRegAction.refTime+" "+currentRegAction.refMod);
 		return images[currentRegAction.refTime][currentRegAction.refMod];		                              
 	}
 

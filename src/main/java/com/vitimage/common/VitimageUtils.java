@@ -6,6 +6,7 @@ import java.awt.Frame;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,11 +22,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.itk.simple.Image;
 import org.itk.simple.OtsuThresholdImageFilter;
 import org.itk.simple.RecursiveGaussianImageFilter;
 import org.itk.simple.ResampleImageFilter;
+
 import java.util.Random;
 
 import com.vitimage.common.TransformUtils.VolumeComparator;
@@ -119,6 +122,19 @@ public class VitimageUtils {
 		return ItkImagePlusInterface.itkImageToImagePlus(res.execute(ItkImagePlusInterface.imagePlusToItkImage(img)));
 	}
 
+	public static double getMaxValueForContrastMoreIntelligent(ImagePlus img2,int channel,int time,int z,double percentageKeep,double factor) {
+		Timer t=new Timer();
+		int nBins=256;
+		int X=img2.getWidth();
+		int Y=img2.getHeight();
+		ImagePlus img=new Duplicator().run(img2,channel+1,channel+1,z+1,z+1,time+1,time+1);
+		double []d=VitimageUtils.valuesOfBlock(img, 0, 0, 0, X-1, Y-1, 0);
+		Arrays.sort(d);
+		int index=(int)Math.round(d.length*percentageKeep/100.0);
+		//System.out.println("Setting with index="+index+"/"+d.length+" . Val0="+d[0]+" valindex="+d[index]+" valfinale="+d[d.length-1]);
+		t.print("After sorting");
+		return (d[index]*factor);
+	}
 
 	
 	/*Informations about system and virtual machine. Detection of Windows or Unix environments*/
@@ -3159,6 +3175,8 @@ public class VitimageUtils {
 	
 	public static void writeStringInFile(String text,String file) {
 		if(file ==null)return;
+		writeStringInFileUTF8(text,file);
+		if(true)return;
 		try {
 			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
 			out.write(text);
@@ -3167,14 +3185,44 @@ public class VitimageUtils {
 	}
 	
 	public static String readStringFromFile(String file) {
+		if(file ==null)return null;
+		String s=readStringFromFileUTF8(file);
+		if (s!=null)return s;
+		
 		String str=null;
 		try {
-			str= Files.lines(Paths.get(new File(file).getAbsolutePath()) ).collect(Collectors.joining("\n"));
-		} catch (IOException e) {
-			
-			e.printStackTrace();
-		}
+			Charset charset=guessCharset(file);
+			str= Files.lines(Paths.get(new File(file).getAbsolutePath()),charset).collect(Collectors.joining("\n"));
+		} catch (IOException e) {	return null;	}
 		return str;
+	}
+	
+	
+	public static void writeStringInFileUTF8(String str,String path) {
+		Writer out;
+		try {
+			out = new BufferedWriter(new OutputStreamWriter( new FileOutputStream(path), StandardCharsets.UTF_8));
+			out.write(str);
+			out.close();
+		} catch (Exception e) {	 e.printStackTrace();	}
+	}
+
+	
+	public static String readStringFromFileUTF8(String path) {
+	    String ret="";
+		try {
+			FileInputStream fis = new FileInputStream(path);
+	        InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+ 	        BufferedReader reader = new BufferedReader(isr);
+		    String str;
+	        while ((str = reader.readLine()) != null) ret+=str+"\n";
+	    } catch (IOException e) {    e.printStackTrace();  return null;}
+		return ret;
+	}
+
+	
+	public static Charset guessCharset(String file) throws IOException {
+		return Charset.defaultCharset();
 	}
 	
 	public static String readStringFromFile2(String file) {	
@@ -3412,7 +3460,7 @@ public class VitimageUtils {
 
 	
 	public static void adjustContrast3d(ImagePlus img,double percentageKeepNormalisation,double factorViewNormalisation) {
-		double range=getMaxValueForContrastIntelligent(img,1,img.getNSlices()/2,1,percentageKeepNormalisation,factorViewNormalisation);
+		double range=getMaxValueForContrastMoreIntelligent(img,1,img.getNSlices()/2,1,percentageKeepNormalisation,factorViewNormalisation);
 		img.setDisplayRange(0, range);
 		img.updateAndDraw();
 	}
@@ -3421,7 +3469,6 @@ public class VitimageUtils {
 		ImagePlus img=null;
 		int a=1;
 		int b=a*a;
-		System.out.println();
 		if(copyBefore) {
 			img=new Duplicator().run(in);
 		}

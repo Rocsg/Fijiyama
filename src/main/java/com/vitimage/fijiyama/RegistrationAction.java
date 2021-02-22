@@ -451,6 +451,7 @@ public class RegistrationAction implements Serializable{
 	
 	public RegistrationAction setActionTo(int typeAction2) {
 		this.typeAction=typeAction2;
+		if(typeAction2==RegistrationAction.TYPEACTION_ALIGN)this.typeManViewer=VIEWER_3D;
 		return this;
 	}
 	

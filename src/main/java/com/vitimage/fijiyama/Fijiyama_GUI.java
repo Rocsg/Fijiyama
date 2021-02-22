@@ -103,8 +103,8 @@ import ij.plugin.frame.RoiManager;
 public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public boolean doStressTest=false;
 	public boolean isSurvivorVncTunnelLittleDisplay=false;
-	public String versionName="Handsome honeysuckle";
-	public String timeVersionFlag="  Release time : 2021-02-18 - 19:38 PM";
+	public String versionName="Debug Thomas Ricken";
+	public String timeVersionFlag="  Release time : 2021-02-20 - 12:01 PM";
 	public String versionFlag=versionName+timeVersionFlag;
 	public ImagePlus imgView;
 	private boolean enableHighAcc=true;
