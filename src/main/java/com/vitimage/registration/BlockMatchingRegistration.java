@@ -27,8 +27,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	public Thread mainThread;
 	public boolean timingMeasurement=false;
 	boolean debug=false;
-	public double[]refRange=new double[] {-1,-1};
-	public double[]movRange=new double[] {-1,-1};
+	private double[]refRange=new double[] {-1,-1};
+	private double[]movRange=new double[] {-1,-1};
 	public boolean flagRange=false;
 	public volatile boolean bmIsInterrupted;
 	public boolean computeSummary=false;
@@ -117,6 +117,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	public BlockMatchingRegistration(ImagePlus imgReff,ImagePlus imgMovv,Transform3DType transformationType,MetricType metricType,
 			double smoothingSigmaInPixels, double denseFieldSigma,int levelMin,int levelMax,int nbIterations,int sliceInt,ImagePlus maskk,
 			int neighbourX,int neighbourY,int neighbourZ,int blockHalfSizeX,int blockHalfSizeY,int blockHalfSizeZ,int strideX,int strideY,int strideZ,int displayReg) {
+		refRange=VitimageUtils.getDoubleSidedRangeForContrastMoreIntelligent(imgReff,1,1,imgReff.getNSlices()/2,99,1.0); 
+		movRange=VitimageUtils.getDoubleSidedRangeForContrastMoreIntelligent(imgMovv,1,1,imgReff.getNSlices()/2,99,1.0); 
 		if(imgReff.getWidth()<imgReff.getStackSize()*4)noSubScaleZ=false;
 		this.displayRegistration=displayReg;
 		this.resampler=new ResampleImageFilter();
@@ -837,8 +839,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 	
 	
-		
+	public void setRefRange(double[]newRange) {
+		this.refRange=new double[] {newRange[0],newRange[1]};		
+	}
 	
+	public void setMovRange(double[]newRange) {
+		this.movRange=new double[] {newRange[0],newRange[1]};		
+	}
 
 	
 	
@@ -964,7 +971,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
  */
 
 	public void updateViews(int level,int iteration,int subpixellic,String textTrans) {
-		System.out.println("Entering and "+displayRegistration);
 		String textIter=String.format("Level=%1d/%1d - Iter=%3d/%3d - %s",
 				level+1,this.levelMax-this.levelMin+1,
 				iteration+1,this.nbIterations,subpixellic>0 ? ("subpixellic 1/"+((int)Math.pow(2,subpixellic))+" pixel") :""

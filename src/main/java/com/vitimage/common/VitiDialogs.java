@@ -12,6 +12,7 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
+import ij.io.FileOpener;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
 import ij.plugin.Duplicator;
@@ -38,7 +39,17 @@ public interface VitiDialogs {
 	public final static boolean AUTOMATIC=true;
 	public final static String OS_SEPARATOR=System.getProperties().getProperty("file.separator");
 
-	 
+	public static int getIntUI(String strGuess,String parameter,int value) {
+		int ret=0;
+		GenericDialog gd = new GenericDialog(strGuess);
+		gd.addNumericField(parameter+" :",value,0);
+        gd.showDialog();
+        if (gd.wasCanceled()) {return value;}
+ 
+	        ret = (int)Math.round(gd.getNextNumber());
+		 return ret;
+	 }
+ 
 	/** 
 	 * UI generic functions to access images
 	 * */
@@ -207,6 +218,7 @@ public interface VitiDialogs {
 	 * UI generic functions to open other files : directories, roiset, transforms
 	 * */
 	public static String chooseDirectoryNiceUI(String strGuess,String strApproveButton){
+		if(true)return (IJ.getDirectory(strGuess));
 		JFileChooser jf=new JFileChooser();
 		jf.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
 		jf.setDialogTitle(strGuess);
@@ -216,6 +228,7 @@ public interface VitiDialogs {
 	}
 	
 	public static String chooseDirectoryUI(String strGuess,String strApproveButton){
+		if(true)return (IJ.getDirectory(strGuess));
 		JFileChooser jf=new JFileChooser();
 		jf.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
 		jf.setDialogTitle(strGuess);
@@ -224,7 +237,20 @@ public interface VitiDialogs {
 		return null;
 	}
 
+	
+	public static String openMacFileUI(String strGuess, String dirName, String extension) {
+		OpenDialog op=new OpenDialog(strGuess,dirName, extension);
+		return op.getPath();
+	}
+	
 	public static String openJFileUI(String strGuess,String dirName,String extension){
+		if(VitimageUtils.isMac()){
+			System.out.println("Mac system detected. Mac routine opening file.");
+			return openMacFileUI(strGuess,dirName,extension);
+		}
+		System.out.println("Not mac system detected. Not mac routine opening file.");
+
+		
 		JFileChooser jf;
 		if(dirName!=null)jf=new JFileChooser(dirName);
 		else jf=new JFileChooser();

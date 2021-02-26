@@ -33,6 +33,7 @@ import ij.gui.GenericDialog;
 import ij.plugin.Concatenator;
 import ij.plugin.Duplicator;
 import ij.plugin.HyperStackConverter;
+import ij.plugin.ImageInfo;
 import ij.plugin.Memory;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
@@ -384,7 +385,7 @@ public class RegistrationManager{
 	public String[] getRefAndMovPaths() {
 		try {
 			String pathToRef;
-			try{pathToRef=VitiDialogs.openJFileUI("Choose a reference (fixed) image", "", "");} catch (Exception e) {return null;}
+			try{pathToRef=VitiDialogs.openJFileUI("Choose a reference (fixed) image",null, "");} catch (Exception e) {return null;}
 			if(pathToRef==null)return null;
 			String dirRef=new File(pathToRef).getParent();
 			VitimageUtils.waitFor(200);
@@ -567,10 +568,13 @@ public class RegistrationManager{
 			else {
 				this.regActions=new ArrayList<RegistrationAction>();
 				this.regActions.add(RegistrationAction.createRegistrationAction(
-						images[referenceTime][referenceModality],images[referenceTime][referenceModality],  this.fijiyamaGui,this,RegistrationAction.TYPEACTION_MAN));
+						images[referenceTime][referenceModality],images[referenceTime][referenceModality],
+						this.fijiyamaGui,this,RegistrationAction.TYPEACTION_MAN));
 				this.regActions.add(RegistrationAction.createRegistrationAction(
-						images[referenceTime][referenceModality],images[referenceTime][referenceModality], this.fijiyamaGui,this,RegistrationAction.TYPEACTION_AUTO).setStepTo(1));
+						images[referenceTime][referenceModality],images[referenceTime][referenceModality],
+						this.fijiyamaGui,this,RegistrationAction.TYPEACTION_AUTO).setStepTo(1));
 				this.currentRegAction=this.regActions.get(0);
+				System.out.println("THERE 1: "+this.currentRegAction.fullLengthDescription());
 				this.nSteps=2;
 				if(!fijiyamaGui.interfaceIsRunning) {fijiyamaGui.startRegistrationInterface();fijiyamaGui.interfaceIsRunning=true;}
 				else {
@@ -578,6 +582,7 @@ public class RegistrationManager{
 					VitimageUtils.waitFor(150);
 					fijiyamaGui.registrationFrame.setVisible(true);
 				}
+				System.out.println("THERE 2: "+this.currentRegAction.fullLengthDescription());
 				fijiyamaGui.updateBoxFieldsFromRegistrationAction(currentRegAction);
 				if(!fijiyamaGui.getAutoRepMode()) {
 					VitiDialogs.getYesNoUI("","Define registration pipeline to align "+this.mods[referenceModality]+" with "+this.mods[curMod]+" from the same timepoint.\n"+
@@ -585,11 +590,13 @@ public class RegistrationManager{
 						"and click on add action to insert a new registration action just before the cursor\n\nOnce done, click on Validate pipeline.");
 					
 				}
+				System.out.println("THERE 3: "+this.currentRegAction.fullLengthDescription());
 				fijiyamaGui.validatePipelineButton.setText("Approve "+this.mods[curMod]+"->"+this.mods[referenceModality]+" pipeline");
 				if(!fijiyamaGui.validatePipelineButton.isEnabled())fijiyamaGui.validatePipelineButton.setEnabled(true);
 			}
 			this.stepBuild++;
 			VitimageUtils.waitFor(150);
+			System.out.println("THERE 4: "+this.currentRegAction.fullLengthDescription());
 			return;
 		}
 				
@@ -813,13 +820,7 @@ public class RegistrationManager{
 			for(int nm=0;nm<this.nMods;nm++) {
 				if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 					if(this.transforms[nt][nm]==null)this.transforms[nt][nm]=new ArrayList<ItkTransform>();//If it is not the case, it is a startup from a file
-					System.out.println("\nDebug RX");
-					System.out.println("NT="+nt+" NM="+nm);
-					System.out.println("Instruction=");
-					System.out.println("ImagePlus imgTemp=IJ.openImage("+this.paths[nt][nm]+");");
 					File f=new File(this.paths[nt][nm]);
-					if(f.isFile()) {System.out.println("Le fichier existe");}
-					else {System.out.println("Le fichier n' existe pas");}
 					ImagePlus imgTemp=IJ.openImage(osIndependantPath(this.paths[nt][nm]));
 
 					if(detectRX(imgTemp))rxDetected=true;
@@ -880,9 +881,11 @@ public class RegistrationManager{
 							for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
 								img.setC(Math.min(img.getNChannels(), nm2+1));
 								img.setT(nt2+1);
-								this.imageRanges[nt][nm][nt2][nm2][0]=img.getDisplayRangeMin();
-								this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();			
-								IJ.log("No big hyperimgs On a eu :"+TransformUtils.stringVectorN(this.imageRanges[nt][nm][nt2][nm2], ""));
+								
+								this.imageRanges[nt][nm][nt2][nm2]=VitimageUtils.getDoubleSidedRangeForContrastMoreIntelligent(img, Math.min(img.getNChannels(), nm2+1)-1, nt2, img.getNSlices()/2, Fijiyama_GUI.percentileDisplay,Fijiyama_GUI.widthRangeDisplay);
+//								this.imageRanges[nt][nm][nt2][nm2][0]=img.getDisplayRangeMin();
+//								this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();			
+								//IJ.log("No big hyperimgs On a eu :"+TransformUtils.stringVectorN(this.imageRanges[nt][nm][nt2][nm2], ""));
 							}
 						}
 						if(isBionanoImagesWithCapillary) {
@@ -942,8 +945,9 @@ public class RegistrationManager{
 									for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
 										img.setC(Math.min(img.getNChannels(),nm2+1));
 										img.setT(nt2+1);
-										this.imageRanges[nt][nm][nt2][nm2][0]=img.getDisplayRangeMin();
-										this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();									
+										this.imageRanges[nt][nm][nt2][nm2]=VitimageUtils.getDoubleSidedRangeForContrastMoreIntelligent(img, Math.min(img.getNChannels(), nm2+1)-1, nt2, img.getNSlices()/2, Fijiyama_GUI.percentileDisplay,Fijiyama_GUI.widthRangeDisplay);
+										//this.imageRanges[nt][nm][nt2][nm2][0]=img.getDisplayRangeMin();
+										//this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();									
 									}
 								}
 								int can=VitimageUtils.getChannelOfMaxT1MinT2Sequence(img);
@@ -1006,8 +1010,9 @@ public class RegistrationManager{
 									for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
 										img.setC(Math.min(img.getNChannels(),nm2+1));
 										img.setT(nt2+1);
-										this.imageRanges[nt][nm][nt2][nm2][0]=img.getDisplayRangeMin();
-										this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();									
+										this.imageRanges[nt][nm][nt2][nm2]=VitimageUtils.getDoubleSidedRangeForContrastMoreIntelligent(img, Math.min(img.getNChannels(), nm2+1)-1, nt2, img.getNSlices()/2, Fijiyama_GUI.percentileDisplay,Fijiyama_GUI.widthRangeDisplay);
+										//this.imageRanges[nt][nm][nt2][nm2][0]=img.getDisplayRangeMin();
+										//this.imageRanges[nt][nm][nt2][nm2][1]=img.getDisplayRangeMax();									
 										IJ.log("Big imgs On a eu :"+TransformUtils.stringVectorN(this.imageRanges[nt][nm][nt2][nm2], ""));
 									}
 								}
@@ -1054,8 +1059,9 @@ public class RegistrationManager{
 								for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
 									this.images[nt][nm].setC(Math.min(this.images[nt][nm].getNChannels(), nm2+1));
 									this.images[nt][nm].setT(nt2+1);
-									this.imageRanges[nt][nm][nt2][nm2][0]=this.images[nt][nm].getDisplayRangeMin();
-									this.imageRanges[nt][nm][nt2][nm2][1]=this.images[nt][nm].getDisplayRangeMax();									
+									this.imageRanges[nt][nm][nt2][nm2]=VitimageUtils.getDoubleSidedRangeForContrastMoreIntelligent(this.images[nt][nm], Math.min(this.images[nt][nm].getNChannels(), nm2+1)-1, nt2, this.images[nt][nm].getNSlices()/2,Fijiyama_GUI.percentileDisplay,Fijiyama_GUI.widthRangeDisplay);
+									//this.imageRanges[nt][nm][nt2][nm2][0]=this.images[nt][nm].getDisplayRangeMin();
+									//this.imageRanges[nt][nm][nt2][nm2][1]=this.images[nt][nm].getDisplayRangeMax();									
 								}
 							}
 		
@@ -1408,7 +1414,7 @@ public class RegistrationManager{
 	/*Manual registration routines ********************************************************************************************************************/	
 	public void start3dManualRegistration(ImagePlus imgRef,ImagePlus imgMov) {
 		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
-		VitimageUtils.adjustContrast3d(refCopy, 99,1.2);
+		VitimageUtils.adjustContrast3d(refCopy, Fijiyama_GUI.percentileDisplay,Fijiyama_GUI.widthRangeDisplay);
 		IJ.run(refCopy,"8-bit","");
 		this.universe=new ij3d.Image3DUniverse();
 		universe.show();
@@ -1417,10 +1423,8 @@ public class RegistrationManager{
 		String sentence="";
 		if(imgMov!=null) {
 			ImagePlus movCopy=VitimageUtils.imageCopy(imgMov);		
-			movCopy.duplicate().show();
-			VitimageUtils.adjustContrast3d(movCopy, 99,1.2);
+			VitimageUtils.adjustContrast3d(movCopy, Fijiyama_GUI.percentileDisplay,Fijiyama_GUI.widthRangeDisplay);
 			IJ.run(movCopy,"8-bit","");
-			movCopy.show();
 			universe.removeAllContents();
 			universe.addContent(refCopy, new Color3f(Color.red),"refCopy",50,new boolean[] {true,true,true},1,0 );
 			universe.addContent(movCopy, new Color3f(Color.green),"movCopy",50,new boolean[] {true,true,true},1,0 );
@@ -1724,9 +1728,13 @@ public class RegistrationManager{
 
 		
 		//Step 4 : Add alignment transform to both, then export images
+		String infoGlobal="";
+		String infoLocal="";
 		ImagePlus imgTemp=IJ.openImage(this.paths[this.referenceTime][this.referenceModality]);
 		for(int nt=0;nt<this.nTimes;nt++) {
 			for(int nm=0;nm<this.nMods;nm++) {
+				if((nt==0)&&(nm==0))infoGlobal=new ImageInfo().getImageInfo(imgTemp);
+				infoLocal=new ImageInfo().getImageInfo(imgTemp);
 				int index=nm*this.nTimes+nt;
 				if(imageExists(nt, nm)) {
 					IJ.log("Computing result data for time "+times[nt]+" and modality "+mods[nm]);
@@ -1768,7 +1776,7 @@ public class RegistrationManager{
 		IJ.log("Image pile size before hyperstacking="+VitimageUtils.imageResume(hypTemp));
 		con.setIm5D(true);
 		IJ.log("...Timing (after brute force concatenation) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
-
+		
 		
 		
 		int futureM=nMods;
@@ -1974,12 +1982,16 @@ public class RegistrationManager{
 		}
 		//if(WindowManager.getImage(fijiyamaGui.displayedNameCombinedImage) != null) {WindowManager.getImage(fijiyamaGui.displayedNameCombinedImage).close();}
 		if(saveCombined) IJ.saveAsTiff(hyperImage, nameForResultingCombinedHyperImage(suffixCombined));
+
+		
+		
 		hyperImage.show();
 		VitimageUtils.waitFor(200);
 		hyperImage.setTitle(suffixCombined);
 		//hyperImage.setTitle(fijiyamaGui.displayedNameCombinedImage);
 		IJ.log("...Timing (after opening corresponding ImageWindow for visualization) : "+VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0)+" s");
 		IJ.log("End of sequence, timer closing.");
+		
 		return hyperImage;
 
 	}

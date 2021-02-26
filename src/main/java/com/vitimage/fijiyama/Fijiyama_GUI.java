@@ -101,6 +101,8 @@ import ij.plugin.frame.RoiManager;
 //Seems to be ok, just the image 1125 that is weird
 
 public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
+	public static final double percentileDisplay=99;
+	public static final double widthRangeDisplay=1.2;
 	public boolean doStressTest=false;
 	public boolean isSurvivorVncTunnelLittleDisplay=false;
 	public String versionName="Debug Thomas Ricken";
@@ -1086,8 +1088,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 								bmRegistration=BlockMatchingRegistration.setupBlockMatchingRegistration(regManager.getCurrentRefImage(),regManager.getCurrentMovImage(),regManager.getCurrentAction());
 								bmRegistration.consoleOutputActivated=isSurvivorVncTunnelLittleDisplay;
 								bmRegistration.timingMeasurement=developerMode;
-								bmRegistration.refRange=regManager.getCurrentRefRange();
-								bmRegistration.movRange=regManager.getCurrentMovRange();
+								//TODO
+								bmRegistration.setRefRange(regManager.getCurrentRefRange());
+								bmRegistration.setMovRange(regManager.getCurrentMovRange());
 								bmRegistration.flagRange=true;
 								bmRegistration.percentageBlocksSelectedByScore=regManager.getCurrentAction().selectScore;
 								bmRegistration.minBlockVariance=0.04;
@@ -1327,8 +1330,6 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							disable(new int[] {BOXACT,FINISH,SAVE,SETTINGS,UNDO});
 							runButton.setText("Axis ok");
 							ImagePlus imgRefCurrentState=regManager.getCurrentRefImage();
-							imgRefCurrentState.show();
-							imgRefCurrentState.setTitle("debug");
 							if(regManager.axisAlignmentDone())imgRefCurrentState=regManager.getCurrentRefComposedTransform().transformImage(regManager.getCurrentRefImage(),regManager.getCurrentRefImage(),false);
 							imgRefCurrentState.setDisplayRange(regManager.getCurrentRefRange()[0],regManager.getCurrentRefRange()[1]);
 

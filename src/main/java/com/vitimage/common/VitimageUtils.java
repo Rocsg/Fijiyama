@@ -136,6 +136,57 @@ public class VitimageUtils {
 		return (d[index]*factor);
 	}
 
+	public static double []getDoubleSidedRangeForContrastMoreIntelligent(ImagePlus img2,int channel,int time,int z,double percentageKeep,double factor) {
+		String str=new ImageInfo().getImageInfo(img2);
+		double a=0,b=1;
+		if(str!=null) {
+			String[]strTab=str.split("\n");
+			for(int i=0;i<strTab.length-3;i++) {
+				if(strTab[i].contains("Calibration function: y = a+bx")){
+					a=Double.parseDouble(strTab[i+1].split(": ")[1]);
+					b=Double.parseDouble(strTab[i+2].split(": ")[1]);
+				}
+			}
+		}
+		Timer t=new Timer();
+		int nBins=256;
+		int X=img2.getWidth();
+		int Y=img2.getHeight();
+		ImagePlus img=new Duplicator().run(img2,channel+1,channel+1,z+1,z+1,time+1,time+1);
+		double []d=VitimageUtils.valuesOfBlock(img, 0, 0, 0, X-1, Y-1, 0);
+		Arrays.sort(d);
+		int indexMax=(int)Math.round(d.length*percentageKeep/100.0);
+		int indexMin=(int)Math.round(d.length*1.0*(100.0-percentageKeep)/100.0);
+		
+		//t.print("Smart display ranging. Percentiles= from index "+indexMin+" to "+indexMax+"/"+d.length+"indices  . Initial ranging=["+img.getDisplayRangeMin()+" , "+img.getDisplayRangeMax()+"] , final Ranging=["+((a+b*d[indexMin]))+" , "+(a+b*d[indexMax])+"]"+". Sorting intensities of the full slice took");
+		double valInitMin=(a+b*d[indexMin]);
+		double valInitMax=(a+b*d[indexMax]);
+		double valMean=0.5*valInitMin+0.5*valInitMax;
+		double std=valInitMax-valMean;
+		return new double[] {valMean-std,valMean+factor*std};
+	}
+
+	
+	public static void writeStringTabInExcelFile(String[][]tab,String fileName) {
+		System.out.println("Impression de tableau de taille "+tab.length+" x "+tab[0].length);
+		try { 
+			PrintStream l_out = new PrintStream(new FileOutputStream(fileName)); 
+			for(int i=0;i<tab.length;i++) {
+				for(int j=0;j<tab[i].length;j++) {
+					l_out.print(tab[i][j]+" ;"); 
+					System.out.print(tab[i][j]+" ;");
+				}
+				l_out.println(""); 
+				System.out.println();
+			}
+			l_out.flush(); 
+			l_out.close(); 
+			l_out=null; 
+		} 
+		catch(Exception e){System.out.println(e.toString());} 
+	}
+
+	
 	
 	/*Informations about system and virtual machine. Detection of Windows or Unix environments*/
 	public static String getSystemName(){
@@ -146,6 +197,12 @@ public class VitimageUtils {
 		return "System";
 	}
 
+	public static boolean isMac() {
+		String os=System.getProperty("os.name").toLowerCase();
+		if(os.indexOf("mac") >= 0)return true;
+		return false;
+	}
+	
 	public static boolean isWindowsOS(){
 		String os=System.getProperty("os.name").toLowerCase();
 		return (os.indexOf("win") >= 0);
@@ -3460,8 +3517,8 @@ public class VitimageUtils {
 
 	
 	public static void adjustContrast3d(ImagePlus img,double percentageKeepNormalisation,double factorViewNormalisation) {
-		double range=getMaxValueForContrastMoreIntelligent(img,1,img.getNSlices()/2,1,percentageKeepNormalisation,factorViewNormalisation);
-		img.setDisplayRange(0, range);
+		double []ranges=getDoubleSidedRangeForContrastMoreIntelligent(img,1,img.getNSlices()/2,1,percentageKeepNormalisation,factorViewNormalisation);
+		img.setDisplayRange(ranges[0], ranges[1]);
 		img.updateAndDraw();
 	}
 	
@@ -4515,10 +4572,8 @@ public class VitimageUtils {
 		int cMax=hyperImg.getNChannels();
 		String[]tabStr=new String[cMax];
 		for(int c=0;c<cMax;c++)tabStr[c]=hyperImg.getStack().getSliceLabel(getCorrespondingSliceInHyperImage(hyperImg, c, 0, 0));
-		System.out.println("DEBUG 1");
 		int indexC=0;
 		for(int c=0;c<cMax;c++) {
-			System.out.print("c="+c+" : "+tabStr[c]+ "  -  ");
 			if(tabStr[c]==null || tabStr[c].length()==0)continue;
 			String[] tabS=tabStr[c].split("_");
 			int valT1=0;
@@ -4529,17 +4584,14 @@ public class VitimageUtils {
 				if(tabS[s].contains("TE="))valT2=(int)Double.parseDouble(tabS[s].replace("TE=",""));
 				if(tabS[s].contains("TR="))valT1=(int)Double.parseDouble(tabS[s].replace("TR=",""));
 			}
-			System.out.print("detected T1="+valT1+" T2="+valT2);
-			if(valT1<=0 || valT2<=0 || valT1 > 9999) {System.out.println("Continue");continue;}
+			if(valT1<=0 || valT2<=0 || valT1 > 9999) {continue;}
 			if(valT1>maxT1) {
 				indexC=c;maxT1=valT1;maxT2=valT2;
 			}
 			if(valT1==maxT1 && valT2<maxT2) {
 				indexC=c;maxT1=valT1;maxT2=valT2;				
 			}
-			System.out.println(" apres ça, indMax="+indexC+", à T1T2="+valT1+","+valT2);
 		}
-		System.out.println("Val detected="+indexC);
 		return indexC;
 	}
 	
