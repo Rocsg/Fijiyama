@@ -270,6 +270,13 @@ public class VitimageUtils {
 		adjustFrameOnScreenRelative(img1.getWindow(),img2Reference.getWindow(), xPosition, yPosition,distance);
 	}
 	
+	public static boolean dimensionsMatch(ImagePlus img1,ImagePlus img2) {
+		if(img1.getWidth()!=img2.getWidth())return false;
+		if(img1.getHeight()!=img2.getHeight())return false;
+		if(img1.getNSlices()!=img2.getNSlices())return false;
+		return true;
+	}
+	
 	public static ImagePlus hyperStackingFrames(ImagePlus[]img) {
 		Concatenator con=new Concatenator();
 		con.setIm5D(true);

@@ -202,14 +202,15 @@ public interface VitiDialogs {
 
 	public static String getStringUI(String strGuess,String parameter,String value,boolean forceStringToBeValidForFilenames) {
 		String ret="";
-		while(!isStandardName(ret)) {
+		do{
 			GenericDialog gd = new GenericDialog(strGuess);
 			gd.addStringField(parameter+" :",value,20);
 	        gd.showDialog();
 	        if (gd.wasCanceled()) {IJ.showMessage("Dialog cancel. Value is set to default : "+value);return value;}
 	        ret=gd.getNextString();
 		}
-        return ret;
+		while(!isStandardName(ret) && forceStringToBeValidForFilenames);
+		return ret;
 	}
 	
 
