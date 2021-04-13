@@ -1,4 +1,4 @@
-package com.vitimage.fijiyama;
+package com.phenomen.fijiyama;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -34,14 +34,14 @@ import javax.swing.JTextArea;
 
 import org.scijava.java3d.Transform3D;
 
-import com.vitimage.common.TransformUtils;
-import com.vitimage.common.VitiDialogs;
-import com.vitimage.common.VitimageUtils;
-import com.vitimage.registration.BlockMatchingRegistration;
-import com.vitimage.registration.ItkRegistration;
-import com.vitimage.registration.ItkTransform;
-import com.vitimage.registration.OptimizerType;
-import com.vitimage.registration.Transform3DType;
+import com.phenomen.common.TransformUtils;
+import com.phenomen.common.VitiDialogs;
+import com.phenomen.common.VitimageUtils;
+import com.phenomen.registration.BlockMatchingRegistration;
+import com.phenomen.registration.ItkRegistration;
+import com.phenomen.registration.ItkTransform;
+import com.phenomen.registration.OptimizerType;
+import com.phenomen.registration.Transform3DType;
 
 import ij.IJ;
 import ij.ImageJ;
@@ -105,8 +105,13 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public static final double widthRangeDisplay=1.2;
 	public boolean doStressTest=false;
 	public boolean isSurvivorVncTunnelLittleDisplay=false;
+<<<<<<< HEAD:src/main/java/com/vitimage/fijiyama/Fijiyama_GUI.java
 	public String versionName="Debug Thomas Ricken";
 	public String timeVersionFlag="  Release time : 2021-02-20 - 12:01 PM";
+=======
+	public String versionName="Handsome honeysuckle";
+	public String timeVersionFlag="  Release time : 2020-12-16 - 21:39 PM";
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/fijiyama/Fijiyama_GUI.java
 	public String versionFlag=versionName+timeVersionFlag;
 	public ImagePlus imgView;
 	private boolean enableHighAcc=true;
@@ -1448,7 +1453,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public void updateList() {
 		this.listActions.setModel(regManager.getPipelineAslistModelForGUI());
 		this.listActions.setSelectedIndex(regManager.getStep());
-		com.vitimage.fijiyama.ScrollUtil.scroll(listActions,com.vitimage.fijiyama.ScrollUtil.SELECTED,new int[] {listActions.getSelectedIndex(),regManager.getNbSteps()+1});
+		com.phenomen.fijiyama.ScrollUtil.scroll(listActions,com.phenomen.fijiyama.ScrollUtil.SELECTED,new int[] {listActions.getSelectedIndex(),regManager.getNbSteps()+1});
 	}
 			
 	public void updateEstimatedTime() {

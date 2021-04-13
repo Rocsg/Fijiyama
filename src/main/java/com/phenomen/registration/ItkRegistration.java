@@ -1,4 +1,4 @@
-package com.vitimage.registration;
+package com.phenomen.registration;
 
 import java.util.ArrayList;
 
@@ -17,9 +17,9 @@ import org.itk.simple.VectorDouble;
 import org.itk.simple.VectorUInt32;
 import org.itk.simple.VersorRigid3DTransform;
 
-import com.vitimage.common.ItkImagePlusInterface;
-import com.vitimage.common.VitiDialogs;
-import com.vitimage.common.VitimageUtils;
+import com.phenomen.common.ItkImagePlusInterface;
+import com.phenomen.common.VitiDialogs;
+import com.phenomen.common.VitimageUtils;
 
 import org.itk.simple.RecursiveGaussianImageFilter;
 

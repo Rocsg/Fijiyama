@@ -1,4 +1,4 @@
-package com.vitimage.fijiyama;
+package com.phenomen.fijiyama;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -7,9 +7,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-import com.vitimage.common.VitimageUtils;
-import com.vitimage.registration.OptimizerType;
-import com.vitimage.registration.Transform3DType;
+import com.phenomen.common.VitimageUtils;
+import com.phenomen.registration.OptimizerType;
+import com.phenomen.registration.Transform3DType;
 
 import ij.IJ;
 import ij.ImagePlus;

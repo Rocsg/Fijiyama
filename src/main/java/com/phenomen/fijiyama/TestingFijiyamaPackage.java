@@ -1,10 +1,10 @@
-package com.vitimage.fijiyama;
+package com.phenomen.fijiyama;
 
 import java.io.File;
 
-import com.vitimage.common.SentenceOfTheDay;
-import com.vitimage.common.VitiDialogs;
-import com.vitimage.common.VitimageUtils;
+import com.phenomen.common.SentenceOfTheDay;
+import com.phenomen.common.VitiDialogs;
+import com.phenomen.common.VitimageUtils;
 
 import ij.IJ;
 import ij.ImageJ;

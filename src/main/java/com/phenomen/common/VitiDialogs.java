@@ -1,12 +1,13 @@
-package com.vitimage.common;
+package com.phenomen.common;
 import java.awt.Color;
 
 import javax.swing.JFileChooser;
 
 import org.scijava.vecmath.Color3f;
-import org.scijava.java3d.Transform3D;
 
-import com.vitimage.registration.ItkTransform;
+import com.phenomen.registration.ItkTransform;
+
+import org.scijava.java3d.Transform3D;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -213,7 +214,11 @@ public interface VitiDialogs {
 		return ret;
 	}
 	
-
+	/**Temporary*/
+	public static int getIntUI(String strGuess,int value) {
+		return (int) IJ.getNumber(strGuess, value);
+	}
+	
 	
 	/** 
 	 * UI generic functions to open other files : directories, roiset, transforms

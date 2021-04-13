@@ -4,7 +4,7 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/5.0.0
 		http://maven.apache.org/xsd/maven-5.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>com.vitimage</groupId>
+	<groupId>com.phenomen</groupId>
 	<artifactId>Fijiyama_GUI</artifactId>
 
 
@@ -18,17 +18,17 @@
 	</scm>
 	<issueManagement>
 		<system>GitHub Issues</system>
-		<url>https://github.com/Rocsg/vitimage/issues</url>
+		<url>https://github.com/Rocsg/phenomen/issues</url>
 	</issueManagement>
 	<ciManagement>
 		<system>None</system>
 	</ciManagement>
 
 	<properties>
-		<package-name>com.vitimage</package-name>
+		<package-name>com.phenomen</package-name>
 		<license.licenseName>bsd_2</license.licenseName>
 		<main-class>Fijiyama_GUI</main-class>
-		<license.copyrightOwners>vitimage</license.copyrightOwners>
+		<license.copyrightOwners>phenomen</license.copyrightOwners>
   	    <maven.compiler.source>1.8</maven.compiler.source>
 	    <maven.compiler.target>1.8</maven.compiler.target>
 	    
@@ -68,7 +68,7 @@
 	<description>Fijiyama : a versatile registration tool for 3D multimodal time-lapse imaging</description>
 	<inceptionYear>2019</inceptionYear>
 	<organization>
-		<name>Vitimage</name>
+		<name>phenomen</name>
 		<url>https://www.plan-deperissement-vigne.fr/travaux-de-recherche/programmes-de-recherche/vitimage</url>
 	</organization>
 	<licenses>

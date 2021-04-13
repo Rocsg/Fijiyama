@@ -1,4 +1,4 @@
-package com.vitimage.registration;
+package com.phenomen.registration;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -9,10 +9,10 @@ import org.itk.simple.DisplacementFieldTransform;
 import org.itk.simple.Image;
 import org.itk.simple.ResampleImageFilter;
 
-import com.vitimage.common.ItkImagePlusInterface;
-import com.vitimage.common.TransformUtils;
-import com.vitimage.common.VitimageUtils;
-import com.vitimage.fijiyama.RegistrationAction;
+import com.phenomen.common.ItkImagePlusInterface;
+import com.phenomen.common.TransformUtils;
+import com.phenomen.common.VitimageUtils;
+import com.phenomen.fijiyama.RegistrationAction;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -117,8 +117,11 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	public BlockMatchingRegistration(ImagePlus imgReff,ImagePlus imgMovv,Transform3DType transformationType,MetricType metricType,
 			double smoothingSigmaInPixels, double denseFieldSigma,int levelMin,int levelMax,int nbIterations,int sliceInt,ImagePlus maskk,
 			int neighbourX,int neighbourY,int neighbourZ,int blockHalfSizeX,int blockHalfSizeY,int blockHalfSizeZ,int strideX,int strideY,int strideZ,int displayReg) {
+<<<<<<< HEAD:src/main/java/com/vitimage/registration/BlockMatchingRegistration.java
 		refRange=VitimageUtils.getDoubleSidedRangeForContrastMoreIntelligent(imgReff,1,1,imgReff.getNSlices()/2,99,1.0); 
 		movRange=VitimageUtils.getDoubleSidedRangeForContrastMoreIntelligent(imgMovv,1,1,imgReff.getNSlices()/2,99,1.0); 
+=======
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/registration/BlockMatchingRegistration.java
 		if(imgReff.getWidth()<imgReff.getStackSize()*4)noSubScaleZ=false;
 		this.displayRegistration=displayReg;
 		this.resampler=new ResampleImageFilter();
@@ -971,6 +974,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
  */
 
 	public void updateViews(int level,int iteration,int subpixellic,String textTrans) {
+		System.out.println("Entering and "+displayRegistration);
 		String textIter=String.format("Level=%1d/%1d - Iter=%3d/%3d - %s",
 				level+1,this.levelMax-this.levelMin+1,
 				iteration+1,this.nbIterations,subpixellic>0 ? ("subpixellic 1/"+((int)Math.pow(2,subpixellic))+" pixel") :""

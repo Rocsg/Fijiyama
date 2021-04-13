@@ -1,4 +1,4 @@
-package com.vitimage.common;
+package com.phenomen.common;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -6,7 +6,10 @@ import java.awt.Frame;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.nio.charset.Charset;
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
 import java.nio.charset.StandardCharsets;
+=======
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,19 +25,30 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
 import org.apache.commons.io.FileUtils;
+=======
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
 import org.apache.commons.io.IOUtils;
 import org.itk.simple.Image;
 import org.itk.simple.OtsuThresholdImageFilter;
 import org.itk.simple.RecursiveGaussianImageFilter;
 import org.itk.simple.ResampleImageFilter;
+import java.util.Random;
 
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
 import java.util.Random;
 
 import com.vitimage.common.TransformUtils.VolumeComparator;
 import com.vitimage.fijiyama.Fijiyama_GUI;
 import com.vitimage.fijiyama.RegistrationManager;
 import com.vitimage.registration.ItkTransform;
+=======
+import com.phenomen.common.TransformUtils.VolumeComparator;
+import com.phenomen.fijiyama.Fijiyama_GUI;
+import com.phenomen.fijiyama.RegistrationManager;
+import com.phenomen.registration.ItkTransform;
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
 
 import java.io.*;
 import java.net.URI;
@@ -62,7 +76,10 @@ import ij.plugin.StackCombiner;
 import ij.plugin.filter.Convolver;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
 import ij.process.ImageStatistics;
+=======
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
 import ij.process.LUT;
 import ij.process.StackConverter;
 import math3d.Point3d;
@@ -292,12 +309,15 @@ public class VitimageUtils {
 	
 	public static void main(String[]args) {
 		ImageJ ij=new ImageJ();
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
 		ImagePlus img1=IJ.openImage("/home/fernandr/Bureau/FijiRelax_PrepaDOI/Tests_Refactoring/3_Computed_Maps/hyper.tif");
 		ImagePlus img2=IJ.openImage("/home/fernandr/Bureau/FijiRelax_PrepaDOI/Tests_Refactoring/3_Computed_Maps/hyper.tif");
 		ImagePlus img3=IJ.openImage("/home/fernandr/Bureau/FijiRelax_PrepaDOI/Tests_Refactoring/3_Computed_Maps/hyper.tif");
 		ImagePlus[] imgTab=new ImagePlus[] {img1,img2,img3};
 		ImagePlus hyp=VitimageUtils.hyperStackingFrames(imgTab);
 		hyp.show();
+=======
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
 		VitimageUtils.waitFor(500000);
 	}
 
@@ -687,6 +707,55 @@ public class VitimageUtils {
 	}
 
 	
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
+=======
+	public static ImagePlus getBinaryMaskUnary(ImagePlus img,double threshold) {
+		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getStackSize();
+		int type=(img.getType()==ImagePlus.GRAY8 ? 8 : img.getType()==ImagePlus.GRAY16 ? 16 : img.getType()==ImagePlus.GRAY32 ? 32 : 24);
+		ImagePlus ret=IJ.createImage("", dimX, dimY, dimZ, 8);
+		VitimageUtils.adjustImageCalibration(ret,img);
+		if(type==8) {
+			for(int z=0;z<dimZ;z++) {
+				byte []tabImg=(byte[])img.getStack().getProcessor(z+1).getPixels();
+				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					for(int y=0;y<dimY;y++) {
+						if( (tabImg[dimX*y+x] & 0xff) >= (byte)(((int)Math.round(threshold)) & 0xff)  )tabRet[dimX*y+x]=(byte)(1 & 0xff);
+						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
+					}
+				}
+			}
+		}
+		else if(type==16) {
+			for(int z=0;z<dimZ;z++) {
+				short []tabImg=(short[])img.getStack().getProcessor(z+1).getPixels();
+				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					for(int y=0;y<dimY;y++) {
+						if( (tabImg[dimX*y+x] & 0xffff) >= (short)(((int)Math.round(threshold)) & 0xffff)  )tabRet[dimX*y+x]=(byte)(1 & 0xff);
+						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
+					}
+				}
+			}
+		}
+		else if(type==32) {
+			for(int z=0;z<dimZ;z++) {
+				float []tabImg=(float[])img.getStack().getProcessor(z+1).getPixels();
+				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					for(int y=0;y<dimY;y++) {
+						if( (tabImg[dimX*y+x]) >= threshold )tabRet[dimX*y+x]=(byte)(1 & 0xff);
+						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
+					}
+				}
+			}
+		}
+		else VitiDialogs.notYet("getBinary Mask type "+type);
+		return ret;
+	}
+
+	
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
 	
 	
 	
@@ -1242,6 +1311,10 @@ public class VitimageUtils {
 		ImagePlus img=new ImagePlus("Composite",is);
 		VitimageUtils.adjustImageCalibration(img, img1Source);
 		return img;
+	}
+
+	public static ImagePlus compositeRGBByteTab(ImagePlus[] imgSource){
+		return compositeRGBByte(imgSource[0],imgSource[1],imgSource[2],1,1,1);
 	}
 
 	
@@ -3306,6 +3379,36 @@ public class VitimageUtils {
 			    content.append(System.lineSeparator());
 			}
 		} catch (IOException e) {
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
+			// TODO Auto-generated catch block
+=======
+			
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
+			e.printStackTrace();
+		}
+
+		return content.toString();
+	}
+	
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
+=======
+	public static String readStringFromFile2(String file) {	
+		BufferedReader reader=null;
+		try {
+			reader = new BufferedReader(new InputStreamReader(new FileInputStream(file),"utf-8"));
+		} catch (UnsupportedEncodingException | FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		StringBuilder content = new StringBuilder();
+		String line;
+
+		try {
+			while ((line = reader.readLine()) != null) {
+			    content.append(line);
+			    content.append(System.lineSeparator());
+			}
+		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -3313,6 +3416,7 @@ public class VitimageUtils {
 		return content.toString();
 	}
 	
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
 	
 	public static void writeIntInFile(String file,int a) {
 		writeStringInFile(""+a,file);
@@ -3603,20 +3707,21 @@ public class VitimageUtils {
 		return res;
 	}
 		
-	public static ImagePlus binaryOperationBetweenTwoImages(ImagePlus in1,ImagePlus in2,int op_1OR_2AND_3Pouet_4SUB) {
+	public static ImagePlus binaryOperationBetweenTwoImages(ImagePlus in1,ImagePlus in2,int op_1OR_2AND_3Pouet_4PRIVEDE) {
 		ImagePlus img=null;
 		img=new Duplicator().run(in1);
 		VitimageUtils.adjustImageCalibration(img, in1);
 		ImageCalculator ic = new ImageCalculator();
 		ImagePlus res=null;
-		switch (op_1OR_2AND_3Pouet_4SUB) {
+		switch (op_1OR_2AND_3Pouet_4PRIVEDE) {
 		case OP_ADD :res=ic.run("OR "+" create stack", img, in2);break;
 		case OP_MULT :res=ic.run("AND "+" create stack", img, in2);break;
 		case OP_DIV :return null;
-		case OP_SUB :res=ic.run("DIFF "+" create stack", img, in2);break;
+		case OP_SUB :ImagePlus res2=ic.run("Difference "+" create stack", img, in2);res=ic.run("AND "+" create stack", res2, in1);res2.close();break;
 		}
-		res.hide();
-		return res;
+		ImagePlus result=res.duplicate();
+		res.close();
+		return result;
 	}
 
 	public static ImagePlus switchAxis(ImagePlus img,int switch_0XY_1XZ_2YZ) {
@@ -3876,6 +3981,10 @@ public class VitimageUtils {
 	
 	
 	public static void showWithParams(ImagePlus img,String title,int zSlice,double min, double max) {
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
+=======
+		
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
 		img.show();
 		img.setTitle(title);	
 		IJ.run(img,"Fire","");
@@ -3932,6 +4041,8 @@ public class VitimageUtils {
 
 	public static ImagePlus switchValueInImage(ImagePlus img,int valueBefore, int valueAfter) {
 		ImagePlus out=img.duplicate();
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
+=======
 		int xMax=img.getWidth();
 		int yMax=img.getHeight();
 		int zMax=img.getStackSize();
@@ -3962,6 +4073,49 @@ public class VitimageUtils {
 		return out;
 	}
 
+	public static ImagePlus switchTwoValuesInImage(ImagePlus img,int valueBefore, int valueAfter,int valueBefore2, int valueAfter2) {
+		ImagePlus out=img.duplicate();
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
+		int xMax=img.getWidth();
+		int yMax=img.getHeight();
+		int zMax=img.getStackSize();
+		if(img.getType() == ImagePlus.GRAY8) {
+			for(int z=0;z<zMax;z++) {
+				byte[]valsImg=(byte [])out.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<xMax;x++) {
+					for(int y=0;y<yMax;y++) {
+						if(  ((int) ( ((byte)valsImg[xMax*y+x])  & 0xff) ==valueBefore ) ) {
+							valsImg[xMax*y+x]=(byte)( valueAfter &0xff);
+						}
+						else if(  ((int) ( ((byte)valsImg[xMax*y+x])  & 0xff) ==valueBefore2 ) ) {
+							valsImg[xMax*y+x]=(byte)( valueAfter2 &0xff);
+						}
+					}
+				}			
+			}
+		}
+		if(img.getType() == ImagePlus.GRAY16) {
+			for(int z=0;z<zMax;z++) {
+				short[]valsImg=(short [])out.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<xMax;x++) {
+					for(int y=0;y<yMax;y++) {
+						//System.out.println("Comparing "+ ((int) ( ((byte)valsImg[xMax*y+x])  & 0xffff))+ " and "+valueBefore);
+						if(  ((int) ( ((short)valsImg[xMax*y+x])  & 0xffff) ==valueBefore ) ) {
+							//System.out.println("Ok 1");
+							valsImg[xMax*y+x]=(short)( valueAfter &0xffff);
+						}
+						else if(  ((int) ( ((short)valsImg[xMax*y+x])  & 0xffff) ==valueBefore2 ) ) {
+							//System.out.println("Ok 2");
+							valsImg[xMax*y+x]=(short)( valueAfter2 &0xffff);
+						}
+					}
+				}			
+			}
+		}
+		return out;
+	}
+
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
 	public static ImagePlus switchTwoValuesInImage(ImagePlus img,int valueBefore, int valueAfter,int valueBefore2, int valueAfter2) {
 		ImagePlus out=img.duplicate();
 		int xMax=img.getWidth();
@@ -4003,6 +4157,8 @@ public class VitimageUtils {
 		return out;
 	}
 
+=======
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
 	
 	public static ImagePlus setImageToValue(ImagePlus imgIn,double value) {
 		if(imgIn.getType()==ImagePlus.GRAY32)return set32bitToValue(imgIn,value);
@@ -4579,8 +4735,15 @@ public class VitimageUtils {
 		int cMax=hyperImg.getNChannels();
 		String[]tabStr=new String[cMax];
 		for(int c=0;c<cMax;c++)tabStr[c]=hyperImg.getStack().getSliceLabel(getCorrespondingSliceInHyperImage(hyperImg, c, 0, 0));
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
 		int indexC=0;
 		for(int c=0;c<cMax;c++) {
+=======
+		System.out.println("DEBUG 1");
+		int indexC=0;
+		for(int c=0;c<cMax;c++) {
+			System.out.print("c="+c+" : "+tabStr[c]+ "  -  ");
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
 			if(tabStr[c]==null || tabStr[c].length()==0)continue;
 			String[] tabS=tabStr[c].split("_");
 			int valT1=0;
@@ -4591,14 +4754,25 @@ public class VitimageUtils {
 				if(tabS[s].contains("TE="))valT2=(int)Double.parseDouble(tabS[s].replace("TE=",""));
 				if(tabS[s].contains("TR="))valT1=(int)Double.parseDouble(tabS[s].replace("TR=",""));
 			}
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
 			if(valT1<=0 || valT2<=0 || valT1 > 9999) {continue;}
+=======
+			System.out.print("detected T1="+valT1+" T2="+valT2);
+			if(valT1<=0 || valT2<=0 || valT1 > 9999) {System.out.println("Continue");continue;}
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
 			if(valT1>maxT1) {
 				indexC=c;maxT1=valT1;maxT2=valT2;
 			}
 			if(valT1==maxT1 && valT2<maxT2) {
 				indexC=c;maxT1=valT1;maxT2=valT2;				
 			}
+<<<<<<< HEAD:src/main/java/com/vitimage/common/VitimageUtils.java
 		}
+=======
+			System.out.println(" apres ça, indMax="+indexC+", à T1T2="+valT1+","+valT2);
+		}
+		System.out.println("Val detected="+indexC);
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/common/VitimageUtils.java
 		return indexC;
 	}
 	

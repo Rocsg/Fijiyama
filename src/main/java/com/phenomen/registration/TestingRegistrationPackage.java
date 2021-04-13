@@ -1,4 +1,4 @@
-package com.vitimage.registration;
+package com.phenomen.registration;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -7,11 +7,11 @@ import java.util.Date;
 import org.itk.simple.DisplacementFieldJacobianDeterminantFilter;
 import org.itk.simple.DisplacementFieldTransform;
 
-import com.vitimage.common.TransformUtils;
-import com.vitimage.common.VitiDialogs;
-import com.vitimage.common.VitimageUtils;
-import com.vitimage.fijiyama.Fijiyama_GUI;
-import com.vitimage.fijiyama.RegistrationAction;
+import com.phenomen.common.TransformUtils;
+import com.phenomen.common.VitiDialogs;
+import com.phenomen.common.VitimageUtils;
+import com.phenomen.fijiyama.Fijiyama_GUI;
+import com.phenomen.fijiyama.RegistrationAction;
 
 import ij.IJ;
 import ij.ImageJ;

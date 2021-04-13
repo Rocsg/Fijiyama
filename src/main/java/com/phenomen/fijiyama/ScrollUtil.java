@@ -1,4 +1,4 @@
-package com.vitimage.fijiyama;
+package com.phenomen.fijiyama;
 import java.awt.Rectangle;
 
 import javax.swing.JComponent;

@@ -1,4 +1,4 @@
-package com.vitimage.registration;
+package com.phenomen.registration;
 import java.util.ArrayList;
 
 import org.itk.simple.ComposeImageFilter;
@@ -15,11 +15,11 @@ import org.itk.simple.VectorDouble;
 import org.itk.simple.VectorIndexSelectionCastImageFilter;
 import org.scijava.java3d.Transform3D;
 
-import com.vitimage.common.ItkImagePlusInterface;
-import com.vitimage.common.Timer;
-import com.vitimage.common.TransformUtils;
-import com.vitimage.common.VitiDialogs;
-import com.vitimage.common.VitimageUtils;
+import com.phenomen.common.ItkImagePlusInterface;
+import com.phenomen.common.Timer;
+import com.phenomen.common.TransformUtils;
+import com.phenomen.common.VitiDialogs;
+import com.phenomen.common.VitimageUtils;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -324,7 +324,6 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		ImagePlus imgWeights=new Duplicator().run(imgRef,1,1,1,imgRef.getNSlices(),1,1);
 		IJ.run(imgWeights,"32-bit","");
 		imgWeights=VitimageUtils.set32bitToValue(imgWeights, 0);
-		imgWeights.show();
 		ImagePlus imgFieldX=imgWeights.duplicate();
 				
 		for(int i=0;i<nPt;i++) {
@@ -332,8 +331,8 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			imgFieldX.getStack().getProcessor(coordinates[i][2]+1).setf(coordinates[i][0], coordinates[i][1], (float)values[i]);
 		}
 		
-		imgWeights=VitimageUtils.gaussianFiltering(imgWeights, sigma,sigma , sigma);
-		imgFieldX=VitimageUtils.gaussianFiltering(imgFieldX, sigma,sigma , sigma);
+		imgWeights=VitimageUtils.gaussianFiltering(imgWeights, sigma,sigma ,dimensions[2]==1 ? 0 : sigma);
+		imgFieldX=VitimageUtils.gaussianFiltering(imgFieldX, sigma,sigma , dimensions[2]==1 ? 0 : sigma);
 		
 		//Divide values by the smooth weights
 		for(int z=0;z<dimensions[2];z++) {

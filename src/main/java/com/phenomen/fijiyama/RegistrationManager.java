@@ -1,4 +1,4 @@
-package com.vitimage.fijiyama;
+package com.phenomen.fijiyama;
 
 import java.awt.Color;
 import java.awt.Frame;
@@ -17,14 +17,14 @@ import org.apache.commons.io.FileUtils;
 import org.scijava.java3d.Transform3D;
 import org.scijava.vecmath.Color3f;
 
-import com.vitimage.common.TransformUtils;
-import com.vitimage.common.VitiDialogs;
-import com.vitimage.common.VitimageUtils;
-import com.vitimage.registration.BlockMatchingRegistration;
-import com.vitimage.registration.ItkRegistration;
-import com.vitimage.registration.ItkTransform;
-import com.vitimage.registration.OptimizerType;
-import com.vitimage.registration.Transform3DType;
+import com.phenomen.common.TransformUtils;
+import com.phenomen.common.VitiDialogs;
+import com.phenomen.common.VitimageUtils;
+import com.phenomen.registration.BlockMatchingRegistration;
+import com.phenomen.registration.ItkRegistration;
+import com.phenomen.registration.ItkTransform;
+import com.phenomen.registration.OptimizerType;
+import com.phenomen.registration.Transform3DType;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -385,7 +385,11 @@ public class RegistrationManager{
 	public String[] getRefAndMovPaths() {
 		try {
 			String pathToRef;
+<<<<<<< HEAD:src/main/java/com/vitimage/fijiyama/RegistrationManager.java
 			try{pathToRef=VitiDialogs.openJFileUI("Choose a reference (fixed) image",null, "");} catch (Exception e) {return null;}
+=======
+			try{pathToRef=VitiDialogs.openJFileUI("Choose a reference (fixed) image", "", "");} catch (Exception e) {return null;}
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/fijiyama/RegistrationManager.java
 			if(pathToRef==null)return null;
 			String dirRef=new File(pathToRef).getParent();
 			VitimageUtils.waitFor(200);
@@ -820,7 +824,17 @@ public class RegistrationManager{
 			for(int nm=0;nm<this.nMods;nm++) {
 				if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 					if(this.transforms[nt][nm]==null)this.transforms[nt][nm]=new ArrayList<ItkTransform>();//If it is not the case, it is a startup from a file
+<<<<<<< HEAD:src/main/java/com/vitimage/fijiyama/RegistrationManager.java
 					File f=new File(this.paths[nt][nm]);
+=======
+					System.out.println("\nDebug RX");
+					System.out.println("NT="+nt+" NM="+nm);
+					System.out.println("Instruction=");
+					System.out.println("ImagePlus imgTemp=IJ.openImage("+this.paths[nt][nm]+");");
+					File f=new File(this.paths[nt][nm]);
+					if(f.isFile()) {System.out.println("Le fichier existe");}
+					else {System.out.println("Le fichier n' existe pas");}
+>>>>>>> 262e99c... Change package name for deposit on mvnrepository:src/main/java/com/phenomen/fijiyama/RegistrationManager.java
 					ImagePlus imgTemp=IJ.openImage(osIndependantPath(this.paths[nt][nm]));
 
 					if(detectRX(imgTemp))rxDetected=true;

@@ -1,4 +1,4 @@
-package com.vitimage.common;
+package com.phenomen.common;
 
 import ij.IJ;
 

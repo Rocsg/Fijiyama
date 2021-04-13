@@ -1,4 +1,4 @@
-package com.vitimage.registration;
+package com.phenomen.registration;
 //TODO : common
 public enum Transform3DType {
 	TRANSLATION,

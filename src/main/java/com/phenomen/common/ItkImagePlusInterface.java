@@ -1,4 +1,4 @@
-package com.vitimage.common;
+package com.phenomen.common;
 //TODO common
 
 import org.itk.simple.DisplacementFieldTransform;
@@ -8,7 +8,7 @@ import org.itk.simple.VectorDouble;
 import org.itk.simple.VectorFloat;
 import org.itk.simple.VectorUInt32;
 
-import com.vitimage.registration.ItkTransform;
+import com.phenomen.registration.ItkTransform;
 
 import ij.IJ;
 import ij.ImagePlus;

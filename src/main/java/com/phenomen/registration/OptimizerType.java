@@ -1,4 +1,4 @@
-package com.vitimage.registration;
+package com.phenomen.registration;
 
 public enum OptimizerType {
 	ITK_GRADIENT,
