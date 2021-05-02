@@ -242,8 +242,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
  */
 	@SuppressWarnings("unchecked")
 	public ItkTransform runBlockMatching(ItkTransform trInit,boolean stressTest) {
-		System.out.println("Wil display ?"+displayRegistration);
-		System.out.println("Dims vox before="+VitimageUtils.imageResume(imgMov));
 		double[]timesGlob=new double[20];
 		double[][]timesLev=new double[nbLevels][20];
 		double[][][]timesIter=new double[nbLevels][nbIterations][20];
@@ -1033,7 +1031,6 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
  */
 
 	public void updateViews(int level,int iteration,int subpixellic,String textTrans) {
-		System.out.println("Entering and "+displayRegistration);
 		String textIter=String.format("Level=%1d/%1d - Iter=%3d/%3d - %s",
 				level+1,this.levelMax-this.levelMin+1,
 				iteration+1,this.nbIterations,subpixellic>0 ? ("subpixellic 1/"+((int)Math.pow(2,subpixellic))+" pixel") :""

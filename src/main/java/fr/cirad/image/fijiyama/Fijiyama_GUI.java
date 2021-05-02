@@ -1457,7 +1457,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 						for(int i=0;i<tab[tInd].length;i++) {
 							int imgInd=tab[tInd][i];
 							IJ.log("\nStarting processing Rsml # "+(imgInd+1)+" / "+N+" at "+t.toCuteString());
-							if(new File(filesList[1][imgInd]).exists())continue;
+							if(new File(filesList[1][i]).exists()) {
+								IJ.log("Skipping rsml cause output file already exists : "+filesList[1][i]);
+								continue;
+							}
 							RootModel r=BlockMatchingRegistration.setupAndRunRsmlBlockMatchingRegistration(filesList[0][imgInd], display,true);
 							r.writeRSML(filesList[3][imgInd], dirOut);
 							ImagePlus img=IJ.openImage(filesList[0][imgInd]);
@@ -1475,7 +1478,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		else {
 			for(int i=0;i<N;i++) {
 				IJ.log("\nStarting processing Rsml # "+(i+1)+" / "+N+" at "+t.toCuteString());
-				if(new File(filesList[1][i]).exists())continue;
+				if(new File(filesList[1][i]).exists()) {
+					IJ.log("Skipping rsml cause output file already exists : "+filesList[1][i]);
+					continue;
+				}
 				RootModel r=BlockMatchingRegistration.setupAndRunRsmlBlockMatchingRegistration(filesList[0][i], display,false);
 				r.writeRSML(filesList[3][i], dirOut);
 				ImagePlus img=IJ.openImage(filesList[0][i]);

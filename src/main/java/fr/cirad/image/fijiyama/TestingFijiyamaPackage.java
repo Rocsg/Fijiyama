@@ -21,11 +21,11 @@ public class TestingFijiyamaPackage {
 
 	public static void main(String[]args) {
 		ImageJ ij=new ImageJ();
-		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/test.tif");
-		LUT[] luts = img.getLuts();
-		for(int i=0;i<luts.length;i++) {
-			System.out.println("Lut number " +i+luts[i]);
-		}
+		ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/testImg.tif");
+		img.show();
+		ij3d.Image3DUniverse universe=new ij3d.Image3DUniverse();
+		universe.show();
+
 		VitimageUtils.waitFor(1000000);
 		ImagePlus imgRef=img.duplicate();
 		img.setC(1);

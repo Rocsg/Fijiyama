@@ -823,8 +823,6 @@ public class RegistrationManager{
 				if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 					if(this.transforms[nt][nm]==null)this.transforms[nt][nm]=new ArrayList<ItkTransform>();//If it is not the case, it is a startup from a file
 					File f=new File(this.paths[nt][nm]);
-					if(f.isFile()) {System.out.println("Le fichier existe");}
-					else {System.out.println("Le fichier n' existe pas");}
 					ImagePlus imgTemp=IJ.openImage(osIndependantPath(this.paths[nt][nm]));
 
 					if(detectRX(imgTemp))rxDetected=true;
@@ -1422,6 +1420,7 @@ public class RegistrationManager{
 		IJ.run(refCopy,"8-bit","");
 		this.universe=new ij3d.Image3DUniverse();
 		universe.show();
+		
 		ShortCuts sho=universe.getShortcuts();
 		sho.clearShortCut("View > Set view > + YZ");
 		String sentence="";
