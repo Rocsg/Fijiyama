@@ -5,9 +5,20 @@
 		http://maven.apache.org/xsd/maven-5.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.phenomen</groupId>
-	<artifactId>Fijiyama_GUI</artifactId>
+	<artifactId>Fijiyama</artifactId>
 
 
+	<distributionManagement>
+		<snapshotRepository>
+			<id>Fijiyama</id>
+			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+		</snapshotRepository>
+		<repository>
+			<id>Fijiyama</id>
+			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/
+			</url>
+		</repository>
+	</distributionManagement>
 
 
 	<scm>
@@ -63,7 +74,7 @@
 		</mailingList>
 	</mailingLists>
 	<version>4.0.0</version>
-	<name>Fijiyama_GUI</name>
+	<name>Fijiyama</name>
 	<packaging>jar</packaging>
 	<description>Fijiyama : a versatile registration tool for 3D multimodal time-lapse imaging</description>
 	<inceptionYear>2019</inceptionYear>
@@ -129,6 +140,7 @@
 		    <artifactId>commons-math3</artifactId>
 		    <version>3.6.1</version>
 		</dependency>
-
 	</dependencies>
+
+
 </project>
