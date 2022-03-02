@@ -35,9 +35,12 @@ import javax.swing.JTextArea;
 
 import org.scijava.java3d.Transform3D;
 
+/*
 import fr.cirad.image.fijiyama.Fijiyama_GUI;
 import fr.cirad.image.fijiyama.RegistrationAction;
 import fr.cirad.image.fijiyama.RegistrationManager;
+import fr.cirad.image.fijiyama.ScrollUtil;
+*/
 
 import fr.cirad.image.common.Timer;
 import fr.cirad.image.common.TransformUtils;
@@ -48,8 +51,8 @@ import fr.cirad.image.registration.ItkRegistration;
 import fr.cirad.image.registration.ItkTransform;
 import fr.cirad.image.registration.OptimizerType;
 import fr.cirad.image.registration.Transform3DType;
-import fr.cirad.image.rsmlviewer.FSR;
-import fr.cirad.image.rsmlviewer.RootModel;
+import fr.cirad.image.rsml.FSR;
+import fr.cirad.image.rsml.RootModel;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -113,7 +116,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public boolean doStressTest=false;
 	public boolean isSurvivorVncTunnelLittleDisplay=false;
 	public String versionName="Handsome honeysuckle";
-	public String timeVersionFlag="  Release time : 2021-04-22 - 16:43 PM";
+	public String timeVersionFlag="  Release : 2021-10-27 -15:52 PM - Friederike's fix";
 	public String versionFlag=versionName+timeVersionFlag;
 	public ImagePlus imgView;
 	private boolean enableHighAcc=true;
@@ -192,14 +195,16 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	
 	//Registration interface attributes
 	private String[]textActions=new String[] {"1- Manual registration","2- Automatic registration","3- Align both images with XYZ axis"," "," "," ","-- Evaluate mismatch"};
-	private String[]textOptimizers=new String[] {"Block-Matching","ITK"};
+	private String[]textOptimizers=new String[] {"Block-Matching","ITK","Mass center","Inertia axis"};
 	private String[]textTransformsBM=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)","Vector field "};
 	private String[]textTransformsITK=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)"};
+	private String[]textTransformsMass=new String[] {"Rigid (no deformations)"};
 	private String[]textTransformsMAN=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)","Vector field "};
 	private String[]textTransformsALIGN=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)"};
 	private String[]textDisplayITK=new String[] {"0-Only at the end (faster)","1-Dynamic display (slower)"};
 	private String[]textDisplayBM=new String[] {"0-Only at the end (faster)","1-Dynamic display (slower)","2-Also display score map (slower+)"};
 	private String[]textDisplayMan=new String[] {"3d viewer (volume rendering)","2d viewer (classic slicer)"};
+	private String[]textDisplayMass=new String[] {"0-Only at the end (faster)"};
 	
 	//Interface text, label and lists
 	private JList<String>listActions=new JList<String>(new String[]{spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces});
@@ -264,6 +269,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	private Font mySurvivalFontForLittleDisplays=null;
 	private boolean undoButtonHasBeenPressed=false;
 	private int yogiteaLevel=0;
+	private int pairLevel;
 	
 
 
@@ -313,7 +319,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			modeWindow=WINDOWIDLE;
 	}
 
-
+	//TODO : match centroids
+	
+	
 	public void startTwoImagesRegistration() {
 		this.mode=MODE_TWO_IMAGES;
 		this.modeWindow=WINDOWTWOIMG;
@@ -447,7 +455,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			this.boxDisplay.setSelectedIndex(regManager.getCurrentAction().typeAutoDisplay);
 			this.boxTypeAction.setSelectedIndex(regManager.getCurrentAction().typeAction);
 			this.boxDisplayMan.setSelectedIndex(regManager.getCurrentAction().typeManViewer);
-			this.boxOptimizer.setSelectedIndex(regManager.getCurrentAction().typeOpt==OptimizerType.BLOCKMATCHING ? 0 : 1);
+			if(regManager.getCurrentAction().typeOpt==OptimizerType.BLOCKMATCHING)this.boxOptimizer.setSelectedIndex(0);
+			else if(regManager.getCurrentAction().typeOpt==OptimizerType.MASSCENTER)this.boxOptimizer.setSelectedIndex(2);
+			else if(regManager.getCurrentAction().typeOpt==OptimizerType.INERTIA_AXIS)this.boxOptimizer.setSelectedIndex(3);
+			else this.boxOptimizer.setSelectedIndex(1);
 			this.boxTypeTrans.setSelectedIndex(regManager.getCurrentAction().typeTrans == Transform3DType.RIGID ? 0 : regManager.getCurrentAction().typeTrans == Transform3DType.DENSE ? 2 : 1 );
 		}
 		
@@ -1202,6 +1213,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							ImagePlus imgMovCurrentState=regManager.getCurrentMovComposedTransform().transformImage(regManager.getCurrentRefImage(),regManager.getCurrentMovImage(),false);
 							imgMovCurrentState.setDisplayRange(regManager.getCurrentMovRange()[0],regManager.getCurrentMovRange()[1]);
 							if(regManager.getCurrentAction().typeManViewer==RegistrationAction.VIEWER_3D) {
+								if(true)System.out.println("Starting viewer 3D in Fijiyama GUI");
 								regManager.start3dManualRegistration(regManager.getCurrentRefImage(),imgMovCurrentState);
 								setRunToolTip(MANUAL3D);
 							}
@@ -1430,6 +1442,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			if(!VitiDialogs.getYesNoUI("Warning", "Warning: there seems to be other files in the output dir. Risk of erasing older files. Process anyway ?"))return;
 		}
 		final String[][]filesList=rsmlFilesList(dirIn,dirOut);
+		for(int i=0;i<filesList[0].length;i++) {
+			System.out.println("At start, file["+i+"]="+filesList[0][i]);
+		}
 		if(filesList==null) {IJ.showMessage("Critical fail : bogus rsml file list, rsml and image files does not match. Next time, please provide a well-formed directory with couples (rsml, image) files, with the same basename");return;}
 		int nImgs=filesList[0].length;
 		int nMins=1*nImgs;
@@ -1444,7 +1459,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(display)multiThread=false;
 
 		if(multiThread) {
-			int Ncores=VitimageUtils.getNbCores()/2;
+			int Ncores=VitimageUtils.getNbCores()/4;
 			Thread[]tabThreads=VitimageUtils.newThreadArray(Ncores);
 			final int[][]tab=VitimageUtils.listForThreads(N, Ncores);
 			AtomicInteger atomNumThread=new AtomicInteger(0);
@@ -1456,9 +1471,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 						int tInd=atomNumThread.getAndIncrement();
 						for(int i=0;i<tab[tInd].length;i++) {
 							int imgInd=tab[tInd][i];
+//							System.out.println("In thread "+tInd+" processing index "+tInd+" = "+);
 							IJ.log("\nStarting processing Rsml # "+(imgInd+1)+" / "+N+" at "+t.toCuteString());
-							if(new File(filesList[1][i]).exists()) {
-								IJ.log("Skipping rsml cause output file already exists : "+filesList[1][i]);
+							if(new File(filesList[1][imgInd]).exists()) {
+								IJ.log("Skipping rsml cause output file already exists : "+filesList[1][imgInd]);
 								continue;
 							}
 							RootModel r=BlockMatchingRegistration.setupAndRunRsmlBlockMatchingRegistration(filesList[0][imgInd], display,true);
@@ -1469,6 +1485,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							r.clearDatafile();
 							r=null;
 							img=null;
+							
 						}
 					}
 				};  		
@@ -1578,7 +1595,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public void updateList() {
 		this.listActions.setModel(regManager.getPipelineAslistModelForGUI());
 		this.listActions.setSelectedIndex(regManager.getStep());
-		fr.cirad.image.fijiyama.ScrollUtil.scroll(listActions,fr.cirad.image.fijiyama.ScrollUtil.SELECTED,new int[] {listActions.getSelectedIndex(),regManager.getNbSteps()+1});
+		ScrollUtil.scroll(listActions,ScrollUtil.SELECTED,new int[] {listActions.getSelectedIndex(),regManager.getNbSteps()+1});
 	}
 			
 	public void updateEstimatedTime() {
@@ -1588,7 +1605,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		int nbSec=estimatedTime%60;
 		this.labelTime2.setText(""+nbMin+" mn and "+nbSec+" s");
 	}
-		
+	
 	public void actionClickedInList() {
 		if(modeWindow!=WINDOWSERIEPROGRAMMING)return;
 		if(listActions.getSelectedIndex()>=regManager.getNbSteps() ) return;
@@ -1602,7 +1619,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		updateBoxFieldsToCoherenceAndApplyToRegistrationAction(false);
 		boxDisplay.setSelectedIndex(regManager.getCurrentAction().typeAutoDisplay);
 		boxDisplayMan.setSelectedIndex(regManager.getCurrentAction().typeManViewer);
-		boxOptimizer.setSelectedIndex(regManager.getCurrentAction().typeOpt==OptimizerType.BLOCKMATCHING ? 0 : 1);
+		if(regManager.getCurrentAction().typeOpt==OptimizerType.BLOCKMATCHING)this.boxOptimizer.setSelectedIndex(0);
+		else if(regManager.getCurrentAction().typeOpt==OptimizerType.MASSCENTER)this.boxOptimizer.setSelectedIndex(2);
+		else if(regManager.getCurrentAction().typeOpt==OptimizerType.INERTIA_AXIS)this.boxOptimizer.setSelectedIndex(3);
+		else this.boxOptimizer.setSelectedIndex(1);
 		updateBoxFieldsToCoherenceAndApplyToRegistrationAction(true);
 	}
 
@@ -1640,6 +1660,15 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			this.boxTypeTrans.setModel(listModelTrans);
 			this.boxTypeTrans.setSelectedIndex(Math.min(valTrans,textTransformsITK.length-1));
 		}
+		else if(boxTypeAction.getSelectedIndex()==1 && boxOptimizer.getSelectedIndex()>1) {
+			for(int i=0;i<textDisplayMass.length;i++)listModelDisp.addElement(textDisplayMass[i]);
+	        for(int i=0;i<textTransformsMass.length;i++)listModelTrans.addElement(textTransformsMass[i]);
+			
+	        this.boxDisplay.setModel(listModelDisp);
+			this.boxDisplay.setSelectedIndex(Math.min(valDisp,textDisplayMass.length-1));
+			this.boxTypeTrans.setModel(listModelTrans);
+			this.boxTypeTrans.setSelectedIndex(Math.min(valTrans,textTransformsMass.length-1));
+		}
 		else if(boxTypeAction.getSelectedIndex()==0) {
 	        for(int i=0;i<textTransformsMAN.length;i++)listModelTrans.addElement(textTransformsMAN[i]);
 			this.boxTypeTrans.setModel(listModelTrans);
@@ -1665,7 +1694,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(modeWindow!=WINDOWSERIERUNNING)updateBoxFieldsToCoherenceAndApplyToRegistrationAction(true);
 		boxDisplay.setSelectedIndex(reg.typeAutoDisplay);
 		boxDisplayMan.setSelectedIndex(reg.typeManViewer);
-		boxOptimizer.setSelectedIndex(reg.typeOpt==OptimizerType.BLOCKMATCHING ? 0 : 1);
+		if(regManager.getCurrentAction().typeOpt==OptimizerType.BLOCKMATCHING)this.boxOptimizer.setSelectedIndex(0);
+		else if(regManager.getCurrentAction().typeOpt==OptimizerType.MASSCENTER)this.boxOptimizer.setSelectedIndex(2);
+		else if(regManager.getCurrentAction().typeOpt==OptimizerType.INERTIA_AXIS)this.boxOptimizer.setSelectedIndex(3);
+		else this.boxOptimizer.setSelectedIndex(1);
 		updateList();
 		setState(new int[] {BOXOPT,BOXTIME,BOXDISP },boxTypeAction.getSelectedIndex()==1);
 		setState(new int[] {BOXDISPMAN },boxTypeAction.getSelectedIndex()!=1);
@@ -1951,7 +1983,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	       	if(this.boxTypeTrans.getSelectedIndex()!=2) {c=(int)Math.round(gd.getNextNumber()); c=c<1 ? 1 : c; regManager.getCurrentAction().selectLTS=Math.min(100,Math.max(c,5));}
 		}
 		//Parameters for Itk Iconic
-		else {//Itk parameters
+		else if(this.boxOptimizer.getSelectedIndex()==0){//Itk parameters
 	        GenericDialog gd= new GenericDialog("Expert mode for Itk registration");
 	        String[]levelsMax=new String[regManager.getMaxAcceptableLevelForTheCurrentAction()];for(int i=0;i<regManager.getMaxAcceptableLevelForTheCurrentAction();i++)levelsMax[i]=""+((int)Math.round(Math.pow(2, (i))))+"";
 			gd.addMessage(message);
@@ -1961,7 +1993,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	        gd.addMessage("Others");
 	        gd.addNumericField("Number of iterations per level",  regManager.getCurrentAction().iterationsITK, 0, 5, "iterations");
 	        gd.addNumericField("Learning rate",  regManager.getCurrentAction().learningRate, 4, 8, " no unit");
-
+	        
 	        if(this.isSurvivorVncTunnelLittleDisplay)gd.setFont(mySurvivalFontForLittleDisplays);
 	        gd.showDialog();
 	        if (gd.wasCanceled()) return;	        
@@ -1975,7 +2007,10 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	       	param3=param3<0 ? 0 : param3;  regManager.getCurrentAction().iterationsITK=param3;
 	       	double param4=gd.getNextNumber();
 	       	param4=param4<0 ? EPSILON : param4;  regManager.getCurrentAction().learningRate=param4;
-		}		
+		}	
+		else {
+			int a=1; //Nothing
+		}
 	}
 
 	public void serieIsFinished() {
@@ -2091,22 +2126,35 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		System.out.println("More about reg actions");
 		regManager.printRegActions("", regManager.regActions);
 	}
-	
+	public void handleKeyReleased(KeyEvent e) {
+		System.out.println("Released ! : "+e);
+		if(e.getKeyChar()=='t' )pairLevel++;
+		if((pairLevel>=2 && ((pairLevel%2)==0))) {Toolkit.getDefaultToolkit().beep();IJ.log("Released Nb points : "+pairLevel);}
+	}
 	public void handleKeyPress(KeyEvent e) {
-//		System.out.println("Got a key pressed : "+e.getKeyCode()+" = "+e.getKeyChar());
+		//		System.out.println("Got a key pressed : "+e.getKeyCode()+" = "+e.getKeyChar());
+		if(e.isControlDown() && e.getKeyCode() == KeyEvent.VK_T) {
+			pairLevel++;
+			if((pairLevel>=2 && ((pairLevel%2)==0))) {Toolkit.getDefaultToolkit().beep();IJ.log("Pressed Nb points : "+pairLevel);}
+		}
 		if(sosLevel==2 && e.getKeyChar()=='s') {sosLevel=0;sendingOutAnSos();return;}
-		if(sosLevel==1 && e.getKeyChar()=='o')sosLevel=2;
-		if(sosLevel==0 && e.getKeyChar()=='s')sosLevel=1;
+		else if(sosLevel==1 && e.getKeyChar()=='o')sosLevel=2;
+		else if(sosLevel==0 && e.getKeyChar()=='s')sosLevel=1;
+		else sosLevel=0;
+
 		if(regInterrogationLevel==2 && e.getKeyChar()=='g') {regInterrogationLevel=0;moreAboutRegAction();return;}
-		if(regInterrogationLevel==1 && e.getKeyChar()=='e')regInterrogationLevel=2;
-		if(regInterrogationLevel==0 && e.getKeyChar()=='r')regInterrogationLevel=1;
+		else if(regInterrogationLevel==1 && e.getKeyChar()=='e')regInterrogationLevel=2;
+		else if(regInterrogationLevel==0 && e.getKeyChar()=='r')regInterrogationLevel=1;
+		else regInterrogationLevel=0;
+
 		if(yogiteaLevel==6 && e.getKeyChar()=='a') {yogiteaLevel=0;VitimageUtils.getRelaxingPopup("",true);return;}
-		if(yogiteaLevel==5 && e.getKeyChar()=='e')yogiteaLevel=6;
-		if(yogiteaLevel==4 && e.getKeyChar()=='t')yogiteaLevel=5;
-		if(yogiteaLevel==3 && e.getKeyChar()=='i')yogiteaLevel=4;
-		if(yogiteaLevel==2 && e.getKeyChar()=='g')yogiteaLevel=3;
-		if(yogiteaLevel==1 && e.getKeyChar()=='o')yogiteaLevel=2;
-		if(yogiteaLevel==0 && e.getKeyChar()=='y')yogiteaLevel=1;
+		else if(yogiteaLevel==5 && e.getKeyChar()=='e')yogiteaLevel=6;
+		else if(yogiteaLevel==4 && e.getKeyChar()=='t')yogiteaLevel=5;
+		else if(yogiteaLevel==3 && e.getKeyChar()=='i')yogiteaLevel=4;
+		else if(yogiteaLevel==2 && e.getKeyChar()=='g')yogiteaLevel=3;
+		else if(yogiteaLevel==1 && e.getKeyChar()=='o')yogiteaLevel=2;
+		else if(yogiteaLevel==0 && e.getKeyChar()=='y')yogiteaLevel=1;
+		else yogiteaLevel=0;
 		if(regManager==null) return;
 		if(regManager.universe==null)return;
 		if(regManager.universe.getSelected()==null)return;

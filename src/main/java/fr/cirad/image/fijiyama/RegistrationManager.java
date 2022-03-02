@@ -404,16 +404,10 @@ public class RegistrationManager{
 		this.serieOutputPath=VitiDialogs.chooseDirectoryUI("Select an output directory for your work","Select an empty output directory to begin a new work");
 		if(this.serieOutputPath==null) {IJ.showMessage("No output path given. Abort");return false ;}
 		String[]files=new File(this.serieOutputPath).list();
-		if(files.length!=0)  {
-			IJ.showMessage("Directory already contains files. \nAn empty directory is needed to begin a new experiment\n(or select \"Open a previous study\" to go on an experiment)");
-			if(VitiDialogs.getYesNoUI("Remove older contents ?", "Do you want to erase all the contents of this directory : \n\n"+this.serieOutputPath+"\n.\n!! Warning : this action cannot be undone !!")) {
-				try {FileUtils.deleteDirectory(new File(this.serieOutputPath));} catch (IOException e) {e.printStackTrace();}
-				new File(this.serieOutputPath).mkdir();
-			}
-			else {
-				IJ.showMessage("Please select another directory");
-				return createOutputPathAndFjmFile() ;
-			}
+		if(files.length!=0) {
+			IJ.showMessage("Directory already contains files. \nAn empty directory is needed to begin a new experiment\n(or select \"Open a previous study\" to go on a previous experiment)");
+			IJ.showMessage("Please select or create another directory (empty)");
+			return createOutputPathAndFjmFile();
 		}
 		new File(this.serieOutputPath,"Registration_files").mkdirs();
 		new File(this.serieOutputPath,"Exported_data").mkdirs();	
@@ -821,6 +815,7 @@ public class RegistrationManager{
 		for(int nt=0;nt<this.nTimes;nt++) {
 			for(int nm=0;nm<this.nMods;nm++) {
 				if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
+					IJ.log("Opening new image : "+this.paths[nt][nm]);
 					if(this.transforms[nt][nm]==null)this.transforms[nt][nm]=new ArrayList<ItkTransform>();//If it is not the case, it is a startup from a file
 					File f=new File(this.paths[nt][nm]);
 					ImagePlus imgTemp=IJ.openImage(osIndependantPath(this.paths[nt][nm]));
@@ -1415,15 +1410,25 @@ public class RegistrationManager{
 	
 	/*Manual registration routines ********************************************************************************************************************/	
 	public void start3dManualRegistration(ImagePlus imgRef,ImagePlus imgMov) {
+		if(true)System.out.println("01 Starting viewer 3D in RegistrationManager");
 		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
 		VitimageUtils.adjustContrast3d(refCopy, Fijiyama_GUI.percentileDisplay,Fijiyama_GUI.widthRangeDisplay);
 		IJ.run(refCopy,"8-bit","");
+		if(true)System.out.println("02 Starting viewer 3D in RegistrationManager");
+		VitimageUtils.waitFor(2000);
+		if(true)System.out.println("0201 Starting viewer 3D in RegistrationManager");
 		this.universe=new ij3d.Image3DUniverse();
+		VitimageUtils.waitFor(2000);
+		if(true)System.out.println("021 Starting viewer 3D in RegistrationManager");
 		universe.show();
+		if(true)System.out.println("022 Starting viewer 3D in RegistrationManager");
 		
 		ShortCuts sho=universe.getShortcuts();
+		if(true)System.out.println("023 Starting viewer 3D in RegistrationManager");
 		sho.clearShortCut("View > Set view > + YZ");
+		if(true)System.out.println("024 Starting viewer 3D in RegistrationManager");
 		String sentence="";
+		if(true)System.out.println("03 Starting viewer 3D in RegistrationManager");
 		if(imgMov!=null) {
 			ImagePlus movCopy=VitimageUtils.imageCopy(imgMov);		
 			VitimageUtils.adjustContrast3d(movCopy, Fijiyama_GUI.percentileDisplay,Fijiyama_GUI.widthRangeDisplay);
@@ -1440,6 +1445,7 @@ public class RegistrationManager{
 			universe.addOrthoslice(movCopy, new Color3f(Color.white),"refCopy",50,new boolean[] {true,true,true},1);
 			sentence="Move the red volume (reference image) to fit with the white lines (image axis).";
 		}
+		if(true)System.out.println("04 Starting viewer 3D in RegistrationManager");
 		ij3d.ImageJ3DViewer.select("movCopy");
 		universe.getSelected().showCoordinateSystem(true);
 		universe.getSelected().setThreshold(80);

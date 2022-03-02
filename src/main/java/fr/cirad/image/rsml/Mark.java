@@ -1,4 +1,4 @@
-package fr.cirad.image.rsmlviewer;
+package fr.cirad.image.rsml;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -8,8 +8,8 @@ import java.awt.Color;
 import java.awt.geom.GeneralPath;
 import javax.swing.Icon;
 
-import fr.cirad.image.rsmlviewer.Mark;
-import fr.cirad.image.rsmlviewer.Root;
+import fr.cirad.image.rsml.Mark;
+import fr.cirad.image.rsml.Root;
 
 /**
  * @author Xavier Draye - Universit� catholique de Louvain

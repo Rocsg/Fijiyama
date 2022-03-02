@@ -6,10 +6,20 @@ import ij.IJ;
 
 public class Timer {
 	long initTime;
+	long markTime;
 	public Timer() {
 		initTime=System.currentTimeMillis();
 	}
 
+	public void mark() {
+		markTime=System.currentTimeMillis();
+	}
+	
+	public String gather(String title) {
+		double d=VitimageUtils.dou(0.001*(System.currentTimeMillis()-markTime));
+		return (title+" : "+d+" s");
+	}
+	
 	public double getTime() {
 		return VitimageUtils.dou(0.001*(System.currentTimeMillis()-initTime));
 	}

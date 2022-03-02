@@ -520,7 +520,7 @@ public interface VitiDialogs {
 		IJ.run(imgInspect,"8-bit","");
 		ImagePlus imgPoint=ij.gui.NewImage.createImage("point",img.getWidth(),img.getHeight(),img.getStackSize(),8,ij.gui.NewImage.FILL_BLACK);
 		VitimageUtils.adjustImageCalibration(imgPoint,imgInspect);
-		imgPoint=VitimageUtils.drawCircleInImage(imgPoint,ray,(int)Math.round(pointCoordImage.x),(int)Math.round(pointCoordImage.y),(int)Math.round(pointCoordImage.z));
+		imgPoint=VitimageUtils.drawCircleInImage(imgPoint,ray,(int)Math.round(pointCoordImage.x),(int)Math.round(pointCoordImage.y),(int)Math.round(pointCoordImage.z),255);
 		ImagePlus comp=VitimageUtils.compositeOf(imgInspect, imgPoint);
 		VitimageUtils.imageChecking(comp, (int)Math.round(pointCoordImage.z)-comp.getStackSize()/10,
 										  (int)Math.round(pointCoordImage.z)+comp.getStackSize()/10, 

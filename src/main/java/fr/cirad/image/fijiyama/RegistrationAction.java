@@ -170,6 +170,9 @@ public class RegistrationAction implements Serializable{
 		if(( this.typeTrans!=Transform3DType.DENSE ) && this.levelMinLinear>this.levelMaxLinear) this.levelMinLinear=this.levelMaxLinear;			
 	}	
 	
+	public RegistrationAction defineSettingsFromTwoImages(ImagePlus imgRef,ImagePlus imgMov) {
+		return defineSettingsFromTwoImages(imgRef,imgMov,null,false);
+	}
 	
 	public RegistrationAction defineSettingsFromTwoImages(ImagePlus imgRef,ImagePlus imgMov,RegistrationManager regManager,boolean modifyMaxLevelOfManager) {
 		this.selectScore=95;

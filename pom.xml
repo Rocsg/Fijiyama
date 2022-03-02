@@ -92,10 +92,24 @@
 
 	
 	<dependencies>
+			<!-- https://mvnrepository.com/artifact/za.co.absa.spline/commons -->
+<!-- https://mvnrepository.com/artifact/com.manyangled/snowball -->
+
+		   <dependency>
+		      <groupId>com.opencsv</groupId>
+		      <artifactId>opencsv</artifactId>
+		      <version>5.4</version>
+		  </dependency>
+		           <dependency>
+             <groupId>sc.fiji</groupId>
+             <artifactId>Fiji_Plugins</artifactId>
+             <version>3.1.1</version>
+         </dependency>
+		  
 		<dependency>
 		    <groupId>net.imagej</groupId>
 		    <artifactId>ij</artifactId>
-		    <version>1.52t</version>
+		    <version>1.53i</version>
 		</dependency>
 		<dependency>
 		    <groupId>sc.fiji</groupId>

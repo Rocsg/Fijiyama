@@ -1,7 +1,8 @@
-package fr.cirad.image.rsmlviewer;
+package fr.cirad.image.rsml;
 import java.awt.geom.*;
 
-import fr.cirad.image.rsmlviewer.Node;
+import fr.cirad.image.common.VitimageUtils;
+import fr.cirad.image.rsml.Node;
 
 /**
  * @author Xavier Draye - Universit� catholique de Louvain
@@ -19,12 +20,14 @@ import fr.cirad.image.rsmlviewer.Node;
  * @author guillaumelobet
  *
  */
-class Node {
-   float x, y, theta, length, cLength, diameter, birthTime;
-   
+public class Node {
+   public float x, y, theta, length, cLength, diameter, birthTime;
+   public float vx,vy;
    // length and cLength are in pixels
-   Node child;
-   Node parent;
+   public Node child;
+   boolean hiddenWayToChild=false;
+   public Node parent;
+   public double distance;
    boolean needsRefresh;
    boolean bCross01 = false, bCross23 = false;
    boolean pCross01 = false, pCross23 = false;   
@@ -97,6 +100,11 @@ class Node {
 	      return (float) Math.sqrt(dx * dx + dy * dy); 
 	      }
 	   
+   public boolean hasExactBirthTime() {
+	   int bthInt=(int)Math.round(birthTime);
+	   double delta=Math.abs(bthInt-birthTime);
+	   return (delta<VitimageUtils.EPSILON);
+   }
    
    /**
     * 
@@ -110,8 +118,15 @@ class Node {
       return norm(x1 - x0, y1 - y0); 
       }
 	   
-	   
-
+   
+   public boolean isParentOrEqual(Node n) {
+	   Node nThis=this;
+	   while(nThis!=null) {
+		   if(n==nThis)return true;
+		   nThis=nThis.child;
+	   }
+	   return false;
+   }
   
    /**
     * 
@@ -157,6 +172,11 @@ class Node {
       return d;
       }
 
+   
+   public static float distanceBetween(Node n1,Node n2) {
+	   return (float) Point2D.distance((double) n1.x, (double) n1.y,(double) n2.x, (double) n2.y);
+   }
+   
    /**
     * Compute the length between the base of the root and the node
     */
@@ -207,7 +227,25 @@ class Node {
 	      needsRefresh = true;
 	      }
    
-   
+   public void readRSML(org.w3c.dom.Node parentDOM,boolean timeLapse) {
+		  org.w3c.dom.Node nn = parentDOM.getAttributes().getNamedItem("coord_t");
+		  if (nn != null) birthTime = Float.valueOf(nn.getNodeValue());
+		  nn = parentDOM.getAttributes().getNamedItem("coord_x");
+		  if (nn != null) x = Float.valueOf(nn.getNodeValue()).floatValue();
+		  nn = parentDOM.getAttributes().getNamedItem("coord_y");
+		  if (nn != null) y = Float.valueOf(nn.getNodeValue()).floatValue();
+		  nn = parentDOM.getAttributes().getNamedItem("diameter");
+		  if (nn != null) diameter = Float.valueOf(nn.getNodeValue()).floatValue();
+		  nn = parentDOM.getAttributes().getNamedItem("vx");
+		  if (nn != null) vx = Float.valueOf(nn.getNodeValue()).floatValue();
+		  nn = parentDOM.getAttributes().getNamedItem("vy");
+		  if (nn != null) vy = Float.valueOf(nn.getNodeValue()).floatValue();
+      }
+
+   public String toString() {
+	   return("Node : x="+x+" y="+y+" t="+birthTime+" diam="+diameter+" vx="+vx+" vy="+vy+" haschild ?"+(this.child==null)+" hasparent ?"+(this.parent==null));
+   }
+  
    /**
     * Convert a vector to an ange
     * @param dirX

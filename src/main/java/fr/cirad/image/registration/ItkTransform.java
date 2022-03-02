@@ -176,6 +176,18 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 
 	
+	public static ItkTransform estimateBestTranslation3D(Point3d[]setRef,Point3d[]setMov) {
+		double dx=0,dy=0,dz=0;
+		for(int i=0;i<setRef.length;i++) {
+			dx+=(setRef[i].x-setMov[i].x);
+			dy+=(setRef[i].y-setMov[i].y);
+			dz+=(setRef[i].z-setMov[i].z);
+		}
+		return array16ElementsToItkTransform(new double[] {1,0,0,dx/setRef.length,  0,1,0,dy/setRef.length,  0,0,1,dz/setRef.length,  0,0,0,1});
+	}
+
+	
+	
 	public static ItkTransform estimateBestSimilarity3D(Point3d[]setRef,Point3d[]setMov) {
 		FastMatrix fm=FastMatrix.bestRigid( setMov, setRef, true );
 		IJ.log("Similarity transform computed. Coefficient of dilation : "+Math.pow(fm.det(),0.333333));
@@ -196,6 +208,11 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return ItkTransform.itkTransformFromCoefs(mat);
 	}
 		
+	/*Building a smooth deformation field from correspondance points
+	 * Description of correspondance points are in SI units, as following :
+	 * corr[0][i]=original coordinates
+	 * corr[1][i]=target coordinates
+	 */
 	public static Image computeDenseFieldFromSparseCorrespondancePoints(Point3d[][]correspondancePoints,ImagePlus imgRef,double sigma,boolean zeroPaddingOutside) {
 		double epsilon = 10E-20;
 		double []voxSizes=VitimageUtils.getVoxelSizes(imgRef);
@@ -229,19 +246,22 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		imgFieldZ.getProcessor().set(0);
 		
 		for(int i=0;i<nPt;i++) {
+			//System.out.println("Tentative d'un point "+vectPoints[i][0]+" , "+vectPoints[i][1]);
 			if(   (vectPoints[i][2]+1>0 && vectPoints[i][2]+1<=dimensions[2]) &&
 					(vectPoints[i][0]>=0 && vectPoints[i][0]<dimensions[0]) &&
 					( vectPoints[i][1]>=0 &&  vectPoints[i][1]<dimensions[1]) ) {
+				//System.out.println("Set");
 				imgWeights.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], 1);
 				imgFieldX.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], (float) vectVals[i][0]);
 				imgFieldY.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1], (float) vectVals[i][1]);
 				imgFieldZ.getStack().getProcessor(vectPoints[i][2]+1).setf(vectPoints[i][0], vectPoints[i][1],(float) vectVals[i][2]);
 			}
 		}
-		
 		imgWeights=VitimageUtils.gaussianFilteringIJ(imgWeights, sigma,sigma , (zeroPaddingOutside ? 1 : 5)*sigma);//TODO : fix the zeroPadding stuff and set gaussian to ITK for performances
 		imgFieldX=VitimageUtils.gaussianFilteringIJ(imgFieldX, sigma,sigma , (zeroPaddingOutside ? 1 : 5)*sigma);//TODO : the same for the function just after
+//		imgFieldY.duplicate().show();
 		imgFieldY=VitimageUtils.gaussianFilteringIJ(imgFieldY, sigma,sigma , (zeroPaddingOutside ? 1 : 5)*sigma);
+//		imgFieldY.duplicate().show();
 		imgFieldZ=VitimageUtils.gaussianFilteringIJ(imgFieldZ, sigma,sigma , (zeroPaddingOutside ? 1 : 5)*sigma);
 		
 		//Divide values by the smooth weights
@@ -311,6 +331,10 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 			return computeDenseFieldFromSparseCorrespondancePoints(newCorr,imgRef,sigma,false);
 		}
 	  	return ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(new ImagePlus [] {imgFieldX,imgFieldY,imgFieldZ});
+	}
+	
+	public static ItkTransform computeDenseFieldFromSparseCorrespondancePoints(Point3d[][]correspondancePoints,ImagePlus imgRef,double sigma) {
+		return new ItkTransform(new DisplacementFieldTransform( computeDenseFieldFromSparseCorrespondancePoints(correspondancePoints,imgRef,sigma,false)));
 	}
 	
 	

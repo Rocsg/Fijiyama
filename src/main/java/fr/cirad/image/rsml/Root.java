@@ -1,4 +1,4 @@
-package fr.cirad.image.rsmlviewer;
+package fr.cirad.image.rsml;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 
@@ -6,13 +6,14 @@ import java.awt.*;
 import java.awt.geom.*;
 import java.util.*;
 import java.util.List;
-import java.util.UUID;
 
-import fr.cirad.image.rsmlviewer.FSR;
-import fr.cirad.image.rsmlviewer.Mark;
-import fr.cirad.image.rsmlviewer.Node;
-import fr.cirad.image.rsmlviewer.Root;
-import fr.cirad.image.rsmlviewer.RootModel;
+import fr.cirad.image.common.TransformUtils;
+import fr.cirad.image.common.VitimageUtils;
+import fr.cirad.image.rsml.FSR;
+import fr.cirad.image.rsml.Mark;
+import fr.cirad.image.rsml.Node;
+import fr.cirad.image.rsml.Root;
+import fr.cirad.image.rsml.RootModel;
 
   
 /** 
@@ -25,8 +26,8 @@ import fr.cirad.image.rsmlviewer.RootModel;
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-class Root{
-   Node firstNode, lastNode;
+public class Root{
+   public Node firstNode, lastNode;
    int nNodes;
    public ArrayList<Root> childList = new ArrayList<Root>();
    
@@ -38,6 +39,7 @@ class Root{
    Root parent;
    Root firstChild;
    Root lastChild;
+   int order=1;
    float distanceFromApex = 0;
    float distanceFromBase = 0;
    float childDensity = 0;
@@ -95,6 +97,137 @@ class Root{
       readRSML(parentDOM, rm, parentRoot, origin);
     }
  
+   public Root(float dpi, org.w3c.dom.Node parentDOM, boolean common, Root parentRoot, RootModel rm, String origin,boolean timeLapseModel) {
+		  this.dpi = dpi;
+	      pixelSize = ((float) 2.54 / dpi);
+	      nNodes = 0;
+	      firstNode = lastNode = null;
+	      markList = new Vector<Mark>();
+	      rootID = noName;
+	      nextRootKey++;     
+	      readRSML(parentDOM, rm, parentRoot, origin,timeLapseModel);
+	    }
+
+   
+   public Root(Root parentRoot, RootModel rm,String rootID,int order) {
+	   this.order=order;
+	   nNodes = 0;
+      firstNode = lastNode = null;
+      markList = new Vector<Mark>();
+      this.rootID = rootID;
+      if(parentRoot!=null) {attachParent(parentRoot);	   parentRoot.attachChild(this);}
+      nextRootKey++;     
+  }
+
+   
+   public void computeDistances() {
+	   Node n=firstNode;
+	   n.distance=0;
+	   double dist=0;
+	   while(n.child!=null) {
+		   dist+=n.getDistanceTo(n.child);
+		   n=n.child;
+		   n.distance=dist;
+	   }
+   }
+   public double getAVGMedianDiameterInRange(double rangeMinL,double rangeMaxL){
+	   double dist = 0;
+	   double[][]tab=new double[10000][2];
+	   ArrayList<Double>ar=new ArrayList<Double>();
+	   Node node = this.firstNode;
+	   int incr=0;
+	   tab[incr++]=new double[] {0,node.diameter};
+	   ar.add(new Double(node.diameter));
+		while (node.child != null){
+			dist+=node.getDistanceTo(node.child);
+			node = node.child;
+			tab[incr++]=new double[] {dist,node.diameter};
+		}
+		int n=0;
+		for(int i=0;i<tab.length;i++)if(tab[i][0]>0 && tab[i][0]>=rangeMinL && tab[i][0]<=rangeMaxL)n++;
+		double[]tabFinal=new double[n];
+		if(n==0)return 0;
+		n=0;
+		for(int i=0;i<tab.length;i++)if(tab[i][0]>0 && tab[i][0]>=rangeMinL && tab[i][0]<=rangeMaxL)tabFinal[n++]=tab[i][1];
+		
+		double median=VitimageUtils.MADeStatsDoubleSided(tabFinal,null)[0];
+		return median;
+
+   }
+
+
+   public void updateNnodes() {
+	   Node n=firstNode;
+	   nNodes=0;
+	   while(n!=null) {
+		   nNodes++;
+		   n=n.child;
+	   }
+   }
+   
+   public Node getNodeOfParentJustAfterMyAttachment() {
+	   Node n=null;
+	   Root par=this.parent;
+	   Node nn=par.firstNode;
+	   Node nnNext=nn.child;
+	   Node bestNext=nn;
+	   if(nnNext==null)return nn;
+	   while(nnNext!=null) {
+		   if(nn.y<this.firstNode.y) {
+			   bestNext=nnNext;
+		   }
+		   nn=nnNext;
+		   nnNext=nn.child;
+	   }
+	   return bestNext;
+   }
+   
+   
+	public static double linearInterpolation(double val,Double[]xSource,Double[]ySource) {
+		int N=xSource.length;
+		int indexUpper=0;
+		if(val<=xSource[0])return ySource[0];
+		if(val>=xSource[N-1])return ySource[N-1];
+		while(xSource[indexUpper]<val)indexUpper++;
+		int indexLower=indexUpper-1;
+		double DX=xSource[indexUpper]-xSource[indexLower];
+		double DY=ySource[indexUpper]-ySource[indexLower];
+		double dx=(val-xSource[indexLower]);
+		double dy=DY*dx/DX;
+		return ySource[indexLower]+dy;
+	}
+
+	public void setLastNodeHidden() {
+		this.lastNode.hiddenWayToChild=true;
+	}
+   
+   public void interpolateTime() {
+	   Node n=firstNode;
+	   double dist0=firstNode.distance;
+	   double time0=firstNode.birthTime;
+	   ArrayList<Double>times=new ArrayList<Double>();
+	   ArrayList<Double>dists=new ArrayList<Double>();
+	   dists.add(n.distance);
+	   times.add(new Double(n.birthTime));
+	   while(n.child!=null) {
+		   n=n.child;
+		   if(n.birthTime>=0) {
+			   dists.add(n.distance);
+			   times.add(new Double( n.birthTime ));
+		   }
+	   }
+	   Double[]distsTab=dists.toArray(new Double[dists.size()]);
+	   Double[]timesTab=times.toArray(new Double[times.size()]);
+	   
+	   n=firstNode;
+	   while(n.child!=null) {
+		   n=n.child;
+		   if(n.birthTime<0) {
+			   n.birthTime=(float) linearInterpolation(n.distance, distsTab, timesTab);
+		   }
+	   }
+   }
+   
    /**
     * Add a node to the root
     * @param x
@@ -116,7 +249,41 @@ class Root{
          return firstNode; // user must reactualize cLength
          }
       }
+   public Node addNode(double x, double y, double birthTime, boolean addToBase) {
+	      if (!addToBase) {
+	         lastNode = new Node((float)x, (float)y, lastNode, true);
+	         lastNode.birthTime=(float)birthTime;
+	         if (nNodes == 0) firstNode = lastNode;
+	         nNodes++;
+	         return lastNode;
+	         }
+	      else {
+	         firstNode = new Node((float)x, (float)y, firstNode, false);
+	         firstNode.birthTime=(float)birthTime;
+	         if (nNodes == 0) lastNode = firstNode;
+	         nNodes++;
+	         return firstNode; // user must reactualize cLength
+	         }
+	      }
   
+   public Node addNode(double x, double y, double birthTime, double diameter,double vx,double vy,boolean addToBase) {
+	      if (!addToBase) {
+	         lastNode = new Node((float)x, (float)y, lastNode, true);
+	         lastNode.diameter=(float) diameter;lastNode.vx=(float) vx;lastNode.vy=(float) vy;
+	         lastNode.birthTime=(float)birthTime;
+	         if (nNodes == 0) firstNode = lastNode;
+	         nNodes++;
+	         return lastNode;
+	         }
+	      else {
+	         firstNode = new Node((float)x, (float)y, firstNode, false);
+	         firstNode.diameter=(float) diameter;firstNode.vx=(float) vx;firstNode.vy=(float) vy;
+	         firstNode.birthTime=(float)birthTime;
+	         if (nNodes == 0) lastNode = firstNode;
+	         nNodes++;
+	         return firstNode; // user must reactualize cLength
+	         }
+	      }
    /**
     * Add a mark to the root
     * @param type
@@ -165,6 +332,177 @@ class Root{
       }
 
 
+   public int resampleFlyingPoints() {
+	   int stamp=1000000;
+	   boolean debug=false && (this.firstNode!=null && this.firstNode.x==1133 && this.firstNode.y==190);
+	   if(debug)System.out.println("Root before update :");
+	   if(debug)System.out.println(this.stringNodes());
+	   if(debug)System.out.println("Processing flying points on root "+this);
+	   ArrayList<Node>ar=new ArrayList<Node>();
+	   Node nFirst=firstNode;
+	   Node nLast=lastNode;
+	   Node n=nFirst;
+	   while(n!=null) {
+		   ar.add(n);
+		   n=n.child;
+	   }
+	   int N=ar.size();
+	   Node[]tabNode=ar.toArray(new Node[N]);
+	   int tStart=(int) Math.ceil(nFirst.birthTime);
+	   int tStop=(int) Math.floor(nLast.birthTime);
+	   int [] indexT=new int[tStop+1];
+	   
+	   boolean[]tabExact=new boolean[N];
+	   boolean[]isNotFlying=new boolean[tStop+1];
+	   for(int i=0;i<N;i++) {
+		   tabExact[i]=(Math.abs(tabNode[i].birthTime-Math.round(tabNode[i].birthTime))<VitimageUtils.EPSILON);
+		   if(tabExact[i]) {
+			   int tt=Math.round(tabNode[i].birthTime);
+			   indexT[tt]=i;
+			   isNotFlying[tt]=true;
+		   }
+	   }
+	   for(int t=tStart;t<=tStop;t++) {
+		   if(isNotFlying[t])continue;
+		   stamp+=1;
+		   if(debug) System.out.println("\n\nDetected flying time : "+t);
+		   Node lastBef=null;
+		   for(int i=0;i<N;i++) {
+			   if(tabNode[i].birthTime<t)lastBef=tabNode[i];
+		   }
+		   if(debug) System.out.println("Last bef detected="+lastBef);
+		   Node firstAft=null;
+		   for(int i=N-1;i>=0;i--) {
+			   if(tabNode[i].birthTime>t)firstAft=tabNode[i];
+		   }
+		   if(debug) System.out.println("first aft detected="+firstAft);
+		   double DT=lastBef.birthTime-firstAft.birthTime;
+		   double DX=lastBef.x-firstAft.x;
+		   double DY=lastBef.y-firstAft.y;
+		   double dt=t-lastBef.birthTime;
+		   double dx=DX*dt/DT;
+		   double dy=DY*dt/DT;
+		   Node newNode=new Node(lastBef.x+(float)dx,lastBef.y+(float)dy, lastBef,true);
+		   newNode.birthTime=t;
+		   lastBef.child=newNode;
+		   newNode.parent=lastBef;
+		   newNode.child=firstAft;
+		   firstAft.parent=newNode;
+		   nNodes++;
+		   
+		   ar=new ArrayList<Node>();
+		   nFirst=firstNode;
+		   nLast=lastNode;
+		   n=nFirst;
+		   while(n!=null) {
+			   ar.add(n);
+			   n=n.child;
+		   }
+		   N=ar.size();
+		   tabNode=ar.toArray(new Node[N]);
+		   
+		   
+		   if(debug)System.out.println("Adding node "+newNode);
+		   if(debug)System.out.println("Root after update :");
+		   if(debug)System.out.println(this.stringNodes());
+		   if(debug)System.out.println("");
+	   }
+	   
+	   if(debug) System.out.println("");
+	   return stamp;
+   }
+	   
+   public String stringNodes() {
+	   String res="";
+	   Node n=this.firstNode;
+	   while(n!=null) {
+		   res+="\n"+n;
+		   n=n.child;
+	   }
+	   return res;
+   }
+   
+   public void updateTiming() {
+	   boolean debug=false;
+	   Node nStart=this.firstNode;
+	   Node nStop=this.lastNode;
+	   Node curNode=nStart;
+	   ArrayList<Node>listNode=new ArrayList<Node>();
+	   while(curNode!=null) {
+		   listNode.add(curNode);
+		   curNode=curNode.child;
+	   }
+	   int N=listNode.size();
+	   this.nNodes=N;
+	   Node[]tabNode=listNode.toArray(new Node[N]);
+	   Node[]tabNodePrev=listNode.toArray(new Node[N]);
+	   Node[]tabNodeNext=listNode.toArray(new Node[N]);
+	   boolean[]tabExact=new boolean[N];
+	   double[]distToPrev=new double[N]; 
+	   double[]distToNext=new double[N];
+	if(debug)   System.out.println("\n\nFIRST STEP, ESTABLISH EXACTITUDENESS");
+	   for(int i=0;i<N;i++) {
+		   tabExact[i]=(Math.abs(tabNode[i].birthTime-Math.round(tabNode[i].birthTime))<VitimageUtils.EPSILON);
+		   if(debug)  System.out.println(" i="+i+" isExact ?"+tabExact[i]+" "+tabNode[i]);
+	   }
+
+	   
+	   if(debug)  System.out.println("\n\nSECOND STEP, ESTABLISH FORWARD");
+	   Node prev=null;
+	   double dist=0;
+	   for(int i=0;i<N;i++) {
+		   if(debug)   System.out.println("  Processing node "+i+" : "+tabNode[i]);
+		   if(!tabExact[i]) {
+			   if(debug)  System.out.println("   Non exact");
+			   if(i>0)dist+=Node.distanceBetween(tabNode[i],tabNode[i-1]);
+			   distToPrev[i]=dist;
+			   tabNodePrev[i]=prev;			   
+			   if(debug)  System.out.println("     Setting distance "+dist+" to prev : "+prev);
+			   
+		   }
+		   else {
+			   if(debug)  System.out.println("   Exact");
+			   dist=0;
+			   prev=tabNode[i];
+		   }
+	   }
+
+	   if(debug)  System.out.println("\n\nTHIRD STEP, ESTABLISH BACKWARD");
+	   dist=0;
+	   Node next=null;
+	   for(int i=N-1;i>=0;i--) {
+		   if(debug)  System.out.println("  Processing node "+i+" : "+tabNode[i]);
+		   if(!tabExact[i]) {
+			   if(debug)  System.out.println("   Non exact");
+			   if(i<N-1)dist+=Node.distanceBetween(tabNode[i],tabNode[i+1]);
+			   distToNext[i]=dist;
+			   tabNodeNext[i]=next;			   
+			   if(debug)  System.out.println("     Setting distance "+dist+" to next : "+next);
+		   }
+		   else {
+			   if(debug)  System.out.println("   Exact");
+			   dist=0;
+			   next=tabNode[i];
+		   }
+	   }
+
+	   if(debug)  System.out.println("\n\nFOURTH STEP, RE ESTIMATE TIME");
+	   for(int i=0;i<N;i++) {
+		   if(!tabExact[i]) {
+			   double estTime=0;
+			   double dt=tabNodeNext[i].birthTime-tabNodePrev[i].birthTime;
+			   double dl=distToNext[i]+distToPrev[i];
+			   if(dl<VitimageUtils.EPSILON)estTime=tabNodePrev[i].birthTime+dt/2.0;
+			   else {
+				   estTime=tabNodePrev[i].birthTime+dt*(distToPrev[i]/dl);
+			   }
+			   tabNode[i].birthTime=(float) estTime;
+		   }
+		   if(debug)  System.out.println("  Processing node "+i+" : "+tabNode[i]);		   
+	   }   
+   }
+   
+   
    /**
     * compute the number of nodes inside the root
     */
@@ -209,6 +547,23 @@ class Root{
     */
    public float getRootLength() {return lastNode.cLength + rulerAtOrigin; }
 
+   public double computeRootLength(double t) {
+	   Node n=this.firstNode;
+	   double len=0;
+	   while (n.child != null && n.child.birthTime<=t) {
+		   len+=Node.distanceBetween(n, n.child);
+		   n=n.child;
+	   }
+	   if(n.birthTime<=t && n.child!=null) {
+		   double dt=n.child.birthTime-n.birthTime;
+		   double dx=Node.distanceBetween(n, n.child);
+		   len+=(t-n.birthTime)/dt*dx;
+	   }
+   	   return len;
+	   
+   }
+
+   
    /**
     * Get the value of the ruelr at origin
     * @return
@@ -233,19 +588,77 @@ class Root{
       return pixelSize * (pixels + this.rulerAtOrigin);
       }
 
+	public void computeSpeedVectors(double deltaBackward,double deltaForward,boolean zeroPaddingAtLastNode) {
+		ArrayList<Node>nodes=getNodesList();
+		int N=nodes.size();
+
+		//For each node, 
+		for(int n=0;n<N;n++) {			
+			Node nono=nodes.get(n);
+			double[]coordsBef=getCoordsAtDistance(nono.distance-deltaBackward);
+			double[]coordsAft=getCoordsAtDistance(nono.distance+deltaForward);
+			if(coordsBef[2]<1)coordsBef=new double[] {nono.x,nono.y,nono.birthTime};
+			double deltaTime=coordsAft[2]-coordsBef[2];
+			double deltaX=coordsAft[0]-coordsBef[0];
+			double deltaY=coordsAft[1]-coordsBef[1];
+
+			double deltaDist=Math.sqrt(deltaX*deltaX+deltaY*deltaY);
+			double speed=deltaDist/deltaTime;
+			double vx=deltaX*speed/deltaDist;
+			double vy=deltaY*speed/deltaDist;
+			nono.vx=(float) vx;nono.vy=(float) vy;
+			if(nono.birthTime<1) {nono.vx=0;nono.vy=0;}
+		}
+		if(zeroPaddingAtLastNode) {	nodes.get(N-1).vx=0;nodes.get(N-1).vy=0;}
+	}
+	
+	
+   public double[]getCoordsAtDistance(double dist){
+	   if(dist<=0)return new double[]{firstNode.x,firstNode.y,firstNode.birthTime};
+	   if(dist>=lastNode.distance)return new double[]{lastNode.x,lastNode.y,lastNode.birthTime};
+	   ArrayList<Node>nodes=getNodesList();
+	   int N=nodes.size();
+	   int indBef=-1;int indAft=-1;
+	   for(int n=0;n<N-1;n++) {
+		   if(nodes.get(n).distance<dist && nodes.get(n+1).distance>=dist) {
+			   indBef=n;indAft=n+1;
+			   break;
+		   }
+	   }
+		Node n0=nodes.get(indBef);
+		Node n1=nodes.get(indAft);				
+		double d0=n0.distance;
+		double d1=n1.distance;
+		double alpha=(dist-d0)/(d1-d0);
+		return new double[] {n1.x*alpha+(1-alpha)*n0.x , n1.y*alpha+(1-alpha)*n0.y , n1.birthTime*alpha+(1-alpha)*n0.birthTime};
+   }
+   
+   public ArrayList<Node> getNodesList(){
+	   Node n=firstNode;
+	   ArrayList<Node>nodes=new ArrayList<Node>();
+	   nodes.add(n);
+	   while(n.child !=null) {
+		   n=n.child;
+		   nodes.add(n);
+	   }
+	   return nodes;
+   }
    
    /**
     * Read the RSML file
     * @param parentDOM
     */
    public void readRSML(org.w3c.dom.Node parentDOM, RootModel rm, Root parentRoot, String origin) {
-	  
 	  int counter = 1, clock = 1; // The counter is used to select only one node in x (x = counter)
+	  boolean Fijiyama3d=false;
 	  if(origin.equals("Root System Analyzer")) {
 		  counter = 5;
 		  clock = 5;
 	  }
-   
+	  if(origin.equals("Fijiyama ")) {
+		  Fijiyama3d=true;
+	  }
+	  
 	  org.w3c.dom.Node nn = parentDOM.getAttributes().getNamedItem("label");
 	  if (nn != null) rootID = nn.getNodeValue();
 	 
@@ -295,7 +708,7 @@ class Root{
 					   org.w3c.dom.Node nodePoint = nodeGeom.getFirstChild();
 					   if(nodeDiameters != null) nodeDiam = nodeDiameters.getFirstChild();
 					   while (nodePoint != null) {
-						   	String pointName = nodePoint.getNodeName();
+						   String pointName = nodePoint.getNodeName();
 						   if (pointName.equals("point")) {
 							   	if(counter == clock){
 							   		Node no = addNode(0.0f, 0.0f, false);
@@ -342,7 +755,132 @@ class Root{
       }
       }
       
+   
+   
+   
+   
+   
+   public void readRSML(org.w3c.dom.Node parentDOM, RootModel rm, Root parentRoot, String origin,boolean timeLapseModel) {
+	  int counter = 1, clock = 1; // The counter is used to select only one node in x (x = counter)
+	  boolean Fijiyama3d=false;
+	  if(origin.equals("Root System Analyzer")) {
+		  counter = 5;
+		  clock = 5;
+	  }
+	  if(origin.equals("Fijiyama ")) {
+		  Fijiyama3d=true;
+		  counter = 5;
+		  clock = 5;
+	  }
+	  
+	  org.w3c.dom.Node nn = parentDOM.getAttributes().getNamedItem("label");
+	  if (nn != null) rootID = nn.getNodeValue();
+	 
+	  nn = parentDOM.getAttributes().getNamedItem("ID");
+	  if (nn != null){
+		  rootKey = nn.getNodeValue();
+	  }
+	 
+	  nn = parentDOM.getAttributes().getNamedItem("po:accession");
+	  if (nn != null) poIndex = rm.getIndexFromPo(nn.getNodeValue());
+	 
+	  
+	  // Get the diameter nodes
+	  org.w3c.dom.Node nodeDiameters = null; 
+	  org.w3c.dom.Node nodeDiam = null;	  
+      org.w3c.dom.Node nodeDOM = parentDOM.getFirstChild();
+      while (nodeDOM != null) {
+          String nName = nodeDOM.getNodeName();
+          if(nName.equals("functions")){
+			   org.w3c.dom.Node nodeFunctions = nodeDOM.getFirstChild();
+			   while(nodeFunctions != null){
+			      String fName = nodeFunctions.getNodeName();
+		          if(fName.equals("function")){
+				      String fAtt1 = nodeFunctions.getAttributes().getNamedItem("name").getNodeValue();
+				      String fAtt2 = nodeFunctions.getAttributes().getNamedItem("domain").getNodeValue();
+			          if(fAtt1.equals("diameter") & fAtt2.equals("polyline")){
+			        	  nodeDiameters = nodeFunctions;
+			        	  break;
+			          }
+		          }
+		          nodeFunctions = nodeFunctions.getNextSibling();
+			   }
+          }
+          nodeDOM = nodeDOM.getNextSibling(); 
+      }
+  
+	  nodeDOM = parentDOM.getFirstChild();
+      while (nodeDOM != null) {
+         String nName = nodeDOM.getNodeName();
+         // Nodes that are neither name, rulerAtOrigin nor Node elemnts are not considered
+         // Read the geometry
+         if (nName.equals("geometry")) {
+			   org.w3c.dom.Node nodeGeom = nodeDOM.getFirstChild();
+			   while (nodeGeom != null) {
+				   	String geomName = nodeGeom.getNodeName();
+				   if (geomName.equals("polyline")) {
+ 					   boolean hasReadFirstChild=false;
+					   org.w3c.dom.Node nodePoint = nodeGeom.getFirstChild();
+					   if(nodeDiameters != null) nodeDiam = nodeDiameters.getFirstChild();
+					   while (nodePoint != null) {
+						   String pointName = nodePoint.getNodeName();
+						   if (pointName.equals("point")) {
+							   	if(true || counter == clock){
+							   		Node no = addNode(0.0f, 0.0f, false);
+			        			 	
+							   		no.readRSML(nodePoint, timeLapseModel);
+			        			 	if(!hasReadFirstChild) {
+			        			 		this.parentNode=no;
+			        			 		hasReadFirstChild=true;
+			        			 	}
+							   		counter = 0;
+							   	}
+							   	counter++;
+						   }
+						   nodePoint = nodePoint.getNextSibling();
+						   if(nodeDiam != null) nodeDiam = nodeDiam.getNextSibling();
+					   }
+					   this.firstNode.calcCLength(0.0f);
+					   if(validate()){
+						   rm.rootList.add(this);
+					   }
+					   if(parentRoot != null) {
+						   attachParent(parentRoot);
+						   parentRoot.attachChild(this);
+					   }
+				   }
+				   nodeGeom = nodeGeom.getNextSibling();
+			   }
+         }
+         // Read child roots
+         else if (nName.equals("root")){
+        	 Root r=new Root(dpi, nodeDOM, true, this, rm, origin);
+		     r.attachParent(this);
+			 this.attachChild(r);
+			 rm.rootList.add(r);
+        }
+         nodeDOM = nodeDOM.getNextSibling();
+      } 
 
+      if(rootKey.equals("")) rootKey = this.getNewRootKey();
+      if(rootID.equals(noName)){
+    	  rootID = "root_"+rm.nextAutoRootID;
+    	  rm.nextAutoRootID++;
+      }
+      
+      Node n = firstNode;
+      while(n != null){
+    	  if(n.diameter == 0){
+    		  //SR.write("Recenter node");
+    		 // rm.fit.reCenter(n, 0.05f, 0.5f, true, 1);
+    	  }
+    	  n = n.child;
+      }
+      }
+      
+   public String toString() {
+	   return("Root: order="+order+" nbNodes="+nNodes+"\n    parentNode="+parentNode+"\n    first node="+firstNode+"\n    last node="+lastNode);
+   }
 
    /**
     * Set the DPI value for internal reference
@@ -844,10 +1382,10 @@ class Root{
    /**
     * @return the root id
     */
-   public String toString(){
+ /*  public String toString(){
 	   return rootID;
    }
-
+*/
    
    /**
     * Get the volume of the root. The root is considered as a succesion of truncated cones
@@ -1003,6 +1541,15 @@ public float getXMin() {
 	return min;	
 }
 
+public float getDateMax() {
+	float max = -100000;
+	Node n = this.firstNode;
+	while (n.child != null){
+		if(n.birthTime > max) max = n.birthTime;
+		n = n.child;
+	}	   
+	return max;	
+}
 
 /**
  * Return the max X coordinate of the root

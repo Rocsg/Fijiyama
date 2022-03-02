@@ -87,20 +87,22 @@ public interface TransformUtils {
 	}
 	
 	public static double norm(double[]v){
-		return Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+		double tot=0;
+		for(int i=0;i<v.length;i++)tot+=v[i]*v[i];
+		return Math.sqrt(tot);
 	}
 
 	public static double[] normalize(double[]v){
-		double[] ret=new double[3];
+		double[] ret=new double[v.length];
 		double nrm=norm(v);
-		ret[0]=v[0]/nrm;
-		ret[1]=v[1]/nrm;
-		ret[2]=v[2]/nrm;
+		for(int i=0;i<v.length;i++)ret[i]=v[i]/nrm;
 		return ret;
 	}
 
 	public static double scalarProduct(double[]v1,double []v2){
-		return(v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]);
+		double tot=0;
+		for(int i=0;i<v1.length;i++)tot+=v1[i]*v2[i];
+		return tot;
 	}
 
 	public static double scalarProduct(Point3d v1,Point3d v2){
@@ -108,11 +110,7 @@ public interface TransformUtils {
 	}
 
 	public static double [] sumVector(double[]v,double []v2){
-		double[] ret=new double[3];
-		ret[0]=v[0]+v2[0];
-		ret[1]=v[1]+v2[1];
-		ret[2]=v[2]+v2[2];
-		return ret;
+		return vectorialAddition(v, v2);
 	}
 
 	public static double [] sumVector(double[]v,double []v2,double[]v3){
@@ -145,26 +143,28 @@ public interface TransformUtils {
 	}
 
 	public static double[] vectorialSubstraction(double[]v1,double[]v2){
-		double[] ret=new double[3];
-		ret[0]=v1[0]-v2[0];		
-		ret[1]=v1[1]-v2[1];		
-		ret[2]=v1[2]-v2[2];		
+		double[] ret=new double[v1.length];
+		for(int i=0;i<v1.length;i++)ret[i]=v1[i]-v2[i];		
 		return ret;
 	}
 
 	public static double[] vectorialAddition(double[]v1,double[]v2){
-		double[] ret=new double[3];
-		ret[0]=v1[0]+v2[0];		
-		ret[1]=v1[1]+v2[1];		
-		ret[2]=v1[2]+v2[2];		
+		double[] ret=new double[v1.length];
+		for(int i=0;i<v1.length;i++)ret[i]=v1[i]+v2[i];		
 		return ret;
 	}
 
+
+	public static double[] vectorialMean(double[]v1,double[]v2){
+		double[] ret=new double[v1.length];
+		for(int i=0;i<v1.length;i++)ret[i]=(v1[i]+v2[i])/2.0;		
+		return ret;
+	}
+
+	
 	public static double[] invertVector(double[]v1){
-		double[] ret=new double[3];
-		ret[0]=1/v1[0];		
-		ret[1]=1/v1[1];		
-		ret[2]=1/v1[2];		
+		double[] ret=new double[v1.length];
+		for(int i=0;i<v1.length;i++)ret[i]=1/v1[i];		
 		return ret;
 	}
 

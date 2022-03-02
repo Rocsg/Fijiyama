@@ -13,6 +13,17 @@ public class MostRepresentedFilter {
 	
 	public static void main (String[]args) {
 		ImageJ ij=new ImageJ();
+		ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/test.tif");
+		img.setDisplayRange(0, 255);
+		IJ.run(img,"8-bit","");
+		ImagePlus img2=mostRepresentedFilteringWithRadiusWithBGExclusion(img, 4, false, 255, false, 0);
+		img.setTitle("Before");
+		img.setDisplayRange(-1,22);
+		img.show();
+		img2.setTitle("After");
+		img2.setDisplayRange(-1,22);
+		img2.show();
+		VitimageUtils.waitFor(5000000);
 		/*System.out.println(mostRepresentedValue(
 				new int[] {10,11,12,12,14,11,15,16,13,18,19},
 				new double[] {0,0,1,1,0,0,0,0,1,0,0}
@@ -69,7 +80,7 @@ public class MostRepresentedFilter {
 				indMax=i;
 				distMinOfMax=distMin[i];
 			}
-			else if( (hits[i]==valMax) && (distMin[i]<distMinOfMax)) {
+			else if( (hits[i]==valMax) && (distMin[i]<=distMinOfMax)) {
 				valMax=hits[i];
 				indMax=i;
 				distMinOfMax=distMin[i];
@@ -79,6 +90,41 @@ public class MostRepresentedFilter {
 	}
 	
 
+	public static int mostRepresentedValueWithBGExclusion(int []vals, double []distances,int MAX_NB_CLASSES,int bgValue) {
+		double HIGH_DISTANCE=10E10;
+		int[]hits=new int[MAX_NB_CLASSES];
+		double[]distMin=new double[MAX_NB_CLASSES];
+		for(int i=0;i<distMin.length;i++)distMin[i]=HIGH_DISTANCE;
+
+		for(int i=0;i<vals.length;i++) {
+			if(vals[i]<0)continue;
+			if(vals[i]==bgValue)continue;
+			hits[vals[i]]++;
+			if(distances[i]<distMin[vals[i]])distMin[vals[i]]=distances[i];
+		}
+		
+		
+		
+		//recherche du maximum represente le moins distant
+		int valMax=0;
+		int indMax=-1;
+		double distMinOfMax=HIGH_DISTANCE;
+		for(int i= 0;i<MAX_NB_CLASSES;i++) {
+			if( (hits[i]>valMax)) {
+				valMax=hits[i];
+				indMax=i;
+				distMinOfMax=distMin[i];
+			}
+			else if( (hits[i]!=0) && (hits[i]==valMax) && (distMin[i]<=distMinOfMax)) {
+				valMax=hits[i];
+				indMax=i;
+				distMinOfMax=distMin[i];
+			}
+		}
+		if(indMax==-1)return bgValue;
+		return indMax;
+	}
+	
 	public static int[]getRadiusInVoxels(double[]voxSizes,double radius,boolean is3D){
 		int[]valsRet=new int[3];
 		for(int i=0;i<3;i++) valsRet[i]=(int)Math.round(radius/voxSizes[i]);
@@ -200,6 +246,90 @@ public class MostRepresentedFilter {
 						}
 					}
 					valsOut[z][dimX*(y)+(x)]=((byte)(mostRepresentedValue(vals, dist,maxNbClasses)  & 0xff));
+				}			
+			}
+		}
+		imgLookup.close();
+		if(doPadding)imgOut=VitimageUtils.cropImageByte(imgOut, rayX, rayY, rayZ,dimX-2*rayX, dimY-2*rayY, dimZ-2*rayZ);
+		IJ.run(imgOut,"Fire","");
+		imgOut.resetDisplayRange();
+		return imgOut;
+	}		
+
+	public static ImagePlus mostRepresentedFilteringWithRadiusWithBGExclusion(ImagePlus imgInTmp,double radius,boolean is3D,int maxNbClasses,boolean doPadding,int bgValue) {
+		double []voxS=VitimageUtils.getVoxelSizes(imgInTmp);
+		int[]radiusVox=getRadiusInVoxels(voxS,radius,is3D);
+		int rayX=radiusVox[0];
+		int rayY=radiusVox[1];
+		int rayZ=radiusVox[2];
+	
+		boolean[][][]lookup=buildLookup3D(radius,radiusVox,voxS);
+		double[][][]distances=buildDistances(radiusVox,voxS);
+		ImagePlus imgLookup=buildImageLookup(distances,voxS,radius);
+		imgLookup.show();
+		ImagePlus imgIn=new Duplicator().run(imgInTmp);
+		VitimageUtils.adjustImageCalibration(imgIn, imgInTmp);
+		int dimX=imgIn.getWidth();
+		int dimY=imgIn.getHeight();
+		int dimZ=imgIn.getStackSize();
+		System.out.println("Effectivement dims avant="+dimX+","+dimY+","+dimZ);
+		if(doPadding) {
+			imgIn= VitimageUtils.uncropImageByte(imgIn,rayX,rayY,rayZ,dimX+2*rayX,dimY+2*rayY,dimZ+2*rayZ);
+			imgIn.show();
+			imgIn.setSlice(rayZ+1);
+			IJ.run(imgIn, "Select All", "");
+			IJ.run(imgIn, "Copy", "");
+			for(int z=0;z<rayZ;z++) {
+				imgIn.setSlice(z+1);
+				IJ.run(imgIn, "Paste", "");
+			}
+			imgIn.setSlice(dimZ+2*rayX-rayZ);
+			IJ.run(imgIn, "Select All", "");
+			IJ.run(imgIn, "Copy", "");
+			for(int z=0;z<rayZ;z++) {
+				imgIn.setSlice(dimZ+2*rayX-rayZ+z+1);
+				IJ.run(imgIn, "Paste", "");
+			}
+			imgIn.hide();		
+			dimX=imgIn.getWidth();
+			dimY=imgIn.getHeight();
+			dimZ=imgIn.getStackSize();
+			System.out.println("Effectivement dims apres="+dimX+","+dimY+","+dimZ);
+		}
+		ImagePlus imgOut=imgIn.duplicate();
+		VitimageUtils.adjustImageCalibration(imgOut, imgIn);
+		int []vals=new int[lookup.length*lookup[0].length*lookup[0][0].length];
+		double[] dist=new double[lookup.length*lookup[0].length*lookup[0][0].length];
+		byte[][] valsImg=new byte[dimZ][];
+		byte[][] valsOut=new byte[dimZ][];
+		for(int z=0;z<dimZ;z++) {
+			valsImg[z]=(byte[])imgIn.getStack().getProcessor(z+1).getPixels();
+			valsOut[z]=(byte[])imgOut.getStack().getProcessor(z+1).getPixels();
+		}			
+		for(int z=rayZ;z<dimZ-rayZ;z++) {
+			if(z%10==0)System.out.print("  "+z+"/"+dimZ);
+			if(z%100==0)System.out.println(z+"/"+dimZ);
+			for(int x=rayX;x<dimX-rayX;x++) {
+				for(int y=rayY;y<dimY-rayY;y++){
+					int index=0;
+					for(int dz=-rayZ;dz<rayZ+1;dz++) {
+						for(int dx=-rayX;dx<rayX+1;dx++) {
+							for(int dy=-rayY;dy<rayY+1;dy++){
+								if(! lookup[dx+rayX][dy+rayY][dz+rayZ]) {
+									dist[index]=10E8;
+									vals[index++]=-1;
+								}
+								else {
+									vals[index]=((byte)(valsImg[z+dz][dimX*(y+dy)+(x+dx)]) & 0xff);
+									dist[index++]=distances[dx+rayX][dy+rayY][dz+rayZ];
+								}
+							}
+						}
+					}
+					if((valsImg[z][dimX*(y)+(x)]) ==(byte)(bgValue  & 0xff)  ) {
+						valsOut[z][dimX*(y)+(x)]=(byte)(bgValue  & 0xff);
+					}
+					else valsOut[z][dimX*(y)+(x)]=((byte)(mostRepresentedValueWithBGExclusion(vals, dist,maxNbClasses,bgValue)  & 0xff));
 				}			
 			}
 		}

@@ -1,15 +1,13 @@
-package fr.cirad.image.rsmlviewer;
+package fr.cirad.image.rsml;
 
 import java.io.File;
 
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
-
-import fr.cirad.image.rsmlviewer.RSMLNoGUI;
-
 import fr.cirad.image.common.*;
 import fr.cirad.image.fijiyama.Fijiyama_GUI;
+import fr.cirad.image.rsml.RSMLNoGUI;
 
 public class Test_RSMLViewer {
 
@@ -32,12 +30,20 @@ public class Test_RSMLViewer {
 
 	public static void viewThingsFifthReport() {
 		String subjectName="20200826-AC-PIP_azote_Seq 7_Boite 00021_IdentificationFailed-Visu";
-//		String dirIn="/home/rfernandez/Bureau/DATA/Data_Morgan/myData/valid/";
-		String dirIn="/home/rfernandez/Bureau/DATA/Data_Morgan/myData/train/";
-		String dirOut="/home/rfernandez/Bureau/DATA/Data_Morgan/myData/train_fijiyama/";
+		String dataRsml1="/home/rfernandez/Bureau/A_Test/Racines/Tests/test_02_morgan_labels/input/20200826-AC-PIP_azote_Seq_1_Boite_00001_IdentificationFailed-Visu.rsml";
+		String dataRsml2="/home/rfernandez/Bureau/A_Test/Racines/Tests/test_00_rootnav/output/20200826-AC-PIP_azote_Seq_1_Boite_00001_IdentificationFailed-Visu.rsml";
+		String dataRsml3="/home/rfernandez/Bureau/A_Test/Racines/Tests/test_01_morgan/output/20200826-AC-PIP_azote_Seq_1_Boite_00001_IdentificationFailed-Visu.rsml";
+		String dataRsml4="/home/rfernandez/Bureau/A_Test/Racines/Tests/test_02_morgan_labels/output/20200826-AC-PIP_azote_Seq_1_Boite_00001_IdentificationFailed-Visu.rsml";
+		String dataRsml5="/home/rfernandez/Bureau/A_Test/Racines/Tests/test_11_morgan_60/output/20200826-AC-PIP_azote_Seq_1_Boite_00001_IdentificationFailed-Visu.rsml";
+		String dataRsml6="/home/rfernandez/Bureau/A_Test/Racines/Tests/test_11_morgan_1000/output/20200826-AC-PIP_azote_Seq_1_Boite_00001_IdentificationFailed-Visu.rsml";
+		String dataImg="/home/rfernandez/Bureau/A_Test/Racines/Tests/test_02_morgan_labels/input/20200826-AC-PIP_azote_Seq_1_Boite_00001_IdentificationFailed-Visu.jpg";
 
-		viewSuperposition(dirIn+subjectName+".jpg",dirIn+subjectName+".rsml","Avant");
-		viewSuperposition(dirOut+subjectName+".jpg",dirOut+subjectName+".rsml","Apres");
+		viewSuperposition(dataImg,dataRsml1,"Given");
+		viewSuperposition(dataImg,dataRsml2,"Result rootnav");
+		/*viewSuperposition(dataImg,dataRsml3,"Result morgan 1");
+		viewSuperposition(dataImg,dataRsml4,"Result morgan 2");
+		viewSuperposition(dataImg,dataRsml5,"Result morgan 60");
+		*/viewSuperposition(dataImg,dataRsml6,"Result morgan 1000");
 		
 	}
 	

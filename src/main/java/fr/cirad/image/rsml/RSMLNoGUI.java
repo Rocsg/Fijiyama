@@ -1,4 +1,4 @@
-package fr.cirad.image.rsmlviewer;
+package fr.cirad.image.rsml;
 /**
  * @author Xavier Draye - Universit� catholique de Louvain
  * @author Guillaume Lobet - Universit� de Li�ge
@@ -11,11 +11,10 @@ import ij.measure.ResultsTable;
 
 import java.io.*;
 
-import fr.cirad.image.rsmlviewer.FSR;
-import fr.cirad.image.rsmlviewer.RSMLNoGUI;
-import fr.cirad.image.rsmlviewer.RootModel;
-
 import fr.cirad.image.registration.ItkTransform;
+import fr.cirad.image.rsml.FSR;
+import fr.cirad.image.rsml.RSMLNoGUI;
+import fr.cirad.image.rsml.RootModel;
 
 public class RSMLNoGUI{
    private ImagePlus imgSource=null;

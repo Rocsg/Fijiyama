@@ -1,4 +1,4 @@
-package fr.cirad.image.rsmlviewer;
+package fr.cirad.image.rsml;
 /**
  * @author Xavier Draye - Universit� catholique de Louvain
  * @author Guillaume Lobet - Universit� de Li�ge

@@ -1,4 +1,4 @@
-package fr.cirad.image.rsmlviewer;
+package fr.cirad.image.rsml;
 /**
  * @author Xavier Draye - Universit� catholique de Louvain
  * @author Guillaume Lobet - Universit� de Li�ge
@@ -8,9 +8,9 @@ package fr.cirad.image.rsmlviewer;
 
 import javax.swing.*;
 
-import fr.cirad.image.rsmlviewer.FSR;
-import fr.cirad.image.rsmlviewer.RSMLGUI;
-import fr.cirad.image.rsmlviewer.RootModel;
+import fr.cirad.image.rsml.FSR;
+import fr.cirad.image.rsml.RSMLGUI;
+import fr.cirad.image.rsml.RootModel;
 
 import java.awt.*;
 import java.awt.event.*;
