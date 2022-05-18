@@ -157,6 +157,7 @@ public class RootModel extends WindowAdapter{
 
    private float dpi;
    public float pixelSize;
+private int nPlants;
    
    /** Constructors */  
    public RootModel() {	 
@@ -1457,8 +1458,93 @@ public class RootModel extends WindowAdapter{
 		return l;
 	}
 	
+
+	
+	
+	public void setPlantNumbers() {
+		ArrayList<Root>listTemp=new ArrayList<Root>();
+		//Set stamp to primaries
+		for(Root r : rootList) if(r.isChild() <= 0 )listTemp.add(r);
+		Collections.sort(listTemp);
+		for(int i=0;i<listTemp.size();i++)listTemp.get(i).plantNumber=i;
+		this.nPlants=listTemp.size();
+
+		//Set stamp to laterals
+		for(Root r : rootList) if(r.isChild() > 0 ) r.plantNumber=r.parent.plantNumber;
+	}
+	
+	public float getPRLength(double t){
+		int l = 0;
+		Root r;
+		for(int i =0 ; i < rootList.size() ; i++){
+			r =  (Root) rootList.get(i);
+			System.out.println("New : "+r);
+			System.out.println("Got :");
+			System.out.println(r.parentKey);
+			System.out.println(r.rootID);
+		}
+		return l;
+	}
+
+	
+	public double[][] getLengths(double t){
+		if(this.nPlants==0)return null;
+		double[][]lengs=new double[this.nPlants][2];
+		for(Root r: rootList){
+			int index=r.plantNumber;
+			lengs[index][r.order-1]+=r.computeRootLength(t);			
+		}
+		return lengs;
+	}
+
+
+	//Compute a series of statistics over root system present in image [plant number][time][stat : 0=LenPrim, 1=Nlat, 2=Llat]
+	public double[][][] getNumberAndLenghtOverTimeSerie(int tMax){
+		if(this.nPlants==0)return null;
+		double[][][]lengs=new double[this.nPlants][tMax][3];
+		for(int t=1;t<=tMax;t++) {
+			for(Root r: rootList){
+				int index=r.plantNumber;
+				if(r.order==1)lengs[index][t-1][0]+=r.computeRootLength(t);
+				else {
+					lengs[index][t-1][2]+=r.computeRootLength(t);
+					lengs[index][t-1][1]++;					
+				}
+			}
+		}
+		return lengs;
+	}
+
+	
+	public int[]nbLatsPerPlant(){
+		int[]count=new int[5];
+		for(Root r: rootList){
+			if(r.order==2)count[r.plantNumber]++;
+		}
+		return count;
+	}
+	
+	public double[][][]getLateralSpeedsAndDepthOverTime(int tMax,int plant){
+		int nbLat=nbLatsPerPlant()[plant];
+		double[][][]tab=new double[2][nbLat][tMax+1];
+		int incr=-1;
+		for(Root r: rootList){
+			if(r.plantNumber!=plant || r.order==1)continue;
+			incr++;
+			Node n=r.firstNode;
+			while(n!=null) {
+				double ti=n.birthTime;
+				double spe=Math.sqrt(n.vx*n.vx+n.vy*n.vy);
+				tab[0][incr][(int) Math.round(ti)]=-n.y;
+				tab[1][incr][(int) Math.round(ti)]=spe;
+				n=n.child;
+			}
+		}
+		return tab;
+	}
+	
 	/**
-	 * Get the total lenght of the lateral roots
+	 * Get the total lengthd of the lateral roots
 	 * @return the total lenght of the lateral roots
 	 */
 	public float getTotalSRLength(){

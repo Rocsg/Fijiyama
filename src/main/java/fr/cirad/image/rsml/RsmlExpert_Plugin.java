@@ -54,9 +54,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	/** Plugin entry points for test/debug or run in production ******************************************************************/
 	public static void main(String[]args) {		
 		ImageJ ij=new ImageJ();
-		String testDir="/home/rfernandez/Bureau/A_Test/RSML/Processing_by_box/ML1_Boite_00002"; 
+		String testDir="/home/rfernandez/Bureau/A_Test/RSML/Processing_by_box/ML1_Boite_00021"+ ""; 
 		RsmlExpert_Plugin plugin=new RsmlExpert_Plugin();	
-		plugin.run(null);//testDir);	
+		plugin.run(testDir);//testDir);	
 	}
 
 	public RsmlExpert_Plugin(){		super("");	}

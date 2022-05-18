@@ -95,7 +95,12 @@
 			<!-- https://mvnrepository.com/artifact/za.co.absa.spline/commons -->
 <!-- https://mvnrepository.com/artifact/com.manyangled/snowball -->
 
-		   <dependency>
+	  		<dependency>
+			    <groupId>sc.fiji</groupId>
+			    <artifactId>Trainable_Segmentation</artifactId>
+			    <version>3.2.34</version>
+			</dependency>
+	   	<dependency>
 		      <groupId>com.opencsv</groupId>
 		      <artifactId>opencsv</artifactId>
 		      <version>5.4</version>

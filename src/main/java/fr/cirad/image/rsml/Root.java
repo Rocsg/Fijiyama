@@ -26,7 +26,7 @@ import fr.cirad.image.rsml.RootModel;
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-public class Root{
+public class Root implements Comparable<Root>{
    public Node firstNode, lastNode;
    int nNodes;
    public ArrayList<Root> childList = new ArrayList<Root>();
@@ -53,8 +53,9 @@ public class Root{
    public Vector<Mark> markList;
    public Mark anchor, MDL;
    float rulerAtOrigin = 0.0f;  // in pixel units
-   private String rootID = "";
+   public String rootID = "";
    private float dpi, pixelSize;
+   public int plantNumber;
    
    public GeneralPath bordersGP = new GeneralPath();
    public GeneralPath axisGP = new GeneralPath();
@@ -1749,6 +1750,13 @@ public PolygonRoi getConvexHull(){
 	Roi roi = new PolygonRoi(xRoiNew, yRoiNew, yRoiNew.length, Roi.POLYGON);
 	return new PolygonRoi(roi.getConvexHull(),  Roi.POLYGON);
 	
+}
+
+@Override
+public int compareTo(Root arg0) {
+	if(this.firstNode.x==arg0.firstNode.x)return 0;
+	else if(this.firstNode.x<arg0.firstNode.x)return -1;
+	else return 1;
 }
 
 }

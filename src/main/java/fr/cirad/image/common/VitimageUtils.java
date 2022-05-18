@@ -305,13 +305,50 @@ public class VitimageUtils {
 		return tab2;
 	}
 	
+	
+	
+	public static double getRoiSurface(Roi r) {
+        int x0=(int)Math.floor(r.getBounds().getMinX());
+        int x1=(int)Math.floor(r.getBounds().getMaxX());
+        int y0=(int)Math.floor(r.getBounds().getMinY());
+        int y1=(int)Math.floor(r.getBounds().getMaxY());
+        int inter=0;
+        for(int x=x0;x<=x1;x++) {
+            for(int y=y0;y<=y1;y++) {
+                if(r.contains(x, y))inter++;
+            }
+        }
+        return inter;
+   	
+    }
+
+
+	
+	
 	public static void writeStringTabInCsv(String[][]tab,String fileName) {
-		System.out.println("Impression de tableau de taille "+tab.length+" x "+tab[0].length);
+//		System.out.println("Impression de tableau de taille "+tab.length+" x "+tab[0].length);
 		try { 
 			PrintStream l_out = new PrintStream(new FileOutputStream(fileName)); 
 			for(int i=0;i<tab.length;i++) {
 				for(int j=0;j<tab[i].length;j++) {
 					l_out.print(tab[i][j]+","); 
+				}
+				l_out.println(""); 
+			}
+			l_out.flush(); 
+			l_out.close(); 
+			l_out=null; 
+		} 
+		catch(Exception e){System.out.println(e.toString());} 
+	}
+
+	public static void writeStringTabInCsv2(String[][]tab,String fileName) {
+	//	System.out.println("Impression de tableau de taille "+tab.length+" x "+tab[0].length);
+		try { 
+			PrintStream l_out = new PrintStream(new FileOutputStream(fileName)); 
+			for(int i=0;i<tab.length;i++) {
+				for(int j=0;j<tab[i].length;j++) {
+					l_out.print(tab[i][j]+(j<tab[i].length-1 ? "," : "")); 
 				}
 				l_out.println(""); 
 			}
@@ -339,6 +376,22 @@ public class VitimageUtils {
 		catch(Exception e){System.out.println(e.toString());} 
 	}
 	
+	public static void writeDoubleTabInCsvSimple(double[][]tab,String fileName) {
+		System.out.println("Impression de tableau de taille "+tab.length+" x "+tab[0].length);
+		try { 
+			PrintStream l_out = new PrintStream(new FileOutputStream(fileName)); 
+			for(int i=0;i<tab.length;i++) {
+				for(int j=0;j<tab[i].length;j++) {
+					l_out.print(tab[i][j]+(j<tab[i].length-1 ? "," : "")); 
+				}
+				l_out.println(""); 
+			}
+			l_out.flush(); 
+			l_out.close(); 
+			l_out=null; 
+		} 
+		catch(Exception e){System.out.println(e.toString());} 
+	}
 
 	
 	
@@ -3789,6 +3842,15 @@ public class VitimageUtils {
 		try {
 			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
 			out.write(""+nData+"\n");
+			for(int i=0;i<nData;i++) out.write(tab[i]+"\n");
+			out.close();
+		} catch (Exception e) {IJ.error("Unable to write data to file: "+file+"error: "+e);}	
+	}
+	public static void writeDoubleArray1DInFileSimple(double []tab,String file) {
+		int nData=tab.length;
+		if(nData<1)return;
+		try {
+			Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
 			for(int i=0;i<nData;i++) out.write(tab[i]+"\n");
 			out.close();
 		} catch (Exception e) {IJ.error("Unable to write data to file: "+file+"error: "+e);}	

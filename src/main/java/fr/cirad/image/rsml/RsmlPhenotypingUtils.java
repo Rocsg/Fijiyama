@@ -6,21 +6,49 @@ import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import java.io.File;
+import java.util.ArrayList;
 
 public class RsmlPhenotypingUtils {
 
 	
 	public static void main(String []args) {
 		ImageJ ij=new ImageJ();
-		test5();
+		//test6();
+		testProduceSimplifyLatV1() ;
+		//testCompareViewsOfExpert();
 	}
 	
 
+	//Only test the view
+	public static void testCompareViewsOfExpert() {
+		int boi=6;
+		System.out.println("\nBoite "+boi);
+		String strBoi=(boi<10 ?"0":"")+boi;
+		String dataPath="/home/rfernandez/Bureau/A_Test/RSML/Retour Amandine/ML1_Boite_000"+strBoi; 
+		String rsmlPath=dataPath+"/Expertized_models/";
+		int N=new File(rsmlPath).list().length-1;
+		String nom1="4_2_Model.rsml";
+		String nom2="4_2_Model_"+(N<1000 ? "0":"")+(N<100 ? "0":"")+(N<10 ? "0":"") +N+".rsml";
+		String rsmlPredPath=dataPath+nom1;
+		String rsmlExpertPath=rsmlPath+nom2;
+		String imgSeqPath=dataPath+"/1_5_RegisteredSequence.tif";
+		RootModel rmPred=RootModel.RootModelWildReadFromRsml(rsmlPredPath);
+		rmPred.cleanWildRsml();
+		rmPred.resampleFlyingRoots();
+		RootModel rmExpert=RootModel.RootModelWildReadFromRsml(rsmlExpertPath);		
+		ImagePlus imgSeq=IJ.openImage(imgSeqPath);
+		ImagePlus imgPred=RootModel.viewRsmlAndImageSequenceSuperposition(rmPred,imgSeq,1);
+		imgPred.setTitle("PRED");
+		imgPred.show();
+		ImagePlus imgExpert=RootModel.viewRsmlAndImageSequenceSuperposition(rmExpert,imgSeq,1);
+		imgExpert.setTitle("EXPERT");
+		imgExpert.show();
+	}
 	
 	//Only test the view
 	public static void test0() {
 		System.out.println("Running test sequence 1");
-		String dataPath="/home/rfernandez/Bureau/A_Test/RSML/Processing_by_box/ML1_Boite_00002"; 
+		String dataPath="/home/rfernandez/Bureau/A_Test/RSML/Processing_by_box/ML1_Boite_00006"; 
 		String rsmlPath=dataPath+"/4_2_Model.rsml";
 		String imgSeqPath=dataPath+"/1_5_RegisteredSequence.tif";
 		RootModel rm=RootModel.RootModelWildReadFromRsml(rsmlPath);
@@ -29,7 +57,7 @@ public class RsmlPhenotypingUtils {
 		System.out.println("Test sequence 1 finished");
 	}
 		
-	//Test a first measurement of a lateral root
+	//Test measurement of a lateral root
 	public static void test1() {
 		System.out.println("Running test sequence 1");
 		String dataPath="/home/rfernandez/Bureau/A_Test/RSML/Processing_by_box/ML1_Boite_00002"; 
@@ -48,7 +76,7 @@ public class RsmlPhenotypingUtils {
 			System.out.println("Len 21.8="+r.computeRootLength(21.8));
 	}
 		
-	//Test a first measurement of a primary root
+	//Test measurement of a primary root
 	public static void test2() {
 		System.out.println("Running test sequence 1");
 		String dataPath="/home/rfernandez/Bureau/A_Test/RSML/Processing_by_box/ML1_Boite_00002"; 
@@ -67,6 +95,7 @@ public class RsmlPhenotypingUtils {
 			System.out.println("Len 21.8="+r.computeRootLength(21.8));
 	}
 
+	//Test counting primaries and laterals
 	public static void test3() {
 		String dataPath="/home/rfernandez/Bureau/A_Test/RSML/Processing_by_box/ML1_Boite_00002"; 
 		String rsmlPath=dataPath+"/4_2_Model.rsml";
@@ -180,4 +209,145 @@ public class RsmlPhenotypingUtils {
 		}
 	}
 
+	
+	//Count for each plant : nlats, llats,lprim and compare with expertized plant
+	public static void testProduceStatsPrimLatLengthNumber() {
+		String[]items=new String[]{"deltaNprim","deltaLprim","deltaNlat","deltaLlat"};
+		int boiMinIndex=1;
+		int boiMaxIndex=20;
+		int nBoi=boiMaxIndex-boiMinIndex+1;
+		int nSpec=nBoi*5;
+		double[][]datas=new double[nSpec][8];
+		ArrayList<Double>stats=new ArrayList<Double>();
+		for(int boi=boiMinIndex;boi<=boiMaxIndex;boi++) {
+			System.out.println("\nBoite "+boi);
+			String strBoi=(boi<10 ?"0":"")+boi;
+			
+			//Manage data path
+			String dataPath="/home/rfernandez/Bureau/A_Test/RSML/Retour Amandine/ML1_Boite_000"+strBoi; 
+			String rsmlPath=dataPath+"/Expertized_models/";
+			int N=new File(rsmlPath).list().length-1;
+			String nom1="4_2_Model.rsml";
+			String nom2="4_2_Model_"+(N<1000 ? "0":"")+(N<100 ? "0":"")+(N<10 ? "0":"") +N+".rsml";
+			String rsmlPredPath=dataPath+"/"+nom1;
+			String rsmlExpertPath=rsmlPath+nom2;
+			String imgSeqPath=dataPath+"/1_5_RegisteredSequence.tif";			
+			ImagePlus imgSeq=IJ.openImage(imgSeqPath);
+			int t=imgSeq.getStackSize();
+			
+			//Open and clean the models
+			RootModel rmPred=RootModel.RootModelWildReadFromRsml(rsmlPredPath);
+			rmPred.cleanWildRsml();
+			rmPred.resampleFlyingRoots();
+			rmPred.setPlantNumbers();
+			double[][][]valPred=rmPred.getNumberAndLenghtOverTimeSerie(t);
+			RootModel rmExpert=RootModel.RootModelWildReadFromRsml(rsmlExpertPath);
+			rmExpert.cleanWildRsml();
+			rmExpert.resampleFlyingRoots();
+			rmExpert.setPlantNumbers();
+			double[][][]valExpert=rmExpert.getNumberAndLenghtOverTimeSerie(t);
+			
+			//Test 1
+			for(int i=0;i<5;i++) {
+				int indexSpec=(boi-boiMinIndex)*5+i;
+				datas[indexSpec][0]=boi;
+				datas[indexSpec][1]=i;
+				datas[indexSpec][0+2]=valPred[i][t-1][0];
+				datas[indexSpec][1+2]=valExpert[i][t-1][0];
+				datas[indexSpec][0+2+2]=valPred[i][t-1][1];
+				datas[indexSpec][1+2+2]=valExpert[i][t-1][1];
+				datas[indexSpec][0+4+2]=valPred[i][t-1][2];
+				datas[indexSpec][1+4+2]=valExpert[i][t-1][2];
+			}
+		}
+		VitimageUtils.writeDoubleTabInCsv(datas,"/home/rfernandez/Bureau/A_Test/RSML/OverallAnalyses/StatsPrimLat_1/statsPrimLatTmax.csv");
+		System.out.println("Data production ok");
+		for(int s=0;s<4;s++) {
+			double[]st=VitimageUtils.statistics1D(datas[s]);
+			System.out.println("Stats "+items[s]+ "= "+st[0]+" +- "+st[1]);
+		}
+	}
+
+
+
+	public static Object[]readExpertizedData(int boi){
+		String strBoi=(boi<10 ?"0":"")+boi;
+		
+		//Manage data path
+		String dataPath="/home/rfernandez/Bureau/A_Test/RSML/Retour Amandine/ML1_Boite_000"+strBoi; 
+		String rsmlPath=dataPath+"/Expertized_models/";
+		int N=new File(rsmlPath).list().length-1;
+		String nom1="4_2_Model.rsml";
+		String nom2="4_2_Model_"+(N<1000 ? "0":"")+(N<100 ? "0":"")+(N<10 ? "0":"") +N+".rsml";
+		String rsmlPredPath=dataPath+"/"+nom1;
+		String rsmlExpertPath=rsmlPath+nom2;
+		String imgSeqPath=dataPath+"/1_5_RegisteredSequence.tif";			
+		ImagePlus imgSeq=IJ.openImage(imgSeqPath);
+		
+		//Open and clean the models
+		RootModel rmPred=RootModel.RootModelWildReadFromRsml(rsmlPredPath);
+		rmPred.cleanWildRsml();
+		rmPred.resampleFlyingRoots();
+		rmPred.setPlantNumbers();
+		rmPred.computeSpeedVectors(5);
+		RootModel rmExpert=RootModel.RootModelWildReadFromRsml(rsmlExpertPath);
+		rmExpert.cleanWildRsml();
+		rmExpert.resampleFlyingRoots();
+		rmExpert.setPlantNumbers();
+		rmExpert.computeSpeedVectors(5);
+		return new Object[] {imgSeq,rmPred,rmExpert};
+	}
+	
+	
+	//Export for each plant : nlats, llats,lprim and compare with expertized plant
+	public static void testProduceSimplifyLatV1() {
+		int boiMinIndex=1;
+		int boiMaxIndex=20;
+		int nBoi=boiMaxIndex-boiMinIndex+1;
+		int nSpec=nBoi*5;
+		double[][]datas=new double[nSpec][8];
+		ArrayList<Double>stats=new ArrayList<Double>();
+		for(int boi=boiMinIndex;boi<=boiMaxIndex;boi++) {
+			System.out.println("\nBoite "+boi);
+			Object[]obj=readExpertizedData(boi);
+			ImagePlus imgSeq=(ImagePlus)obj[0];
+			RootModel rmPred=(RootModel)obj[1];
+			RootModel rmExpert=(RootModel)obj[2];
+
+			//Export for each plant, for each lat : at each time, growing speed.
+			int t=imgSeq.getStackSize();
+
+			for(int i=0;i<5;i++) {
+				double[][][]valsLatPred=rmPred.getLateralSpeedsAndDepthOverTime(t,i);
+				double[][][]valsLatExpert=rmExpert.getLateralSpeedsAndDepthOverTime(t,i);
+				double[]depthExp=getStartingDepth(valsLatExpert);
+				double[]depthPred=getStartingDepth(valsLatPred);
+				
+				VitimageUtils.writeDoubleTabInCsvSimple(valsLatPred[0],"/home/rfernandez/Bureau/A_Test/RSML/OverallAnalyses/StatsSpeedOver_2/statsboite_"+boi+"_plant_"+i+"_ZPred.csv");
+				VitimageUtils.writeDoubleTabInCsvSimple(valsLatExpert[0],"/home/rfernandez/Bureau/A_Test/RSML/OverallAnalyses/StatsSpeedOver_2/statsboite_"+boi+"_plant_"+i+"_ZExp.csv");
+				VitimageUtils.writeDoubleTabInCsvSimple(valsLatPred[1],"/home/rfernandez/Bureau/A_Test/RSML/OverallAnalyses/StatsSpeedOver_2/statsboite_"+boi+"_plant_"+i+"_SPred.csv");
+				VitimageUtils.writeDoubleTabInCsvSimple(valsLatExpert[1],"/home/rfernandez/Bureau/A_Test/RSML/OverallAnalyses/StatsSpeedOver_2/statsboite_"+boi+"_plant_"+i+"_SExp.csv");
+
+				VitimageUtils.writeDoubleArray1DInFileSimple(depthPred,"/home/rfernandez/Bureau/A_Test/RSML/OverallAnalyses/StatsSpeedOver_2/statsboite_"+boi+"_plant_"+i+"_StartPred.csv");
+				VitimageUtils.writeDoubleArray1DInFileSimple(depthExp,"/home/rfernandez/Bureau/A_Test/RSML/OverallAnalyses/StatsSpeedOver_2/statsboite_"+boi+"_plant_"+i+"_StartExp.csv");
+			}
+			System.out.println("Data production ok");
+			System.out.println("Data production ok");
+		}
+	}
+
+	public static double[]getStartingDepth(double[][][]vals){
+		double[]ret=new double[vals[0].length];
+		for(int j=0;j<vals[0].length;j++) {
+			for(int i=0;i<vals[0][j].length;i++) {
+				if(vals[0][j][i]!=0) {
+					ret[j]=vals[0][j][i];
+					break;
+				}
+			}
+		}
+		return ret;
+	}
+	
+	
 }
