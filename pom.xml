@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/5.0.0"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/5.0.0
-		http://maven.apache.org/xsd/maven-5.0.0.xsd">
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+		http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>com.phenomen</groupId>
+	<groupId>sc.fiji</groupId>
 	<artifactId>Fijiyama</artifactId>
 
 
@@ -36,10 +36,10 @@
 	</ciManagement>
 
 	<properties>
-		<package-name>com.phenomen</package-name>
+		<package-name>sc.fiji</package-name>
 		<license.licenseName>bsd_2</license.licenseName>
 		<main-class>Fijiyama_GUI</main-class>
-		<license.copyrightOwners>phenomen</license.copyrightOwners>
+		<license.copyrightOwners>Copyleft</license.copyrightOwners>
   	    <maven.compiler.source>1.8</maven.compiler.source>
 	    <maven.compiler.target>1.8</maven.compiler.target>
 	    
@@ -79,7 +79,7 @@
 	<description>Fijiyama : a versatile registration tool for 3D multimodal time-lapse imaging</description>
 	<inceptionYear>2019</inceptionYear>
 	<organization>
-		<name>phenomen</name>
+		<name>cirad.agap.phenomen and ifv.daav</name>
 		<url>https://www.plan-deperissement-vigne.fr/travaux-de-recherche/programmes-de-recherche/vitimage</url>
 	</organization>
 	<licenses>
@@ -94,6 +94,11 @@
 	<dependencies>
 			<!-- https://mvnrepository.com/artifact/za.co.absa.spline/commons -->
 <!-- https://mvnrepository.com/artifact/com.manyangled/snowball -->
+		<dependency>
+		    <groupId>org.jgrapht</groupId>
+		    <artifactId>jgrapht-core</artifactId>
+		    <version>1.3.1</version>
+		</dependency>
 
 	  		<dependency>
 			    <groupId>sc.fiji</groupId>
