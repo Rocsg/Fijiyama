@@ -1,8 +1,7 @@
 name: release and push to central
 on:
   push:
-    tags:
-      - '*'
+    branches: [ master ]
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -17,8 +16,16 @@ jobs:
           server-password: MAVEN_PASSWORD
           gpg-private-key: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
+     
       - name: build artifact
         run: mvn clean package
+      - name: Deploy JavaDoc
+        uses: MathieuSoysal/Javadoc-publisher.yml@v2.0.4
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          javadoc-branch: javadoc
+          java-version: 17
+          target-folder: javadoc  
       - name: Create release
         uses: ncipollo/release-action@v1
         with:
