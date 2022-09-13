@@ -10,8 +10,14 @@ import java.io.Serializable;
  * The Class Bord.
  */
 public class Bord implements Serializable{
+	
+	/** The pix 1. */
 	public Pix pix1;
+	
+	/** The pix 2. */
 	public Pix pix2;
+	
+	/** The len. */
 	public double len;
 	
 	/**
