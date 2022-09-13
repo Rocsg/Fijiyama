@@ -25,7 +25,7 @@ public final class ScrollUtil {
     }
 
     /**
-     * Scroll to specified location.  e.g. <tt>scroll(component, BOTTOM);</tt>.
+     * Scroll to specified location.  e.g. scroll(component, BOTTOM).
      *
      * @param c JComponent to scroll.
      * @param part Location to scroll to.  Should be a bit-wise OR of one or moe of the values:
@@ -37,7 +37,7 @@ public final class ScrollUtil {
     }
 
     /**
-     * Scroll to specified location.  e.g. <tt>scroll(component, LEFT, BOTTOM);</tt>.
+     * Scroll to specified location.  e.g.scroll(component, LEFT, BOTTOM);
      *
      * @param c JComponent to scroll.
      * @param horizontal Horizontal location.  Should take the value: LEFT, HCENTER or RIGHT.
