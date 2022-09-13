@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.rsml;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
@@ -15,6 +18,7 @@ import java.util.*;
 import java.util.List;
 
   
+// TODO: Auto-generated Javadoc
 /** 
  * @author Xavier Draye - Universit� catholique de Louvain
  * @author Guillaume Lobet - Universit� de Li�ge 
@@ -26,65 +30,153 @@ import java.util.List;
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 public class Root implements Comparable<Root>{
+   
+   /** The last node. */
    public Node firstNode, lastNode;
+   
+   /** The n nodes. */
    int nNodes;
+   
+   /** The child list. */
    public ArrayList<Root> childList = new ArrayList<Root>();
    
+   /** The root key. */
    String rootKey = "";
+   
+   /** The parent key. */
    String parentKey = null;
+   
+   /** The po index. */
    int poIndex = 1;
    
+   /** The parent node. */
    Node parentNode;
+   
+   /** The parent. */
    Root parent;
+   
+   /** The first child. */
    Root firstChild;
+   
+   /** The last child. */
    Root lastChild;
+   
+   /** The order. */
    int order=1;
+   
+   /** The distance from apex. */
    float distanceFromApex = 0;
+   
+   /** The distance from base. */
    float distanceFromBase = 0;
+   
+   /** The child density. */
    float childDensity = 0;
+   
+   /** The insert angl. */
    float insertAngl = 0;
+   
+   /** The inter branch. */
    float interBranch = 0;
+   
+   /** The is child. */
    int isChild = 0;
+   
+   /** The parent name. */
    String parentName;
+   
+   /** The g M. */
    int gM = 0;
    
+   /** The keep root. */
    ArrayList<Root> deletedRoot, keepRoot;
+   
+   /** The mark list. */
    public Vector<Mark> markList;
+   
+   /** The mdl. */
    public Mark anchor, MDL;
+   
+   /** The ruler at origin. */
    float rulerAtOrigin = 0.0f;  // in pixel units
+   
+   /** The root ID. */
    public String rootID = "";
+   
+   /** The pixel size. */
    private float dpi, pixelSize;
+   
+   /** The plant number. */
    public int plantNumber;
    
+   /** The borders GP. */
    public GeneralPath bordersGP = new GeneralPath();
+   
+   /** The axis GP. */
    public GeneralPath axisGP = new GeneralPath();
+   
+   /** The nodes GP. */
    public GeneralPath nodesGP = new GeneralPath();
+   
+   /** The ticks GP. */
    public GeneralPath ticksGP = new GeneralPath();
+   
+   /** The tips GP. */
    public GeneralPath tipsGP = new GeneralPath();
+   
+   /** The convexhull GP. */
    public GeneralPath convexhullGP = new GeneralPath();
 
-   /** new */
+   /**  new. */
    public GeneralPath parallelsGP = new GeneralPath();
    
    
+   /** The no name. */
    static String noName = FSR.prefs.get("root_ID", "root_");
+   
+   /** The axis color. */
    static Color axisColor = Color.green;
+   
+   /** The nodes color. */
    static Color nodesColor = Color.orange;
+   
+   /** The borders color. */
    static Color bordersColor = Color.red;
+   
+   /** The area color. */
    static Color areaColor = Color.yellow;
+   
+   /** The ticks color. */
    static Color ticksColor = Color.yellow;
+   
+   /** The tips color. */
    static Color tipsColor = Color.yellow;
+   
+   /** The child tips color. */
    static Color childTipsColor = Color.green;
+   
+   /** The child nodes color. */
    static Color childNodesColor = Color.green;
+   
+   /** The child axis color. */
    static Color childAxisColor = Color.yellow;
+   
+   /** The child borders color. */
    static Color childBordersColor = Color.orange;
    
+   /** The next root key. */
    static int nextRootKey = 1;
 
    /**
     * Constructor
-    * Used when opening a xml file
+    * Used when opening a xml file.
+    *
     * @param dpi digit per inch
+    * @param parentDOM the parent DOM
+    * @param common the common
+    * @param parentRoot the parent root
+    * @param rm the rm
+    * @param origin the origin
     */
    public Root(float dpi, org.w3c.dom.Node parentDOM, boolean common, Root parentRoot, RootModel rm, String origin) {
 	  this.dpi = dpi;
@@ -97,6 +189,17 @@ public class Root implements Comparable<Root>{
       readRSML(parentDOM, rm, parentRoot, origin);
     }
  
+   /**
+    * Instantiates a new root.
+    *
+    * @param dpi the dpi
+    * @param parentDOM the parent DOM
+    * @param common the common
+    * @param parentRoot the parent root
+    * @param rm the rm
+    * @param origin the origin
+    * @param timeLapseModel the time lapse model
+    */
    public Root(float dpi, org.w3c.dom.Node parentDOM, boolean common, Root parentRoot, RootModel rm, String origin,boolean timeLapseModel) {
 		  this.dpi = dpi;
 	      pixelSize = ((float) 2.54 / dpi);
@@ -109,6 +212,14 @@ public class Root implements Comparable<Root>{
 	    }
 
    
+   /**
+    * Instantiates a new root.
+    *
+    * @param parentRoot the parent root
+    * @param rm the rm
+    * @param rootID the root ID
+    * @param order the order
+    */
    public Root(Root parentRoot, RootModel rm,String rootID,int order) {
 	   this.order=order;
 	   nNodes = 0;
@@ -120,6 +231,9 @@ public class Root implements Comparable<Root>{
   }
 
    
+   /**
+    * Compute distances.
+    */
    public void computeDistances() {
 	   Node n=firstNode;
 	   n.distance=0;
@@ -130,6 +244,14 @@ public class Root implements Comparable<Root>{
 		   n.distance=dist;
 	   }
    }
+   
+   /**
+    * Gets the AVG median diameter in range.
+    *
+    * @param rangeMinL the range min L
+    * @param rangeMaxL the range max L
+    * @return the AVG median diameter in range
+    */
    public double getAVGMedianDiameterInRange(double rangeMinL,double rangeMaxL){
 	   double dist = 0;
 	   double[][]tab=new double[10000][2];
@@ -156,6 +278,9 @@ public class Root implements Comparable<Root>{
    }
 
 
+   /**
+    * Update nnodes.
+    */
    public void updateNnodes() {
 	   Node n=firstNode;
 	   nNodes=0;
@@ -165,6 +290,11 @@ public class Root implements Comparable<Root>{
 	   }
    }
    
+   /**
+    * Gets the node of parent just after my attachment.
+    *
+    * @return the node of parent just after my attachment
+    */
    public Node getNodeOfParentJustAfterMyAttachment() {
 	   Node n=null;
 	   Root par=this.parent;
@@ -183,6 +313,14 @@ public class Root implements Comparable<Root>{
    }
    
    
+	/**
+	 * Linear interpolation.
+	 *
+	 * @param val the val
+	 * @param xSource the x source
+	 * @param ySource the y source
+	 * @return the double
+	 */
 	public static double linearInterpolation(double val,Double[]xSource,Double[]ySource) {
 		int N=xSource.length;
 		int indexUpper=0;
@@ -197,10 +335,16 @@ public class Root implements Comparable<Root>{
 		return ySource[indexLower]+dy;
 	}
 
+	/**
+	 * Sets the last node hidden.
+	 */
 	public void setLastNodeHidden() {
 		this.lastNode.hiddenWayToChild=true;
 	}
    
+   /**
+    * Interpolate time.
+    */
    public void interpolateTime() {
 	   Node n=firstNode;
 	   double dist0=firstNode.distance;
@@ -229,8 +373,13 @@ public class Root implements Comparable<Root>{
    }
    
    /**
-    * Add a node to the root
-   */
+    * Add a node to the root.
+    *
+    * @param x the x
+    * @param y the y
+    * @param addToBase the add to base
+    * @return the node
+    */
    public Node addNode(float x, float y, boolean addToBase) {
       if (!addToBase) {
          lastNode = new Node(x, y, lastNode, true);
@@ -245,6 +394,16 @@ public class Root implements Comparable<Root>{
          return firstNode; // user must reactualize cLength
          }
       }
+   
+   /**
+    * Adds the node.
+    *
+    * @param x the x
+    * @param y the y
+    * @param birthTime the birth time
+    * @param addToBase the add to base
+    * @return the node
+    */
    public Node addNode(double x, double y, double birthTime, boolean addToBase) {
 	      if (!addToBase) {
 	         lastNode = new Node((float)x, (float)y, lastNode, true);
@@ -262,6 +421,18 @@ public class Root implements Comparable<Root>{
 	         }
 	      }
   
+   /**
+    * Adds the node.
+    *
+    * @param x the x
+    * @param y the y
+    * @param birthTime the birth time
+    * @param diameter the diameter
+    * @param vx the vx
+    * @param vy the vy
+    * @param addToBase the add to base
+    * @return the node
+    */
    public Node addNode(double x, double y, double birthTime, double diameter,double vx,double vy,boolean addToBase) {
 	      if (!addToBase) {
 	         lastNode = new Node((float)x, (float)y, lastNode, true);
@@ -280,8 +451,14 @@ public class Root implements Comparable<Root>{
 	         return firstNode; // user must reactualize cLength
 	         }
 	      }
+   
    /**
-    * Add a mark to the root
+    * Add a mark to the root.
+    *
+    * @param type the type
+    * @param value the value
+    * @param markerPosition the marker position
+    * @return the mark
     */
    public Mark addMark(int type, String value, float markerPosition) {
       float lPos = lPosCmToPixels(markerPosition);
@@ -313,7 +490,9 @@ public class Root implements Comparable<Root>{
       }
 
    /**
-    * Add a mark to the root
+    * Add a mark to the root.
+    *
+    * @param m the m
     */
    public void addMark(Mark m) {
       if (m.type == Mark.ANCHOR) {
@@ -323,6 +502,11 @@ public class Root implements Comparable<Root>{
       }
 
 
+   /**
+    * Resample flying points.
+    *
+    * @return the int
+    */
    public int resampleFlyingPoints() {
 	   int stamp=1000000;
 	   boolean debug=false && (this.firstNode!=null && this.firstNode.x==1133 && this.firstNode.y==190);
@@ -403,6 +587,11 @@ public class Root implements Comparable<Root>{
 	   return stamp;
    }
 	   
+   /**
+    * String nodes.
+    *
+    * @return the string
+    */
    public String stringNodes() {
 	   String res="";
 	   Node n=this.firstNode;
@@ -413,6 +602,9 @@ public class Root implements Comparable<Root>{
 	   return res;
    }
    
+   /**
+    * Update timing.
+    */
    public void updateTiming() {
 	   boolean debug=false;
 	   Node nStart=this.firstNode;
@@ -495,7 +687,7 @@ public class Root implements Comparable<Root>{
    
    
    /**
-    * compute the number of nodes inside the root
+    * compute the number of nodes inside the root.
     */
    public void calcNNodes() {
       if (firstNode == null) {
@@ -508,7 +700,7 @@ public class Root implements Comparable<Root>{
 
 
    /**
-    * Delete all the root informations
+    * Delete all the root informations.
     */
    public void clear() {
       Node n = firstNode;
@@ -527,15 +719,25 @@ public class Root implements Comparable<Root>{
   
 
    /**
-    * Get the root name
+    * Get the root name.
+    *
+    * @return the root ID
     */
    public String getRootID() {return rootID; }
  
    /**
-    * Get the root length
-   */
+    * Get the root length.
+    *
+    * @return the root length
+    */
    public float getRootLength() {return lastNode.cLength + rulerAtOrigin; }
 
+   /**
+    * Compute root length.
+    *
+    * @param t the t
+    * @return the double
+    */
    public double computeRootLength(double t) {
 	   Node n=this.firstNode;
 	   double len=0;
@@ -552,6 +754,11 @@ public class Root implements Comparable<Root>{
 	   
    }
 
+   /**
+    * Compute root length.
+    *
+    * @return the double
+    */
    public double computeRootLength() {
 	   Node n=this.firstNode;
 	   double len=0;
@@ -564,24 +771,39 @@ public class Root implements Comparable<Root>{
    }
   
    /**
-    * Get the value of the ruelr at origin
+    * Get the value of the ruelr at origin.
+    *
+    * @return the ruler at origin
     */
    public float getRulerAtOrigin() {return rulerAtOrigin; }
    
    /**
-    * Convert the longitudinal position from cm to pixels
+    * Convert the longitudinal position from cm to pixels.
+    *
+    * @param cm the cm
+    * @return the float
     */
    public float lPosCmToPixels(float cm) {
       return cm / pixelSize - this.rulerAtOrigin;
       }
 
    /**
-    * Convert the longitudinal position from pixels to cm
+    * Convert the longitudinal position from pixels to cm.
+    *
+    * @param pixels the pixels
+    * @return the float
     */
    public float lPosPixelsToCm(float pixels) {
       return pixelSize * (pixels + this.rulerAtOrigin);
       }
 
+	/**
+	 * Compute speed vectors.
+	 *
+	 * @param deltaBackward the delta backward
+	 * @param deltaForward the delta forward
+	 * @param zeroPaddingAtLastNode the zero padding at last node
+	 */
 	public void computeSpeedVectors(double deltaBackward,double deltaForward,boolean zeroPaddingAtLastNode) {
 		ArrayList<Node>nodes=getNodesList();
 		int N=nodes.size();
@@ -607,6 +829,12 @@ public class Root implements Comparable<Root>{
 	}
 	
 	
+   /**
+    * Gets the coords at distance.
+    *
+    * @param dist the dist
+    * @return the coords at distance
+    */
    public double[]getCoordsAtDistance(double dist){
 	   if(dist<=0)return new double[]{firstNode.x,firstNode.y,firstNode.birthTime};
 	   if(dist>=lastNode.distance)return new double[]{lastNode.x,lastNode.y,lastNode.birthTime};
@@ -627,6 +855,11 @@ public class Root implements Comparable<Root>{
 		return new double[] {n1.x*alpha+(1-alpha)*n0.x , n1.y*alpha+(1-alpha)*n0.y , n1.birthTime*alpha+(1-alpha)*n0.birthTime};
    }
    
+   /**
+    * Gets the nodes list.
+    *
+    * @return the nodes list
+    */
    public ArrayList<Node> getNodesList(){
 	   Node n=firstNode;
 	   ArrayList<Node>nodes=new ArrayList<Node>();
@@ -639,7 +872,12 @@ public class Root implements Comparable<Root>{
    }
    
    /**
-    * Read the RSML file
+    * Read the RSML file.
+    *
+    * @param parentDOM the parent DOM
+    * @param rm the rm
+    * @param parentRoot the parent root
+    * @param origin the origin
     */
    public void readRSML(org.w3c.dom.Node parentDOM, RootModel rm, Root parentRoot, String origin) {
 	  int counter = 1, clock = 1; // The counter is used to select only one node in x (x = counter)
@@ -753,6 +991,15 @@ public class Root implements Comparable<Root>{
    
    
    
+   /**
+    * Read RSML.
+    *
+    * @param parentDOM the parent DOM
+    * @param rm the rm
+    * @param parentRoot the parent root
+    * @param origin the origin
+    * @param timeLapseModel the time lapse model
+    */
    public void readRSML(org.w3c.dom.Node parentDOM, RootModel rm, Root parentRoot, String origin,boolean timeLapseModel) {
 	  int counter = 1, clock = 1; // The counter is used to select only one node in x (x = counter)
 	  boolean Fijiyama3d=false;
@@ -871,13 +1118,20 @@ public class Root implements Comparable<Root>{
       }
       }
       
+   /**
+    * To string.
+    *
+    * @return the string
+    */
    public String toString() {
 	   return("Root: order="+order+" nbNodes="+nNodes+"\n    parentNode="+parentNode+"\n    first node="+firstNode+"\n    last node="+lastNode);
    }
 
    /**
-    * Set the DPI value for internal reference
-     */
+    * Set the DPI value for internal reference.
+    *
+    * @param dpi the new dpi
+    */
    public void setDPI(float dpi) {
       this.dpi = dpi;
       pixelSize = ((float) 2.54 / dpi);
@@ -885,14 +1139,18 @@ public class Root implements Comparable<Root>{
 
    
    /**
-    * Set the plant ontology accession to a new value
+    * Set the plant ontology accession to a new value.
+    *
+    * @param po the new po accession
     */
    public void setPoAccession(int po) {
       this.poIndex = (rootID.length() == 0) ? 0 : po;
       }   
    
    /**
-    * Set the root name to a new value
+    * Set the root name to a new value.
+    *
+    * @param rootID the new root ID
     */
    public void setRootID(String rootID) {
       this.rootID = (rootID.length() == 0) ? noName : rootID;
@@ -900,7 +1158,9 @@ public class Root implements Comparable<Root>{
       }
    
    /**
-    * Set the root key to a new value
+    * Set the root key to a new value.
+    *
+    * @param rootKey the new root key
     */
    public void setRootKey(String rootKey) {
       this.rootKey = (rootKey.length() == 0) ? noName : rootKey;
@@ -908,8 +1168,10 @@ public class Root implements Comparable<Root>{
       }
 
    /**
-    * Set the orign of the ruler (base of the root)
-     */
+    * Set the orign of the ruler (base of the root).
+    *
+    * @param rulerAtOrigin the new ruler at origin
+    */
    public void setRulerAtOrigin(float rulerAtOrigin) {
       this.rulerAtOrigin = rulerAtOrigin;
       if (anchor != null) {
@@ -920,7 +1182,9 @@ public class Root implements Comparable<Root>{
       }
       
    /**
-    * Is the root valid (has at least one node)
+    * Is the root valid (has at least one node).
+    *
+    * @return true, if successful
     */
    public boolean validate() {
       if (lastNode == null) {
@@ -936,8 +1200,10 @@ public class Root implements Comparable<Root>{
  */
 
    /**
-    * Attach the selected root to the parent and set child informations
-    */
+ * Attach the selected root to the parent and set child informations.
+ *
+ * @param r the r
+ */
    public void attachChild(Root r){
 	   childList.add(r);
 	   setFirstChild();
@@ -947,7 +1213,7 @@ public class Root implements Comparable<Root>{
    
    
    /**
-    * Update the children information
+    * Update the children information.
     */
    public void updateChildren(){
 	   for (int i = 0 ; i < childList.size() ; i++){
@@ -963,20 +1229,23 @@ public class Root implements Comparable<Root>{
 
       
    /**
-    * Set if the root is a child
+    * Set if the root is a child.
+    *
     * @param l true if child
     */
    public void isChild(int l){ isChild = l; }
    
    /**
-    * 
+    * Checks if is child.
+    *
     * @return true if the root is child
     */
    public int isChild(){ return isChild; }
       
    
    /**
-    * Attach the selected root as parent
+    * Attach the selected root as parent.
+    *
     * @param r parent root
     */
    public void attachParent(Root r){	   
@@ -993,7 +1262,7 @@ public class Root implements Comparable<Root>{
    }
    
    /**
-    * Update the root information relative to his parent
+    * Update the root information relative to his parent.
     */
    public void updateRoot(){
 	   if(parent != null){
@@ -1010,14 +1279,15 @@ public class Root implements Comparable<Root>{
    
    
    /**
-    * set the distance from the parent apex
+    * set the distance from the parent apex.
+    *
     * @param d distance from apex
     */
    public void setDistanceFromApex(float d){ distanceFromApex = d;}
    
    
    /**
-    * Automatically set distance from parent apex 
+    * Automatically set distance from parent apex.
     */
    public void setDistanceFromApex(){
 	   if(parent != null) distanceFromApex = parent.getRootLength() - distanceFromBase;
@@ -1025,13 +1295,14 @@ public class Root implements Comparable<Root>{
    }
    
    /**
-    * set the distance from the parent base
+    * set the distance from the parent base.
+    *
     * @param d distance from base
     */
    public void setDistanceFromBase(float d){ distanceFromBase = d;}
    
    /**
-    * Automatically set distance from parent base 
+    * Automatically set distance from parent base.
     */
    public void setDistanceFromBase(){
 
@@ -1084,7 +1355,8 @@ public class Root implements Comparable<Root>{
    }
    
    /**
-    * Set which child is the first one on the root (closest from the base)
+    * Set which child is the first one on the root (closest from the base).
+    *
     * @return true if there is at least one child, false if not.
     */
    public boolean setFirstChild(){
@@ -1102,7 +1374,8 @@ public class Root implements Comparable<Root>{
    }
    
    /**
-    * Set which child is the last one on the root (closest from the apex)
+    * Set which child is the last one on the root (closest from the apex).
+    *
     * @return true if there is at least one child, false if not.
     */
    public boolean setLastChild(){
@@ -1130,14 +1403,15 @@ public class Root implements Comparable<Root>{
    }
    
    /**
-    * set the insertion angle of the root in its parent
+    * set the insertion angle of the root in its parent.
+    *
     * @param ins the insertion angle
     */
    public void setInsertAngl(float ins){insertAngl = ins;}  
    
    
    /**
-    * Automatically set the insertion angle of the root on its parent
+    * Automatically set the insertion angle of the root on its parent.
     */
    public void setInsertAngl(){
 	   Node n = firstNode;
@@ -1159,7 +1433,7 @@ public class Root implements Comparable<Root>{
       
    
    /**
-    * Set the parentNode, which is the closest node in the parent from the base node of root
+    * Set the parentNode, which is the closest node in the parent from the base node of root.
     */
    public void setParentNode(){
 	   
@@ -1186,14 +1460,15 @@ public class Root implements Comparable<Root>{
       
    
    /**
-    * Set the interbranch distance between this root and the previous child on the parent
+    * Set the interbranch distance between this root and the previous child on the parent.
+    *
     * @param iB the interbranch
     */
    public void setInterBranch(float iB) {interBranch = iB;}
    
    
    /**
-    * Automatically set the interbranch distance between this root and the previous child on the parent
+    * Automatically set the interbranch distance between this root and the previous child on the parent.
     */
    public void setInterBranch(){
 	   if (isChild() == 0){ return; }
@@ -1215,7 +1490,8 @@ public class Root implements Comparable<Root>{
    }
    
    /**
-    * get the closest node in the root from a given position on the root
+    * get the closest node in the root from a given position on the root.
+    *
     * @param lPos the position on the root
     * @return the closest node
     */
@@ -1237,39 +1513,47 @@ public class Root implements Comparable<Root>{
    
    
    /**
-    * Set the name of the parent (internal reference, does not change the value in the parent)
+    * Set the name of the parent (internal reference, does not change the value in the parent).
+    *
+    * @param n the new parent name
     */
    public void setParentName(String n){
 	   parentName = n;
    }
    
    /**
-    * Set the identifier of the parent (internal reference, does not change the value in the parent)
+    * Set the identifier of the parent (internal reference, does not change the value in the parent).
+    *
+    * @param n the new parent key
     */
    public void setParentKey(String n){
 	   parentKey = n;
    }
    
    /**
-    * Get the object of the root parent
+    * Get the object of the root parent.
+    *
     * @return parent the parent root
     */
    public Root getParent(){ return parent; }
    
    /**
-    * Get the parent's closest node from the base of this root
+    * Get the parent's closest node from the base of this root.
+    *
     * @return parentNode the parent's closest node from the base of this root
     */
    public Node getParentNode(){ return parentNode;}
    
    /**
-    * the distance of the insertion point from the parent's apex
+    * the distance of the insertion point from the parent's apex.
+    *
     * @return distanceFromApex the distance of the the insertion point from the parent's apex
     */
    public float getDistanceFromApex(){ return distanceFromApex;}
 
    /**
-    * Get the distance of the insertion point from the parent's base
+    * Get the distance of the insertion point from the parent's base.
+    *
     * @return distanceFromBase the distance of the insertion point from the parent's base
     */
    public float getDistanceFromBase(){ 
@@ -1278,7 +1562,8 @@ public class Root implements Comparable<Root>{
    }
    
    /**
-    * Get the parent root name (id any)
+    * Get the parent root name (id any).
+    *
     * @return parentName the name of the parent
     */
    public String getParentName(){ 
@@ -1287,7 +1572,8 @@ public class Root implements Comparable<Root>{
 	   }
    
    /**
-    * Get the interbranch distance
+    * Get the interbranch distance.
+    *
     * @return interBranch the inter branch distance between this root and the previous one on the parent
     */
    public float getInterBranch() {return interBranch;}
@@ -1295,7 +1581,8 @@ public class Root implements Comparable<Root>{
    
    
    /**
-    * Get the lateral density insde the ramified region
+    * Get the lateral density insde the ramified region.
+    *
     * @return childDensity the child density inside the ramified region
     */
    public float getChildDensity() {
@@ -1308,19 +1595,22 @@ public class Root implements Comparable<Root>{
    }
 
    /**
-    * Get the object of the lateral root the closest to the base
+    * Get the object of the lateral root the closest to the base.
+    *
     * @return firstChild the first lateral root (the closest from the base)
     */
    public Root getFirstChild(){return firstChild;}
 
    /**
-    * Get the object of the lateral root the closest to the apex
+    * Get the object of the lateral root the closest to the apex.
+    *
     * @return lastChild the last lateral root (the closest from the apex)
     */
    public Root getLastChild(){return lastChild;}
    
    /**
-    * Get the insertion angle of the root
+    * Get the insertion angle of the root.
+    *
     * @return insertAngl the insertion angle on the parent root
     */
    public float getInsertAngl(){
@@ -1330,7 +1620,9 @@ public class Root implements Comparable<Root>{
 
    
    /**
-    * The average diameter of all the nodes
+    * The average diameter of all the nodes.
+    *
+    * @return the AVG diameter
     */
    public float getAVGDiameter(){
 	   float n = 0;
@@ -1347,7 +1639,9 @@ public class Root implements Comparable<Root>{
    }
    
    /**
-    * Get the average interbanch distance of the lateral roots
+    * Get the average interbanch distance of the lateral roots.
+    *
+    * @return the AVG inter branch distance
     */
    public float getAVGInterBranchDistance(){
 	   float n = 0;
@@ -1365,6 +1659,8 @@ public class Root implements Comparable<Root>{
    
    /**
     * Get the volume of the root. The root is considered as a succesion of truncated cones
+    *
+    * @return the root volume
     */
    public float getRootVolume(){
 	   float vol = 0;
@@ -1380,7 +1676,9 @@ public class Root implements Comparable<Root>{
 
    
    /**
-    * Get the surface of the root
+    * Get the surface of the root.
+    *
+    * @return the root surface
     */
    public float getRootSurface(){
 	   float surf = 0;
@@ -1395,7 +1693,9 @@ public class Root implements Comparable<Root>{
    }
    
    /**
-    * Get the surface of the lateral roots (if any)
+    * Get the surface of the lateral roots (if any).
+    *
+    * @return the children surface
     */
    public float getChildrenSurface(){
 	   float surf = 0;
@@ -1413,14 +1713,17 @@ public class Root implements Comparable<Root>{
   
    
    /**
-    * Get the root key
+    * Get the root key.
+    *
+    * @return the root key
     */
    public String getRootKey(){
 	   return rootKey;
    } 
    
    /**
-    * Get a new root id value
+    * Get a new root id value.
+    *
     * @return unique root identifier
     */
    public String getNewRootKey(){
@@ -1429,7 +1732,8 @@ public class Root implements Comparable<Root>{
    
    
    /**
-    * Return an integer indicating if the root is on the right or the left side of its parent (if it is a lateral)
+    * Return an integer indicating if the root is on the right or the left side of its parent (if it is a lateral).
+    *
     * @return 0 if not a lateral; 1 if on the left, 2 if on the right
     */
    public int isLeftRight(){
@@ -1446,7 +1750,9 @@ public class Root implements Comparable<Root>{
    }
 
 /**
- * Returns the tortuosity of the root
+ * Returns the tortuosity of the root.
+ *
+ * @return the tortuosity
  */
 public float getTortuosity() {
 	float tort = 0;
@@ -1463,7 +1769,9 @@ public float getTortuosity() {
 }
 
 /**
- * Return the vector lenght of the root (as defined in Armengaud 2009)
+ * Return the vector lenght of the root (as defined in Armengaud 2009).
+ *
+ * @return the vector length
  */
 public float getVectorLength() {
 	Node n1 = this.firstNode;
@@ -1472,7 +1780,9 @@ public float getVectorLength() {
 }
 
 /**
- * Return the total length of all the children
+ * Return the total length of all the children.
+ *
+ * @return the children length
  */
 public float getChildrenLength() {
 	float cl = 0;   
@@ -1483,7 +1793,9 @@ public float getChildrenLength() {
 }
 
 /**
- * Return the mean children angle 
+ * Return the mean children angle.
+ *
+ * @return the children angle
  */
 public float getChildrenAngle(){
 	if(childList.size() > 0){
@@ -1497,7 +1809,9 @@ public float getChildrenAngle(){
 } 
 
 /**
- * Return the min X coordinate of the root
+ * Return the min X coordinate of the root.
+ *
+ * @return the x min
  */
 public float getXMin() {
 	float min = 100000;
@@ -1509,6 +1823,11 @@ public float getXMin() {
 	return min;	
 }
 
+/**
+ * Gets the date max.
+ *
+ * @return the date max
+ */
 public float getDateMax() {
 	float max = -100000;
 	Node n = this.firstNode;
@@ -1520,7 +1839,9 @@ public float getDateMax() {
 }
 
 /**
- * Return the max X coordinate of the root
+ * Return the max X coordinate of the root.
+ *
+ * @return the x max
  */
 public float getXMax() {
 	float max = 0;
@@ -1534,7 +1855,9 @@ public float getXMax() {
 
 
 /**
- * Return the min Y coordinate of the root
+ * Return the min Y coordinate of the root.
+ *
+ * @return the y min
  */
 public float getYMin() {
 	float min = 100000;
@@ -1547,7 +1870,9 @@ public float getYMin() {
 }
 
 /**
- * Return the max Y coordinate of the root
+ * Return the max Y coordinate of the root.
+ *
+ * @return the y max
  */
 public float getYMax() {
 	float max = 0;
@@ -1560,7 +1885,9 @@ public float getYMax() {
 }
 
 /**
- * Return the min X coordinate of the root and its children
+ * Return the min X coordinate of the root and its children.
+ *
+ * @return the x min total
  */
 public float getXMinTotal() {
 	float min = 100000;
@@ -1581,7 +1908,9 @@ public float getXMinTotal() {
 
 
 /**
- * Return the max X coordinate of the root and its children
+ * Return the max X coordinate of the root and its children.
+ *
+ * @return the x max total
  */
 public float getXMaxTotal() {
 	float max = 0;
@@ -1602,7 +1931,9 @@ public float getXMaxTotal() {
 
 
 /**
- * Return the min Y coordinate of the root and its children
+ * Return the min Y coordinate of the root and its children.
+ *
+ * @return the y min total
  */
 public float getYMinTotal() {
 	float min = 100000;
@@ -1622,7 +1953,9 @@ public float getYMinTotal() {
 }
 
 /**
- * Return the max Y coordinate of the root and its children
+ * Return the max Y coordinate of the root and its children.
+ *
+ * @return the y max total
  */
 public float getYMaxTotal() {
 	float max = 0;
@@ -1642,7 +1975,9 @@ public float getYMaxTotal() {
 }
 
 /**
- * Return the average orientation of the root
+ * Return the average orientation of the root.
+ *
+ * @return the root orientation
  */
 public float getRootOrientation() {
 	float angle = 0;
@@ -1658,7 +1993,9 @@ public float getRootOrientation() {
 
   
 /**
- * Get the Plant Ontology accession of the root
+ * Get the Plant Ontology accession of the root.
+ *
+ * @return the po accession
  */
 public String getPoAccession(){
 	return FSR.listPoNames[poIndex];
@@ -1666,14 +2003,18 @@ public String getPoAccession(){
 
 
 /**
- * Get the convexhull area
+ * Get the convexhull area.
+ *
+ * @return the convex hull area
  */
 public float getConvexHullArea(){
 	return 0;
 }
 
 /**
- * Get the root convexhull
+ * Get the root convexhull.
+ *
+ * @return the convex hull
  */
 public PolygonRoi getConvexHull(){
 		
@@ -1708,6 +2049,12 @@ public PolygonRoi getConvexHull(){
 	
 }
 
+/**
+ * Compare to.
+ *
+ * @param arg0 the arg 0
+ * @return the int
+ */
 @Override
 public int compareTo(Root arg0) {
 	if(this.firstNode.x==arg0.firstNode.x)return 0;

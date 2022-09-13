@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.rsml;
 /**
  * @author Xavier Draye - Universit� catholique de Louvain
@@ -14,15 +17,26 @@ import net.imagej.fijiyama.rsml.FSR;
 import net.imagej.fijiyama.rsml.RSMLGUI;
 import net.imagej.fijiyama.rsml.RSML_reader;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class RSML_reader.
+ */
 public class RSML_reader extends PlugInFrame {
 
+	/** The Constant serialVersionUID. */
 	private static final long serialVersionUID = 1L;
+	
+	/** The sr. */
 	public static FSR sr;
+	
+	/** The rsml gui. */
 	public static RSMLGUI rsmlGui;
+	
+	/** The instance. */
 	private static RSML_reader instance;
 
 	/**
-	 * Constructor
+	 * Constructor.
 	 */
 	public RSML_reader() {
       super("RSML Reader");
@@ -37,7 +51,7 @@ public class RSML_reader extends PlugInFrame {
       }
 
    /**
-    * Close the window
+    * Close the window.
     */
    public void dispose() {
       Rectangle r = getBounds();
@@ -51,13 +65,17 @@ public class RSML_reader extends PlugInFrame {
       }
 
    /**
-    * Get instance
+    * Get instance.
+    *
+    * @return single instance of RSML_reader
     */
    public static RSML_reader getInstance() {return instance; }
 
    
    /**
-    * Main class
+    * Main class.
+    *
+    * @param args the arguments
     */
    @SuppressWarnings("unused")
 public static void main(String args[]) {

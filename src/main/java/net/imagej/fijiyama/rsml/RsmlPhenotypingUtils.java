@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.rsml;
 import org.scijava.vecmath.Point3d;
 
@@ -9,9 +12,18 @@ import net.imagej.fijiyama.common.VitimageUtils;
 import java.io.File;
 import java.util.ArrayList;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class RsmlPhenotypingUtils.
+ */
 public class RsmlPhenotypingUtils {
 
 	
+	/**
+	 * The main method.
+	 *
+	 * @param args the arguments
+	 */
 	public static void main(String []args) {
 		ImageJ ij=new ImageJ();	
 		testProduceStatsPrimLatLengthNumber();
@@ -21,6 +33,9 @@ public class RsmlPhenotypingUtils {
 	
 
 	
+	/**
+	 * Test compare views of expert.
+	 */
 	//Only test the view
 	public static void testCompareViewsOfExpert() {
 		int boi=23;
@@ -47,6 +62,9 @@ public class RsmlPhenotypingUtils {
 		imgExpert.show();
 	}
 	
+	/**
+	 * Test 0.
+	 */
 	//Only test the view
 	public static void test0() {
 		System.out.println("Running test sequence 1");
@@ -59,6 +77,9 @@ public class RsmlPhenotypingUtils {
 		System.out.println("Test sequence 1 finished");
 	}
 		
+	/**
+	 * Test 1.
+	 */
 	//Test measurement of a lateral root
 	public static void test1() {
 		System.out.println("Running test sequence 1");
@@ -78,6 +99,9 @@ public class RsmlPhenotypingUtils {
 			System.out.println("Len 21.8="+r.computeRootLength(21.8));
 	}
 		
+	/**
+	 * Test 2.
+	 */
 	//Test measurement of a primary root
 	public static void test2() {
 		System.out.println("Running test sequence 1");
@@ -97,6 +121,9 @@ public class RsmlPhenotypingUtils {
 			System.out.println("Len 21.8="+r.computeRootLength(21.8));
 	}
 
+	/**
+	 * Test 3.
+	 */
 	//Test counting primaries && laterals
 	public static void test3() {
 		String dataPath="/home/rfernandez/Bureau/A_Test/RSML/Processing_by_box/ML1_Boite_00002"; 
@@ -119,6 +146,9 @@ public class RsmlPhenotypingUtils {
 		System.out.println("Test sequence ok");
 	}
 	
+	/**
+	 * Test 4.
+	 */
 	public static void test4() {
 		String dataPath="/home/rfernandez/Bureau/A_Test/RSML/Retour Amandine/ML1_Boite_00001"; 
 		String rsmlPath=dataPath+"/Expertized_models/";
@@ -159,6 +189,9 @@ public class RsmlPhenotypingUtils {
 		
 	}
 	
+	/**
+	 * Test 5.
+	 */
 	public static void test5() {
 		String[]items=new String[]{"deltaNprim","deltaLprim","deltaNlat","deltaLlat"};
 		double[][]datas=new double[4][13];
@@ -212,6 +245,9 @@ public class RsmlPhenotypingUtils {
 	}
 
 	
+	/**
+	 * Test produce stats prim lat length number.
+	 */
 	//Count for each plant : nlats, llats,lprim && compare with expertized plant
 	public static void testProduceStatsPrimLatLengthNumber() {
 		String[]items=new String[]{"deltaNprim","deltaLprim","deltaNlat","deltaLlat"};
@@ -276,6 +312,13 @@ public class RsmlPhenotypingUtils {
 	}
 
 
+	/**
+	 * Checks if is outlier.
+	 *
+	 * @param b the b
+	 * @param p the p
+	 * @return true, if is outlier
+	 */
 	public static boolean isOutlier(int b,int p) {
 		int boite=b;
 		int plante=p+1;
@@ -310,6 +353,12 @@ public class RsmlPhenotypingUtils {
 	}
 	
 
+	/**
+	 * Read expertized data.
+	 *
+	 * @param boi the boi
+	 * @return the object[]
+	 */
 	public static Object[]readExpertizedData(int boi){
 		String strBoi=(boi<10 ?"0":"")+boi;
 		
@@ -339,6 +388,9 @@ public class RsmlPhenotypingUtils {
 	}
 	
 	
+	/**
+	 * Test produce simplify lat V 1.
+	 */
 	//Export for each plant : nlats, llats,lprim && compare with expertized plant
 	public static void testProduceSimplifyLatV1() {
 		int boiMinIndex=1;
@@ -408,6 +460,12 @@ public class RsmlPhenotypingUtils {
 		}
 	}
 
+	/**
+	 * Gets the starting depth.
+	 *
+	 * @param vals the vals
+	 * @return the starting depth
+	 */
 	public static double[]getStartingDepth(double[][][]vals){
 		
 		double[]ret=new double[vals[0].length];

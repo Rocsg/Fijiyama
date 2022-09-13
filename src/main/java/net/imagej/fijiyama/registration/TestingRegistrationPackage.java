@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.registration;
 
 import java.io.File;
@@ -24,10 +27,17 @@ import net.imagej.fijiyama.registration.BlockMatchingRegistration;
 import net.imagej.fijiyama.registration.ItkRegistration;
 import net.imagej.fijiyama.registration.ItkTransform;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class blockSizeHalfY.
+ */
 public class TestingRegistrationPackage {
 
 	
 
+	/**
+	 * Instantiates a new testing registration package.
+	 */
 	public TestingRegistrationPackage() {
 		// TODO Auto-generated constructor stub
 	}
@@ -35,6 +45,11 @@ public class TestingRegistrationPackage {
 	
 	
 
+	/**
+	 * The main method.
+	 *
+	 * @param args the args
+	 */
 	public static void main(String[]args) {
 		@SuppressWarnings("unused")
 		ImageJ ij=new ImageJ();
@@ -45,6 +60,9 @@ public class TestingRegistrationPackage {
 		runTestFijiyamaSupport();
 	}
 
+	/**
+	 * Run test fijiyama support.
+	 */
 	public static void runTestFijiyamaSupport() {
 		//Last support : Cedric M.
 		String dir="/home/fernandr/Bureau/A_Test/Cedric/Case_1/";
@@ -55,6 +73,11 @@ public class TestingRegistrationPackage {
 		bm.runBlockMatching(null,false);
 	}
 	
+	/**
+	 * Gets the input output path for registration package.
+	 *
+	 * @return the input output path for registration package
+	 */
 	public static String[]getInputOutputPathForRegistrationPackage(){
 		String inputPath,outputPath;
 		if(new File("/home/fernandr").exists()) {
@@ -76,6 +99,12 @@ public class TestingRegistrationPackage {
 
 
 	
+	/**
+	 * Run test.
+	 *
+	 * @param inputPath the input path
+	 * @param outputPath the output path
+	 */
 	public static void runTest(String inputPath,String outputPath) {
 		int firstTest=0;
 		int lastTest=12;
@@ -154,21 +183,49 @@ public class TestingRegistrationPackage {
 	}
 	
 	
+	/**
+	 * Run test level 00 simple passing.
+	 *
+	 * @param inputPath the input path
+	 * @param outputPath the output path
+	 * @return the int
+	 */
 	public static int runTestLevel00simplePassing(String inputPath,String outputPath){
 		return 0;
 	}
 	
+	/**
+	 * Run test level 01 fail with exception.
+	 *
+	 * @param inputPath the input path
+	 * @param outputPath the output path
+	 * @return the int
+	 */
 	public static int runTestLevel01failWithException(String inputPath,String outputPath){
 		int a=1/0;
 		return 0;
 	}
 		
+	/**
+	 * Run test level 02 fail with code 2.
+	 *
+	 * @param inputPath the input path
+	 * @param outputPath the output path
+	 * @return the int
+	 */
 	public static int runTestLevel02failWithCode2(String inputPath,String outputPath){
 		boolean success=false;
 		if(success)return 0;
 		return 2;
 	}
 	
+	/**
+	 * Run test level 03 simple access to classes and objects.
+	 *
+	 * @param inputPath the input path
+	 * @param outputPath the output path
+	 * @return the int
+	 */
 	public static int runTestLevel03SimpleAccessToClassesAndObjects(String inputPath,String outputPath){
 		ItkRegistration itkMan=new ItkRegistration();
 		BlockMatchingRegistration bm=new BlockMatchingRegistration();
@@ -176,6 +233,13 @@ public class TestingRegistrationPackage {
 	}
 
 	
+	/**
+	 * Run test level 04 transform 2 D.
+	 *
+	 * @param inputPath the input path
+	 * @param outputPath the output path
+	 * @return the int
+	 */
 	public static int runTestLevel04Transform2D(String inputPath,String outputPath){
 		boolean buildingCase=false;
 		int errors=0;
@@ -236,6 +300,13 @@ public class TestingRegistrationPackage {
 	}
 	
 	
+	/**
+	 * Run test level 05 transform 3 D.
+	 *
+	 * @param inputPath the input path
+	 * @param outputPath the output path
+	 * @return the int
+	 */
 	public static int runTestLevel05Transform3D(String inputPath,String outputPath){
 		boolean buildingCase=false;
 		int errors=0;
@@ -318,6 +389,13 @@ public class TestingRegistrationPackage {
 		return errors;
 	}
 	
+	/**
+	 * Run test level 06 transform 4 D.
+	 *
+	 * @param inputPath the input path
+	 * @param outputPath the output path
+	 * @return the int
+	 */
 	public static int runTestLevel06Transform4D(String inputPath,String outputPath){
 		boolean buildingCase=false;
 		int errors=0;
@@ -353,6 +431,13 @@ public class TestingRegistrationPackage {
 		return errors;
 	}
 
+	/**
+	 * Run test level 07 transform 5 D.
+	 *
+	 * @param inputPath the input path
+	 * @param outputPath the output path
+	 * @return the int
+	 */
 	public static int runTestLevel07Transform5D(String inputPath,String outputPath){
 		boolean buildingCase=false;
 		int errors=0;
@@ -381,6 +466,9 @@ public class TestingRegistrationPackage {
 	
 	
 	
+	/**
+	 * Builds the test data for jacobian stuff.
+	 */
 	public static void buildTestDataForJacobianStuff() {
 		//Open a standard image with multiple canals
 		ImagePlus img=IJ.openImage("/home/fernandr/Bureau/Traitements/Sorgho/Tests/Test SSM1/Out_input_Fijiyama/Input/hyperImage_T0.tif");
@@ -463,6 +551,9 @@ public class TestingRegistrationPackage {
 	
 	
 	
+	/**
+	 * Make little tests.
+	 */
 	public static void makeLittleTests() {
 		//buildTestDataForJacobianStuff();
 		//testKhi2();

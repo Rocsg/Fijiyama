@@ -1,9 +1,13 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.common;
 import java.util.Arrays;
 
 import net.imagej.fijiyama.common.VitimageUtils;
 import net.imagej.fijiyama.registration.TransformUtils;
 
+// TODO: Auto-generated Javadoc
 /* Copyright (c) 2012 Kevin L. Stern
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -52,6 +56,11 @@ import net.imagej.fijiyama.registration.TransformUtils;
 public class HungarianAlgorithm {
 	
 
+	/**
+	 * The main method.
+	 *
+	 * @param args the arguments
+	 */
 	public static void main(String[]args) {
 		
 	
@@ -74,13 +83,28 @@ public class HungarianAlgorithm {
 	}
 	
 	
+  /** The cost matrix. */
   private final double[][] costMatrix;
+  
+  /** The dim. */
   private final int rows, cols, dim;
+  
+  /** The label by job. */
   private final double[] labelByWorker, labelByJob;
+  
+  /** The min slack worker by job. */
   private final int[] minSlackWorkerByJob;
+  
+  /** The min slack value by job. */
   private final double[] minSlackValueByJob;
+  
+  /** The match worker by job. */
   private final int[] matchJobByWorker, matchWorkerByJob;
+  
+  /** The parent worker by committed job. */
   private final int[] parentWorkerByCommittedJob;
+  
+  /** The committed workers. */
   private final boolean[] committedWorkers;
 
   /**
@@ -250,7 +274,8 @@ public class HungarianAlgorithm {
   }
 
   /**
-   * 
+   * Fetch unmatched worker.
+   *
    * @return the first unmatched worker or {@link #dim} if none.
    */
   protected int fetchUnmatchedWorker() {
@@ -299,6 +324,9 @@ public class HungarianAlgorithm {
 
   /**
    * Helper method to record a matching between worker w and job j.
+   *
+   * @param w the w
+   * @param j the j
    */
   protected void match(int w, int j) {
     matchJobByWorker[w] = j;
@@ -345,6 +373,8 @@ public class HungarianAlgorithm {
    * Update labels with the specified slack by adding the slack value for
    * committed workers and by subtracting the slack value for committed jobs. In
    * addition, update the minimum slack values appropriately.
+   *
+   * @param slack the slack
    */
   protected void updateLabeling(double slack) {
     for (int w = 0; w < dim; w++) {

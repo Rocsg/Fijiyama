@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.common;
 import java.awt.Color;
 
@@ -19,26 +22,74 @@ import net.imagej.fijiyama.common.VitiDialogs;
 import net.imagej.fijiyama.registration.ItkTransform;
 import net.imagej.fijiyama.registration.TransformUtils;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Boolean int[] vectorUInt32ToIntArray(VectorUInt32 vect).
+ */
 public interface VitiDialogs {
+	
+	/** The vect. */
 	public final static int NO_AUTO_CHOICE=-10;
+	
+	/** The Constant TOOL_NOTHING. */
 	public final static int TOOL_NOTHING=-1;
+	
+	/** The Constant TOOL_1_TRANSFORM_3D. */
 	public final static int TOOL_1_TRANSFORM_3D=0;
+	
+	/** The Constant TOOL_2_MRI_WATER_TRACKER. */
 	public final static int TOOL_2_MRI_WATER_TRACKER=1;
+	
+	/** The Constant TOOL_3_MULTIMODAL_ASSISTANT. */
 	public final static int TOOL_3_MULTIMODAL_ASSISTANT=2;
+	
+	/** The Constant TR3D_0_MANUAL_TR. */
 	public final static int TR3D_0_MANUAL_TR=0;
+	
+	/** The Constant TR3D_1_AUTO_TR. */
 	public final static int TR3D_1_AUTO_TR=1;
+	
+	/** The Constant TR3D_2_MAT_TR. */
 	public final static int TR3D_2_MAT_TR=2;
+	
+	/** The Constant TR3D_3_MANALIGN_TR. */
 	public final static int TR3D_3_MANALIGN_TR=3;
+	
+	/** The Constant TR3D_4_AUTOALIGN_TR. */
 	public final static int TR3D_4_AUTOALIGN_TR=4;
+	
+	/** The Constant TR3D_5_MANCAP_TR. */
 	public final static int TR3D_5_MANCAP_TR=5;
+	
+	/** The Constant TR3D_6_AUTOCAP_TR. */
 	public final static int TR3D_6_AUTOCAP_TR=6;
+	
+	/** The Constant vect. */
 	public final static int MRI_0_EXPLORER=0;
+	
+	/** The Constant MRI_1_T1_CALCULATION. */
 	public final static int MRI_1_T1_CALCULATION=1;
+	
+	/** The Constant MRI_2_T2_CALCULATION. */
 	public final static int MRI_2_T2_CALCULATION=2;	
+	
+	/** The Constant SUPERVISED. */
 	public final static boolean SUPERVISED=false;
+	
+	/** The Constant AUTOMATIC. */
 	public final static boolean AUTOMATIC=true;
+	
+	/** The Constant OS_SEPARATOR. */
 	public final static String OS_SEPARATOR=System.getProperties().getProperty("file.separator");
 
+	/**
+	 * Gets the int UI.
+	 *
+	 * @param strGuess the str guess
+	 * @param parameter the parameter
+	 * @param value the value
+	 * @return the int UI
+	 */
 	public static int getIntUI(String strGuess,String parameter,int value) {
 		int ret=0;
 		GenericDialog gd = new GenericDialog(strGuess);
@@ -50,9 +101,14 @@ public interface VitiDialogs {
 		 return ret;
 	 }
  
-	/** 
-	 * UI generic functions to access images
-	 * */
+	/**
+	 *  
+	 * UI generic functions to access images.
+	 *
+	 * @param strGuess the str guess
+	 * @param strImg1 the str img 1
+	 * @return the image plus
+	 */
 	public static ImagePlus chooseOneImageUI(String strGuess,String strImg1) {
 			ImagePlus imgRet;
 			String open="Select this option to select image into a dialog";
@@ -80,6 +136,13 @@ public interface VitiDialogs {
         	return imgRet;
 	}
 
+	/**
+	 * Choose one image UI path.
+	 *
+	 * @param strGuess the str guess
+	 * @param strImg1 the str img 1
+	 * @return the string
+	 */
 	public static String chooseOneImageUIPath(String strGuess,String strImg1) {
        		OpenDialog od1=new OpenDialog("Select "+strImg1);
        		return od1.getPath();
@@ -87,11 +150,26 @@ public interface VitiDialogs {
 
 	
 	
+	/**
+	 * Choose one roi path UI.
+	 *
+	 * @param strGuess the str guess
+	 * @param strImg1 the str img 1
+	 * @return the string
+	 */
 	public static String chooseOneRoiPathUI(String strGuess,String strImg1) {
    		OpenDialog od1=new OpenDialog("Select "+strGuess);
    		return od1.getPath();
 	}
 
+	/**
+	 * Choose two images UI.
+	 *
+	 * @param strGuess the str guess
+	 * @param strImg1 the str img 1
+	 * @param strImg2 the str img 2
+	 * @return the image plus[]
+	 */
 	public static ImagePlus[] chooseTwoImagesUI(String strGuess,String strImg1, String strImg2) {
 			ImagePlus[]imgRet=new ImagePlus[2];
 			String open="* I will choose image in the explorer *";
@@ -129,9 +207,15 @@ public interface VitiDialogs {
 	}
 		
 
-	/** 
-	 * UI generic functions to ask simple data : image dimensions, voxel size, boolean yes/no , double or integer number, or String
-	 * */
+	/**
+	 *  
+	 * UI generic functions to ask simple data : image dimensions, voxel size, boolean yes/no , double or integer number, or String.
+	 *
+	 * @param img the img
+	 * @param strGuess the str guess
+	 * @param autonomyLevel the autonomy level
+	 * @return the int[]
+	 */
 	public static int[] chooseSizeUI(ImagePlus img,String strGuess,boolean autonomyLevel) {
 		 int[]tabRet=new int[] {img.getWidth(),img.getHeight(),img.getStack().getSize()};
 		 if(autonomyLevel==AUTOMATIC)return tabRet;
@@ -150,6 +234,14 @@ public interface VitiDialogs {
 		 }
 	}
 
+	/**
+	 * Choose vox size UI.
+	 *
+	 * @param img the img
+	 * @param strGuess the str guess
+	 * @param autonomyLevel the autonomy level
+	 * @return the double[]
+	 */
 	public static double[] chooseVoxSizeUI(ImagePlus img,String strGuess,boolean autonomyLevel) {
 		 double[]tabRet=new double[] {img.getCalibration().pixelWidth,img.getCalibration().pixelHeight,img.getCalibration().pixelDepth};
 		 if(autonomyLevel==AUTOMATIC)return tabRet;
@@ -168,6 +260,15 @@ public interface VitiDialogs {
 		 }
 	}
 
+	/**
+	 * Choose number UI.
+	 *
+	 * @param strGuess the str guess
+	 * @param min the min
+	 * @param max the max
+	 * @param def the def
+	 * @return the int
+	 */
 	public static int chooseNumberUI(String strGuess,int min,int max,int def) {
 		GenericDialog gd = new GenericDialog(strGuess);
         gd.addNumericField("Choose a number :",def,6);
@@ -180,6 +281,14 @@ public interface VitiDialogs {
         return ans;
 	}
 	
+	/**
+	 * Gets the double UI.
+	 *
+	 * @param strGuess the str guess
+	 * @param parameter the parameter
+	 * @param value the value
+	 * @return the double UI
+	 */
 	public static double getDoubleUI(String strGuess,String parameter,double value) {
 		double ret=0;
 		GenericDialog gd = new GenericDialog(strGuess);
@@ -192,6 +301,13 @@ public interface VitiDialogs {
 		 return ret;
 	 }
 	
+	/**
+	 * Gets the yes no UI.
+	 *
+	 * @param title the title
+	 * @param strGuess the str guess
+	 * @return the yes no UI
+	 */
 	public static boolean getYesNoUI(String title,String strGuess) {
         GenericDialog gd=new GenericDialog(title);
         gd.addMessage(strGuess);
@@ -200,6 +316,15 @@ public interface VitiDialogs {
     	return (gd.wasOKed());
 	}
 
+	/**
+	 * Gets the string UI.
+	 *
+	 * @param strGuess the str guess
+	 * @param parameter the parameter
+	 * @param value the value
+	 * @param forceStringToBeValidForFilenames the force string to be valid for filenames
+	 * @return the string UI
+	 */
 	public static String getStringUI(String strGuess,String parameter,String value,boolean forceStringToBeValidForFilenames) {
 		String ret="";
 		do{
@@ -213,15 +338,26 @@ public interface VitiDialogs {
 		return ret;
 	}
 	
-	/**Temporary*/
+	/**
+	 * Temporary.
+	 *
+	 * @param strGuess the str guess
+	 * @param value the value
+	 * @return the int UI
+	 */
 	public static int getIntUI(String strGuess,int value) {
 		return (int) IJ.getNumber(strGuess, value);
 	}
 	
 	
-	/** 
-	 * UI generic functions to open other files : directories, roiset, transforms
-	 * */
+	/**
+	 *  
+	 * UI generic functions to open other files : directories, roiset, transforms.
+	 *
+	 * @param strGuess the str guess
+	 * @param strApproveButton the str approve button
+	 * @return the string
+	 */
 	public static String chooseDirectoryNiceUI(String strGuess,String strApproveButton){
 		if(true)return (IJ.getDirectory(strGuess));
 		JFileChooser jf=new JFileChooser();
@@ -232,6 +368,13 @@ public interface VitiDialogs {
 		return null;
 	}
 	
+	/**
+	 * Choose directory UI.
+	 *
+	 * @param strGuess the str guess
+	 * @param strApproveButton the str approve button
+	 * @return the string
+	 */
 	public static String chooseDirectoryUI(String strGuess,String strApproveButton){
 		if(true)return (IJ.getDirectory(strGuess));
 		JFileChooser jf=new JFileChooser();
@@ -243,11 +386,27 @@ public interface VitiDialogs {
 	}
 
 	
+	/**
+	 * Open mac file UI.
+	 *
+	 * @param strGuess the str guess
+	 * @param dirName the dir name
+	 * @param extension the extension
+	 * @return the string
+	 */
 	public static String openMacFileUI(String strGuess, String dirName, String extension) {
 		OpenDialog op=new OpenDialog(strGuess,dirName, extension);
 		return op.getPath();
 	}
 	
+	/**
+	 * Open J file UI.
+	 *
+	 * @param strGuess the str guess
+	 * @param dirName the dir name
+	 * @param extension the extension
+	 * @return the string
+	 */
 	public static String openJFileUI(String strGuess,String dirName,String extension){
 		if(VitimageUtils.isMac()){
 			System.out.println("Mac system detected. Mac routine opening file.");
@@ -267,6 +426,13 @@ public interface VitiDialogs {
 		return null;
 	 }
 
+	/**
+	 * Choose transforms UI.
+	 *
+	 * @param strGuess the str guess
+	 * @param autonomyLevel the autonomy level
+	 * @return the itk transform
+	 */
 	public static ItkTransform chooseTransformsUI(String strGuess,boolean autonomyLevel){
 		ItkTransform globalTransform = null;
 		int iTr=-1;
@@ -287,6 +453,14 @@ public interface VitiDialogs {
 		return (globalTransform);
 	 }
 		
+	/**
+	 * Choose one transforms UI.
+	 *
+	 * @param strGuess the str guess
+	 * @param path the path
+	 * @param autonomyLevel the autonomy level
+	 * @return the itk transform
+	 */
 	public static ItkTransform chooseOneTransformsUI(String strGuess,String path,boolean autonomyLevel){
 		if(autonomyLevel==AUTOMATIC) return ItkTransform.readTransformFromFile(path);
 		OpenDialog od=new OpenDialog(strGuess);
@@ -295,9 +469,17 @@ public interface VitiDialogs {
 	 }
 		
 
-	/** 
-	 * UI generic functions to save transforms, images, or text in files
-	 * */
+	/**
+	 *  
+	 * UI generic functions to save transforms, images, or text in files.
+	 *
+	 * @param tr the tr
+	 * @param strGuess the str guess
+	 * @param autonomyLevel the autonomy level
+	 * @param path the path
+	 * @param title the title
+	 * @param imgRef the img ref
+	 */
 	public static void saveDenseFieldTransformUI(ItkTransform tr,String strGuess,boolean autonomyLevel,String path,String title,ImagePlus imgRef){
 		if(autonomyLevel==AUTOMATIC) {
 			String pathSave=path+""+title;
@@ -311,6 +493,15 @@ public interface VitiDialogs {
 		}
 	}
 	
+	/**
+	 * Save matrix transform UI.
+	 *
+	 * @param tr the tr
+	 * @param strGuess the str guess
+	 * @param autonomyLevel the autonomy level
+	 * @param path the path
+	 * @param title the title
+	 */
 	public static void saveMatrixTransformUI(ItkTransform tr,String strGuess,boolean autonomyLevel,String path,String title){
 		if(autonomyLevel==AUTOMATIC) {
 			String pathSave=path+""+title;
@@ -324,6 +515,15 @@ public interface VitiDialogs {
 		}
 	}
 
+	/**
+	 * Save image UI.
+	 *
+	 * @param img the img
+	 * @param strGuess the str guess
+	 * @param autonomyLevel the autonomy level
+	 * @param path the path
+	 * @param title the title
+	 */
 	public static void saveImageUI(ImagePlus img,String strGuess,boolean autonomyLevel,String path,String title) {
 		if(autonomyLevel==AUTOMATIC) {
 			String pathSave=path+title;
@@ -338,6 +538,13 @@ public interface VitiDialogs {
 	
 	}
 
+	/**
+	 * Save image UI path.
+	 *
+	 * @param strGuess the str guess
+	 * @param title the title
+	 * @return the string
+	 */
 	public static String saveImageUIPath(String strGuess,String title) {
 		SaveDialog sd=new SaveDialog(strGuess,title,"");
 		if(sd.getDirectory()==null ||  sd.getFileName()==null)return null;
@@ -347,6 +554,15 @@ public interface VitiDialogs {
 
 	
 	
+	/**
+	 * Save text file UI.
+	 *
+	 * @param text the text
+	 * @param strGuess the str guess
+	 * @param suggestedDir the suggested dir
+	 * @param title the title
+	 * @param extension the extension
+	 */
 	public static void saveTextFileUI(String text,String strGuess,String suggestedDir,String title,String extension){
 		SaveDialog sd=new SaveDialog(strGuess,title,extension);
 		if(sd.getDirectory()==null ||  sd.getFileName()==null)return;
@@ -358,9 +574,15 @@ public interface VitiDialogs {
 	
 	
 	
-	/** 
-	 * UI generic functions to open landmark perspective, with an image (or two) open, and waiting for the points to be selected
-	 * */
+	/**
+	 *  
+	 * UI generic functions to open landmark perspective, with an image (or two) open, and waiting for the points to be selected.
+	 *
+	 * @param nbWantedPoints the nb wanted points
+	 * @param img the img
+	 * @param realCoordinates the real coordinates
+	 * @return the double[][]
+	 */
 	public static double[][] waitForReferencePointsUI(int nbWantedPoints,ImagePlus img,boolean realCoordinates){
 		double[][]tabRet=new double[nbWantedPoints][3];
 		RoiManager rm=RoiManager.getRoiManager();
@@ -393,6 +615,15 @@ public interface VitiDialogs {
 		return tabRet;
 	}
 
+	/**
+	 * Wait for points UI until click on slice 1.
+	 *
+	 * @param rx the rx
+	 * @param mri the mri
+	 * @param img2 the img 2
+	 * @param realCoordinates the real coordinates
+	 * @return the point 3 d[]
+	 */
 	public static Point3d[] waitForPointsUIUntilClickOnSlice1(ImagePlus rx,ImagePlus mri,ImagePlus img2,boolean realCoordinates){
 		ImagePlus img=new Duplicator().run(img2);
 		img.setTitle("waitForPointsUI");
@@ -435,6 +666,14 @@ public interface VitiDialogs {
 		return ptRet;
 	}
 		
+	/**
+	 * Wait for points UI.
+	 *
+	 * @param nbWantedPoints the nb wanted points
+	 * @param img the img
+	 * @param realCoordinates the real coordinates
+	 * @return the double[][]
+	 */
 	public static double[][] waitForPointsUI(int nbWantedPoints,ImagePlus img,boolean realCoordinates){
 		double[][]tabRet=new double[nbWantedPoints][3];
 		RoiManager rm=RoiManager.getRoiManager();
@@ -464,6 +703,15 @@ public interface VitiDialogs {
 		return tabRet;
 	}
 	
+	/**
+	 * Registration points UI.
+	 *
+	 * @param nbWantedPointsPerImage the nb wanted points per image
+	 * @param imgRef the img ref
+	 * @param imgMov the img mov
+	 * @param realCoordinates the real coordinates
+	 * @return the point 3 d[][]
+	 */
 	public static Point3d[][] registrationPointsUI(int nbWantedPointsPerImage,ImagePlus imgRef,ImagePlus imgMov,boolean realCoordinates){
 		ImagePlus imgRefBis=imgRef.duplicate();
 		ImagePlus imgMovBis=imgMov.duplicate();
@@ -508,9 +756,14 @@ public interface VitiDialogs {
 	
 	
 	
-	/** 
-	 * Display a point detected on an image, and ask for confirmation
-	 * */
+	/**
+	 *  
+	 * Display a point detected on an image, and ask for confirmation.
+	 *
+	 * @param img the img
+	 * @param suggestedInocPoint the suggested inoc point
+	 * @return the point 3 d
+	 */
 	public static Point3d inspectInoculationPoint(ImagePlus img,Point3d suggestedInocPoint) {
 		double ray=1;//in mm
 		ImagePlus imgInspect=new Duplicator().run(img);
@@ -553,6 +806,15 @@ public interface VitiDialogs {
 		return pointCoordImage;		
 	}
 	
+	/**
+	 * Inspect axis.
+	 *
+	 * @param img the img
+	 * @param vectZ the vect Z
+	 * @param ptOrigine the pt origine
+	 * @param delayForReacting the delay for reacting
+	 * @return the double[][]
+	 */
 	public static double[][] inspectAxis(ImagePlus img ,double[] vectZ,Point3d ptOrigine,int delayForReacting){
 		double ray=1;//in mm
 		ImagePlus imgInspect=new Duplicator().run(img);
@@ -600,9 +862,13 @@ public interface VitiDialogs {
 		}
 
 		
-	/** 
-	 * Helpers to check conformity of the String given by the user
-	 * */
+	/**
+	 *  
+	 * Helpers to check conformity of the String given by the user.
+	 *
+	 * @param c the c
+	 * @return true, if is standard char
+	 */
 	//work like isAlphaNumeric, but including also underscore and minus
 	public static boolean isStandardChar(char c) {
 		int val=(int)c;
@@ -613,6 +879,12 @@ public interface VitiDialogs {
 		return false;
 	}
 	
+	/**
+	 * Checks if is standard name.
+	 *
+	 * @param str the str
+	 * @return true, if is standard name
+	 */
 	public static boolean isStandardName(String str) {
 		if(str.length()<=0)return false;
 		for (int i=0;i<str.length();i++)if (!isStandardChar(str.charAt(i)))return false;
@@ -620,11 +892,23 @@ public interface VitiDialogs {
 	}
 	
 
+	/**
+	 * Not yet.
+	 *
+	 * @param strGuess the str guess
+	 */
 	public static void notYet(String strGuess) {
 		IJ.showMessage("Not yet implemented : "+strGuess+"\nOur team constantly struggle to provide you new features, accordingly to you needs.\n"+
 						"Please consider sending a feature request to : romainfernandez06@gmail.com");
 	}
 	
+    /**
+     * Manual registration in 3 D.
+     *
+     * @param imRef the im ref
+     * @param imMov the im mov
+     * @return the itk transform
+     */
     public static ItkTransform manualRegistrationIn3D(ImagePlus imRef,ImagePlus imMov) {
     	ImagePlus imgRef=new Duplicator().run(imRef);
     	VitimageUtils.adjustImageCalibration(imgRef,imRef);

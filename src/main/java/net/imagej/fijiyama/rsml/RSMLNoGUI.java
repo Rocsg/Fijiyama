@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.rsml;
 /**
  * @author Xavier Draye - Universit� catholique de Louvain
@@ -15,12 +18,29 @@ import net.imagej.fijiyama.rsml.RootModel;
 
 import java.io.*;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class RSMLNoGUI.
+ */
 public class RSMLNoGUI{
+   
+   /** The img source. */
    private ImagePlus imgSource=null;
+   
+   /** The sr. */
    private FSR sr; 
+   
+   /**
+    * Instantiates a new RSML no GUI.
+    */
    public RSMLNoGUI() {    }
 
    
+   /**
+    * The main method.
+    *
+    * @param args the arguments
+    */
    public static void main (String[]args) {
 	   ImageJ ij=new ImageJ();
 	   ImagePlus imgRef=IJ.openImage("/home/rfernandez/Bureau/test.tif");
@@ -32,6 +52,18 @@ public class RSMLNoGUI{
 	   new RSMLNoGUI().getPreviewGreyScale(imgName,rsmlMorganName,true).show();
 	   
    }
+   
+   /**
+    * Gets the preview.
+    *
+    * @param imgPath the img path
+    * @param rsmlPath the rsml path
+    * @param lineWidth the line width
+    * @param realWidth the real width
+    * @param makeConvexHull the make convex hull
+    * @param ratioColor the ratio color
+    * @return the preview
+    */
    public ImagePlus getPreview(String imgPath,String rsmlPath,int lineWidth,boolean realWidth,boolean makeConvexHull,double ratioColor){
 	    (sr= new FSR()).initialize();
 	    RootModel model = new RootModel(rsmlPath);
@@ -48,6 +80,14 @@ public class RSMLNoGUI{
    }
    
    
+   /**
+    * Gets the preview grey scale.
+    *
+    * @param imgPath the img path
+    * @param rsmlPath the rsml path
+    * @param makeConvexHull the make convex hull
+    * @return the preview grey scale
+    */
    public ImagePlus getPreviewGreyScale(String imgPath,String rsmlPath,boolean makeConvexHull){
 	    (sr= new FSR()).initialize();
 	    RootModel model = new RootModel(rsmlPath);
@@ -58,6 +98,17 @@ public class RSMLNoGUI{
 		return imgRSML;
   }
    	
+   /**
+    * Gets the transformed preview.
+    *
+    * @param imgPath the img path
+    * @param rsmlPath the rsml path
+    * @param lineWidth the line width
+    * @param realWidth the real width
+    * @param makeConvexHull the make convex hull
+    * @param ratioColor the ratio color
+    * @return the transformed preview
+    */
    public ImagePlus getTransformedPreview(String imgPath,String rsmlPath,int lineWidth,boolean realWidth,boolean makeConvexHull,double ratioColor){
 	    (sr= new FSR()).initialize();
 	    RootModel model = new RootModel(rsmlPath);

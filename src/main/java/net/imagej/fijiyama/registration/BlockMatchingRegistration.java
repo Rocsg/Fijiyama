@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.registration;
 
 import java.util.ArrayList;
@@ -26,104 +29,319 @@ import net.imagej.fijiyama.registration.Transform3DType;
 import net.imagej.fijiyama.registration.VarianceComparator;
 import net.imagej.fijiyama.rsml.*;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class BlockMatchingRegistration.
+ */
 public class BlockMatchingRegistration  implements ItkImagePlusInterface{
+	
+	/** The old behaviour. */
 	public boolean OLD_BEHAVIOUR=false;
+	
+	/** The return composed transformation including the initial transformation given. */
 	public boolean returnComposedTransformationIncludingTheInitialTransformationGiven=true;
+	
+	/** The view fuse bigger. */
 	boolean viewFuseBigger=true;
+	
+	/** The bm is interrupted succeeded. */
 	public volatile boolean bmIsInterruptedSucceeded=false;
+	
+	/** The threads. */
 	public Thread[] threads;
+	
+	/** The main thread. */
 	public Thread mainThread;
+	
+	/** The timing measurement. */
 	public boolean timingMeasurement=false;
+	
+	/** The debug. */
 	boolean debug=false;
+	
+	/** The wait before start. */
 	boolean waitBeforeStart=false;
+	
+	/** The ref range. */
 	private double[]refRange=new double[] {-1,-1};
+	
+	/** The mov range. */
 	private double[]movRange=new double[] {-1,-1};
+	
+	/** The flag range. */
 	public boolean flagRange=false;
+	
+	/** The bm is interrupted. */
 	public volatile boolean bmIsInterrupted;
+	
+	/** The compute summary. */
 	public boolean computeSummary=false;
+	
+	/** The max iter. */
 	int maxIter=1000;
+	
+	/** The font size. */
 	int fontSize=12;
+	
+	/** The percentage blocks selected by LTS. */
 	public int percentageBlocksSelectedByLTS=70;
+	
+	/** The correspondance provided at start. */
 	public Point3d[][] correspondanceProvidedAtStart;
+	
+	/** The global R 2 values. */
 	public double[]globalR2Values=new double[maxIter];
+	
+	/** The block R 2 values bef. */
 	public double[]blockR2ValuesBef=new double[maxIter];
+	
+	/** The block R 2 values aft. */
 	public double[]blockR2ValuesAft=new double[maxIter];
+	
+	/** The incr iter. */
 	public int incrIter=0;
+	
+	/** The stride moving. */
 	public int strideMoving=1;
+	
+	/** The display registration. */
 	public int displayRegistration=1;
+	
+	/** The display R 2. */
 	public boolean displayR2=true;
+	
+	/** The console output activated. */
 	public boolean consoleOutputActivated=true;
+	
+	/** The image J output activated. */
 	public boolean imageJOutputActivated=true;
+	
+	/** The default core number. */
 	public int defaultCoreNumber=12;
+	
+	/** The resampler. */
 	public ResampleImageFilter resampler;
+	
+	/** The img ref. */
 	public ImagePlus imgRef;
+	
+	/** The img mov. */
 	public ImagePlus imgMov;
+	
+	/** The dense field sigma. */
 	public double denseFieldSigma;//in mm
+	
+	/** The smoothing sigma in pixels. */
 	public double smoothingSigmaInPixels;
+	
+	/** The level min. */
 	public int levelMin;
+	
+	/** The level max. */
 	public int levelMax;
+	
+	/** The no sub scale Z. */
 	public boolean noSubScaleZ=true;
+	
+	/** The percentage blocks selected by variance. */
 	public int percentageBlocksSelectedByVariance=50;//15;
+	
+	/** The min block variance. */
 	public double minBlockVariance=0.05;
+	
+	/** The min block score. */
 	public double minBlockScore=0.1;
+	
+	/** The percentage blocks selected randomly. */
 	public int percentageBlocksSelectedRandomly=100;//50;
+	
+	/** The percentage blocks selected by score. */
 	public int percentageBlocksSelectedByScore=80;//95;
+	
+	/** The block size half X. */
 	public int blockSizeHalfX;
+	
+	/** The block size half Y. */
 	public int blockSizeHalfY;
+	
+	/** The block size half Z. */
 	public int blockSizeHalfZ;
+	
+	/** The block size X. */
 	public int blockSizeX;
+	
+	/** The block size Y. */
 	public int blockSizeY;
+	
+	/** The block size Z. */
 	public int blockSizeZ;
+	
+	/** The blocks stride X. */
 	public int blocksStrideX=2;
+	
+	/** The blocks stride Y. */
 	public int blocksStrideY=2;
+	
+	/** The blocks stride Z. */
 	public int blocksStrideZ=2;
+	
+	/** The neighbourhood size X. */
 	public int neighbourhoodSizeX=4;
+	
+	/** The neighbourhood size Y. */
 	public int neighbourhoodSizeY=4;
+	
+	/** The neighbourhood size Z. */
 	public int neighbourhoodSizeZ=1;
+	
+	/** The img mov default value. */
 	public double imgMovDefaultValue;
+	
+	/** The img ref default value. */
 	public double imgRefDefaultValue;
+	
+	/** The nb levels. */
 	public int nbLevels;
+	
+	/** The nb iterations. */
 	public int nbIterations;
+	
+	/** The current field. */
 	Image []currentField;
+	
+	/** The ind field. */
 	int indField;
+	
+	/** The sub scale factors. */
 	public int []subScaleFactors;
+	
+	/** The successive step factors. */
 	public double []successiveStepFactors;
+	
+	/** The successive dimensions. */
 	public int [][]successiveDimensions;
+	
+	/** The successive vox sizes. */
 	public double [][]successiveVoxSizes;
+	
+	/** The successive smoothing sigma. */
 	public double []successiveSmoothingSigma;
+	
+	/** The successive dense field sigma. */
 	public double []successiveDenseFieldSigma;
+	
+	/** The rejection threshold. */
 	public double rejectionThreshold=3;//for outlier rejection : when computing Sigma_X/Y/Z,Mu_X/Y/Z of the transformation coordinates (X,Y,Z) in the neighbourhood (x0+-sigma,y0+-sigma,z0+-sigma),
+	
+	/** The current transform. */
 	//reject the vectors which one at least of their coordinate X (respectively Y,Z) is out of the interval Mu_X (respectively Y,Z)  +- rejectionThreshold*Sigma_X (respectively Y,Z) 
 	public ItkTransform currentTransform=new ItkTransform();
+	
+	/** The transformation type. */
 	public Transform3DType transformationType;
+	
+	/** The metric type. */
 	public MetricType metricType;
+	
+	/** The slice ref. */
 	public ImagePlus sliceRef;
+	
+	/** The slice mov. */
 	public ImagePlus sliceMov;
+	
+	/** The slice fuse. */
 	public ImagePlus sliceFuse;
+	
+	/** The slice grid. */
 	public ImagePlus sliceGrid;
+	
+	/** The slice corr. */
 	public ImagePlus sliceCorr;
+	
+	/** The slice jacobian. */
 	public ImagePlus sliceJacobian;
+	
+	/** The summary. */
 	public ImagePlus summary;
+	
+	/** The grid summary. */
 	public ImagePlus gridSummary;
+	
+	/** The correspondances summary. */
 	public ImagePlus correspondancesSummary;
+	
+	/** The jacobian summary. */
 	public ImagePlus jacobianSummary;
+	
+	/** The slice int. */
 	public int sliceInt;
+	
+	/** The slice int corr. */
 	public int sliceIntCorr;
+	
+	/** The zoom factor. */
 	public double zoomFactor=1;
+	
+	/** The view width. */
 	public int viewWidth;
+	
+	/** The view height. */
 	public int viewHeight;
+	
+	/** The last value corr. */
 	public double lastValueCorr=0;
+	
+	/** The last value blocks corr. */
 	public double lastValueBlocksCorr=0;
+	
+	/** The mask. */
 	public ImagePlus mask=null;
+	
+	/** The flag single view. */
 	public boolean flagSingleView=false;
+	
+	/** The info. */
 	private String info="";
+	
+	/** The Constant EPSILON. */
 	private static final double EPSILON=1E-8;
+	
+	/** The is rsml. */
 	public boolean isRsml=false;
+	
+	/** The root model. */
 	private RootModel rootModel;
 	
+	/**
+	 * Sets the single view.
+	 */
 	public void setSingleView() {flagSingleView=true;}
 	
-	/** Starting points	 */
+	/**
+	 *  Starting points.
+	 *
+	 * @param imgReff the img reff
+	 * @param imgMovv the img movv
+	 * @param transformationType the transformation type
+	 * @param metricType the metric type
+	 * @param smoothingSigmaInPixels the smoothing sigma in pixels
+	 * @param denseFieldSigma the dense field sigma
+	 * @param levelMin the level min
+	 * @param levelMax the level max
+	 * @param nbIterations the nb iterations
+	 * @param sliceInt the slice int
+	 * @param maskk the maskk
+	 * @param neighbourX the neighbour X
+	 * @param neighbourY the neighbour Y
+	 * @param neighbourZ the neighbour Z
+	 * @param blockHalfSizeX the block half size X
+	 * @param blockHalfSizeY the block half size Y
+	 * @param blockHalfSizeZ the block half size Z
+	 * @param strideX the stride X
+	 * @param strideY the stride Y
+	 * @param strideZ the stride Z
+	 * @param displayReg the display reg
+	 */
 	public BlockMatchingRegistration(ImagePlus imgReff,ImagePlus imgMovv,Transform3DType transformationType,MetricType metricType,
 			double smoothingSigmaInPixels, double denseFieldSigma,int levelMin,int levelMax,int nbIterations,int sliceInt,ImagePlus maskk,
 			int neighbourX,int neighbourY,int neighbourZ,int blockHalfSizeX,int blockHalfSizeY,int blockHalfSizeZ,int strideX,int strideY,int strideZ,int displayReg) {
@@ -183,10 +401,21 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		
 	}
 		
+	/**
+	 * Instantiates a new block matching registration.
+	 */
 	public BlockMatchingRegistration() {
 		// TODO Auto-generated constructor stub
 	}
 
+	/**
+	 * Setup block matching registration.
+	 *
+	 * @param imgRef the img ref
+	 * @param imgMov the img mov
+	 * @param regAct the reg act
+	 * @return the block matching registration
+	 */
 	public static BlockMatchingRegistration setupBlockMatchingRegistration(ImagePlus imgRef,ImagePlus imgMov,RegistrationAction regAct) {
 		return new BlockMatchingRegistration(imgRef,imgMov,regAct.typeTrans,MetricType.SQUARED_CORRELATION,
 				regAct.sigmaResampling,regAct.sigmaDense , regAct.higherAcc==1 ? -1 : (regAct.typeTrans==Transform3DType.DENSE ? regAct.levelMinDense : regAct.levelMinLinear),
@@ -195,6 +424,11 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	}
 
 
+	/**
+	 * The main method.
+	 *
+	 * @param args the arguments
+	 */
 	public static void main(String[]args) {
 		ImageJ ij=new ImageJ();
 //		setupAndRunRsmlBlockMatchingRegistration("/home/rfernandez/Bureau/A_Test/BPMP/Reproduction_01_avec_reseau_morgan/Train/20200826-AC-PIP_azote_Seq 6_Boite 00005_IdentificationFailed-Visu.jpg");
@@ -203,6 +437,14 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		setupAndRunRsmlBlockMatchingRegistration(dir+img,true,true);
 	}
 	
+	/**
+	 * Setup and run rsml block matching registration.
+	 *
+	 * @param pathToImgRef the path to img ref
+	 * @param display the display
+	 * @param multiRsml the multi rsml
+	 * @return the root model
+	 */
 	public static RootModel setupAndRunRsmlBlockMatchingRegistration(String pathToImgRef,boolean display,boolean multiRsml) {
 		ImagePlus imgRef=IJ.openImage(pathToImgRef);
 		RootModel rootModel = new RootModel(VitimageUtils.withoutExtension(pathToImgRef)+".rsml");
@@ -238,8 +480,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 	
 	
-	/** Run algorithm from an initial situation (trInit), and return the final transform (including trInit)
- */
+	/**
+	 *  Run algorithm from an initial situation (trInit), and return the final transform (including trInit).
+	 *
+	 * @param trInit the tr init
+	 * @param stressTest the stress test
+	 * @return the itk transform
+	 */
 	@SuppressWarnings("unchecked")
 	public ItkTransform runBlockMatching(ItkTransform trInit,boolean stressTest) {
 		double[]timesGlob=new double[20];
@@ -842,8 +1089,23 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 	
 	
-	/** Helper to estimate computation time, and eventually adjust parameters before launch
-	 * 
+	/**
+	 *  Helper to estimate computation time, and eventually adjust parameters before launch.
+	 *
+	 * @param dims the dims
+	 * @param viewRegistrationLevel the view registration level
+	 * @param levelMin the level min
+	 * @param levelMax the level max
+	 * @param nbIter the nb iter
+	 * @param transformType the transform type
+	 * @param blockHalfSizes the block half sizes
+	 * @param strides the strides
+	 * @param neighbourhoods the neighbourhoods
+	 * @param percentageScoreSelect the percentage score select
+	 * @param percentageVarianceSelect the percentage variance select
+	 * @param percentageRandomSelect the percentage random select
+	 * @param subsampleZ the subsample Z
+	 * @return the double[]
 	 */
 	public static double []estimateBlocksNumberPerLevel(int[]dims,int viewRegistrationLevel,int levelMin,int levelMax,int nbIter,Transform3DType transformType,													
 		int []blockHalfSizes,int []strides,int []neighbourhoods,int percentageScoreSelect,int percentageVarianceSelect,int percentageRandomSelect,boolean subsampleZ) {
@@ -870,6 +1132,26 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return tabNb;
 	}
 
+	/**
+	 * Estimate registration duration.
+	 *
+	 * @param dims the dims
+	 * @param viewRegistrationLevel the view registration level
+	 * @param levelMin the level min
+	 * @param levelMax the level max
+	 * @param nIterations the n iterations
+	 * @param transformType the transform type
+	 * @param blockHalfSizes the block half sizes
+	 * @param strides the strides
+	 * @param neighbourhoods the neighbourhoods
+	 * @param nCpu the n cpu
+	 * @param percentageScoreSelect the percentage score select
+	 * @param percentageVarianceSelect the percentage variance select
+	 * @param percentageRandomSelect the percentage random select
+	 * @param subsampleZ the subsample Z
+	 * @param higherAccuracy the higher accuracy
+	 * @return the double
+	 */
 	public static double estimateRegistrationDuration(int[]dims,int viewRegistrationLevel,int levelMin,int levelMax,int nIterations,Transform3DType transformType,
 													int []blockHalfSizes,int []strides,int []neighbourhoods,int nCpu,int percentageScoreSelect,int percentageVarianceSelect,int percentageRandomSelect,boolean subsampleZ,int higherAccuracy) {
 		if(higherAccuracy==1)levelMin=-1;
@@ -938,19 +1220,36 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 	
 	
+	/**
+	 * Sets the ref range.
+	 *
+	 * @param newRange the new ref range
+	 */
 	public void setRefRange(double[]newRange) {
 		this.refRange=new double[] {newRange[0],newRange[1]};		
 	}
 	
+	/**
+	 * Sets the mov range.
+	 *
+	 * @param newRange the new mov range
+	 */
 	public void setMovRange(double[]newRange) {
 		this.movRange=new double[] {newRange[0],newRange[1]};		
 	}
 
 	
 	
-	/**	Helper functions for trimming the correspondences
-*
-*/
+	/**
+	 * 	Helper functions for trimming the correspondences.
+	 *
+	 * @param list the list
+	 * @param voxSizes the vox sizes
+	 * @param percentageKeepScore the percentage keep score
+	 * @param percentageKeepLTS the percentage keep LTS
+	 * @param transform the transform
+	 * @return the correspondance list as trimmed point array
+	 */
 	@SuppressWarnings("unchecked")
 	Object[] getCorrespondanceListAsTrimmedPointArray(ArrayList<double[][]>list,double[]voxSizes,int percentageKeepScore,int percentageKeepLTS,ItkTransform transform){
 		//Convert voxel space correspondances in real space vectors
@@ -1010,6 +1309,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return new Object[] {ret,meanVar/(ret[0].length),listRet};
 	}
 		
+	/**
+	 * Creates the block props from block list.
+	 *
+	 * @param blockList the block list
+	 * @param nbProc the nb proc
+	 * @return the double[][][]
+	 */
 	public double[][][]createBlockPropsFromBlockList(double[][]blockList,int nbProc){
 		double[][][]ret=new double[nbProc][][];
 		int nbTot=blockList.length;
@@ -1031,6 +1337,17 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		}
 		return ret;
 	}
+
+/**
+ * Trim using mask NEW.
+ *
+ * @param tabIn the tab in
+ * @param imgMaskAtScale the img mask at scale
+ * @param bSX the b SX
+ * @param bSY the b SY
+ * @param bSZ the b SZ
+ * @return the double[][]
+ */
 /*
   	blocksRef[nbBlocksTotal][3]=blocksRefTmp[bl][0];
 	blocksRef[nbBlocksTotal][0]=blocksRefTmp[bl][1];
@@ -1065,6 +1382,16 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return ret;
 	}
 	
+	/**
+	 * Trim using mask OLD.
+	 *
+	 * @param tabIn the tab in
+	 * @param imgMaskAtScale the img mask at scale
+	 * @param bSX the b SX
+	 * @param bSY the b SY
+	 * @param bSZ the b SZ
+	 * @return the double[][]
+	 */
 	public double[][] trimUsingMaskOLD(double [][]tabIn,ImagePlus imgMaskAtScale,int bSX,int bSY,int bSZ){
 		double epsilon=10E-4;
 		int[]isOut=new int[tabIn.length];
@@ -1095,14 +1422,27 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 	
 
+	/**
+	 * Plongement.
+	 *
+	 * @param ref the ref
+	 * @param rootModel the root model
+	 * @param addCrosses the add crosses
+	 * @return the image plus
+	 */
 	public static ImagePlus plongement(ImagePlus ref, RootModel rootModel, boolean addCrosses) {
 		return rootModel.createGrayScaleImage(ref,1,false,addCrosses,1); 
 	}
 	
 
-	/** display registration and informations during execution.  
- * 	
- */
+	/**
+	 *  display registration and informations during execution.  
+	 *
+	 * @param level the level
+	 * @param iteration the iteration
+	 * @param subpixellic the subpixellic
+	 * @param textTrans the text trans
+	 */
 
 	public void updateViews(int level,int iteration,int subpixellic,String textTrans) {
 		String textIter=String.format("Level=%1d/%1d - Iter=%3d/%3d - %s",
@@ -1220,6 +1560,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	}
 	
 	
+	/**
+	 * Display distance map on grid.
+	 *
+	 * @param tr the tr
+	 * @param grid the grid
+	 * @return the image plus
+	 */
 	public ImagePlus displayDistanceMapOnGrid(ItkTransform tr,ImagePlus grid){
 		ImagePlus distMap=tr.distanceMap(imgRef,true);//goes from 0 to 1, with a lot between 0 and 0.1
 		double factorMult=70;
@@ -1267,6 +1614,9 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return test/*distMap*/;
 	}
 	
+	/**
+	 * Close last images.
+	 */
 	public void closeLastImages() {
 		if(this.displayRegistration>0) {
 			if(this.sliceFuse!=null)this.sliceFuse.changes=false;
@@ -1282,11 +1632,21 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	}
 	
 	
+	/**
+	 * Handle output.
+	 *
+	 * @param s the s
+	 */
 	public void handleOutput(String s) {
 		if (consoleOutputActivated)System.out.println(s);
 		if (imageJOutputActivated)IJ.log(s);
 	}
 
+	/**
+	 * Handle output no newline.
+	 *
+	 * @param s the s
+	 */
 	public void handleOutputNoNewline(String s) {
 		if (consoleOutputActivated)System.out.print(s);
 	}
@@ -1299,9 +1659,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 	
 	
-	/** Local and global score computation for block comparison
- * 
- */
+	/**
+	 *  Local and global score computation for block comparison.
+	 *
+	 * @param valsFixedBlock the vals fixed block
+	 * @param valsMovingBlock the vals moving block
+	 * @return the double
+	 */
 	double computeBlockScore(double[]valsFixedBlock,double[]valsMovingBlock) {
 		//if(valsFixedBlock.length!=valsMovingBlock.length)return -10E10;
 		switch(this.metricType) {
@@ -1312,6 +1676,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		}
 	}
 
+	/**
+	 * Mean square difference.
+	 *
+	 * @param X the x
+	 * @param Y the y
+	 * @return the double
+	 */
 	double meanSquareDifference(double X[], double Y[]) {
 		if(X.length !=Y.length ) {IJ.log("In meanSquareDifference in BlockMatching, blocks length does not match");return 1E8;}
 		double sum=0;
@@ -1324,6 +1695,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return (sum/n);
 	}
 	
+	/**
+	 * Correlation coefficient.
+	 *
+	 * @param X the x
+	 * @param Y the y
+	 * @return the double
+	 */
 	public double correlationCoefficient(double X[], double Y[]) { 
 		double epsilon=10E-20;
 		if(X.length !=Y.length ) {return 0;}
@@ -1346,6 +1724,11 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return result;
 	} 
 		
+	/**
+	 * Gets the global rsquare with actual transform.
+	 *
+	 * @return the global rsquare with actual transform
+	 */
 	public double getGlobalRsquareWithActualTransform() {
 		ImagePlus imgResampled;
 		imgResampled=this.currentTransform.transformImage(imgRef,imgMov,false);
@@ -1362,8 +1745,14 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 	
 	
-	/**Helper functions to determine initial factors from given data and parameters 
-	 * 
+	/**
+	 * Helper functions to determine initial factors from given data and parameters .
+	 *
+	 * @param levelMin the level min
+	 * @param levelMax the level max
+	 * @param doubleIterAtCoarsestLevels the double iter at coarsest levels
+	 * @param basis the basis
+	 * @return the int[]
 	 */
 	public int[] subSamplingFactorsAtSuccessiveLevels(int levelMin,int levelMax,boolean doubleIterAtCoarsestLevels,double basis){
 		if(levelMax<levelMin)levelMax=levelMin;
@@ -1410,6 +1799,14 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return ret;
 	}
 
+	/**
+	 * Image dims at successive levels.
+	 *
+	 * @param dimsImg the dims img
+	 * @param subFactors the sub factors
+	 * @param noSubScaleZ the no sub scale Z
+	 * @return the int[][]
+	 */
 	public int [][] imageDimsAtSuccessiveLevels(int []dimsImg,int []subFactors,boolean noSubScaleZ) {		
 		if (subFactors==null)return null;
 		int n=subFactors.length;
@@ -1422,6 +1819,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return ret;
 	}
 
+	/**
+	 * Image vox sizes at successive levels.
+	 *
+	 * @param voxSizes the vox sizes
+	 * @param subFactors the sub factors
+	 * @return the double[][]
+	 */
 	public double [][] imageVoxSizesAtSuccessiveLevels(double []voxSizes,int []subFactors) {		
 		if (subFactors==null)return null;
 		int n=subFactors.length;
@@ -1434,6 +1838,13 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return ret;
 	}
 
+	/**
+	 * Sigma dense field at successive levels.
+	 *
+	 * @param subFactors the sub factors
+	 * @param rapportSigma the rapport sigma
+	 * @return the double[]
+	 */
 	public double[] sigmaDenseFieldAtSuccessiveLevels(int[]subFactors,double rapportSigma) {
 		if (subFactors==null)return null;
 		double[]ret=new double[subFactors.length];
@@ -1442,6 +1853,14 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return ret;
 	}
 	
+	/**
+	 * Sigma factors at successive levels.
+	 *
+	 * @param voxSize the vox size
+	 * @param subFactors the sub factors
+	 * @param rapportSigma the rapport sigma
+	 * @return the double[]
+	 */
 	public double[] sigmaFactorsAtSuccessiveLevels(double []voxSize,int[]subFactors,double rapportSigma) {
 		if (subFactors==null)return null;
 		double voxSizeInit=Math.min(Math.min(voxSize[0],voxSize[1]),voxSize[2]);
@@ -1450,6 +1869,15 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		return ret;
 	}
 
+	/**
+	 * Successive step factors at successive levels.
+	 *
+	 * @param levelMin the level min
+	 * @param levelMax the level max
+	 * @param doubleIterAtCoarsestLevels the double iter at coarsest levels
+	 * @param basis the basis
+	 * @return the double[]
+	 */
 	public double[] successiveStepFactorsAtSuccessiveLevels(int levelMin,int levelMax,boolean doubleIterAtCoarsestLevels,double basis){
 		if(levelMax<levelMin)levelMax=levelMin;
 		int nbLevels=levelMax-levelMin+1;
@@ -1508,8 +1936,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 
 
 
-	/**Memory free and management
-	 * 
+	/**
+	 * Memory free and management.
 	 */
 	public void freeMemory() {
 		this.resampler=null;
@@ -1532,6 +1960,11 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		System.gc();
 	}
 	
+	/**
+	 * Adjust zoom factor.
+	 *
+	 * @param newZoom the new zoom
+	 */
 	public void adjustZoomFactor(double newZoom) {
 		this.zoomFactor=newZoom;
 		this.viewHeight=(int)(this.imgRef.getHeight()*zoomFactor);

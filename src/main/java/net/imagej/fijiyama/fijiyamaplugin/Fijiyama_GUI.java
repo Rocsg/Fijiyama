@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.fijiyamaplugin;
 
 import java.awt.Color;
@@ -54,8 +57,10 @@ import net.imagej.fijiyama.registration.TransformUtils;
 import net.imagej.fijiyama.rsml.FSR;
 import net.imagej.fijiyama.rsml.RootModel;
 
+// TODO: Auto-generated Javadoc
 /**
- * 
+ * The Class Fijiyama_GUI.
+ *
  * @author Rocsg
  * Fijiyama is a user-friendly tool for 3d registration of images, multimodal series, and/or time-lapse series
  * To date, this work is under review. Article title : Fijiyama: a registration tool for 3D multimodal time-lapse imaging
@@ -66,36 +71,34 @@ import net.imagej.fijiyama.rsml.RootModel;
  * The ITK and SimpleITK team that sets registration algorithms freely available
  * Gregoire Malandain, Sebastien Ourselin and Olivier Commowick for explanations about Block-Matching
  * 
-
  * TODO : 
- ******** Critical bugs ********* 
+ * ******* Critical bugs ********* 
  * (None)
  * 
- ******** Elements to investigate and possible refactoring ********* 
- *(priority=0/3, difficulty=1/3) Uniform description of saveSerie function in RegistrationManager.java for both modes (series and two images registration)
- *(priority=1/3, difficulty=2/3) homogeneity of the threads and runnable lifecycles for automatic registration : harmonization of the kill switch behaviour between ITK and BM 
- *(priority=1/3, difficulty=2/3) Raising RegistrationAction class to host basic behaviours for these actions 
- *(priority=1/3, difficulty=1/3) the export method getViewOfImagesTransformedAndSuperposedSerieWithThisReferenc is very long to execute when dealing with big images and dense fields. It should be optimized...
+ * ******* Elements to investigate and possible refactoring ********* 
+ * (priority=0/3, difficulty=1/3) Uniform description of saveSerie function in RegistrationManager.java for both modes (series and two images registration)
+ * (priority=1/3, difficulty=2/3) homogeneity of the threads and runnable lifecycles for automatic registration : harmonization of the kill switch behaviour between ITK and BM 
+ * (priority=1/3, difficulty=2/3) Raising RegistrationAction class to host basic behaviours for these actions 
+ * (priority=1/3, difficulty=1/3) the export method getViewOfImagesTransformedAndSuperposedSerieWithThisReferenc is very long to execute when dealing with big images and dense fields. It should be optimized...
  * 
- ******** Fixes testing ********* 
- *(None)
+ * ******* Fixes testing ********* 
+ * (None)
  * 
- ******** Testing needs ********* 
+ * ******* Testing needs ********* 
  * Opening an ended series. Why is it crashing for the five time series ?
  * DOI unitary tests 
  * (None)
  * 
- ******** Next evolutions ********* 
+ * ******* Next evolutions ********* 
  * Opening an ended series. Why is it crashing for the five time series ?
  * DOI unitary tests running quasi-autonomously
  * (None)
  * 
- ******** User requests ********* 
+ * ******* User requests ********* 
  * (priority=2/3, difficulty=1/3) Make similarity possible for manual registration to handle miscalibration (Anne-Sophie Spilmont, Khalifa Diouf)
  * (priority=2/3, difficulty=1/3) Integration of interest point auto-detection on geometrical bases (Cedric Moisy)
  * (priority=3/3, difficulty=2/3) Hyperimage support (Jean-Luc and Cedric) --> Has to be tested
  * (priority=1/3, difficulty=2/3) Possibility of changing variance selection. Imply to version the fjm file to add new parameters to these archives
- * 
  */
 
 
@@ -104,164 +107,396 @@ import net.imagej.fijiyama.rsml.RootModel;
 //Seems to be ok, just the image 1125 that is weird
 
 public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
+	
+	/** The Constant percentileDisplay. */
 	public static final double percentileDisplay=99;
+	
+	/** The Constant widthRangeDisplay. */
 	public static final double widthRangeDisplay=1.2;
+	
+	/** The do stress test. */
 	public boolean doStressTest=false;
+	
+	/** The is survivor vnc tunnel little display. */
 	public boolean isSurvivorVncTunnelLittleDisplay=false;
+	
+	/** The version name. */
 	public String versionName="Handsome honeysuckle";
+	
+	/** The time version flag. */
 	public String timeVersionFlag="  Release : 2021-10-27 -15:52 PM - Friederike's fix";
+	
+	/** The version flag. */
 	public String versionFlag=versionName+timeVersionFlag;
+	
+	/** The img view. */
 	public ImagePlus imgView;
+	
+	/** The enable high acc. */
 	private boolean enableHighAcc=true;
+	
+	/** The debug mode. */
 	private boolean debugMode=true;
+	
+	/** The auto rep. */
 	private boolean autoRep=false;
+	
+	/** The pass through activated. */
 	public volatile boolean passThroughActivated=false;
+	
+	/** The itk manager. */
 	ItkRegistration itkManager;
+	
+	/** The bm registration. */
 	BlockMatchingRegistration bmRegistration;
+	
+	/** The color std activated button. */
 	private Color colorStdActivatedButton;
+	
+	/** The color green run button. */
 	private Color colorGreenRunButton;
+	
+	/** The interface is running. */
 	public boolean interfaceIsRunning=false;
+	
+	/** The sos level. */
 	public int sosLevel=0;
+	
+	/** The reg interrogation level. */
 	public int regInterrogationLevel=0;
 	
+	/** The Constant saut. */
 	//Frequent html codes for the help window
 	private static final String saut="<div style=\"height:1px;display:block;\"> </div>";
+	
+	/** The Constant startPar. */
 	private static final String startPar="<p  width=\"650\" >";
+	
+	/** The Constant nextPar. */
 	private static final String nextPar="</p><p  width=\"650\" >";
 
+	/** The Constant MODE_TWO_IMAGES. */
 	//Flags for the window modes
 	public static final int MODE_TWO_IMAGES=2;
+	
+	/** The Constant MODE_SERIE. */
 	public static final int MODE_SERIE=3;
+	
+	/** The mode. */
 	public int mode=MODE_TWO_IMAGES;
 
+	/** The Constant MAIN. */
 	//Flags for the "run" button tooltip
 	private static final int MAIN=81;
+	
+	/** The Constant MANUAL2D. */
 	private static final int MANUAL2D=82;
+	
+	/** The Constant MANUAL3D. */
 	private static final int MANUAL3D=83;
 
+	/** The Constant BOXACT. */
 	//Identifiers for boxLists
 	private static final int BOXACT=91;
+	
+	/** The Constant BOXOPT. */
 	private static final int BOXOPT=92;
+	
+	/** The Constant BOXTRANS. */
 	private static final int BOXTRANS=93;
+	
+	/** The Constant BOXTIME. */
 	private static final int BOXTIME=94;
+	
+	/** The Constant BOXDISP. */
 	private static final int BOXDISP=95;
+	
+	/** The Constant BOXDISPMAN. */
 	private static final int BOXDISPMAN=96;
 
+	/** The Constant SETTINGS. */
 	//Identifiers for buttons of registration two imgs
 	private static final int SETTINGS=101;
+	
+	/** The Constant RUN. */
 	private static final int RUN=102;
+	
+	/** The Constant RUNALL. */
 	private static final int RUNALL=108;
+	
+	/** The Constant UNDO. */
 	private static final int UNDO=103;
+	
+	/** The Constant ABORT. */
 	private static final int ABORT=104;
+	
+	/** The Constant SAVE. */
 	private static final int SAVE=105;
+	
+	/** The Constant FINISH. */
 	private static final int FINISH=106;
+	
+	/** The Constant SOS. */
 	private static final int SOS=107;
+	
+	/** The epsilon. */
 	private final double EPSILON=1E-8;
 	
+	/** The Constant RUNTWOIMG. */
 	//Identifiers for buttons of start window
 	private static final int RUNTWOIMG=111;
+	
+	/** The Constant RUNSERIE. */
 	private static final int RUNSERIE=112;
+	
+	/** The Constant RUNTRANS. */
 	private static final int RUNTRANS=113;
+	
+	/** The Constant RUNTRANSCOMP. */
 	private static final int RUNTRANSCOMP=114;
+	
+	/** The Constant BATCHRSML. */
 	private static final int BATCHRSML=115;
 
+	/** The Constant RUNNEXTSTEP. */
 	//Identifiers for buttons of registration serie
 	private static final int RUNNEXTSTEP=131;
+	
+	/** The Constant GOBACKSTEP. */
 	private static final int GOBACKSTEP=132;
 
 	
+	/** The Constant WINDOWTWOIMG. */
 	//Flags for the state of the registration manager
 	public static final int WINDOWTWOIMG=121;
+	
+	/** The Constant WINDOWSERIEPROGRAMMING. */
 	public static final int WINDOWSERIEPROGRAMMING=122;
+	
+	/** The Constant WINDOWSERIERUNNING. */
 	public static final int WINDOWSERIERUNNING=123;
+	
+	/** The Constant WINDOWIDLE. */
 	public static final int WINDOWIDLE=124;
+	
+	/** The mode window. */
 	int modeWindow=WINDOWSERIEPROGRAMMING;
 	
+	/** The Constant serialVersionUID. */
 	//Interface parameters
 	private static final long serialVersionUID = 1L;
+	
+	/** The sos context launch. */
 	private int SOS_CONTEXT_LAUNCH=0;
+	
+	/** The action aborted. */
 	private volatile boolean actionAborted=false;
+	
+	/** The developer mode. */
 	boolean developerMode=false;
+	
+	/** The spaces. */
 	String spaces="                                                                                                                                   ";
+	
+	/** The view slice. */
 	public int viewSlice;
 
 	
+	/** The text actions. */
 	//Registration interface attributes
 	private String[]textActions=new String[] {"1- Manual registration","2- Automatic registration","3- Align both images with XYZ axis"," "," "," ","-- Evaluate mismatch"};
+	
+	/** The text optimizers. */
 	private String[]textOptimizers=new String[] {"Block-Matching","ITK","Mass center","Inertia axis"};
+	
+	/** The text transforms BM. */
 	private String[]textTransformsBM=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)","Vector field "};
+	
+	/** The text transforms ITK. */
 	private String[]textTransformsITK=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)"};
+	
+	/** The text transforms mass. */
 	private String[]textTransformsMass=new String[] {"Rigid (no deformations)"};
+	
+	/** The text transforms MAN. */
 	private String[]textTransformsMAN=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)","Vector field "};
+	
+	/** The text transforms ALIGN. */
 	private String[]textTransformsALIGN=new String[] {"Rigid (no deformations)","Similarity (isotropic deform.)"};
+	
+	/** The text display ITK. */
 	private String[]textDisplayITK=new String[] {"0-Only at the end (faster)","1-Dynamic display (slower)"};
+	
+	/** The text display BM. */
 	private String[]textDisplayBM=new String[] {"0-Only at the end (faster)","1-Dynamic display (slower)","2-Also display score map (slower+)"};
+	
+	/** The text display man. */
 	private String[]textDisplayMan=new String[] {"3d viewer (volume rendering)","2d viewer (classic slicer)"};
+	
+	/** The text display mass. */
 	private String[]textDisplayMass=new String[] {"0-Only at the end (faster)"};
 	
+	/** The list actions. */
 	//Interface text, label and lists
 	private JList<String>listActions=new JList<String>(new String[]{spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces,spaces});
+	
+	/** The actions pane. */
 	JScrollPane actionsPane = new JScrollPane(listActions);
+	
+	/** The label next action. */
 	private JLabel labelNextAction = new JLabel("Choose the next action :", JLabel.LEFT);
+    
+    /** The box type action. */
     public JComboBox<String>boxTypeAction=new JComboBox<String>(textActions);
+	
+	/** The label optimizer. */
 	private JLabel labelOptimizer = new JLabel("Automatic registration optimizer :", JLabel.LEFT);
+	
+	/** The box optimizer. */
 	public JComboBox<String>boxOptimizer=new JComboBox<String>(  textOptimizers   );
+	
+	/** The label transformation. */
 	private JLabel labelTransformation = new JLabel("Transformation to estimate :", JLabel.LEFT);
+	
+	/** The box type trans. */
 	public JComboBox<String>boxTypeTrans=new JComboBox<String>( textTransformsBM  );
+	
+	/** The label view. */
 	private JLabel labelView = new JLabel("Automatic registration display :", JLabel.LEFT);
+	
+	/** The box display. */
 	public JComboBox<String>boxDisplay=new JComboBox<String>( textDisplayBM );
+	
+	/** The label view man. */
 	private JLabel labelViewMan = new JLabel("Manual registration viewer :", JLabel.LEFT);
+	
+	/** The box display man. */
 	public JComboBox<String>boxDisplayMan=new JComboBox<String>( textDisplayMan );
+	
+	/** The label time 1. */
 	private JLabel labelTime1 = new JLabel("Estimated time for this action :", JLabel.LEFT);
+	
+	/** The label time 2. */
 	private JLabel labelTime2 = new JLabel("0 mn and 0s", JLabel.CENTER);
 
 	//Buttons, Frames, Panels
+	/** The settings button. */
 	//Registration Frame buttons
 	public JButton settingsButton=new JButton("Advanced settings...");
+	
+	/** The settings default button. */
 	private JButton settingsDefaultButton=new JButton("Restore default settings...");
+	
+	/** The run button. */
 	private JButton runButton=new JButton("Start this action");
+	
+	/** The run through button. */
 	private JButton runThroughButton=new JButton("Chain-run automatic steps");
+	
+	/** The abort button. */
 	private JButton abortButton = new JButton("Abort");
+	
+	/** The undo button. */
 	private JButton undoButton=new JButton("Undo");
+	
+	/** The save button. */
 	private JButton saveButton=new JButton("Save current state");
+	
+	/** The finish button. */
 	private JButton finishButton=new JButton("Export results");
+	
+	/** The sos button. */
 	private JButton sosButton=new JButton("Help");
 
+	/** The run two images button. */
 	//Launching frame buttons
 	private JButton runTwoImagesButton = new JButton("Two images registration (training mode)");
+	
+	/** The batch rsml button. */
 	private JButton batchRsmlButton = new JButton("Batch correction of Rsml files");
+	
+	/** The run serie button. */
 	private JButton runSerieButton = new JButton("Series registration (N-times and/or N-modalities)");
+	
+	/** The load fjm button. */
 	private JButton loadFjmButton = new JButton("Open a previous study (two imgs or series) from a fjm file");
+	
+	/** The transform button. */
 	private JButton transformButton = new JButton("Apply a computed transform to another image");
+	
+	/** The compose transforms button. */
 	private JButton composeTransformsButton = new JButton("Compose successive transformations into a single one");
+	
+	/** The run next step button. */
 	private JButton runNextStepButton = new JButton("Run next step");
+	
+	/** The go back step button. */
 	private JButton goBackStepButton = new JButton("Coming soon...");
 
+	/** The add action button. */
 	//Programming serie buttons
 	private JButton addActionButton = new JButton("Add an action to pipeline");
+	
+	/** The remove selected button. */
 	private JButton removeSelectedButton = new JButton("Remove last action");
+	
+	/** The validate pipeline button. */
 	public JButton validatePipelineButton = new JButton("Approve inter-time pipeline");
 	
+	/** The registration frame. */
 	//Some more Gui objects and constants
 	public JFrame registrationFrame;
+	
+	/** The log area. */
 	private JTextArea logArea=new JTextArea("", 11,10);
+	
+	/** The color idle. */
 	private Color colorIdle;
+	
+	/** The frame launch. */
 	public JFrame frameLaunch;
+	
+	/** The screen height. */
 	private int screenHeight=0;
+	
+	/** The screen width. */
 	private int screenWidth=0;
+	
+	/** The last view sizes. */
 	public int[] lastViewSizes=new int[] {700,700};//Only useful for serie running
+	
+	/** The displayed name image 1. */
 	public final String displayedNameImage1="Image 1";
+	
+	/** The displayed name image 2. */
 	public final String displayedNameImage2="Image 2";
+	
+	/** The displayed name combined image. */
 	public final String displayedNameCombinedImage="Data_combined";
+	
+	/** The displayed name hyper image. */
 	public final String displayedNameHyperImage="Data_combined";
+	
+	/** The waiting time hyper image. */
 	private final int waitingTimeHyperImage=30;
 
 
+	/** The combo box changed. */
 	protected boolean comboBoxChanged=false;
+	
+	/** The reg manager. */
 	private RegistrationManager regManager;
+	
+	/** The my survival font for little displays. */
 	private Font mySurvivalFontForLittleDisplays=null;
+	
+	/** The undo button has been pressed. */
 	private boolean undoButtonHasBeenPressed=false;
+	
+	/** The yogitea level. */
 	private int yogiteaLevel=0;
+	
+	/** The pair level. */
 	private int pairLevel;
 	
 
@@ -273,6 +508,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	
 	
 
+	/**
+	 * Instantiates a new fijiyama GUI.
+	 */
 	/*Starting points*************************************************************************************************************/
 	public Fijiyama_GUI() {
 		super("FijiYama : a versatile registration tool for Fiji");
@@ -295,6 +533,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
         });	 
 	}
 
+	/**
+	 * The main method.
+	 *
+	 * @param args the arguments
+	 */
 	public static void main(String[]args) {//TestMethod
 		@SuppressWarnings("unused")
 		ImageJ ij=new ImageJ();
@@ -307,6 +550,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		reg.run("");
 	}
 	
+	/**
+	 * Run.
+	 *
+	 * @param arg the arg
+	 */
 	public void run(String arg) {
 			startLaunchingInterface();
 			modeWindow=WINDOWIDLE;
@@ -315,6 +563,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	//TODO : match centroids
 	
 	
+	/**
+	 * Start two images registration.
+	 */
 	public void startTwoImagesRegistration() {
 		this.mode=MODE_TWO_IMAGES;
 		this.modeWindow=WINDOWTWOIMG;
@@ -325,6 +576,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(regManager.getStep()>0)enable(new int[] {RUN,SAVE,UNDO,FINISH});
 	}
 
+	/**
+	 * Start serie.
+	 */
 	public void startSerie(){
 		this.mode =MODE_SERIE;
 		this.modeWindow=WINDOWSERIERUNNING;
@@ -337,6 +591,12 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	}
 	
 	
+	/**
+	 * Find fjm file in dir.
+	 *
+	 * @param dir the dir
+	 * @return the string
+	 */
 	public String findFjmFileInDir(String dir) {
 		File f=new File(dir);
 		String[]strs=f.list();
@@ -352,6 +612,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 	
 	
+	/**
+	 * Start registration interface.
+	 */
 	/* Registration Manager gui  and launching interface gui ************************************************************************************************/
 	public void startRegistrationInterface() {
 
@@ -641,6 +904,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 	
 
+	/**
+	 * Start launching interface.
+	 */
 	public void startLaunchingInterface() {
 		IJ.log("Starting Fijiyama launching interface");
 		IJ.log("Welcome to Fijiyama.");
@@ -693,6 +959,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		frameLaunch.repaint();		
 	}
 	
+	/**
+	 * Actualize launching interface.
+	 *
+	 * @param expectedState the expected state
+	 */
 	public void actualizeLaunchingInterface(boolean expectedState) {
 		if(expectedState) {
 			sosButton.setEnabled(true);
@@ -737,6 +1008,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	
 	
 	
+	/**
+	 * Perform action in launching interface.
+	 *
+	 * @param e the e
+	 */
 	/* Listeners of the launching interface */
 	public void performActionInLaunchingInterface(ActionEvent e) {
 		if(e.getSource()==this.sosButton)displaySosMessage(SOS_CONTEXT_LAUNCH);
@@ -788,6 +1064,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		}
 	}
 	
+	/**
+	 * Perform action in programming serie interface.
+	 *
+	 * @param e the e
+	 */
 	/* Listeners for serie programming interface*/
 	public void performActionInProgrammingSerieInterface(ActionEvent e) {
 		if(e.getSource()==validatePipelineButton) {
@@ -854,6 +1135,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 	}	
 	
+	/**
+	 * Action performed.
+	 *
+	 * @param e the e
+	 */
 	/* Listener of the running serie and running two images parts **********************************************************************************************/
 	@SuppressWarnings("deprecation")
 	@Override
@@ -1425,6 +1711,13 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	}
 
 
+	/**
+	 * Start batch rsml.
+	 *
+	 * @param dirIn the dir in
+	 * @param dirOutTemp the dir out temp
+	 * @param multiThread the multi thread
+	 */
 	public static void startBatchRsml(String dirIn,String dirOutTemp,boolean multiThread) {
 		if(dirIn==null) {
 			dirIn=VitiDialogs.chooseDirectoryUI("Select input dir.","Select an input directory with couples files (rsml , image)");
@@ -1504,6 +1797,13 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		}
 	}
 	
+	/**
+	 * Rsml files list.
+	 *
+	 * @param dirIn the dir in
+	 * @param dirOut the dir out
+	 * @return the string[][]
+	 */
 	public static String[][] rsmlFilesList(String dirIn,String dirOut){
 		boolean debug=true;
 		String []initNames=new File(dirIn).list();
@@ -1542,6 +1842,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 	
 	
+	/**
+	 * Pass through.
+	 *
+	 * @param s the s
+	 */
 	public void passThrough(String s) {
 		final ExecutorService exec = Executors.newFixedThreadPool(1);
 		exec.submit(new Runnable() {
@@ -1557,11 +1862,19 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		});
 	}
 
+	/**
+	 * Enable chain if possible.
+	 */
 	public void enableChainIfPossible() {
 		if (regManager.getCurrentAction().typeAction==1)enable(RUNALL);
 		else disable(RUNALL);
 	}
 	
+	/**
+	 * Unpass through.
+	 *
+	 * @param s the s
+	 */
 	public void unpassThrough(String s) {
 		if(!passThroughActivated)return;
 		IJ.showMessage("Chain run is finished\n"+s);
@@ -1570,6 +1883,12 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(regManager.getStep()>0)enable(UNDO);
 	}
 	
+	/**
+	 * Show hyper image.
+	 *
+	 * @param hyp the hyp
+	 * @param seconds the seconds
+	 */
 	public void showHyperImage(ImagePlus hyp,int seconds) {
 		hyp.show();
 		hyp.setSlice(viewSlice);
@@ -1584,6 +1903,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	}
 	
 	
+	/**
+	 * Update list.
+	 */
 	/* Updating the Gui elements,menu, list, buttons and views **********************************************************************************************/	
 	public void updateList() {
 		this.listActions.setModel(regManager.getPipelineAslistModelForGUI());
@@ -1591,6 +1913,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		ScrollUtil.scroll(listActions,ScrollUtil.SELECTED,new int[] {listActions.getSelectedIndex(),regManager.getNbSteps()+1});
 	}
 			
+	/**
+	 * Update estimated time.
+	 */
 	public void updateEstimatedTime() {
 		int estimatedTime=regManager.estimateTime(regManager.getCurrentAction());
 		regManager.estimatedTime=estimatedTime;
@@ -1599,6 +1924,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		this.labelTime2.setText(""+nbMin+" mn and "+nbSec+" s");
 	}
 	
+	/**
+	 * Action clicked in list.
+	 */
 	public void actionClickedInList() {
 		if(modeWindow!=WINDOWSERIEPROGRAMMING)return;
 		if(listActions.getSelectedIndex()>=regManager.getNbSteps() ) return;
@@ -1619,6 +1947,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		updateBoxFieldsToCoherenceAndApplyToRegistrationAction(true);
 	}
 
+	/**
+	 * Box cliked in gui.
+	 */
 	public void boxClikedInGui() {
 		disable(new int[] {BOXOPT,BOXTIME,BOXDISP,BOXTRANS,BOXACT});
 		updateBoxFieldsToCoherenceAndApplyToRegistrationAction(true);
@@ -1631,6 +1962,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		
 	}
 
+	/**
+	 * Update box fields to coherence and apply to registration action.
+	 *
+	 * @param applyToAction the apply to action
+	 */
 	public void updateBoxFieldsToCoherenceAndApplyToRegistrationAction(boolean applyToAction) {
 		int valDisp=boxDisplay.getSelectedIndex();		
 		int valTrans=boxTypeTrans.getSelectedIndex();		
@@ -1679,6 +2015,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(boxTypeAction.getSelectedIndex()==1)enable(new int[] {BOXOPT,BOXDISP});
 	}
  
+	/**
+	 * Update box fields from registration action.
+	 *
+	 * @param reg the reg
+	 */
 	public void updateBoxFieldsFromRegistrationAction(RegistrationAction reg) {
 		if(modeWindow==WINDOWTWOIMG && (!reg.isTransformationAction())) {reg.typeAction=RegistrationAction.TYPEACTION_MAN;reg.typeTrans=Transform3DType.RIGID ;}
 		boxTypeAction.setSelectedIndex(((reg.typeAction < 3)||(reg.typeAction==RegistrationAction.TYPEACTION_EVALUATE)) ? reg.typeAction : 0);
@@ -1697,6 +2038,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(modeWindow==WINDOWSERIERUNNING)disable(new int[] {BOXACT,BOXTRANS,BOXOPT,BOXDISP,BOXDISPMAN});
 	}
 
+	/**
+	 * Gets the relative optimal position for 2 D view.
+	 *
+	 * @return the relative optimal position for 2 D view
+	 */
 	public int getRelativeOptimalPositionFor2DView() {
 		java.awt.Dimension currentScreen = Toolkit.getDefaultToolkit().getScreenSize();
         int screenX=(int)Math.round(currentScreen.width);
@@ -1705,6 +2051,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		else return 2;
 	}
 
+	/**
+	 * Update view.
+	 */
 	public void updateView() {
 		if(this.modeWindow!=WINDOWTWOIMG)return;
 		ImagePlus temp=null;
@@ -1750,10 +2099,19 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		imgView.updateAndRepaintWindow();
 	}
 	
+	/**
+	 * Gets the img view text.
+	 *
+	 * @param st the st
+	 * @return the img view text
+	 */
 	public static String getImgViewText(int st){
 		return ( (st==0) ? "Superimposition before registration" :  ("Registration results after "+(st)+" step"+((st>1)? "s" : "")) );
 	}
 	
+	/**
+	 * Close all views.
+	 */
 	public void closeAllViews() {
 		for(int st=0;st<=regManager.getStep();st++) {
 			if (WindowManager.getImage(getImgViewText(st))!=null)WindowManager.getImage(getImgViewText(st)).close();
@@ -1765,6 +2123,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(WindowManager.getImage(displayedNameCombinedImage)!=null)WindowManager.getImage(displayedNameCombinedImage).close();
 	}	
 	
+	/**
+	 * Undo button pressed.
+	 */
 	public void undoButtonPressed() {
 		//Change the current view, and call update for RegistrationManager
 		regManager.undoLastActionInTwoImagesContext();
@@ -1783,11 +2144,22 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	
 	/* Minor helpers and getters/setters************************************************************************************************/
 	
+	/**
+	 * Adds the log.
+	 *
+	 * @param t the t
+	 * @param level the level
+	 */
 	public void addLog(String t,int level) {
 		logArea.append((level==0 ? "\n > ": (level==1) ? "\n " : " ")+t);
 		logArea.setCaretPosition(logArea.getDocument().getLength());
 	}
 
+	/**
+	 * Display sos message.
+	 *
+	 * @param context the context
+	 */
 	public void displaySosMessage(int context){
 		if(context==SOS_CONTEXT_LAUNCH) {
 			IJ.showMessage(
@@ -1800,6 +2172,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		}
 	}
 
+	/**
+	 * Run sos.
+	 */
 	public void runSos(){
 		if(( regManager.getCurrentAction().typeAction==0) || (regManager.getCurrentAction().typeAction==2) ||
 		(regManager.getCurrentAction().typeAction==1 && actionAborted==true)) enable(RUN);
@@ -1898,6 +2273,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		enable(SOS);
 	}
 	
+	/**
+	 * Open settings dialog.
+	 */
 	public void openSettingsDialog() {
 		//Parameters for manual and axis aligment
 		if(this.boxTypeAction.getSelectedIndex()!=1) {
@@ -2006,37 +2384,76 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		}
 	}
 
+	/**
+	 * Serie is finished.
+	 */
 	public void serieIsFinished() {
 		IJ.showMessage("Series is finished !");
 		disable(new int[] {RUN,RUNALL});
 	}
 	
+	/**
+	 * Welcome and inform about computer capabilities.
+	 */
 	public void welcomeAndInformAboutComputerCapabilities() {		
 		String[]str=regManager.checkComputerCapacity(true);
 		addLog(str[0],0);
 		addLog(str[1],0);		
 	}
 
+	/**
+	 * Log action event.
+	 *
+	 * @param e the e
+	 */
 	public void logActionEvent(ActionEvent e) {
 		if(regManager.regActions==null || regManager.getCurrentAction()==null)return;
 	}
 
 	
 	
+	/**
+	 * Enable.
+	 *
+	 * @param but the but
+	 */
 	public void enable(int but) {
 		setState(new int[] {but},true);
 	}
+	
+	/**
+	 * Disable.
+	 *
+	 * @param but the but
+	 */
 	public void disable(int but) {
 		setState(new int[] {but},false);
 	}
 
+	/**
+	 * Enable.
+	 *
+	 * @param tabBut the tab but
+	 */
 	public void enable(int[]tabBut) {
 		setState(tabBut,true);
 	}
+	
+	/**
+	 * Disable.
+	 *
+	 * @param tabBut the tab but
+	 */
 	public void disable(int[]tabBut) {
 		setState(tabBut,false);
 	}
 			
+	/**
+	 * Sets the state.
+	 *
+	 * @param tabBut the tab but
+	 * @param state the state
+	 */
 	public void setState(int[]tabBut,boolean state) {
 		for(int but:tabBut) {
 			switch(but) {
@@ -2064,6 +2481,11 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		}	
 	}
 	
+	/**
+	 * Sets the run tool tip.
+	 *
+	 * @param context the new run tool tip
+	 */
 	public void setRunToolTip(int context){
 		if(context==MAIN) {
 			runButton.setToolTipText("<html><p width=\"500\">" +
@@ -2077,53 +2499,111 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		}
 	}	
 	
+	/**
+	 * Gets the fijiyama GUI.
+	 *
+	 * @return the fijiyama GUI
+	 */
 	public Fijiyama_GUI getFijiyamaGUI() {
 		return this;
 	}
 
+	/**
+	 * Gets the debug mode.
+	 *
+	 * @return the debug mode
+	 */
 	public boolean getDebugMode() {
 		return debugMode;
 	}
 
+	/**
+	 * Gets the auto rep mode.
+	 *
+	 * @return the auto rep mode
+	 */
 	public boolean getAutoRepMode() {
 		return autoRep;
 	}
 
+	/**
+	 * Gets the run button text.
+	 *
+	 * @return the run button text
+	 */
 	public String getRunButtonText() {
 		return runButton.getText();				
 	}
 	
+	/**
+	 * Checks if is programming serie.
+	 *
+	 * @return true, if is programming serie
+	 */
 	public boolean isProgrammingSerie() {
 		return modeWindow==WINDOWSERIEPROGRAMMING;
 	}
 
+	/**
+	 * Checks if is running serie.
+	 *
+	 * @return true, if is running serie
+	 */
 	public boolean isRunningSerie() {
 		return modeWindow==WINDOWSERIERUNNING;
 	}
 	
+	/**
+	 * Current context is serie.
+	 *
+	 * @return true, if successful
+	 */
 	public boolean currentContextIsSerie() {
 		return (this.mode==MODE_SERIE);
 	}
 
+	/**
+	 * Checks if is running two images training.
+	 *
+	 * @return true, if is running two images training
+	 */
 	public boolean isRunningTwoImagesTraining() {
 		return modeWindow==WINDOWTWOIMG;
 	}
 
 
+	/**
+	 * Sending out an sos.
+	 */
 	public void sendingOutAnSos() {
 		System.out.println("Sending out an sos");
 		enable(new int[] {RUN,SETTINGS,BOXACT,BOXTRANS,SAVE,FINISH,UNDO});
 	}
 
+	/**
+	 * More about reg action.
+	 */
 	public void moreAboutRegAction() {
 		System.out.println("More about reg actions");
 		regManager.printRegActions("", regManager.regActions);
 	}
+	
+	/**
+	 * Handle key released.
+	 *
+	 * @param e the e
+	 */
 	public void handleKeyReleased(KeyEvent e) {
 		System.out.println("Released ! : "+e);
 		if(e.getKeyChar()=='t' )pairLevel++;
 		if((pairLevel>=2 && ((pairLevel%2)==0))) {Toolkit.getDefaultToolkit().beep();IJ.log("Released Nb points : "+pairLevel);}
 	}
+	
+	/**
+	 * Handle key press.
+	 *
+	 * @param e the e
+	 */
 	public void handleKeyPress(KeyEvent e) {
 		//		System.out.println("Got a key pressed : "+e.getKeyCode()+" = "+e.getKeyChar());
 		if(e.isControlDown() && e.getKeyCode() == KeyEvent.VK_T) {

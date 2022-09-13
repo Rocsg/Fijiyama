@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.rsml;
 
 import ij.*;
@@ -45,6 +48,7 @@ import org.scijava.vecmath.Point3d;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;  
 
+// TODO: Auto-generated Javadoc
 /** @author Xavier Draye and Guillaume Lobet - Universit� catholique de Louvain */
 
 
@@ -89,33 +93,57 @@ implements java.io.FileFilter {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+/**
+ * The Class RootModel.
+ */
 public class RootModel extends WindowAdapter{
 	  
 	
+/** The version. */
 //	static int nextRootKey;
 	static String version = "4.1";
+	
+	/** The datafile key. */
 	static String datafileKey = "default";	
 	
 	
+   /** The img. */
    ImagePlus img;
+   
+   /** The ip. */
    ImageProcessor ip;
+   
+   /** The angle step. */
    double angleStep;
+   
+   /** The threshold. */
    float threshold;
+   
+   /** The d M. */
    float dM=0;
+   
+   /** The root list. */
    public ArrayList<Root> rootList = new ArrayList<Root>();
+   
+   /** The next auto root ID. */
    public int nextAutoRootID;
 
-   /** Return code from selectNode() */
+   /**  Return code from selectNode(). */
    static final int NODE = 1;
+   
+   /** The Constant ROOT. */
    static final int ROOT = 2;
+   
+   /** The Constant CHILD. */
    static final int CHILD = 3;
+   
+   /** The Constant PARENT. */
    static final int PARENT = 4;
+   
+   /** The Constant CHILDPARENT. */
    static final int CHILDPARENT = 5;
 
-   /** autoBuildFromNode() estimates the putative location for a new node in the direction of the 
-       line joining the previous and current nodes, using a distance which is the minimum of 
-       putative distances 1 & 2 (see AUTOBUILD_STEP_FACTOR_BORDER AUTOBUILD_STEP_FACTOR_DIAMETER)
-       but which is at least equal to AUTOBUILD_MIN_STEP  */
+   /**  autoBuildFromNode() estimates the putative location for a new node in the direction of the         line joining the previous and current nodes, using a distance which is the minimum of         putative distances 1 & 2 (see AUTOBUILD_STEP_FACTOR_BORDER AUTOBUILD_STEP_FACTOR_DIAMETER)        but which is at least equal to AUTOBUILD_MIN_STEP. */
    /** Putative distance 1 (from the current node) is equal to the
        distance to the root border (along the predicted direction) multiplied by the AUTOBUILD_STEP_FACTOR_BORDER */
    /** Putative distance 2 (from the current node) is equal to the
@@ -126,53 +154,101 @@ public class RootModel extends WindowAdapter{
 
 
    float AUTOBUILD_MIN_STEP = 3.0f;
+   
+   /** The autobuild step factor border. */
    float AUTOBUILD_STEP_FACTOR_BORDER = 0.5f;
+   
+   /** The autobuild step factor diameter. */
    float AUTOBUILD_STEP_FACTOR_DIAMETER = 2.0f;
+   
+   /** The autobuild min theta step. */
    float AUTOBUILD_MIN_THETA_STEP = 0.02f;
+   
+   /** The autobuild theta step factor. */
    float AUTOBUILD_THETA_STEP_FACTOR = (float) Math.PI / 2.0f;
 
 
 
-   /** Modifier flags for tracing operations */
+   /**  Modifier flags for tracing operations. */
    static final int AUTO_TRACE = 1;
+   
+   /** The Constant FREEZE_DIAMETER. */
    static final int FREEZE_DIAMETER = 2;
+   
+   /** The Constant SNAP_TO_BORDER. */
    static final int SNAP_TO_BORDER = 4;
    
+   /** The Constant THRESHOLD_ADAPTIVE1. */
    static final int THRESHOLD_ADAPTIVE1 = 1;
+   
+   /** The Constant THRESHOLD_ADAPTIVE2. */
    static final int THRESHOLD_ADAPTIVE2 = 2; 
    
+   /** The Constant REGULAR_TRACING. */
    static final int REGULAR_TRACING = 1;
+   
+   /** The Constant LATERAL_TRACING. */
    static final int LATERAL_TRACING = 2;
+   
+   /** The Constant LINE_TRACING. */
    static final int LINE_TRACING = 4;
+   
+   /** The Constant LATERAL_TRACING_ONE. */
    static final int LATERAL_TRACING_ONE = 8;
 
+   /** The datafile filter RSML. */
    static private DataFileFilterRSML datafileFilterRSML = new DataFileFilterRSML();
 
+   /** The directory. */
    private String directory;
+   
+   /** The img name. */
    public String imgName;
+   
+   /** The previous magnification. */
    public float previousMagnification = 0.0f;
+   
+   /** The Constant fileSuffix. */
    public static final String[] fileSuffix = {"xml", "xml01", "xml02", "xml03", "xml04"};
+   
+   /** The Constant fileSuffixRSML. */
    public static final String[] fileSuffixRSML = {"rsml", "rsml01", "rsml02", "rsml03", "rsml04"};
 
+   /** The dpi. */
    private float dpi;
+   
+   /** The pixel size. */
    public float pixelSize;
+
+/** The n plants. */
 private int nPlants;
    
-   /** Constructors */  
+   /**
+    *  Constructors.
+    */  
    public RootModel() {	 
 	   dpi=1;
 	   pixelSize = 2.54f / dpi;
    }
 
    
-   /** Constructors */  
+   /**
+    *  Constructors.
+    *
+    * @param dataFName the data F name
+    */  
    public RootModel(String dataFName) {	 
 	   dpi = (FSR.prefs!=null ? FSR.prefs.getFloat("DPI_default", dpi) : 1);
 	   pixelSize = 2.54f / dpi;
 	   readRSML(dataFName);	      	      
    }
    
-   /** Constructors */  
+   /**
+    *  Constructors.
+    *
+    * @param dataFName the data F name
+    * @param timeLapseModel the time lapse model
+    */  
    public RootModel(String dataFName,boolean timeLapseModel) {	 
 	   dpi = (FSR.prefs!=null ? FSR.prefs.getFloat("DPI_default", dpi) : 1);
 	   pixelSize = 2.54f / dpi;
@@ -181,7 +257,11 @@ private int nPlants;
    
   
    /**
-    * Computed the scale base on an unit and a resolutiono
+    * Computed the scale base on an unit and a resolutiono.
+    *
+    * @param unit the unit
+    * @param resolution the resolution
+    * @return the dpi
     */
    public float getDPI(String unit, float resolution){
 	   if (unit.startsWith("cm") || unit.startsWith("cen")) {
@@ -202,6 +282,14 @@ private int nPlants;
    }
    
    
+   /**
+    * Distance between point and segment or ten times vitimage utils large value if the projection does not fall into the segment.
+    *
+    * @param ptC the pt C
+    * @param ptA the pt A
+    * @param ptB the pt B
+    * @return the ${e.g(1).rsfl()}
+    */
    public double distanceBetweenPointAndSegmentOrTenTimesVitimageUtilsLargeValueIfTheProjectionDoesNotFallIntoTheSegment
    		(double[]ptC,double[]ptA,double[]ptB) {
 	   double []AB=TransformUtils.vectorialSubstraction(ptB, ptA);
@@ -218,6 +306,13 @@ private int nPlants;
    }
    
    
+   /**
+    * Gets the nearest root segment.
+    *
+    * @param pt the pt
+    * @param maxGuessedDistance the max guessed distance
+    * @return the nearest root segment
+    */
    public Object[]getNearestRootSegment(Point3d pt,double maxGuessedDistance){
 	   Node nearestParent=null;
 	   Root nearestRoot=null;
@@ -239,6 +334,14 @@ private int nPlants;
    }
    
 
+   /**
+    * Csv send marks.
+    *
+    * @param pw the pw
+    * @param header the header
+    * @param name the name
+    * @param last the last
+    */
    public void csvSendMarks(PrintWriter pw, boolean header, String name, boolean last){
 	   
 	   if(header)
@@ -307,6 +410,11 @@ private int nPlants;
        FSR.write("CSV data transfer completed for 'Marks'.");     
    }
 
+   /**
+    * Clean wild rsml.
+    *
+    * @return the int
+    */
    public int cleanWildRsml() {
 	   int stamp=0;
 	   ArrayList<Root>prim=new ArrayList<Root>();
@@ -361,6 +469,12 @@ private int nPlants;
    }
 */
    
+   /**
+    * Root model wild read annotation from rsml.
+    *
+    * @param rsmlFile the rsml file
+    * @return the root model
+    */
    public static RootModel RootModelWildReadAnnotationFromRsml (String rsmlFile) {//Wild read model for Fijiyama did Root model with time, diameter, vx and vy information
 		FSR sr= (new FSR());
 		sr.initialize();
@@ -424,6 +538,11 @@ private int nPlants;
 
    
    
+   /**
+    * The main method.
+    *
+    * @param args the arguments
+    */
    public static void main(String[]args) {
 	   FSR sr= (new FSR());
 	   sr.initialize();
@@ -435,6 +554,12 @@ private int nPlants;
    }   
 
    
+   /**
+    * Root model wild read from rsml.
+    *
+    * @param rsmlFile the rsml file
+    * @return the root model
+    */
    public static RootModel RootModelWildReadFromRsml (String rsmlFile) {//Wild read model for Fijiyama did Root model with time, diameter, vx and vy information
 	   FSR sr= (new FSR());
 	   sr.initialize();
@@ -494,7 +619,10 @@ private int nPlants;
    }
    
 	/**
-	 * Send the root data to the ResulsTable rt
+	 * Send the root data to the ResulsTable rt.
+	 *
+	 * @param rt the rt
+	 * @param name the name
 	 */
    public void sendRootData(ResultsTable rt, String name){
 
@@ -540,13 +668,21 @@ private int nPlants;
    }
  
    
+	/**
+	 * Compute speed vectors.
+	 *
+	 * @param deltaBefAfter the delta bef after
+	 */
 	public void computeSpeedVectors(double deltaBefAfter) {
 		for(Root r: rootList)r.computeSpeedVectors(deltaBefAfter,deltaBefAfter,false);
 	}
 
    
    /**
-    * Send the node data to the Result Table
+    * Send the node data to the Result Table.
+    *
+    * @param rt the rt
+    * @param name the name
     */
    public void sendNodeData(ResultsTable rt, String name){
 	   
@@ -572,7 +708,10 @@ private int nPlants;
 	 }
 
    /**
-    * Send the image data to the Result Table
+    * Send the image data to the Result Table.
+    *
+    * @param rt the rt
+    * @param name the name
     */
    public void sendImageData(ResultsTable rt, String name){
 	   
@@ -595,7 +734,10 @@ private int nPlants;
 	 }
    
    /**
-    * Get a given root in the root list
+    * Get a given root in the root list.
+    *
+    * @param i the i
+    * @return the root
     */
    public Root getRoot (int i) {
       if (i < getNRoot()) return (Root) rootList.get(i);
@@ -604,7 +746,9 @@ private int nPlants;
 
 
    /**
-    * Get the total number of roots
+    * Get the total number of roots.
+    *
+    * @return the n root
     */
    public int getNRoot() {
       return rootList.size();
@@ -612,12 +756,16 @@ private int nPlants;
       
  
    /**
-    * Ge tthe DPI value for the image
+    * Ge tthe DPI value for the image.
+    *
+    * @return the dpi
     */
    public float getDPI() {return dpi; }
    
    /**
-    * Set the DPI avlue for the image
+    * Set the DPI avlue for the image.
+    *
+    * @param dpi the new dpi
     */
    public void setDPI(float dpi) {
       this.dpi = dpi;
@@ -626,13 +774,16 @@ private int nPlants;
       }
 
    /**
-    * Remove all the roots from the root list
+    * Remove all the roots from the root list.
     */
    public void clearDatafile() {
       rootList.clear(); 
       }
 
 
+    /**
+     * Log read error.
+     */
     private void logReadError() {
       FSR.write("An I/O error occured while attemping to read the datafile.");
       FSR.write("A new empty datafile will be created.");
@@ -640,6 +791,11 @@ private int nPlants;
       FSR.write("using the File -> Use backup datafile menu item.");
       }
 
+   /**
+    * Read RSML.
+    *
+    * @param f the f
+    */
    public void readRSML(String f) {
 
 	   // Choose the datafile
@@ -740,7 +896,9 @@ private int nPlants;
 
    
    /**
-    * Read common datafile structure
+    * Read common datafile structure.
+    *
+    * @param f the f
     */
    public void readRSMLNew(String f) {
 
@@ -843,6 +1001,12 @@ private int nPlants;
 	   setDPI(dpi);
    	}
 
+   /**
+    * Read RSML.
+    *
+    * @param f the f
+    * @param timeLapseModel the time lapse model
+    */
    public void readRSML(String f,boolean timeLapseModel) {
 
 	   // Choose the datafile
@@ -943,6 +1107,12 @@ private int nPlants;
 
   
    
+   /**
+    * Write RSML.
+    *
+    * @param f the f
+    * @param imgExt the img ext
+    */
    public void writeRSML(String f,String imgExt) {
 	   String fileName=VitimageUtils.withoutExtension( new File(f).getName() );
 	   String fPath = f;	
@@ -1033,6 +1203,13 @@ private int nPlants;
 
    
    
+	/**
+	 * Creates the superposition time lapse from path.
+	 *
+	 * @param imgPath the img path
+	 * @param rsmlPath the rsml path
+	 * @return the image plus
+	 */
 	public static ImagePlus createSuperpositionTimeLapseFromPath(String imgPath,String rsmlPath) {
 		ImagePlus imgReg=IJ.openImage(imgPath);
 		int Nt=imgReg.getStackSize();
@@ -1055,6 +1232,14 @@ private int nPlants;
    
    
    
+   /**
+    * Write RSML 3 D.
+    *
+    * @param f the f
+    * @param imgExt the img ext
+    * @param shortValues the short values
+    * @param respectStandardRSML the respect standard RSML
+    */
    public void writeRSML3D(String f,String imgExt,boolean shortValues,boolean respectStandardRSML) {
 	   String fileName=VitimageUtils.withoutExtension( new File(f).getName() );
 	   String fPath = f;	
@@ -1191,6 +1376,12 @@ private int nPlants;
    
    
    
+   /**
+    * Gets the root coordinates.
+    *
+    * @param r the r
+    * @return the root coordinates
+    */
    public double[][]getRootCoordinates(Root r){
 	   Node n=r.firstNode;
 	   int incr=1;
@@ -1208,15 +1399,18 @@ private int nPlants;
    }
    
    /**
-    * Ge the directory containing the image
+    * Ge the directory containing the image.
+    *
+    * @return the directory
     */
    public String getDirectory () { return directory; }
  
 
-	/** Get the closest root from the base of a given root 
-	 * @param r the root from which we want the closest root
+	/**
+	 *  Get the closest root from the base of a given root .
+	 *
 	 * @return the closest root from the apex of the root r
-	 * */
+	 */
 	
 	   public int resampleFlyingRoots() {
 		   int stamp=0;
@@ -1226,7 +1420,13 @@ private int nPlants;
 		   return stamp;
 	   }
    
-    	public Object[] getClosestNode(Point3d pt) {
+    	/**
+	     * Gets the closest node.
+	     *
+	     * @param pt the pt
+	     * @return the closest node
+	     */
+	    public Object[] getClosestNode(Point3d pt) {
    		double x=pt.x;
    		double y=pt.y;
    		double distMin=1E18;
@@ -1246,7 +1446,14 @@ private int nPlants;
    		}
    		return new Object[] {nodeMin,rootMin};
    	}
-       	public Object[] getClosestNodeInPrimary(Point3d pt) {
+       	
+	       /**
+	        * Gets the closest node in primary.
+	        *
+	        * @param pt the pt
+	        * @return the closest node in primary
+	        */
+	       public Object[] getClosestNodeInPrimary(Point3d pt) {
        		
        		double x=pt.x;
        		double y=pt.y;
@@ -1269,6 +1476,12 @@ private int nPlants;
        		return new Object[] {nodeMin,rootMin};
        	}
        
+	/**
+	 * Gets the closest root.
+	 *
+	 * @param r the r
+	 * @return the closest root
+	 */
 	public Root getClosestRoot(Root r){
 		Node n = r.firstNode;
 		int ls = rootList.size();
@@ -1300,7 +1513,8 @@ private int nPlants;
 	}
 	
 	/**
-	 * Attach c to p
+	 * Attach c to p.
+	 *
 	 * @param p the parent root
 	 * @param c the child root
 	 */
@@ -1310,7 +1524,8 @@ private int nPlants;
 	}
 	
 	/**
-	 * Get the number of primary roots
+	 * Get the number of primary roots.
+	 *
 	 * @return the number of primary roots
 	 */
 	public int getNPRoot(){
@@ -1323,6 +1538,12 @@ private int nPlants;
 		return n;
 	}
 	
+	/**
+	 * Gets the NP root.
+	 *
+	 * @param t the t
+	 * @return the NP root
+	 */
 	public int getNPRoot(double t){
 		int n = 0;
 		Root r;
@@ -1334,7 +1555,8 @@ private int nPlants;
 	}
 	
 	/**
-	 * Get the number of secondary roots
+	 * Get the number of secondary roots.
+	 *
 	 * @return the number of secondary roots
 	 */
 	public int getNSRoot(){
@@ -1346,6 +1568,13 @@ private int nPlants;
 		}
 		return n;
 	}
+	
+	/**
+	 * Gets the NS root.
+	 *
+	 * @param t the t
+	 * @return the NS root
+	 */
 	public int getNSRoot(double t){
 		int n = 0;
 		Root r;
@@ -1357,7 +1586,8 @@ private int nPlants;
 	}
 	
 	/**
-	 * Get the average length of secondary roots
+	 * Get the average length of secondary roots.
+	 *
 	 * @return the average length of secondary roots
 	 */
 	public float getAvgSRLength(){
@@ -1375,7 +1605,8 @@ private int nPlants;
 	}
 	
 	/**
-	 * Get average length of primary roots
+	 * Get average length of primary roots.
+	 *
 	 * @return the average length of primary roots
 	 */
 	public float getAvgPRLength(){
@@ -1393,7 +1624,8 @@ private int nPlants;
 	}
 	
 	/**
-	 * Get the total root length
+	 * Get the total root length.
+	 *
 	 * @return the totla root length
 	 */
 	public float getTotalRLength(){
@@ -1408,7 +1640,8 @@ private int nPlants;
 	}
 	
 	/**
-	 * Get the average length of all roots
+	 * Get the average length of all roots.
+	 *
 	 * @return the average length of all roots
 	 */
 	public float getAvgRLength(){
@@ -1424,7 +1657,8 @@ private int nPlants;
 	}
 	
 	/**
-	 * Get the average diameter of secondary roots
+	 * Get the average diameter of secondary roots.
+	 *
 	 * @return the average diameter of secondary roots
 	 */
 	public float getAvgSRDiam(){
@@ -1449,7 +1683,8 @@ private int nPlants;
 	
 	
 	/**
-	 * Get the average insertion angle of secondary roots
+	 * Get the average insertion angle of secondary roots.
+	 *
 	 * @return the average insertion angle of secondary roots
 	 */
 	public float getAvgSRInsAng(){
@@ -1468,7 +1703,8 @@ private int nPlants;
 	
 	
 	/**
-	 * Get the total length of the primary roots
+	 * Get the total length of the primary roots.
+	 *
 	 * @return the total length of the primary roots
 	 */
 	public float getTotalPRLength(){
@@ -1482,6 +1718,13 @@ private int nPlants;
 		}
 		return l;
 	}
+	
+	/**
+	 * Gets the total PR length.
+	 *
+	 * @param t the t
+	 * @return the total PR length
+	 */
 	public float getTotalPRLength(double t){
 		int l = 0;
 		Root r;
@@ -1497,6 +1740,9 @@ private int nPlants;
 
 	
 	
+	/**
+	 * Sets the plant numbers.
+	 */
 	public void setPlantNumbers() {
 		ArrayList<Root>listTemp=new ArrayList<Root>();
 		//Set stamp to primaries
@@ -1509,6 +1755,12 @@ private int nPlants;
 		for(Root r : rootList) if(r.isChild() > 0 ) r.plantNumber=r.parent.plantNumber;
 	}
 	
+	/**
+	 * Gets the PR length.
+	 *
+	 * @param t the t
+	 * @return the PR length
+	 */
 	public float getPRLength(double t){
 		int l = 0;
 		Root r;
@@ -1523,6 +1775,12 @@ private int nPlants;
 	}
 
 	
+	/**
+	 * Gets the lengths.
+	 *
+	 * @param t the t
+	 * @return the lengths
+	 */
 	public double[][] getLengths(double t){
 		if(this.nPlants==0)return null;
 		double[][]lengs=new double[this.nPlants][2];
@@ -1534,6 +1792,12 @@ private int nPlants;
 	}
 
 
+	/**
+	 * Gets the number and lenght over time serie.
+	 *
+	 * @param tMax the t max
+	 * @return the number and lenght over time serie
+	 */
 	//Compute a series of statistics over root system present in image [plant number][time][stat : 0=LenPrim, 1=Nlat, 2=Llat]
 	public double[][][] getNumberAndLenghtOverTimeSerie(int tMax){
 		if(this.nPlants==0)return null;
@@ -1552,6 +1816,11 @@ private int nPlants;
 	}
 
 	
+	/**
+	 * Nb lats per plant.
+	 *
+	 * @return the int[]
+	 */
 	public int[]nbLatsPerPlant(){
 		int[]count=new int[5];
 		for(Root r: rootList){
@@ -1562,6 +1831,19 @@ private int nPlants;
 	
 	
 	
+	/**
+	 * Project rsml on image.
+	 *
+	 * @param rm the rm
+	 * @param registeredStack the registered stack
+	 * @param zoomFactor the zoom factor
+	 * @param primaryRadius the primary radius
+	 * @param secondaryRadius the secondary radius
+	 * @param isOldRsmlVersion the is old rsml version
+	 * @param binaryColor the binary color
+	 * @param projectOnStack the project on stack
+	 * @return the image plus
+	 */
 	public static ImagePlus projectRsmlOnImage(RootModel rm,ImagePlus registeredStack,int zoomFactor,
 			int primaryRadius,int secondaryRadius,boolean isOldRsmlVersion,boolean binaryColor,boolean projectOnStack) {
 		if(!isOldRsmlVersion) {
@@ -1588,6 +1870,13 @@ private int nPlants;
 
 	
 	
+	/**
+	 * Gets the prim depth over time.
+	 *
+	 * @param tMax the t max
+	 * @param plant the plant
+	 * @return the prim depth over time
+	 */
 	public double[]getPrimDepthOverTime(int tMax,int plant){	
 		double []ret=new double[tMax];
 		for(int i=0;i<ret.length;i++)ret[i]=-100000000;
@@ -1625,6 +1914,13 @@ private int nPlants;
 	}
 
 	
+	/**
+	 * Gets the prim length over time.
+	 *
+	 * @param tMax the t max
+	 * @param plant the plant
+	 * @return the ${e.g(1).rsfl()}
+	 */
 	public double[][]getPrimLengthOverTime(int tMax,int plant){	
 		double [][]ret=new double[tMax][2];
 		int incr=0;
@@ -1651,6 +1947,13 @@ private int nPlants;
 	}
 
 	
+	/**
+	 * Gets the lateral speeds and depth over time.
+	 *
+	 * @param tMax the t max
+	 * @param plant the plant
+	 * @return the lateral speeds and depth over time
+	 */
 	public double[][][]getLateralSpeedsAndDepthOverTime(int tMax,int plant){
 		System.out.println("Working for plant "+plant+" at tmax="+tMax);
 		int nbLat=nbLatsPerPlant()[plant];
@@ -1679,7 +1982,8 @@ private int nPlants;
 	}
 	
 	/**
-	 * Get the total lengthd of the lateral roots
+	 * Get the total lengthd of the lateral roots.
+	 *
 	 * @return the total lenght of the lateral roots
 	 */
 	public float getTotalSRLength(){
@@ -1694,6 +1998,12 @@ private int nPlants;
 		return l;
 	}
 
+	/**
+	 * Gets the total SR length.
+	 *
+	 * @param t the t
+	 * @return the total SR length
+	 */
 	public float getTotalSRLength(double t){
 		int l = 0;
 		Root r;
@@ -1708,7 +2018,8 @@ private int nPlants;
 
 	
 	/**
-	 * Get the average diameter of primary roots
+	 * Get the average diameter of primary roots.
+	 *
 	 * @return the average diameter of primary roots
 	 */
 	public float getAvgPRDiam(){
@@ -1732,7 +2043,8 @@ private int nPlants;
 	}
 	
 	/**
-	 * Get average interbranch distance
+	 * Get average interbranch distance.
+	 *
 	 * @return the average interbranch distance
 	 */
 	public float getAvgInterBranch(){
@@ -1750,7 +2062,8 @@ private int nPlants;
 	}
 
 	/**
-	 * Get the number of nodes of the primary roots
+	 * Get the number of nodes of the primary roots.
+	 *
 	 * @return the number of nodes of the primary roots
 	 */
 	public int getNPNode(){
@@ -1771,7 +2084,8 @@ private int nPlants;
 	}
 	
 	/**
-	 * Get the number of node of the secondary roots
+	 * Get the number of node of the secondary roots.
+	 *
 	 * @return the number of node of the secondary roots
 	 */
 	
@@ -1794,7 +2108,8 @@ private int nPlants;
 	
 	
 	/**
-	 * Get a list of strings containing all the name of roots having children
+	 * Get a list of strings containing all the name of roots having children.
+	 *
 	 * @return a list of strings containing all the name of roots having children
 	 */
 	public String[] getParentRootNameList(){
@@ -1820,7 +2135,8 @@ private int nPlants;
 	
 	
 	/**
-	 * Get a list of strings containing all the name of primary
+	 * Get a list of strings containing all the name of primary.
+	 *
 	 * @return a list of strings containing all the name of primary
 	 */
 	public String[] getPrimaryRootNameList(){
@@ -1845,6 +2161,11 @@ private int nPlants;
 	}
 	
 	
+	/**
+	 * Gets the primary roots.
+	 *
+	 * @return the primary roots
+	 */
 	public Root[]getPrimaryRoots(){
 		int ind = 0;
 		int incr=0;
@@ -1867,7 +2188,8 @@ private int nPlants;
 	}
 	
 	/**
-	 * Get the average child density of all the parent roots of the image
+	 * Get the average child density of all the parent roots of the image.
+	 *
 	 * @return the average child density of all the parent roots of the image
 	 */
 	public float getAvgChildDens(){
@@ -1885,7 +2207,9 @@ private int nPlants;
 	}
 	
 	/**
-	 * Return the image name
+	 * Return the image name.
+	 *
+	 * @return the string
 	 */
     public String toString(){
     	return this.imgName;
@@ -1893,7 +2217,9 @@ private int nPlants;
 
 
     /**
-     * Get the center of the tracing
+     * Get the center of the tracing.
+     *
+     * @return the center
      */
     public float[] getCenter(){
     	float[] coord = new float[2];
@@ -1935,7 +2261,9 @@ private int nPlants;
 
 
     /**
-     * Get the widht of the tracing
+     * Get the widht of the tracing.
+     *
+     * @return the min Y
      */
     public int getMinY(){
     	float min = 1e5f; 
@@ -1953,7 +2281,9 @@ private int nPlants;
     }
 
     /**
-     * Get the widht of the tracing
+     * Get the widht of the tracing.
+     *
+     * @return the min X
      */
     public int getMinX(){
     	float min = 1e5f; 
@@ -1971,7 +2301,10 @@ private int nPlants;
     }    
     
     /**
-     * Get the widht of the tracing
+     * Get the widht of the tracing.
+     *
+     * @param add the add
+     * @return the width
      */
     public int getWidth(boolean add){
     	float min = 1e5f, max = 0; 
@@ -1991,7 +2324,10 @@ private int nPlants;
     }
     
     /**
-     * Get the height of the tracing
+     * Get the height of the tracing.
+     *
+     * @param add the add
+     * @return the height
      */
     public int getHeight(boolean add){
     	float min = 1e5f, max = 0; 
@@ -2012,6 +2348,11 @@ private int nPlants;
 
 
    
+    /**
+     * Refine description.
+     *
+     * @param maxRangeBetweenNodes the max range between nodes
+     */
     public void refineDescription(int maxRangeBetweenNodes) {
        	Root r;
     	Node n,n1,n0,nPrim;
@@ -2033,10 +2374,20 @@ private int nPlants;
     	
     }
     
+    /**
+     * Distance.
+     *
+     * @param n1 the n 1
+     * @param n2 the n 2
+     * @return the double
+     */
     public double distance(Node n1,Node n2) {
     	return VitimageUtils.distance(n1.x, n1.y, n2.x, n2.y);
     }
     
+    /**
+     * Attach lat to prime.
+     */
     public void attachLatToPrime() {
     	Root r,rPar;
     	Node n,n1,n0,nPrim,nLat,nMin,newNode=null;
@@ -2062,6 +2413,11 @@ private int nPlants;
     
     
     
+    /**
+     * Apply transform to geometry.
+     *
+     * @param tr the tr
+     */
     public void applyTransformToGeometry(ItkTransform tr) {
     	Root r;
     	Node n,n1;
@@ -2085,14 +2441,37 @@ private int nPlants;
     }
     
     
-	/** Adapted from ImageProcessor in IJ v1.53i  */
+	/**
+	 *  Adapted from ImageProcessor in IJ v1.53i
+	 *
+	 * @param img the img
+	 * @param x1 the x 1
+	 * @param y1 the y 1
+	 * @param x2 the x 2
+	 * @param y2 the y 2
+	 * @param drawOneEveryX the draw one every X
+	 * @param lineWidth the line width
+	 * @param valueToSet the value to set
+	 */
 	public static void drawDotline(ImagePlus img,int x1, int y1,int x2, int y2,int drawOneEveryX,double lineWidth,double valueToSet) {
 		ImageProcessor ip=img.getProcessor();
 		int type=img.getType();
 		drawDotline(ip, type, x1, y1, x2, y2, drawOneEveryX, lineWidth, valueToSet);
 	}
 		
-	/** Adapted from ImageProcessor in IJ v1.53i  */
+	/**
+	 *  Adapted from ImageProcessor in IJ v1.53i
+	 *
+	 * @param ip the ip
+	 * @param type the type
+	 * @param x1 the x 1
+	 * @param y1 the y 1
+	 * @param x2 the x 2
+	 * @param y2 the y 2
+	 * @param drawOneEveryX the draw one every X
+	 * @param lineWidth the line width
+	 * @param valueToSet the value to set
+	 */
 	public static void drawDotline(ImageProcessor ip,int type,int x1, int y1,int x2, int y2,int drawOneEveryX,double lineWidth,double valueToSet) {
 		double val=Math.max(valueToSet,1);
 		int valueI=(int)Math.round(val);
@@ -2127,6 +2506,14 @@ private int nPlants;
 
 	
 
+	/**
+	 * View rsml and image sequence superposition.
+	 *
+	 * @param rm the rm
+	 * @param imageSequence the image sequence
+	 * @param zoomFactor the zoom factor
+	 * @return the insert angl
+	 */
 	static ImagePlus viewRsmlAndImageSequenceSuperposition(RootModel rm,ImagePlus imageSequence,int zoomFactor) {
 		int Nt=imageSequence.getStackSize();
 		ImagePlus []tabRes=new ImagePlus[Nt];
@@ -2142,6 +2529,18 @@ private int nPlants;
 	}
 
     
+    /**
+     * Creates the gray scale image with time.
+     *
+     * @param imgInitSize the img init size
+     * @param SIZE_FACTOR the size factor
+     * @param binaryColor the binary color
+     * @param observationTime the observation time
+     * @param dotLineForHidden the dot line for hidden
+     * @param symbolOptions the symbol options
+     * @param lineWidths the line widths
+     * @return the image plus
+     */
     public ImagePlus createGrayScaleImageWithTime(ImagePlus imgInitSize, int SIZE_FACTOR,boolean binaryColor,double observationTime,boolean dotLineForHidden,boolean []symbolOptions,double[]lineWidths) {
     	int[]initDims=new int[] {imgInitSize.getWidth(),imgInitSize.getHeight()};
     	return createGrayScaleImageWithTime(initDims, SIZE_FACTOR, binaryColor, observationTime, dotLineForHidden, symbolOptions,lineWidths);
@@ -2149,6 +2548,18 @@ private int nPlants;
  
     
     
+    /**
+     * Creates the gray scale image with time.
+     *
+     * @param initDims the init dims
+     * @param SIZE_FACTOR the size factor
+     * @param binaryColor the binary color
+     * @param observationTime the observation time
+     * @param dotLineForHidden the dot line for hidden
+     * @param symbolOptions the symbol options
+     * @param lineWidths the line widths
+     * @return the image plus
+     */
     public ImagePlus createGrayScaleImageWithTime(int []initDims, int SIZE_FACTOR,boolean binaryColor,double observationTime,boolean dotLineForHidden,boolean []symbolOptions,double[]lineWidths) {
     	boolean showSymbols=symbolOptions[0];
     	boolean distinguishStartSymbol=symbolOptions[1];
@@ -2281,6 +2692,15 @@ private int nPlants;
     }
 
     
+    /**
+     * Creates the gray scale image time lapse.
+     *
+     * @param imgInitSize the img init size
+     * @param observationTimes the observation times
+     * @param lineWidths the line widths
+     * @param deltaModel the delta model
+     * @return the image plus
+     */
     public ImagePlus createGrayScaleImageTimeLapse(ImagePlus imgInitSize, double []observationTimes,double[]lineWidths,double deltaModel) {
     	int[]initDims=new int[] {imgInitSize.getWidth(),imgInitSize.getHeight()};
     	int Z=observationTimes.length;
@@ -2388,6 +2808,16 @@ private int nPlants;
     
     
     
+    /**
+     * Creates the gray scale image.
+     *
+     * @param imgRef the img ref
+     * @param sigmaSmooth the sigma smooth
+     * @param convexHull the convex hull
+     * @param skeleton the skeleton
+     * @param width the width
+     * @return the image plus
+     */
     public ImagePlus createGrayScaleImage(ImagePlus imgRef,double sigmaSmooth,boolean convexHull,boolean skeleton,int width) {
     	int w=imgRef.getWidth();
  	    int h=imgRef.getHeight();
@@ -2432,7 +2862,15 @@ private int nPlants;
     
     
     /**
-     * Create an image processor based on the roots contained into the root system
+     * Create an image processor based on the roots contained into the root system.
+     *
+     * @param color the color
+     * @param line the line
+     * @param real the real
+     * @param w the w
+     * @param h the h
+     * @param convexhull the convexhull
+     * @return the image processor
      */
     public ImageProcessor createImage(boolean color, int line, boolean real, int w, int h, boolean convexhull){
     	
@@ -2501,7 +2939,16 @@ private int nPlants;
     
     
     /**
-     * Create an image processor based on the roots contained into the root system
+     * Create an image processor based on the roots contained into the root system.
+     *
+     * @param color the color
+     * @param line the line
+     * @param real the real
+     * @param w the w
+     * @param h the h
+     * @param convexhull the convexhull
+     * @param ratioColor the ratio color
+     * @return the image processor
      */
     public ImageProcessor createImage(boolean color, int line, boolean real, int w, int h, boolean convexhull,double ratioColor){
     	
@@ -2570,7 +3017,13 @@ private int nPlants;
     
     
     /**
-     * Create an image processor based on the roots contained into the root system
+     * Create an image processor based on the roots contained into the root system.
+     *
+     * @param color the color
+     * @param line the line
+     * @param real the real
+     * @param convexhull the convexhull
+     * @return the image processor
      */
     public ImageProcessor createImage(boolean color, int line, boolean real, boolean convexhull){
     	
@@ -2631,7 +3084,10 @@ private int nPlants;
     
     
     /**
-     * Get the index of the po accession
+     * Get the index of the po accession.
+     *
+     * @param po the po
+     * @return the index from po
      */
     public int getIndexFromPo(String po){
     	for(int i = 0; i < FSR.listPo.length; i++){
@@ -2641,13 +3097,18 @@ private int nPlants;
     }
     
     /**
-     * Get the convexhull area of all the roots in the image
+     * Get the convexhull area of all the roots in the image.
+     *
+     * @return the convex hull area
      */
     public float getConvexHullArea(){
     	return 0;
     }
+    
     /**
      * Get the convexhull of all the roots in the image. Uses the native image functions
+     *
+     * @return the convex hull
      */
     public PolygonRoi getConvexHull(){
     		
@@ -2679,6 +3140,15 @@ private int nPlants;
     }    
     
     
+    /**
+     * Distance.
+     *
+     * @param x0 the x 0
+     * @param y0 the y 0
+     * @param x1 the x 1
+     * @param y1 the y 1
+     * @return the double
+     */
     public double distance(double x0,double y0,double x1,double y1) {
 		return Math.sqrt((x1-x0)*(x1-x0)+(y1-y0)*(y1-y0));
 	}

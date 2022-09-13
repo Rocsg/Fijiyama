@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.rsml;
 
 import java.io.File;
@@ -9,10 +12,22 @@ import net.imagej.fijiyama.common.*;
 import net.imagej.fijiyama.fijiyamaplugin.Fijiyama_GUI;
 import net.imagej.fijiyama.rsml.RSMLNoGUI;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class Test_RSMLViewer.
+ */
 public class Test_RSMLViewer {
 
+	/**
+	 * Instantiates a new test RSML viewer.
+	 */
 	public Test_RSMLViewer() {}
 	
+	/**
+	 * The main method.
+	 *
+	 * @param args the arguments
+	 */
 	public static void main(String[]args) {		
 		ImageJ ij=new ImageJ();
 		//stuff();
@@ -22,12 +37,18 @@ public class Test_RSMLViewer {
 	}
 		
 	
+	/**
+	 * Stuff.
+	 */
 	public static void stuff() {
 		String in="/home/rfernandez/Bureau/A_Test/Input";
 		String out="/home/rfernandez/Bureau/A_Test/Output";
 		Fijiyama_GUI.startBatchRsml(in,out,false);
 	}
 
+	/**
+	 * View things fifth report.
+	 */
 	public static void viewThingsFifthReport() {
 		String subjectName="20200826-AC-PIP_azote_Seq 7_Boite 00021_IdentificationFailed-Visu";
 		String dataRsml1="/home/rfernandez/Bureau/A_Test/Racines/Tests/test_02_morgan_labels/input/20200826-AC-PIP_azote_Seq_1_Boite_00001_IdentificationFailed-Visu.rsml";
@@ -47,6 +68,9 @@ public class Test_RSMLViewer {
 		
 	}
 	
+	/**
+	 * View things third report.
+	 */
 	public static void viewThingsThirdReport() {
 		String imgName="/home/rfernandez/Bureau/A_Test/BPMP/Reproduction_01_avec_reseau_morgan/Train/20200826-AC-PIP_azote_Seq 6_Boite 00004_IdentificationFailed-Visu.jpg";
 		String rsmlMorganName="/home/rfernandez/Bureau/A_Test/BPMP/Reproduction_01_avec_reseau_morgan/Results_Train_Custom/20200826-AC-PIP_azote_Seq 6_Boite 00004_IdentificationFailed-Visu.rsml";
@@ -59,6 +83,9 @@ public class Test_RSMLViewer {
 
 	
 	
+	/**
+	 * View things fourth report.
+	 */
 	public static void viewThingsFourthReport() {
 		ImagePlus[]mik=new ImagePlus[6];
 		ImagePlus[]morg=new ImagePlus[6];
@@ -99,6 +126,9 @@ public class Test_RSMLViewer {
 	
 	
 	
+	/**
+	 * View things second report.
+	 */
 	public static void viewThingsSecondReport() {
 
 		//Data training Morgan
@@ -115,6 +145,9 @@ public class Test_RSMLViewer {
 	}
 	
 		
+	/**
+	 * View things first report.
+	 */
 	public static void viewThingsFirstReport() {	
 		
 		int testCase=1;
@@ -161,6 +194,12 @@ public class Test_RSMLViewer {
 	}
 
 	
+	/**
+	 * View superposition.
+	 *
+	 * @param rsmlPath the rsml path
+	 * @param title the title
+	 */
 	public static void viewSuperposition(String rsmlPath,String title) {
 		String nameImg=new String(rsmlPath);
 		nameImg=nameImg.replace(".rsml",".tif");
@@ -173,6 +212,13 @@ public class Test_RSMLViewer {
 	
 	
 	
+	/**
+	 * View superposition.
+	 *
+	 * @param imgPath the img path
+	 * @param rsmlPath the rsml path
+	 * @param title the title
+	 */
 	public static void viewSuperposition(String imgPath,String rsmlPath,String title) {
 		boolean realWidth=true;
 		boolean makeConvexHull=false;
@@ -216,6 +262,9 @@ public class Test_RSMLViewer {
 		img2.setTitle(title);
 	}
 
+		/**
+		 * Pouet.
+		 */
 		public static void pouet() {
 			String mainPath="/home/fernandr/Bureau/A_Test/BPMP/Reproduction_03_training_jean_zay";
 			String t=mainPath+"/valid";

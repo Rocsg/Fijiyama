@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.registration;
 import java.util.ArrayList;
 import java.util.Random;
@@ -33,17 +36,35 @@ import net.imagej.fijiyama.common.VitimageUtils;
 import net.imagej.fijiyama.registration.ItkTransform;
 import vib.FastMatrix;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class ItkTransform.
+ */
 public class ItkTransform extends Transform implements ItkImagePlusInterface{
+	
+	/** The is dense. */
 	private boolean isDense=false;
+	
+	/** The is flattened. */
 	private boolean isFlattened=true;
+	
+	/** The step. */
 	public int step=0;
 
 
+	/**
+	 * Instantiates a new itk transform.
+	 */
 	/* Constructors and factories*/
 	public ItkTransform(){
 		super();
 	}
 	
+	/**
+	 * Instantiates a new itk transform.
+	 *
+	 * @param model the model
+	 */
 	public ItkTransform(ItkTransform model) {		
 		super(model);
 		this.isDense=model.isDense;
@@ -51,30 +72,69 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return;
 	}
 
+	/**
+	 * Itk transform from coefs.
+	 *
+	 * @param coefs the coefs
+	 * @return the ${e.g(1).rsfl()}
+	 */
 	public static ItkTransform itkTransformFromCoefs(double[]coefs) {
 		org.itk.simple.AffineTransform aff=new org.itk.simple.AffineTransform( ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] { coefs[0] , coefs[1] , coefs[2] ,      coefs[4] , coefs[5] , coefs[6] ,   coefs[8] , coefs[9] , coefs[10] } ),    
 				ItkImagePlusInterface.doubleArrayToVectorDouble( new double[] { coefs[3] , coefs[7] , coefs[11] } ), ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {0,0,0} ) );
 		return new ItkTransform(aff);
 	}
 	
+	/**
+	 * Itk transform from DICOM vectors.
+	 *
+	 * @param vx the vx
+	 * @param vy the vy
+	 * @param vz the vz
+	 * @param t the t
+	 * @return the itk transform
+	 */
 	public static ItkTransform itkTransformFromDICOMVectors(double[]vx,double[]vy,double[]vz,double[]t) {
 		double []vzz=TransformUtils.vectorialProduct(new double[] {  vx[0] , vy[0] , vz[0]}, new double[] {-vx[1] ,- vy[1] , -vz[1] });
 //		return itkTransformFromCoefs(new double[] { vx[0] , -vx[1] , -vx[2] , t[0] ,          vy[0] , -vy[1] , -vy[2] , t[1] ,        vzz[0] , vzz[1] , vzz[2] , t[2]   });
 		return itkTransformFromCoefs(new double[] { vx[0] , vy[0] , vz[0] , t[0] ,          -vx[1] ,- vy[1] , -vz[1] , -t[1] ,        vzz[0] , vzz[1] , vzz[0] , -t[2]   });
 	}
 
+	/**
+	 * Itk transform from DICOM vectors AXIAL.
+	 *
+	 * @param vx the vx
+	 * @param vy the vy
+	 * @param vz the vz
+	 * @param t the t
+	 * @return the itk transform
+	 */
 	public static ItkTransform itkTransformFromDICOMVectorsAXIAL(double[]vx,double[]vy,double[]vz,double[]t) {
 		double []vzz=TransformUtils.vectorialProduct(new double[] {  vx[0] , vy[0] , vz[0]}, new double[] {-vx[1] ,- vy[1] , -vz[1] });
 //		return itkTransformFromCoefs(new double[] { vx[0] , -vx[1] , -vx[2] , t[0] ,          vy[0] , -vy[1] , -vy[2] , t[1] ,        vzz[0] , vzz[1] , vzz[2] , t[2]   });
 		return itkTransformFromCoefs(new double[] { vx[0] , vy[0] , vz[0] , t[0] +40.63,          -vx[1] ,- vy[1] , -vz[1] , -t[1]+50.7 ,        vzz[0] , vzz[1] , vzz[2] , -t[2] +213.5  });
 	}
 		
+	/**
+	 * Itk transform from DICOM vectors NOAXIAL.
+	 *
+	 * @param vx the vx
+	 * @param vy the vy
+	 * @param vz the vz
+	 * @param t the t
+	 * @return the itk transform
+	 */
 	public static ItkTransform itkTransformFromDICOMVectorsNOAXIAL(double[]vx,double[]vy,double[]vz,double[]t) {
 		double []vzz=TransformUtils.vectorialProduct(new double[] {  vx[0] , vy[0] , vz[0]}, new double[] {-vx[1] ,- vy[1] , -vz[1] });
 //		return itkTransformFromCoefs(new double[] { vx[0] , -vx[1] , -vx[2] , t[0] ,          vy[0] , -vy[1] , -vy[2] , t[1] ,        vzz[0] , vzz[1] , vzz[2] , t[2]   });
 		return itkTransformFromCoefs(new double[] { vx[0] , vy[0] , vz[0] , t[0] ,          -vx[1] ,- vy[1] , -vz[1] , -t[1] ,        vzz[0] , vzz[1] , vzz[2] , -t[2]   });
 	}
 		
+	/**
+	 * Gets the identity dense field transform.
+	 *
+	 * @param imgRef the img ref
+	 * @return the identity dense field transform
+	 */
 	public static ItkTransform getIdentityDenseFieldTransform(ImagePlus imgRef) {
 		ImagePlus img=imgRef.duplicate();
 		IJ.run(img,"32-bit","");
@@ -91,6 +151,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	/* Conversions of Transformations*/	
 
+	/**
+	 * Itk transform to ij 3 d transform.
+	 *
+	 * @param tr the tr
+	 * @return the transform 3 D
+	 */
 	public static Transform3D itkTransformToIj3dTransform(ItkTransform tr) {
 		double[]tab=tr.toAffineArrayMonolineRepresentation();
 		Transform3D ret=new Transform3D();
@@ -98,6 +164,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return ret;
 	}
 
+	/**
+	 * Ij 3 d transform to itk transform.
+	 *
+	 * @param tr the tr
+	 * @return the itk transform
+	 */
 	public static ItkTransform ij3dTransformToItkTransform(Transform3D tr) {
 		double[]tab=new double[16];
 		tr.get(tab);
@@ -105,6 +177,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return itkTr;
 	}
 
+	/**
+	 * Fast matrix to itk transform.
+	 *
+	 * @param fm the fm
+	 * @return the itk transform
+	 */
 	public static ItkTransform fastMatrixToItkTransform(FastMatrix fm) {
 		double[]tab=fm.rowwise16();
 		org.itk.simple.AffineTransform aff=new org.itk.simple.AffineTransform(
@@ -113,12 +191,23 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return new ItkTransform(aff);
 	}
 
+	/**
+	 * Instantiates a new itk transform.
+	 *
+	 * @param tr the tr
+	 */
 	public ItkTransform(org.itk.simple.Transform tr) {
 		super(tr);
 		this.isDense=!tr.isLinear();
 		return ;
 	}
 
+	/**
+	 * Array 16 elements to itk transform.
+	 *
+	 * @param tab the tab
+	 * @return the string
+	 */
 	public static ItkTransform array16ElementsToItkTransform(double[] tab) {
 		org.itk.simple.AffineTransform aff=new org.itk.simple.AffineTransform(
 				ItkImagePlusInterface.doubleArrayToVectorDouble(new double[] {tab[0],tab[1],tab[2], tab[4],tab[5],tab[6],    tab[8],tab[9],tab[10] } ),
@@ -127,6 +216,11 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 
 
+	/**
+	 * To affine array monoline representation.
+	 *
+	 * @return the double[]
+	 */
 	public double[] toAffineArrayMonolineRepresentation() {
 		double [][]tabTemp=toAffineArrayRepresentation();
 		return new double[] {   tabTemp[0][0] , tabTemp[0][1] , tabTemp[0][2] , tabTemp[0][3] , 
@@ -135,6 +229,11 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 								tabTemp[3][0] , tabTemp[3][1] , tabTemp[3][2] , tabTemp[3][3] };
 	}
 
+	/**
+	 * To affine array representation.
+	 *
+	 * @return the double[][]
+	 */
 	public double[][] toAffineArrayRepresentation() {
 		Point3d pt0=new Point3d(0,0,0);
 		Point3d pt0Tr=this.transformPoint(pt0);
@@ -152,6 +251,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 
 	
 	
+	/**
+	 * Gets the image center.
+	 *
+	 * @param img the img
+	 * @return the image center
+	 */
 	public static double[]getImageCenter(ImagePlus img){
 		double[]vals=VitimageUtils.getDimensionsRealSpace(img);
 		vals[0]/=2;		vals[1]/=2;		vals[2]/=2;
@@ -160,20 +265,50 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	
 
+	/**
+	 * Estimate best affine 3 D.
+	 *
+	 * @param setRef the set ref
+	 * @param setMov the set mov
+	 * @return the itk transform
+	 */
 	/* Estimation of transformations from point set or euler angles*/	
 	public static ItkTransform estimateBestAffine3D(Point3d[]setRef,Point3d[]setMov) {
 		return fastMatrixToItkTransform(FastMatrix.bestLinear( setMov, setRef));
 	}
 		
+	/**
+	 * Estimate best rigid 3 D.
+	 *
+	 * @param setRef the set ref
+	 * @param setMov the set mov
+	 * @return the itk transform
+	 */
 	public static ItkTransform estimateBestRigid3D(Point3d[]setRef,Point3d[]setMov) {
 		return fastMatrixToItkTransform(FastMatrix.bestRigid( setMov, setRef, false ));
 	}
 
+	/**
+	 * Estimate best dense 3 D.
+	 *
+	 * @param setRef the set ref
+	 * @param setMov the set mov
+	 * @param imgRef the img ref
+	 * @param sigma the sigma
+	 * @return the itk transform
+	 */
 	public static ItkTransform estimateBestDense3D(Point3d[]setRef,Point3d[]setMov,ImagePlus imgRef,double sigma) {
 		return new ItkTransform(new DisplacementFieldTransform(computeDenseFieldFromSparseCorrespondancePoints(new Point3d[][] {setMov,setRef},imgRef,sigma,true)));
 	}
 
 	
+	/**
+	 * Estimate best translation 3 D.
+	 *
+	 * @param setRef the set ref
+	 * @param setMov the set mov
+	 * @return the itk transform
+	 */
 	public static ItkTransform estimateBestTranslation3D(Point3d[]setRef,Point3d[]setMov) {
 		double dx=0,dy=0,dz=0;
 		for(int i=0;i<setRef.length;i++) {
@@ -186,12 +321,27 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 
 	
 	
+	/**
+	 * Estimate best similarity 3 D.
+	 *
+	 * @param setRef the set ref
+	 * @param setMov the set mov
+	 * @return the itk transform
+	 */
 	public static ItkTransform estimateBestSimilarity3D(Point3d[]setRef,Point3d[]setMov) {
 		FastMatrix fm=FastMatrix.bestRigid( setMov, setRef, true );
 		IJ.log("Similarity transform computed. Coefficient of dilation : "+Math.pow(fm.det(),0.333333));
 		return fastMatrixToItkTransform(fm);
 	}
 
+	/**
+	 * Gets the rigid transform.
+	 *
+	 * @param center the center
+	 * @param angles the angles
+	 * @param translation the translation
+	 * @return the rigid transform
+	 */
 	//Angles are in radians
 	public static ItkTransform getRigidTransform(double []center,double[]angles,double[]translation) {
 		org.itk.simple.VectorDouble cent=ItkImagePlusInterface.doubleArrayToVectorDouble(center);
@@ -199,6 +349,13 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return new ItkTransform(new org.itk.simple.Transform(new org.itk.simple.Euler3DTransform (cent,angles[0],angles[1],angles[2], trans)));
 	}
 
+	/**
+	 * Gets the transform for resampling.
+	 *
+	 * @param voxSRef the vox S ref
+	 * @param voxSMov the vox S mov
+	 * @return the transform for resampling
+	 */
 	public static ItkTransform getTransformForResampling(double[]voxSRef,double[]voxSMov) {
 		double[]mat=new double[] {  1, 0, 0, 0.5*(voxSRef[0]-voxSMov[0]) ,
 				0, 1, 0, 0.5*(voxSRef[1]-voxSMov[1]) ,
@@ -206,6 +363,15 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return ItkTransform.itkTransformFromCoefs(mat);
 	}
 		
+	/**
+	 * Compute dense field from sparse correspondance points.
+	 *
+	 * @param correspondancePoints the correspondance points
+	 * @param imgRef the img ref
+	 * @param sigma the sigma
+	 * @param zeroPaddingOutside the zero padding outside
+	 * @return the image
+	 */
 	/*Building a smooth deformation field from correspondance points
 	 * Description of correspondance points are in SI units, as following :
 	 * corr[0][i]=original coordinates
@@ -331,11 +497,28 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	  	return ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(new ImagePlus [] {imgFieldX,imgFieldY,imgFieldZ});
 	}
 	
+	/**
+	 * Compute dense field from sparse correspondance points.
+	 *
+	 * @param correspondancePoints the correspondance points
+	 * @param imgRef the img ref
+	 * @param sigma the sigma
+	 * @return the itk transform
+	 */
 	public static ItkTransform computeDenseFieldFromSparseCorrespondancePoints(Point3d[][]correspondancePoints,ImagePlus imgRef,double sigma) {
 		return new ItkTransform(new DisplacementFieldTransform( computeDenseFieldFromSparseCorrespondancePoints(correspondancePoints,imgRef,sigma,false)));
 	}
 	
 	
+	/**
+	 * Generate random dense field.
+	 *
+	 * @param imgRef the img ref
+	 * @param frequency the frequency
+	 * @param mean the mean
+	 * @param std the std
+	 * @return the itk transform
+	 */
 	public static ItkTransform generateRandomDenseField(ImagePlus imgRef, int frequency,double mean, double std) {
 		int X=imgRef.getWidth();
 		int Y=imgRef.getHeight();
@@ -368,6 +551,13 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 	
 	
+	/**
+	 * Distance map.
+	 *
+	 * @param imgRef the img ref
+	 * @param propToImageSize the prop to image size
+	 * @return the image plus
+	 */
 	public ImagePlus distanceMap(ImagePlus imgRef,boolean propToImageSize){
 		ImagePlus ret=imgRef.duplicate();
 		IJ.run(ret,"32-bit","");
@@ -396,6 +586,16 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	
 	
+	/**
+	 * Mean distance after trans.
+	 *
+	 * @param imgRef the img ref
+	 * @param nX the n X
+	 * @param nY the n Y
+	 * @param nZ the n Z
+	 * @param getPixelsDistance the get pixels distance
+	 * @return the double[]
+	 */
 	public double[]meanDistanceAfterTrans(ImagePlus imgRef,int nX,int nY,int nZ,boolean getPixelsDistance){
 		int X=imgRef.getWidth();
 		int Y=imgRef.getWidth();
@@ -421,6 +621,16 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 	
 	
+	/**
+	 * Smooth image from correspondences.
+	 *
+	 * @param coordinates the coordinates
+	 * @param values the values
+	 * @param imgRef the img ref
+	 * @param sigma the sigma
+	 * @param zeroPaddingOutside the zero padding outside
+	 * @return the image plus
+	 */
 	public static ImagePlus smoothImageFromCorrespondences(int[][]coordinates,double[]values, ImagePlus imgRef,double sigma,boolean zeroPaddingOutside) {
 		double epsilon = 10E-20;
 		double []voxSizes=VitimageUtils.getVoxelSizes(imgRef);
@@ -462,6 +672,15 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	
 		
+	/**
+	 * Trim correspondances.
+	 *
+	 * @param correspondancePoints the correspondance points
+	 * @param imgRef the img ref
+	 * @param sigma the sigma
+	 * @param rejectThreshold the reject threshold
+	 * @return the point 3 d[][]
+	 */
 	public static Point3d[][]trimCorrespondances(Point3d[][] correspondancePoints,ImagePlus imgRef,double sigma,double rejectThreshold){
 		IJ.log("Trim correspondances. Sigma  ="+sigma+" ="+sigma/imgRef.getCalibration().pixelWidth+" voxels");
 		double epsilon = 10E-10;
@@ -555,24 +774,65 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	
 	/*Transform images and points. Work recursively : level 0=split frames and channels if any, level1=split RGB if any, level2=process resulting 3D stacks*/
+	/**
+	 * Transform image.
+	 *
+	 * @param imgRefTemp the img ref temp
+	 * @param imgMov the img mov
+	 * @param smoothingBeforeDownSampling the smoothing before down sampling
+	 * @return the image plus
+	 */
 	//TODO : smoothingBeforeDownSampling.
 	public ImagePlus transformImage(ImagePlus imgRefTemp, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
 		return transformImage(imgRefTemp,imgMov,smoothingBeforeDownSampling,false,0,false);
 	}
 	
+	/**
+	 * Transform image.
+	 *
+	 * @param imgRefTemp the img ref temp
+	 * @param imgMov the img mov
+	 * @return the image plus
+	 */
 	public ImagePlus transformImage(ImagePlus imgRefTemp, ImagePlus imgMov) {
 		return transformImage(imgRefTemp,imgMov,false);
 	}
 	
+	/**
+	 * Transform image extensive.
+	 *
+	 * @param imgRefTemp the img ref temp
+	 * @param imgMov the img mov
+	 * @param smoothingBeforeDownSampling the smoothing before down sampling
+	 * @return the image plus
+	 */
 	public ImagePlus transformImageExtensive(ImagePlus imgRefTemp, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
 		return transformImage(imgRefTemp,imgMov,smoothingBeforeDownSampling,false,0,true);
 	}
 	
+	/**
+	 * Transform image extensive.
+	 *
+	 * @param imgRefTemp the img ref temp
+	 * @param imgMov the img mov
+	 * @return the image plus
+	 */
 	public ImagePlus transformImageExtensive(ImagePlus imgRefTemp, ImagePlus imgMov) {
 		return transformImageExtensive(imgRefTemp,imgMov,false);
 	}
 	
 	/*Transform images and points. Work recursively : level 0=split frames and channels if any, level1=split RGB if any, level2=process resulting 3D stacks*/
+	/**
+	 * Transform image.
+	 *
+	 * @param imgRefTemp the img ref temp
+	 * @param imgMov the img mov
+	 * @param smoothingBeforeDownSampling the smoothing before down sampling
+	 * @param timeActions the time actions
+	 * @param initialTime the initial time
+	 * @param extensive the extensive
+	 * @return the image plus
+	 */
 	//TODO : smoothingBeforeDownSampling.
 	public ImagePlus transformImage(ImagePlus imgRefTemp, ImagePlus imgMov,boolean smoothingBeforeDownSampling,boolean timeActions, long initialTime,boolean extensive) {
 		ImagePlus imgRef=null;
@@ -689,6 +949,15 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return img;
 	}	
 	
+	/**
+	 * Transform image.
+	 *
+	 * @param targetDims the target dims
+	 * @param targetVoxs the target voxs
+	 * @param imgMov the img mov
+	 * @param smoothingBeforeDownSampling the smoothing before down sampling
+	 * @return the image plus
+	 */
 	public ImagePlus transformImage(int[]targetDims,double[]targetVoxs, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
 		String unit=imgMov.getCalibration().getUnit();
 		ImagePlus ref=ij.gui.NewImage.createImage("Ref",targetDims[0],targetDims[1],targetDims[2],imgMov.getBitDepth(),ij.gui.NewImage.FILL_BLACK);	
@@ -697,6 +966,15 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}	
 
 	
+	/**
+	 * Transform image extensive.
+	 *
+	 * @param targetDims the target dims
+	 * @param targetVoxs the target voxs
+	 * @param imgMov the img mov
+	 * @param smoothingBeforeDownSampling the smoothing before down sampling
+	 * @return the image plus
+	 */
 	public ImagePlus transformImageExtensive(int[]targetDims,double[]targetVoxs, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
 		String unit=imgMov.getCalibration().getUnit();
 		ImagePlus ref=ij.gui.NewImage.createImage("Ref",targetDims[0],targetDims[1],targetDims[2],imgMov.getBitDepth(),ij.gui.NewImage.FILL_BLACK);	
@@ -705,10 +983,28 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}	
 
 	
+	/**
+	 * Resample image.
+	 *
+	 * @param targetDims the target dims
+	 * @param targetVoxs the target voxs
+	 * @param imgMov the img mov
+	 * @param smoothingBeforeDownSampling the smoothing before down sampling
+	 * @return the image plus
+	 */
 	public static ImagePlus resampleImage(int[]targetDims,double[]targetVoxs, ImagePlus imgMov,boolean smoothingBeforeDownSampling) {
 		return (new ItkTransform()).transformImage(targetDims,targetVoxs,imgMov,smoothingBeforeDownSampling);
 	}	
 	
+	/**
+	 * Transform image segmentation byte.
+	 *
+	 * @param imgRef the img ref
+	 * @param imgMov the img mov
+	 * @param min the min
+	 * @param max the max
+	 * @return the image plus
+	 */
 	public ImagePlus transformImageSegmentationByte(ImagePlus imgRef, ImagePlus imgMov,int min, int max) {
 		ImagePlus[]threshTab=new ImagePlus[max-min+1];
 		ImagePlus mov8=new Duplicator().run(imgMov);
@@ -755,6 +1051,13 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return ret;
 	}
 
+	/**
+	 * Resample image reech.
+	 *
+	 * @param imgRef the img ref
+	 * @param imgMov the img mov
+	 * @return the image plus
+	 */
 	public static ImagePlus resampleImageReech(ImagePlus imgRef, ImagePlus imgMov) {
 		int val=Math.min(  10    ,    Math.min(   imgMov.getWidth()/20    ,   imgMov.getHeight()/20  ));
 		int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(imgMov,val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(imgMov,imgMov.getWidth()-val-1,imgMov.getHeight()-val-1,0,val)*0.5    );
@@ -769,6 +1072,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}	
 	
 
+	/**
+	 * Transform point.
+	 *
+	 * @param pt the pt
+	 * @return the point 3 d
+	 */
 	public Point3d transformPoint(Point3d pt) {
 		VectorDouble vect=new VectorDouble(3);
 		vect.set(0,pt.x);
@@ -778,6 +1087,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return new Point3d(coords[0],coords[1],coords[2]);
 	}
 
+	/**
+	 * Transform point.
+	 *
+	 * @param coords the coords
+	 * @return the double[]
+	 */
 	public double[] transformPoint(double[]coords) {
 		VectorDouble vect=new VectorDouble(3);
 		vect.set(0,coords[0]);
@@ -788,6 +1103,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 
 	
+	/**
+	 * Transform point inverse.
+	 *
+	 * @param pt the pt
+	 * @return the point 3 d
+	 */
 	public Point3d transformPointInverse(Point3d pt) {
 		VectorDouble vect=new VectorDouble(3);
 		vect.set(0,pt.x);
@@ -805,12 +1126,26 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	
 	
+	/**
+	 * View as grid 3 D.
+	 *
+	 * @param imgRef the img ref
+	 * @param pixelSpacing the pixel spacing
+	 * @return the image plus
+	 */
 	/* Visualize transform as images*/
 	public ImagePlus viewAsGrid3D(ImagePlus imgRef,int pixelSpacing) {
 		ImagePlus grid=VitimageUtils.getBinaryGrid(imgRef, pixelSpacing);
 		return this.transformImage(imgRef,grid,false);
 	}
 	
+	/**
+	 * Show as coordinates.
+	 *
+	 * @param title the title
+	 * @param slice the slice
+	 * @return the image plus[]
+	 */
 	public ImagePlus[] showAsCoordinates(String title,int slice) {
 		ImagePlus[]coordinates=ItkImagePlusInterface.convertItkTransformToImagePlusArray(this);
 		coordinates[0].setTitle(title+".X");
@@ -827,6 +1162,14 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return coordinates;
 	}
 		
+	/**
+	 * Show as grid 3 D.
+	 *
+	 * @param imgRef2 the img ref 2
+	 * @param pixelSpacing the pixel spacing
+	 * @param title the title
+	 * @param slice the slice
+	 */
 	public void showAsGrid3D(ImagePlus imgRef2,int pixelSpacing,String title,int slice) {
 		ImagePlus imgRef=VitimageUtils.imageCopy(imgRef2);
 		IJ.run(imgRef,"8-bit","");
@@ -862,6 +1205,14 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 
 	}
 	
+	/**
+	 * Gets the jacobian.
+	 *
+	 * @param tr2 the tr 2
+	 * @param imgRef the img ref
+	 * @param percentageThreshold the percentage threshold
+	 * @return the jacobian
+	 */
 	public static ImagePlus getJacobian(ItkTransform tr2,ImagePlus imgRef,int percentageThreshold) {
 		if(tr2.isDense) {
 			return getJacobianOfDisplacementField(tr2.getFlattenDenseFieldAsDisplacementFieldImage(imgRef), imgRef,percentageThreshold);
@@ -874,12 +1225,27 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		}
 	}
 	
+	/**
+	 * Gets the jacobian of displacement field.
+	 *
+	 * @param df the df
+	 * @param imgRef the img ref
+	 * @param percentageThreshold the percentage threshold
+	 * @return the jacobian of displacement field
+	 */
 	public static ImagePlus getJacobianOfDisplacementField(Image df,ImagePlus imgRef,int percentageThreshold) {
 		ImagePlus jac=ItkTransform.getJacobian(df,percentageThreshold);
 		return VitimageUtils.clipFloatImage(jac, 1-percentageThreshold/100.0,1+percentageThreshold/100.0);
 	}
 	
 	
+	/**
+	 * Gets the jacobian.
+	 *
+	 * @param denseField the dense field
+	 * @param percentageThreshold the percentage threshold
+	 * @return the jacobian
+	 */
 	public static ImagePlus getJacobian(Image denseField,int percentageThreshold) {
 		DisplacementFieldJacobianDeterminantFilter df=new  DisplacementFieldJacobianDeterminantFilter();
 		@SuppressWarnings("unused")
@@ -899,6 +1265,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	
 	
+	/**
+	 * Norm of dense field.
+	 *
+	 * @param imgRef the img ref
+	 * @return the image plus
+	 */
 	/*Mathematical, geometrical and composition operations over transforms*/
 	public ImagePlus normOfDenseField(ImagePlus imgRef) {
 		//Recuperer les dimensions
@@ -938,10 +1310,22 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return ret;
 	}
 	
+	/**
+	 * Gets the flatten dense field.
+	 *
+	 * @param imgRef the img ref
+	 * @return the flatten dense field
+	 */
 	public ItkTransform getFlattenDenseField(ImagePlus imgRef) {
 		return new ItkTransform(new DisplacementFieldTransform(getFlattenDenseFieldAsDisplacementFieldImage(imgRef)));
 	}
 	
+	/**
+	 * Gets the flatten dense field as displacement field image.
+	 *
+	 * @param imgRef the img ref
+	 * @return the flatten dense field as displacement field image
+	 */
 	public Image getFlattenDenseFieldAsDisplacementFieldImage(ImagePlus imgRef) {
 		if(!this.isDense) {IJ.showMessage("Trying to flatten non dense transform");System.exit(0);}
 		IJ.log("Flattening dense field transform with a geometry of "+TransformUtils.stringVector(VitimageUtils.getDimensions(imgRef), ""));
@@ -991,11 +1375,21 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return im;
 	}
 	
+	/**
+	 * Simplify.
+	 *
+	 * @return the itk transform
+	 */
 	public ItkTransform simplify() {
 		Transform3D transIj=new Transform3D(this.toAffineArrayMonolineRepresentation());
 		return ItkTransform.ij3dTransformToItkTransform(transIj);		
 	}
 	
+	/**
+	 * Gets the inverse of dense field.
+	 *
+	 * @return the inverse of dense field
+	 */
 	public ItkTransform getInverseOfDenseField() {
 		if(!this.isDense) {IJ.showMessage("Trying to get inverse of non dense transform");System.exit(0);}
 		ImagePlus[]imgs=ItkImagePlusInterface.convertDisplacementFieldToImagePlusArrayAndNorm(new DisplacementFieldTransform((org.itk.simple.Transform)this).getDisplacementField() );
@@ -1034,6 +1428,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return new ItkTransform(new DisplacementFieldTransform( computeDenseFieldFromSparseCorrespondancePoints(correspondancePoints,imgs[0],sigma,false) ));
 	}
 	
+	/**
+	 * Multiply dense field.
+	 *
+	 * @param factor the factor
+	 * @return the itk transform
+	 */
 	public ItkTransform multiplyDenseField(double factor) {
 			if(!this.isDense) {IJ.showMessage("Trying to multiplyDenseField non dense transform");System.exit(0);}
 			MultiplyImageFilter mul=new MultiplyImageFilter();
@@ -1050,12 +1450,27 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	}
 		
+	/**
+	 * Smooth deformation transform.
+	 *
+	 * @param tr the tr
+	 * @param sigmaX the sigma X
+	 * @param sigmaY the sigma Y
+	 * @param sigmaZ the sigma Z
+	 * @return the itk transform
+	 */
 	public static ItkTransform smoothDeformationTransform(ItkTransform tr,double sigmaX,double sigmaY,double sigmaZ) {
 		ImagePlus[]imgs=ItkImagePlusInterface.convertItkTransformToImagePlusArray(tr);
 		for(int i=0;i<3;i++)imgs[i]=VitimageUtils.gaussianFiltering(imgs[i], sigmaX, sigmaY, sigmaZ);
 		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(imgs)));
 	}
 		
+	/**
+	 * Adds the transform.
+	 *
+	 * @param tr the tr
+	 * @return the ${e.g(1).rsfl()}
+	 */
 	public ItkTransform addTransform(ItkTransform tr) {
 		super.addTransform(tr);
 		if(!this.isDense)this.isDense=tr.isDense;
@@ -1063,6 +1478,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return this;
 	}
 	
+	/**
+	 * Adds the transform.
+	 *
+	 * @param tr the tr
+	 * @return the itk transform
+	 */
 	public ItkTransform addTransform(Transform tr) {
 		super.addTransform(tr);
 		if(!this.isDense)this.isDense=!tr.isLinear();
@@ -1079,11 +1500,22 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	
 	
+	/**
+	 * Write matrix transform to file.
+	 *
+	 * @param path the path
+	 */
 	/* File and String I/O functions*/
 	public void writeMatrixTransformToFile(String path) {
 		SimpleITK.writeTransform(this.simplify(),path);
 	}
 		
+	/**
+	 * Write to file with type detection.
+	 *
+	 * @param path the path
+	 * @param imgRef the img ref
+	 */
 	public void writeToFileWithTypeDetection(String path,ImagePlus imgRef) {
 		if(this.isDense) {
 			this.writeAsDenseField(path, imgRef);
@@ -1091,6 +1523,11 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		else this.writeMatrixTransformToFile(path);
 	}
 	
+	/**
+	 * Write as dense field with ITK exporter.
+	 *
+	 * @param path the path
+	 */
 	public void writeAsDenseFieldWithITKExporter(String path){
 		if(!this.isDense) {IJ.showMessage("Trying to write non dense transform");System.exit(0);}
 		String shortPath = (path != null) ? path.substring(0,path.indexOf('.')) : "";
@@ -1098,12 +1535,24 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		imWri.execute((new DisplacementFieldTransform((Transform)(this))).getDisplacementField(),shortPath+".mhd",false);
 	}
 	
+	/**
+	 * Read from dense field with ITK importer.
+	 *
+	 * @param path the path
+	 * @return the itk transform
+	 */
 	public static ItkTransform readFromDenseFieldWithITKImporter(String path){
 		ImageFileReader imRead=new ImageFileReader();
 		imRead.setFileName(path);
 		return new ItkTransform(new DisplacementFieldTransform( imRead.execute() ));
 	}
 		
+	/**
+	 * Write as dense field.
+	 *
+	 * @param path the path
+	 * @param imgRef the img ref
+	 */
 	public void writeAsDenseField(String path,ImagePlus imgRef) {
 		if(!this.isDense) {IJ.showMessage("Trying to write as dense field non dense transform");System.exit(0);}
 		String shortPath = (path != null) ? path.substring(0,path.indexOf('.')) : "";
@@ -1118,6 +1567,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		IJ.saveAsTiff(trans[0],shortPath+".transform.tif");
 	}
 		
+	/**
+	 * Read as dense field.
+	 *
+	 * @param path the path
+	 * @return the itk transform
+	 */
 	public static ItkTransform readAsDenseField(String path) {
 		
 		if((path==null) || (! (path.substring(path.length()-14,path.length())).equals(".transform.tif"))) {
@@ -1133,6 +1588,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(trans)));
 	}
 	
+	/**
+	 * Read transform from file.
+	 *
+	 * @param path the path
+	 * @return the itk transform
+	 */
 	public static ItkTransform readTransformFromFile(String path) {
 		ItkTransform tr=null;
 		try{
@@ -1142,6 +1603,13 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		} catch (Exception e) {		IJ.log("Wrong transform file or file selection was incompletely done in interface.\n Please select a   *.transform.tif file or a *.txt file");return null; }
 	}
 
+	/**
+	 * String matrix.
+	 *
+	 * @param sTitre the s titre
+	 * @param tab the tab
+	 * @return the string
+	 */
 	public static String stringMatrix(String sTitre,double[]tab){
 		//A reecrire au vu des decouvertes effectuees sur les chevrons
 		//Ce sera la deuxieme passe
@@ -1161,6 +1629,11 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return(s);	
 	}
 
+	/**
+	 * Drawable string.
+	 *
+	 * @return the string
+	 */
 	public String drawableString() {
 		double[][]array=this.toAffineArrayRepresentation();
 		String str=String.format("[%8.5f  %8.5f  %8.5f  %8.5f]\n[%8.5f  %8.5f  %8.5f  %8.5f]\n[%8.5f  %8.5f  %8.5f  %8.5f]\n[%8.5f  %8.5f  %8.5f  %8.5f]",
@@ -1171,6 +1644,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return str;
 	}
 
+	/**
+	 * To string.
+	 *
+	 * @param title the title
+	 * @return the string
+	 */
 	public String toString(String title) {
 		//A reecrire au vu des decouvertes effectuees sur les chevrons
 		//Ce sera la deuxieme passe
@@ -1199,6 +1678,14 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 	
 	
+	/**
+	 * Checks if is equal to affine transform.
+	 *
+	 * @param tr2 the tr 2
+	 * @param epsilonRotation the epsilon rotation
+	 * @param epsilonTranslation the epsilon translation
+	 * @return true, if is equal to affine transform
+	 */
 	public boolean isEqualToAffineTransform(ItkTransform tr2,double epsilonRotation,double epsilonTranslation) {
 		double[][]array1=this.toAffineArrayRepresentation();
 		double[][]array2=tr2.toAffineArrayRepresentation();
@@ -1208,6 +1695,13 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return true;
 	}
 
+	/**
+	 * Checks if is identity affine transform.
+	 *
+	 * @param epsilonRotation the epsilon rotation
+	 * @param epsilonTranslation the epsilon translation
+	 * @return true, if is identity affine transform
+	 */
 	public boolean isIdentityAffineTransform(double epsilonRotation,double epsilonTranslation) {
 		double[][]array=this.toAffineArrayRepresentation();
 		
@@ -1219,6 +1713,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return true;
 	}
 	
+	/**
+	 * Itk transfo step to string.
+	 *
+	 * @param step the step
+	 * @return the string
+	 */
 	public String itkTransfoStepToString(String step){		 
 		//A reecrire au vu des decouvertes effectuees sur les chevrons
 		//Ce sera la deuxieme passe
@@ -1231,6 +1731,12 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		return (stringMatrix("Categorie geometrique : "+strType,mat));
 	}
 
+	/**
+	 * Itk transform step to array.
+	 *
+	 * @param step the step
+	 * @return the double[]
+	 */
 	public double[] itkTransformStepToArray(String step) {
 		//A reecrire au vu des decouvertes effectuees sur les chevrons
 		//Ce sera la deuxieme passe
@@ -1254,16 +1760,33 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	}
 
 
+	/**
+	 * Nb transform composed.
+	 *
+	 * @return the int
+	 */
 	/*Others*/
 	public int nbTransformComposed() {
 		VitiDialogs.notYet("ItkTransform > nbTransformComposed");
 		return 0;
 	}
 
+	/**
+	 * Checks if is dense.
+	 *
+	 * @return true, if is dense
+	 */
 	public boolean isDense() {
 		return this.isDense;
 	}
 	
+	/**
+	 * Estimate global dilation factor.
+	 *
+	 * @param setRef the set ref
+	 * @param setMov the set mov
+	 * @return the double
+	 */
 	public static double estimateGlobalDilationFactor(Point3d[]setRef,Point3d[]setMov) {
 		FastMatrix fm=FastMatrix.bestRigid( setMov, setRef, true );
 		IJ.log("Similarity transform computed. Coefficient of dilation : "+Math.pow(fm.det(),0.333333));
@@ -1273,6 +1796,9 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 
 	
 	
+	/**
+	 * Transform image with gui.
+	 */
 	public static void transformImageWithGui() {
 		ImagePlus imgMov=VitiDialogs.chooseOneImageUI("Select the image to transform (moving image)","Select the image to transform (moving image)");
 		ImageProcessor ip=imgMov.getStack().getProcessor(imgMov.getNSlices()/2+1);
@@ -1290,6 +1816,9 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		result.show();
 	}
 	
+	/**
+	 * Compose transforms with gui.
+	 */
 	public static void composeTransformsWithGui() {
 		ArrayList<ItkTransform> listTr=new ArrayList<ItkTransform>();
 		boolean oneMore=true;
@@ -1315,6 +1844,14 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	
 
 	
+	/**
+	 * Gets the jacobian home made because of unavoided core dump issue with simple ITK displacement field jacobian determinant filter.
+	 *
+	 * @param imgRef the img ref
+	 * @param sigma the sigma
+	 * @param percentageThreshold the percentage threshold
+	 * @return the jacobian home made because of unavoided core dump issue with simple ITK displacement field jacobian determinant filter
+	 */
 	public ImagePlus getJacobianHomeMadeBecauseOfUnavoidedCoreDumpIssueWithSimpleITKDisplacementFieldJacobianDeterminantFilter(ImagePlus imgRef,double sigma,int percentageThreshold) {
 		if(!this.isDense) {IJ.showMessage("Trying to flatten non dense transform");System.exit(0);}
 		IJ.log("Computing jacobian for a geometry of "+TransformUtils.stringVector(VitimageUtils.getDimensions(imgRef), ""));

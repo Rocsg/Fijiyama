@@ -1,18 +1,48 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.common;
 import java.util.ArrayList;
 import java.util.List;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class DouglasPeuckerSimplify.
+ */
 //This code is largely inspired from the version of com.goebl.simplify; 
 public class DouglasPeuckerSimplify {
+    
+    /**
+     * The Class Range.
+     */
     private static class Range {
+        
+        /** The first. */
         int first;
+        
+        /** The last. */
         int last;
+        
+        /**
+         * Instantiates a new range.
+         *
+         * @param first the first
+         * @param last the last
+         */
         private Range(int first, int last) {
             this.first = first;
             this.last = last;
         }
     }
 
+	/**
+	 * Simplify simpler.
+	 *
+	 * @param listIn the list in
+	 * @param fixedTmp the fixed tmp
+	 * @param oneEvery the one every
+	 * @return the list
+	 */
 	public static List<Pix> simplifySimpler(List<Pix> listIn,List<Integer>fixedTmp,int oneEvery){
 		List<Integer>fixed=new ArrayList<Integer>();
 		if(fixedTmp.size()==0) {fixed.add(0);fixed.add(listIn.size()-1);}
@@ -35,6 +65,14 @@ public class DouglasPeuckerSimplify {
 
     
     
+	/**
+	 * Simplify.
+	 *
+	 * @param listIn the list in
+	 * @param fixedTmp the fixed tmp
+	 * @param tolerance the tolerance
+	 * @return the list
+	 */
 	public static List<Pix> simplify(List<Pix> listIn,List<Integer>fixedTmp,double tolerance){
 		List<Integer>fixed=new ArrayList<Integer>();
 		if(fixedTmp.size()==0) {fixed.add(0);fixed.add(listIn.size()-1);}
@@ -77,6 +115,14 @@ public class DouglasPeuckerSimplify {
 	}
 
 	
+    /**
+     * Gets the segment distance.
+     *
+     * @param p0 the p 0
+     * @param p1 the p 1
+     * @param p2 the p 2
+     * @return the segment distance
+     */
     public static double getSegmentDistance(Pix p0, Pix p1, Pix p2) {
         double x0, y0, x1, y1, x2, y2, dx, dy, t;
         x1 = p1.x; y1 = p1.y;

@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.rsml;
 
 import java.io.FileWriter;
@@ -8,50 +11,110 @@ import java.awt.Color;
 import java.awt.geom.GeneralPath;
 import javax.swing.Icon;
 
-import net.imagej.fijiyama.rsml.Mark;
-import net.imagej.fijiyama.rsml.Root;
-
 /**
+ * The Class Mark.
+ *
  * @author Xavier Draye - Universit� catholique de Louvain
- * @author Guillaume Lobet - Universit� de Li�ge 
+ * @author Guillaume Lobet - Universit� de Li�ge
  * Class for the Marks objects
- * */
+ */
 
 public class Mark {
+	
+	/** The type name. */
 	// Mark types
    static String[] typeName = {"Free Text", "Number", "Most Distal Lateral", "Measure", "Interval", "Length", "Anchor"}; 
+   
+   /** The type default value. */
    // Default values for the different marks
    static String[] typeDefaultValue = {"", "0", "MDL", "MEASURE", "INTERVAL", "", "ANCHOR"};
+   
+   /** The type needs value. */
    // Types for the different values
    static boolean[] typeNeedsValue = {true, true, false, false, false, true, true};
+   
+   /** The type value needs paint. */
    // Painting flags for the different values
    static boolean[] typeValueNeedsPaint = {true, true, false, false, false, true, true};
+   
+   /** The type icon. */
    static Icon[] typeIcon = new Icon[typeName.length];
    
+   /** The Constant FREE_TEXT. */
    // Flag for the different marks
    static final int FREE_TEXT = 0;
+   
+   /** The Constant NUMBER. */
    static final int NUMBER = 1;
+   
+   /** The Constant MDL. */
    static final int MDL = 2;
+   
+   /** The Constant MEASURE. */
    static final int MEASURE = 3;
+   
+   /** The Constant INTERVAL. */
    static final int INTERVAL = 4;
+   
+   /** The Constant LENGTH. */
    static final int LENGTH = 5;
+   
+   /** The Constant ANCHOR. */
    static final int ANCHOR = 6; // Keep ANCHOR the last one (to prevent it to be considered in the linked marks)
    
+   /** The type. */
    public int type;	// The mark type
+   
+   /** The l pos. */
    public float lPos;  // in pixels, relative to polygon origin (not to ruler origin)
+   
+   /** The angle. */
    public float angle;  // relative to horizontal
+   
+   /** The diameter. */
    public float diameter;
+   
+   /** The twin L pos. */
    public float twinLPos;
+   
+   /** The is foreign. */
    public boolean isForeign = false;
+   
+   /** The foreign img name. */
    public String foreignImgName = null;  // XD 20110629
+   
+   /** The value. */
    public String value;
+   
+   /** The y label. */
    float xLabel, yLabel;
+   
+   /** The r. */
    Root r;
+   
+   /** The gp. */
    GeneralPath gp = new GeneralPath();
+   
+   /** The value color. */
    Color contourColor = null, fillColor = null, valueColor = null;
+   
+   /** The needs refresh. */
    boolean needsRefresh;
+   
+   /** The dir label. */
    int dirLabel;
    
+   /**
+    * Instantiates a new mark.
+    *
+    * @param type the type
+    * @param r the corresponding root
+    * @param lPos the l pos
+    * @param twinLPos the twin L pos
+    * @param value the value
+    * @param isForeign the is foreign
+    * @param imgName the img name
+    */
    public Mark(int type, Root r, float lPos, float twinLPos, String value, boolean isForeign, String imgName) {  // XD 20110629
 	      this.type = type;
 	      this.r = r;
@@ -63,17 +126,37 @@ public class Mark {
 	      needsRefresh = true;
 	      }
 
+    /**
+     * Instantiates a new mark.
+     *
+     * @param type the type
+     * @param r the corresponding Root
+     * @param lPos the l pos
+     * @param value the value
+     */
     public Mark(int type, Root r, float lPos, String value) {
 	      this(type, r, lPos, 0.0f, value, false, null);  // XD 20110629
 	      }
 
+   /**
+    * Instantiates a new mark.
+    *
+    * @param type the type
+    * @param r the corres
+    * @param lPos the l pos
+    * @param value the value
+    * @param isForeign the is foreign
+    * @param imgName the img name
+    */
    public Mark(int type, Root r, float lPos, String value, boolean isForeign, String imgName) {  // XD 20110629
 	      this(type, r, lPos, 0.0f, value, isForeign, imgName);  // XD 20110629
 	      }
    
    /**
-    * Get the positon of the twin mark
-   */
+    * Get the positon of the twin mark.
+    *
+    * @param lPos the new twin position
+    */
    public void setTwinPosition(float lPos) {
       if (lPos <= this.lPos) {
          twinLPos = this.lPos;
@@ -84,12 +167,14 @@ public class Mark {
 
 
    /**
-    * Return the value of the mark as a string
+    * Return the value of the mark as a string.
+    *
+    * @return the value
     */
    public String getValue() {return value;}
 
    /**
-    * Does the mark need to be refreshed
+    * Does the mark need to be refreshed.
     */
    public void needsRefresh() {
       needsRefresh = true;
@@ -97,7 +182,8 @@ public class Mark {
  
 
    /**
-    * Read the mark information from the datafile
+    * Read the mark information from the datafile.
+    *
     * @param parentDOM the xml element containg the mark
     * @param r the current root
     * @return the Mark
@@ -107,8 +193,9 @@ public class Mark {
       }
 
    /**
-    * Read the mark information from the datafile
-    * @param parentDOMthe xml element containg the mark
+    * Read the mark information from the datafile.
+    *
+    * @param parentDOM the parent DOM
     * @param r the current root
     * @param isForeign does the mak was imported from a different image?
     * @param imgName name of the image the makr is coming from
@@ -142,7 +229,10 @@ public class Mark {
    
    
    /**
-    * Save the mark to an RSML file
+    * Save the mark to an RSML file.
+    *
+    * @param dataOut the data out
+    * @throws IOException Signals that an I/O exception has occurred.
     */
    public void saveRSML(FileWriter dataOut) throws IOException {
 	      if (isForeign) return;
@@ -156,47 +246,71 @@ public class Mark {
 	      }
      
    /**
-    * Get the number of possible marks
-   */
+    * Get the number of possible marks.
+    *
+    * @return the type count
+    */
    public static int getTypeCount() {return typeName.length;}
    
    /**
-    * Get the default value of the mark
-   */
+    * Get the default value of the mark.
+    *
+    * @param type the type
+    * @return the default value
+    */
    public static String getDefaultValue(int type) {return typeDefaultValue[type];}
    
    /**
-    * Does the makr need a value
+    * Does the makr need a value.
+    *
+    * @param type the type
+    * @return true, if successful
     */
    public static boolean needsValue(int type) {return typeNeedsValue[type];}
       
    /**
-    * Is the mark a interval mark
-     */
+    * Is the mark a interval mark.
+    *
+    * @param type the type
+    * @return true, if successful
+    */
    public static boolean needsTwinPosition(int type) {return (type == INTERVAL);}
 
    /**
-    * Is the mark a interval mark
-     */
+    * Is the mark a interval mark.
+    *
+    * @return true, if successful
+    */
    public boolean needsTwinPosition() {return (type == INTERVAL);}
       
    /**
-    * 
+    * Needs value.
+    *
+    * @return true, if successful
     */
    public boolean needsValue() {return typeNeedsValue[type];}
     
    /**
-     * Get the name of the mark  
-     */
+    * Get the name of the mark.
+    *
+    * @param type the type
+    * @return the name
+    */
    public static String getName(int type) {return typeName[type];}
 
    /**
-    * Get the icon for the mark
+    * Get the icon for the mark.
+    *
+    * @param type the type
+    * @return the calc C length
     */
    public static Icon getIcon(int type) {return typeIcon[type];}
 
    /**
-    * Get the type of the mark, as an integer
+    * Get the type of the mark, as an integer.
+    *
+    * @param name the name
+    * @return the type num
     */
    public static int getTypeNum(String name) {
       int i = typeName.length - 1;
@@ -205,7 +319,8 @@ public class Mark {
       }
    
    /**
-    * Move the makr along the root
+    * Move the makr along the root.
+    *
     * @param delta the differenc between the current and previous position
     */
    public void move(float delta) {
@@ -321,7 +436,8 @@ public class Mark {
       }
    
    /**
-    * Convert the mark to a string
+    * Convert the mark to a string.
+    *
     * @return the mark value
     */
    public String toString(){

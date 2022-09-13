@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.common;
 
 import java.util.Random;
@@ -6,7 +9,17 @@ import ij.IJ;
 import net.imagej.fijiyama.common.Timer;
 import net.imagej.fijiyama.common.VitimageUtils;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class SentenceOfTheDay.
+ */
 public class SentenceOfTheDay {
+	
+	/**
+	 * Gets the sentence of the day.
+	 *
+	 * @return the sentence of the day
+	 */
 	public static String getSentenceOfTheDay() {
 		String[]sentences=VitimageUtils.readStringFromFile("src/main/resources/Zen_Quotes.txt").split("\n");
 		int n=sentences.length-1;
@@ -14,6 +27,12 @@ public class SentenceOfTheDay {
 		int chosen=1+val%n;
 		return sentences[chosen];
 	}
+	
+	/**
+	 * Gets the random sentence.
+	 *
+	 * @return the random sentence
+	 */
 	public static String getRandomSentence() {
 		String[]tab=getSentenceTab();
 		Random rand=new Random();
@@ -21,6 +40,11 @@ public class SentenceOfTheDay {
 		return ("#"+line+" "+tab[line]);
 	}
 	
+	/**
+	 * Gets the sentence tab.
+	 *
+	 * @return the sentence tab
+	 */
 	//#Yogi tea sentences, taken from http://www.debbyoga.com/debbyoga_relaunch/My_Sparks_files/Yogi%20Tea%20Bag%20Quotes.pdf
 	public static String[]getSentenceTab() {
 		return new String[] {

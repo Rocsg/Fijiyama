@@ -1,15 +1,20 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.rsml;
 import java.awt.geom.*;
 
 import net.imagej.fijiyama.common.VitimageUtils;
 import net.imagej.fijiyama.rsml.Node;
 
+// TODO: Auto-generated Javadoc
 /**
+ * The Class Node.
+ *
  * @author Xavier Draye - Universit� catholique de Louvain
- * @author Guillaume Lobet - Universit� de Li�ge 
+ * @author Guillaume Lobet - Universit� de Li�ge
  * 
  * Node class.
- * 
  */
 
 
@@ -21,20 +26,44 @@ import net.imagej.fijiyama.rsml.Node;
  *
  */
 public class Node {
+   
+   /** The birth time. */
    public float x, y, theta, length, cLength, diameter, birthTime;
+   
+   /** The vy. */
    public float vx,vy;
+   
+   /** The child. */
    // length and cLength are in pixels
    public Node child;
+   
+   /** The hidden way to child. */
    boolean hiddenWayToChild=false;
+   
+   /** The parent. */
    public Node parent;
+   
+   /** The distance. */
    public double distance;
+   
+   /** The needs refresh. */
    boolean needsRefresh;
+   
+   /** The b cross 23. */
    boolean bCross01 = false, bCross23 = false;
+   
+   /** The p cross 23. */
    boolean pCross01 = false, pCross23 = false;   
 
 
   /**
-   * Constructor
+   * Constructor.
+   *
+   * @param x the x
+   * @param y the y
+   * @param d the d
+   * @param n the n
+   * @param after the after
    */
    public Node(float x, float y, float d, Node n, boolean after) {
       this.x = x;
@@ -54,14 +83,19 @@ public class Node {
       }
 
    /**
-    * 
+    * Instantiates a new node.
+    *
+    * @param x the x
+    * @param y the y
+    * @param n the n
+    * @param after the after
     */
    public Node(float x, float y, Node n, boolean after) {
       this(x, y, 0f, n, after);
       }
 
    /**
-    * Build the node
+    * Build the node.
     */
    public void buildNode() {
       if (diameter < 1.0f) diameter = 1.0f;
@@ -81,21 +115,48 @@ public class Node {
          }
       }
 
+   /**
+    * Norm.
+    *
+    * @param dx the dx
+    * @param dy the dy
+    * @return the float
+    */
    public static float norm(float dx, float dy) {
 	      return (float) Math.sqrt(dx * dx + dy * dy); 
 	      }
 	   
+   /**
+    * Checks for exact birth time.
+    *
+    * @return true, if successful
+    */
    public boolean hasExactBirthTime() {
 	   int bthInt=(int)Math.round(birthTime);
 	   double delta=Math.abs(bthInt-birthTime);
 	   return (delta<VitimageUtils.EPSILON);
    }
    
+   /**
+    * Norm.
+    *
+    * @param x0 the x 0
+    * @param y0 the y 0
+    * @param x1 the x 1
+    * @param y1 the y 1
+    * @return the float
+    */
    public static float norm(float x0, float y0, float x1, float y1) {
       return norm(x1 - x0, y1 - y0); 
       }
 	   
    
+   /**
+    * Checks if is parent or equal.
+    *
+    * @param n the n
+    * @return true, if is parent or equal
+    */
    public boolean isParentOrEqual(Node n) {
 	   Node nThis=this;
 	   while(nThis!=null) {
@@ -105,6 +166,11 @@ public class Node {
 	   return false;
    }
   
+   /**
+    * Copy.
+    *
+    * @param n the n
+    */
    public void copy(Node n) {
       x = n.x;
       y = n.y;
@@ -117,6 +183,12 @@ public class Node {
       needsRefresh = true;
       }
 
+   /**
+    * Translate.
+    *
+    * @param dx the dx
+    * @param dy the dy
+    */
    public void translate(float dx, float dy) {
       x += dx;
       y += dy;    
@@ -126,7 +198,10 @@ public class Node {
  
 
    /**
-    * Get the distance between this node and an other one
+    * Get the distance between this node and an other one.
+    *
+    * @param n the n
+    * @return the distance to
     */
    public float getDistanceTo (Node n) {
       float d = 0.0f;
@@ -139,19 +214,28 @@ public class Node {
       }
 
    
+   /**
+    * Distance between.
+    *
+    * @param n1 the n 1
+    * @param n2 the n 2
+    * @return the float
+    */
    public static float distanceBetween(Node n1,Node n2) {
 	   return (float) Point2D.distance((double) n1.x, (double) n1.y,(double) n2.x, (double) n2.y);
    }
    
    /**
-    * Compute the length between the base of the root and the node
+    * Compute the length between the base of the root and the node.
     */
    public void calcCLength() {
       calcCLength(this.cLength);
       }
 
 	/**
-	 * Compute the length between the base of the root and the node
+	 * Compute the length between the base of the root and the node.
+	 *
+	 * @param startValue the start value
 	 */
    public void calcCLength(float startValue) {
       this.cLength = startValue;
@@ -163,7 +247,8 @@ public class Node {
       }
    
    /**
-    * Read the node information from and RSML file
+    * Read the node information from and RSML file.
+    *
     * @param parentDOM the xml elemnt containg the x/y coordinates
     * @param diamDOM the xml element contining the diameter elements
     * @param dpi digit per inch
@@ -192,6 +277,12 @@ public class Node {
 	      needsRefresh = true;
 	      }
    
+   /**
+    * Read RSML.
+    *
+    * @param parentDOM the parent DOM
+    * @param timeLapse the time lapse
+    */
    public void readRSML(org.w3c.dom.Node parentDOM,boolean timeLapse) {
 		  org.w3c.dom.Node nn = parentDOM.getAttributes().getNamedItem("coord_t");
 		  if (nn != null) birthTime = Float.valueOf(nn.getNodeValue());
@@ -207,12 +298,21 @@ public class Node {
 		  if (nn != null) vy = Float.valueOf(nn.getNodeValue()).floatValue();
       }
 
+   /**
+    * To string.
+    *
+    * @return the string
+    */
    public String toString() {
 	   return("Node : x="+x+" y="+y+" t="+birthTime+" diam="+diameter+" vx="+vx+" vy="+vy+" haschild ?"+(this.child==null)+" hasparent ?"+(this.parent==null));
    }
   
    /**
-    * Convert a vector to an angle
+    * Convert a vector to an angle.
+    *
+    * @param dirX the dir X
+    * @param dirY the dir Y
+    * @return the float
     */
    public static float vectToTheta (float dirX, float dirY) {
 	      float norm = (float) Math.sqrt(dirX * dirX + dirY * dirY);

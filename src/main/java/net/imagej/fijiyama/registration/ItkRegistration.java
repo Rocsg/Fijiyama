@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.registration;
 
 import java.util.ArrayList;
@@ -33,64 +36,178 @@ import net.imagej.fijiyama.registration.SamplingStrategy;
 import net.imagej.fijiyama.registration.ScalerType;
 import net.imagej.fijiyama.registration.Transform3DType;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class ItkRegistration.
+ */
 public class ItkRegistration implements ItkImagePlusInterface{
+	
+	/** The additional transform. */
 	ItkTransform additionalTransform=new ItkTransform();
+	
+	/** The return composed transformation including the initial transformation given. */
 	public boolean returnComposedTransformationIncludingTheInitialTransformationGiven=true;
+	
+	/** The ref range. */
 	public double[]refRange;
+	
+	/** The mov range. */
 	public double[]movRange;
+	
+	/** The flag range. */
 	public boolean flagRange=false;
+	
+	/** The look like optimizer looks. */
 	boolean lookLikeOptimizerLooks=false;
+	
+	/** The text info at each iteration. */
 	boolean textInfoAtEachIteration=false;
+	
+	/** The movie 3 D. */
 	boolean movie3D=false;
+	
+	/** The display registration. */
 	public int displayRegistration=1;
+	
+	/** The center transform filter. */
 	CenteredTransformInitializerFilter centerTransformFilter;
+	
+	/** The gauss filter. */
 	private RecursiveGaussianImageFilter gaussFilter;
+	
+	/** The resampler. */
 	private ResampleImageFilter resampler;
+	
+	/** The voxel size reference. */
 	private double[]voxelSizeReference;
+	
+	/** The image size reference. */
 	private int[]imageSizeReference;
+	
+	/** The itk img view ref. */
 	private Image itkImgViewRef;
+	
+	/** The itk img view mov. */
 	private Image itkImgViewMov;
+	
+	/** The itk summary ref. */
 	private Image itkSummaryRef;
+	
+	/** The itk summary mov. */
 	private Image itkSummaryMov;
+	
+	/** The slice view mov. */
 	private ImagePlus sliceViewMov;
+	
+	/** The slice view ref. */
 	private ImagePlus sliceViewRef;
+	
+	/** The slice view. */
 	private ImagePlus sliceView;
+	
+	/** The slice summary ref. */
 	private ImagePlus sliceSummaryRef;
+	
+	/** The slice summary mov. */
 	private ImagePlus sliceSummaryMov;
+	
+	/** The img mov successive results. */
 	//private ImagePlus summary;
 	private ArrayList<ImagePlus> imgMovSuccessiveResults;
+	
+	/** The view width. */
 	private int viewWidth;
+	
+	/** The view height. */
 	private int viewHeight;
+	
+	/** The view slice. */
 	private int viewSlice;
+	
+	/** The zoom factor. */
 	private int zoomFactor;
+	
+	/** The updater. */
 	private IterationUpdate updater;
+	
+	/** The nb levels. */
 	private ArrayList<Integer> nbLevels;
+	
+	/** The shrink factors. */
 	private ArrayList<int[]> shrinkFactors;
+	
+	/** The dimensions. */
 	private ArrayList<int[][]> dimensions;
+	
+	/** The sigma factors. */
 	private ArrayList<double[]> sigmaFactors;
+	
+	/** The current level. */
 	private int currentLevel;
+	
+	/** The basis. */
 	private int basis=2;//shrink factor at each level
 
+	/** The centering strategies. */
 	private ArrayList<CenteringStrategy> centeringStrategies;
+	
+	/** The transformation 3 D types. */
 	private ArrayList<Transform3DType> transformation3DTypes;
+	
+	/** The scaler types. */
 	private ArrayList<ScalerType>scalerTypes;
+	
+	/** The nb step. */
 	private int nbStep;
+	
+	/** The current step. */
 	private int currentStep;
+	
+	/** The metric type. */
 	private MetricType metricType;
+	
+	/** The registration methods. */
 	private ArrayList<ImageRegistrationMethod> registrationMethods;
+	
+	/** The ij img ref. */
 	public ImagePlus ijImgRef;
+	
+	/** The itk img ref. */
 	private Image itkImgRef;
+	
+	/** The ij img mov. */
 	private ImagePlus ijImgMov;
+	
+	/** The itk img mov. */
 	private Image itkImgMov;
+	
+	/** The registration summary. */
 	private ArrayList<ImagePlus> registrationSummary;
+	
+	/** The transform. */
 	private ItkTransform transform;
+	
+	/** The weights. */
 	private ArrayList<double[]> weights;
+	
+	/** The scales. */
 	private ArrayList<double[]> scales;
+	
+	/** The font size. */
 	private int fontSize=12;
+	
+	/** The registration thread. */
 	public Thread registrationThread;
+	
+	/** The itk registration interrupted. */
 	public volatile boolean itkRegistrationInterrupted=false;
+	
+	/** The itk is interrupted succeeded. */
 	public volatile boolean itkIsInterruptedSucceeded=false;
 
+	/**
+	 * Free memory.
+	 */
 	public void freeMemory(){
 		if(registrationSummary.size()>0) {
 			registrationSummary=null;
@@ -115,8 +232,11 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		System.gc();
 	}
 	
-	/** 
-	 * Top level functions : Test function, and main scenarios that will be used by customers classes
+	/**
+	 *  
+	 * Top level functions : Test function, and main scenarios that will be used by customers classes.
+	 *
+	 * @return the int
 	 */
 	public int runTestSequence() {
 		
@@ -152,6 +272,19 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		return nbFailed;
 	}
 	
+	/**
+	 * Run scenario from gui.
+	 *
+	 * @param transformInit the transform init
+	 * @param imgRef the img ref
+	 * @param imgMov the img mov
+	 * @param transformType the transform type
+	 * @param levelMin the level min
+	 * @param levelMax the level max
+	 * @param nIterations the n iterations
+	 * @param learningRate the learning rate
+	 * @return the itk transform
+	 */
 	public ItkTransform runScenarioFromGui(ItkTransform transformInit, ImagePlus imgRef, ImagePlus imgMov, Transform3DType transformType,int levelMin,int levelMax,int nIterations,double learningRate) {
 		this.setMovingImage(imgMov);
 		this.setReferenceImage(imgRef);
@@ -174,6 +307,16 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		}
 	}
 
+	/**
+	 * Estimate registration duration.
+	 *
+	 * @param dims the dims
+	 * @param viewRegistrationLevel the view registration level
+	 * @param nbIter the nb iter
+	 * @param levelMin the level min
+	 * @param levelMax the level max
+	 * @return the int
+	 */
 	public static int estimateRegistrationDuration(int[]dims,int viewRegistrationLevel,int nbIter,int levelMin,int levelMax) {
 		double imageSize=dims[0]*dims[1]*dims[2];
 		double[]imageSizes=new double[levelMax-levelMin+1];
@@ -231,6 +374,23 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		return;
 	}
 
+	/**
+	 * Adds the step to queue.
+	 *
+	 * @param levelMin the level min
+	 * @param levelMax the level max
+	 * @param sigma the sigma
+	 * @param iterations the iterations
+	 * @param learning_rate the learning rate
+	 * @param typeTransfo the type transfo
+	 * @param weights the weights
+	 * @param optimizerType the optimizer type
+	 * @param scalerType the scaler type
+	 * @param scales the scales
+	 * @param doubleIterAtCoarsestLevels the double iter at coarsest levels
+	 * @param centeringStrategy the centering strategy
+	 * @param samplingStrategy the sampling strategy
+	 */
 	public void addStepToQueue(int levelMin,int levelMax,double sigma, int iterations,    double learning_rate,  Transform3DType typeTransfo,double[]weights,
 			OptimizerType optimizerType,ScalerType scalerType,double[]scales, 
 			boolean doubleIterAtCoarsestLevels,CenteringStrategy centeringStrategy,SamplingStrategy samplingStrategy){
@@ -300,6 +460,9 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		nbStep++;
 	}
 
+	/**
+	 * Run next step.
+	 */
 	public void runNextStep(){
 		if(this.transform==null && currentStep>0) { System.err.println("Pas de transformation calculee a l etape precedente. Exit");return;}
 		boolean flagCentering=false;
@@ -367,6 +530,9 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		else this.currentStep++;
 	}
 
+	/**
+	 * Register.
+	 */
 	public void register(){
 		this.currentStep=0;
 		while(currentStep<nbStep) {
@@ -396,7 +562,7 @@ public class ItkRegistration implements ItkImagePlusInterface{
 	
 	
 	/**
-	 * Functions for displaying, tracking and keep memories of registration results along the computation
+	 * Functions for displaying, tracking and keep memories of registration results along the computation.
 	 */
 	public void displayEndOfRegistrationMessage() {
 		IJ.log("-----------------------------------------");
@@ -408,6 +574,11 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		IJ.log(" Metric value: "+registrationMethods.get(nbStep-1).getMetricValue()+"\n");
 	}
 
+	/**
+	 * Compute registered image.
+	 *
+	 * @return the image plus
+	 */
 	public ImagePlus computeRegisteredImage() {
 		if(transform==null)return null;
 		ResampleImageFilter resampler = new ResampleImageFilter();
@@ -420,6 +591,15 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		return res;
 	}
 
+	/**
+	 * Update view.
+	 *
+	 * @param dimensions the dimensions
+	 * @param sigmaFactor the sigma factor
+	 * @param shrinkFactor the shrink factor
+	 * @param viewText the view text
+	 * @param currentTrans the current trans
+	 */
 	public void updateView(int []dimensions,double sigmaFactor,int shrinkFactor,String viewText,ItkTransform currentTrans) {
 		if(this.displayRegistration==0)return;
 		this.gaussFilter.setSigma(sigmaFactor);
@@ -523,10 +703,16 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		this.registrationSummary.add(temp2);
 	}
 
+	/**
+	 * Sets the text info at each iteration on.
+	 */
 	public void setTextInfoAtEachIterationOn() {
 		textInfoAtEachIteration=true;
 	}
 	
+	/**
+	 * Sets the text info at each iteration off.
+	 */
 	public void setTextInfoAtEachIterationOff() {
 		textInfoAtEachIteration=false;
 	}
@@ -536,7 +722,9 @@ public class ItkRegistration implements ItkImagePlusInterface{
 	
 
 	/**
-	 * Initializers
+	 * Initializers.
+	 *
+	 * @param imgIn the new reference image
 	 */
 	public void setReferenceImage(ImagePlus imgIn) {
 		ImagePlus img=null;
@@ -553,10 +741,20 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		this.viewSlice=(int)Math.round(ijImgRef.getStackSize()/2.0);
 	}
 
+	/**
+	 * Sets the view slice.
+	 *
+	 * @param slic the new view slice
+	 */
 	public void setViewSlice(int slic) {
 		this.viewSlice=slic;		
 	}
 	
+	/**
+	 * Sets the moving image.
+	 *
+	 * @param imgIn the new moving image
+	 */
 	public void setMovingImage(ImagePlus imgIn) {
 		ImagePlus img=null;
 		VitimageUtils.printImageResume(imgIn);
@@ -569,15 +767,28 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		
 	}
 
+	/**
+	 * Sets the metric.
+	 *
+	 * @param metricType the new metric
+	 */
 	public void setMetric(MetricType metricType) {
 		this.metricType=metricType;
 	}
 
+	/**
+	 * Sets the initial transformation.
+	 *
+	 * @param trans the new initial transformation
+	 */
 	public void setInitialTransformation(ItkTransform trans) {
 		if(this.transform !=null || this.currentStep>0) System.err.println("Une transformation initiale est deja existante");
 		else this.transform=new ItkTransform(trans);
 	}
 
+	/**
+	 * Creates the updater.
+	 */
 	public void createUpdater() {
 		this.updater=new IterationUpdate(this,this.registrationMethods.get(currentStep));
 		this.registrationMethods.get(this.currentStep).removeAllCommands();
@@ -590,7 +801,13 @@ public class ItkRegistration implements ItkImagePlusInterface{
 
 
 	/**
-	 * Helper functions to build the pyramidal scheme based on few parameters
+	 * Helper functions to build the pyramidal scheme based on few parameters.
+	 *
+	 * @param levelMin the level min
+	 * @param levelMax the level max
+	 * @param doubleIterAtCoarsestLevels the double iter at coarsest levels
+	 * @param basis the basis
+	 * @return the int[]
 	 */
 	public int[] subSamplingFactorsAtSuccessiveLevels(int levelMin,int levelMax,boolean doubleIterAtCoarsestLevels,double basis){
 		if(levelMax<levelMin)levelMax=levelMin;
@@ -618,6 +835,13 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		return ret;
 	}
 
+	/**
+	 * Image dims at successive levels.
+	 *
+	 * @param dimsImg the dims img
+	 * @param subFactors the sub factors
+	 * @return the int[][]
+	 */
 	public int [][] imageDimsAtSuccessiveLevels(int []dimsImg,int []subFactors) {		
 		if (subFactors==null)return null;
 		int n=subFactors.length;
@@ -626,6 +850,14 @@ public class ItkRegistration implements ItkImagePlusInterface{
 		return ret;
 	}
 
+	/**
+	 * Sigma factors at successive levels.
+	 *
+	 * @param voxSize the vox size
+	 * @param subFactors the sub factors
+	 * @param rapportSigma the rapport sigma
+	 * @return the double[]
+	 */
 	public double[] sigmaFactorsAtSuccessiveLevels(double []voxSize,int[]subFactors,double rapportSigma) {
 		if (subFactors==null)return null;
 		double[]ret=new double[subFactors.length];
@@ -640,80 +872,172 @@ public class ItkRegistration implements ItkImagePlusInterface{
 
 
 	/**
-	 * Minor getters/setters
+	 * Minor getters/setters.
+	 *
+	 * @return the nb levels
 	 */
 	public ArrayList<Integer> getNbLevels() {
 		return nbLevels;
 	}
 
+	/**
+	 * Sets the nb levels.
+	 *
+	 * @param nbLevels the new nb levels
+	 */
 	public void setNbLevels(ArrayList<Integer> nbLevels) {
 		this.nbLevels = nbLevels;
 	}
 
+	/**
+	 * Gets the current shrink factors.
+	 *
+	 * @return the current shrink factors
+	 */
 	public int[] getCurrentShrinkFactors() {
 		return shrinkFactors.get(currentStep);
 	}
 
+	/**
+	 * Sets the shrink factors.
+	 *
+	 * @param shrinkFactors the new shrink factors
+	 */
 	public void setShrinkFactors(ArrayList<int[]> shrinkFactors) {
 		this.shrinkFactors = shrinkFactors;
 	}
 
+	/**
+	 * Gets the current dimensions.
+	 *
+	 * @return the current dimensions
+	 */
 	public int[][] getCurrentDimensions() {
 		return dimensions.get(currentStep);
 	}
 
+	/**
+	 * Gets the current sigma factors.
+	 *
+	 * @return the current sigma factors
+	 */
 	public double[] getCurrentSigmaFactors() {
 		return sigmaFactors.get(currentStep);
 	}
 
+	/**
+	 * Gets the current level.
+	 *
+	 * @return the current level
+	 */
 	public int getCurrentLevel() {
 		return currentLevel;
 	}
 
+	/**
+	 * Sets the current level.
+	 *
+	 * @param currentLevel the new current level
+	 */
 	public void setCurrentLevel(int currentLevel) {
 		this.currentLevel = currentLevel;
 	}
 
+	/**
+	 * Gets the scaler types.
+	 *
+	 * @return the scaler types
+	 */
 	public ArrayList<ScalerType> getScalerTypes() {
 		return scalerTypes;
 	}
 
+	/**
+	 * Sets the scaler types.
+	 *
+	 * @param scalerTypes the new scaler types
+	 */
 	public void setScalerTypes(ArrayList<ScalerType> scalerTypes) {
 		this.scalerTypes = scalerTypes;
 	}
 
+	/**
+	 * Gets the nb steps.
+	 *
+	 * @return the nb steps
+	 */
 	public int getNbSteps() {
 		return nbStep;
 	}
 
+	/**
+	 * Sets the nb steps.
+	 *
+	 * @param nbStep the new nb steps
+	 */
 	public void setNbSteps(int nbStep) {
 		this.nbStep = nbStep;
 	}
 
+	/**
+	 * Gets the current step.
+	 *
+	 * @return the current step
+	 */
 	public int getCurrentStep() {
 		return currentStep;
 	}
 
+	/**
+	 * Sets the current step.
+	 *
+	 * @param currentStep the new current step
+	 */
 	public void setCurrentStep(int currentStep) {
 		this.currentStep = currentStep;
 	}
 
+	/**
+	 * Gets the weights.
+	 *
+	 * @return the weights
+	 */
 	public ArrayList<double[]> getWeights() {
 		return weights;
 	}
 
+	/**
+	 * Sets the weights.
+	 *
+	 * @param weights the new weights
+	 */
 	public void setWeights(ArrayList<double[]> weights) {
 		this.weights = weights;
 	}
 
+	/**
+	 * Gets the scales.
+	 *
+	 * @return the scales
+	 */
 	public ArrayList<double[]> getScales() {
 		return scales;
 	}
 
+	/**
+	 * Sets the scales.
+	 *
+	 * @param scales the new scales
+	 */
 	public void setScales(ArrayList<double[]> scales) {
 		this.scales = scales;
 	}
 
+	/**
+	 * Gets the current transform.
+	 *
+	 * @return the current transform
+	 */
 	public ItkTransform getCurrentTransform() {
 		return new ItkTransform(this.transform);
 	}

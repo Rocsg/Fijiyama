@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.fijiyamaplugin;
 
 import java.io.File;
@@ -11,14 +14,26 @@ import net.imagej.fijiyama.common.SentenceOfTheDay;
 import net.imagej.fijiyama.common.VitiDialogs;
 import net.imagej.fijiyama.common.VitimageUtils;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class TestingFijiyamaPackage.
+ */
 public class TestingFijiyamaPackage {
 
+	/**
+	 * Instantiates a new testing fijiyama package.
+	 */
 	public TestingFijiyamaPackage() {
 		// TODO Auto-generated constructor stub
 	}
 
 	
 
+	/**
+	 * The main method.
+	 *
+	 * @param args the arguments
+	 */
 	public static void main(String[]args) {
 		ImageJ ij=new ImageJ();
 		ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/testImg.tif");

@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.common;
 
 import ij.IJ;
@@ -6,10 +9,23 @@ import ij.ImagePlus;
 import ij.plugin.Duplicator;
 import net.imagej.fijiyama.common.VitimageUtils;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class MostRepresentedFilter.
+ */
 public class MostRepresentedFilter {
+	
+	/** The max nb classes. */
 	public static int MAX_NB_CLASSES=256;
+	
+	/** The high distance. */
 	public static double HIGH_DISTANCE=10E8;
 	
+	/**
+	 * The main method.
+	 *
+	 * @param args the arguments
+	 */
 	public static void main (String[]args) {
 		ImageJ ij=new ImageJ();
 		ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/test.tif");
@@ -55,6 +71,14 @@ public class MostRepresentedFilter {
 		*/
 	}
 
+	/**
+	 * Most represented value.
+	 *
+	 * @param vals the vals
+	 * @param distances the distances
+	 * @param MAX_NB_CLASSES the max nb classes
+	 * @return the int
+	 */
 	public static int mostRepresentedValue(int []vals, double []distances,int MAX_NB_CLASSES) {
 		double HIGH_DISTANCE=10E10;
 		int[]hits=new int[MAX_NB_CLASSES];
@@ -89,6 +113,15 @@ public class MostRepresentedFilter {
 	}
 	
 
+	/**
+	 * Most represented value with BG exclusion.
+	 *
+	 * @param vals the vals
+	 * @param distances the distances
+	 * @param MAX_NB_CLASSES the max nb classes
+	 * @param bgValue the bg value
+	 * @return the int
+	 */
 	public static int mostRepresentedValueWithBGExclusion(int []vals, double []distances,int MAX_NB_CLASSES,int bgValue) {
 		double HIGH_DISTANCE=10E10;
 		int[]hits=new int[MAX_NB_CLASSES];
@@ -124,6 +157,14 @@ public class MostRepresentedFilter {
 		return indMax;
 	}
 	
+	/**
+	 * Gets the radius in voxels.
+	 *
+	 * @param voxSizes the vox sizes
+	 * @param radius the radius
+	 * @param is3D the is 3 D
+	 * @return the radius in voxels
+	 */
 	public static int[]getRadiusInVoxels(double[]voxSizes,double radius,boolean is3D){
 		int[]valsRet=new int[3];
 		for(int i=0;i<3;i++) valsRet[i]=(int)Math.round(radius/voxSizes[i]);
@@ -132,6 +173,14 @@ public class MostRepresentedFilter {
 	}
 
 	
+	/**
+	 * Builds the image lookup.
+	 *
+	 * @param tabDist the tab dist
+	 * @param voxSizes the vox sizes
+	 * @param radius the radius
+	 * @return the image plus
+	 */
 	public static ImagePlus buildImageLookup(double[][][]tabDist,double[]voxSizes,double radius) {
 		int dimX=tabDist.length;
 		int dimY=tabDist[0].length;
@@ -152,6 +201,13 @@ public class MostRepresentedFilter {
 	}
 	
 
+	/**
+	 * Builds the distances.
+	 *
+	 * @param radiusVox the radius vox
+	 * @param voxSizes the vox sizes
+	 * @return the double[][][]
+	 */
 	public static double[][][]buildDistances(int []radiusVox,double[]voxSizes){
 		int rayX=radiusVox[0];
 		int rayY=radiusVox[1];
@@ -174,6 +230,16 @@ public class MostRepresentedFilter {
 
 
 	
+	/**
+	 * Most represented filtering with radius.
+	 *
+	 * @param imgInTmp the img in tmp
+	 * @param radius the radius
+	 * @param is3D the is 3 D
+	 * @param maxNbClasses the max nb classes
+	 * @param doPadding the do padding
+	 * @return the image plus
+	 */
 	public static ImagePlus mostRepresentedFilteringWithRadius(ImagePlus imgInTmp,double radius,boolean is3D,int maxNbClasses,boolean doPadding) {
 		double []voxS=VitimageUtils.getVoxelSizes(imgInTmp);
 		int[]radiusVox=getRadiusInVoxels(voxS,radius,is3D);
@@ -255,6 +321,17 @@ public class MostRepresentedFilter {
 		return imgOut;
 	}		
 
+	/**
+	 * Most represented filtering with radius with BG exclusion.
+	 *
+	 * @param imgInTmp the img in tmp
+	 * @param radius the radius
+	 * @param is3D the is 3 D
+	 * @param maxNbClasses the max nb classes
+	 * @param doPadding the do padding
+	 * @param bgValue the bg value
+	 * @return the image plus
+	 */
 	public static ImagePlus mostRepresentedFilteringWithRadiusWithBGExclusion(ImagePlus imgInTmp,double radius,boolean is3D,int maxNbClasses,boolean doPadding,int bgValue) {
 		double []voxS=VitimageUtils.getVoxelSizes(imgInTmp);
 		int[]radiusVox=getRadiusInVoxels(voxS,radius,is3D);
@@ -341,6 +418,14 @@ public class MostRepresentedFilter {
 
 
 	
+	/**
+	 * Most represented filtering with radius.
+	 *
+	 * @param imgIn the img in
+	 * @param radius the radius
+	 * @param distances the distances
+	 * @return the image plus
+	 */
 	public static ImagePlus mostRepresentedFilteringWithRadius(ImagePlus imgIn,double radius,double[][]distances) {
 		boolean[][]lookup=buildLookup(radius);
 		ImagePlus imgOut=imgIn.duplicate();
@@ -379,6 +464,12 @@ public class MostRepresentedFilter {
 	
 	
 	
+	/**
+	 * Builds the lookup.
+	 *
+	 * @param ray the ray
+	 * @return the boolean[][]
+	 */
 	public static boolean[][]buildLookup(double ray){
 		int halfSize=( (int) Math.floor(ray));
 		boolean[][]tab=new boolean[2*halfSize+1][2*halfSize+1];
@@ -391,6 +482,14 @@ public class MostRepresentedFilter {
 	}
 	
 	
+	/**
+	 * Builds the lookup 3 D.
+	 *
+	 * @param radius the radius
+	 * @param radiusVox the radius vox
+	 * @param voxSizes the vox sizes
+	 * @return the boolean[][][]
+	 */
 	public static boolean[][][]buildLookup3D(double radius,int []radiusVox,double[]voxSizes){
 		int rayX=radiusVox[0];
 		int rayY=radiusVox[1];
@@ -412,6 +511,12 @@ public class MostRepresentedFilter {
 	}
 
 	
+	/**
+	 * Builds the distances.
+	 *
+	 * @param ray the ray
+	 * @return the double[][]
+	 */
 	public static double[][]buildDistances(double ray){
 		int halfSize=( (int) Math.floor(ray));
 		double[][]tab=new double[2*halfSize+1][2*halfSize+1];
@@ -425,6 +530,12 @@ public class MostRepresentedFilter {
 
 	
 	
+	/**
+	 * Prints the lookup.
+	 *
+	 * @param ra the ra
+	 * @param tab the tab
+	 */
 	public static void printLookup(double ra, boolean [][]tab) {
 		System.out.println("Displaying structuring element of size "+ra+"\n");
 		for(int i=0;i<tab.length;i++) {

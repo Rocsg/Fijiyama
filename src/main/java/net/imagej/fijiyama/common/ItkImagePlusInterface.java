@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.common;
 //TODO common
 
@@ -15,11 +18,21 @@ import math3d.Point3d;
 import net.imagej.fijiyama.common.VitiDialogs;
 import net.imagej.fijiyama.registration.ItkTransform;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The ImagePlus op_1add_2mult_3div_4sub.
+ */
 public interface ItkImagePlusInterface {
 	
 
 	
 	
+	/**
+	 * Int array to vector U int 32.
+	 *
+	 * @param array the array
+	 * @return the vector U int 32
+	 */
 	/* Helper functions to convert between arrays (java std format) and VectorDouble (org.itk.simple format) */
 	public static VectorUInt32 intArrayToVectorUInt32(int[]array) {
 		VectorUInt32 vect=new VectorUInt32(array.length);
@@ -27,24 +40,48 @@ public interface ItkImagePlusInterface {
 		return vect;
 	}
 
+	/**
+	 * ${e.g(2).rsfu()}.
+	 *
+	 * @param vect the vect
+	 * @return the ${e.g(1).rsfl()}
+	 */
 	public static int[] vectorUInt32ToIntArray(VectorUInt32 vect) {
 		int[] tab=new int[(int) vect.size()];
 		for(int i=0;i<tab.length ;i++)tab[i]=(int) vect.get(i);
 		return tab;
 	}
 
+	/**
+	 * Double array to vector double.
+	 *
+	 * @param array the array
+	 * @return the vector double
+	 */
 	public static VectorDouble doubleArrayToVectorDouble(double[]array) {
 		VectorDouble vect=new VectorDouble(array.length);
 		for(int i=0;i<array.length ;i++)vect.set(i,array[i]);
 		return vect;
 	}
 
+	/**
+	 * Vector double to double array.
+	 *
+	 * @param vect the vect
+	 * @return the double[]
+	 */
 	public static double[] vectorDoubleToDoubleArray(VectorDouble vect) {
 		double[] tab=new double[(int) vect.size()];
 		for(int i=0;i<tab.length ;i++)tab[i]=vect.get(i);
 		return tab;
 	}
 
+	/**
+	 * Vector double to point 3 d.
+	 *
+	 * @param vect the vect
+	 * @return the point 3 d
+	 */
 	public static Point3d vectorDoubleToPoint3d(VectorDouble vect) {
 		return new Point3d(vect.get(0) ,vect.get(1), vect.get(2) );
 	}
@@ -52,6 +89,12 @@ public interface ItkImagePlusInterface {
 
 
 	
+	/**
+	 * Image plus to itk image.
+	 *
+	 * @param img the img
+	 * @return the image
+	 */
 	/*Helper functions to convert between ImagePlus (ImageJ format) and Image (org.itk.simple format) */
 	public static Image imagePlusToItkImage(ImagePlus img) {
 		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getStackSize();
@@ -116,10 +159,22 @@ public interface ItkImagePlusInterface {
 		return ret;
 	}
 		
+	/**
+	 * Convert itk transform to image plus array.
+	 *
+	 * @param tr the tr
+	 * @return the image plus[]
+	 */
 	public static ImagePlus[] convertItkTransformToImagePlusArray(ItkTransform tr){
 		return convertDisplacementFieldToImagePlusArrayAndNorm((new DisplacementFieldTransform((org.itk.simple.Transform)tr).getDisplacementField()));
 	}
 	
+	/**
+	 * Convert displacement field to image plus array and norm.
+	 *
+	 * @param img the img
+	 * @return the image plus[]
+	 */
 	public static ImagePlus[] convertDisplacementFieldToImagePlusArrayAndNorm(Image img){
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		VectorDouble voxSizes= img.getSpacing();		
@@ -156,6 +211,12 @@ public interface ItkImagePlusInterface {
 		return ret;
 	}
 	
+	/**
+	 * Convert displacement field float to image plus array.
+	 *
+	 * @param img the img
+	 * @return the image plus
+	 */
 	public static ImagePlus[] convertDisplacementFieldFloatToImagePlusArray(Image img){
 		IJ.log("Converting displacement field to ImagePlus array");
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
@@ -191,6 +252,12 @@ public interface ItkImagePlusInterface {
 		return ret;
 	}
 	
+	/**
+	 * Convert image plus array to displacement field.
+	 *
+	 * @param imgs the imgs
+	 * @return the ${e.g(1).rsfl()}
+	 */
 	public static Image convertImagePlusArrayToDisplacementField(ImagePlus []imgs){
 		int dimX=(int) imgs[0].getWidth(); int dimY=(int) imgs[0].getHeight(); int dimZ=(int) imgs[0].getStackSize();
 		double[]voxSizes=new double[] {imgs[0].getCalibration().pixelWidth,imgs[0].getCalibration().pixelHeight,imgs[0].getCalibration().pixelDepth};
@@ -221,6 +288,12 @@ public interface ItkImagePlusInterface {
 		return ret;
 	}
 
+	/**
+	 * Itk image to image plus.
+	 *
+	 * @param img the img
+	 * @return the image plus
+	 */
 	public static ImagePlus itkImageToImagePlus(Image img) {
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		VectorDouble voxSizes= img.getSpacing();		
@@ -304,12 +377,26 @@ public interface ItkImagePlusInterface {
 		return ret;
 	}
 	
+    /**
+     * Itk image to image plus stack.
+     *
+     * @param img the img
+     * @param slice the slice
+     * @return the ${e.g(1).rsfl()}
+     */
     public static ImagePlus itkImageToImagePlusStack(Image img,int slice) {
     	ImagePlus imgp=itkImageToImagePlus(img);
 		imgp.setSlice(slice);
 		return imgp;
     }
 	
+	/**
+	 * Itk image to image plus slice.
+	 *
+	 * @param img the img
+	 * @param slice the slice
+	 * @return the image plus
+	 */
 	public static ImagePlus itkImageToImagePlusSlice(Image img,int slice) {
 		int dimX=(int) img.getWidth(); int dimY=(int) img.getHeight(); int dimZ=(int) img.getDepth();
 		if(slice>dimZ)slice=dimZ;

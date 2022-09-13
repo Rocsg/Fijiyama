@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.fijiyamaplugin;
 
 import java.io.FileInputStream;
@@ -16,74 +19,206 @@ import net.imagej.fijiyama.fijiyamaplugin.RegistrationManager;
 import net.imagej.fijiyama.registration.OptimizerType;
 import net.imagej.fijiyama.registration.Transform3DType;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class RegistrationAction.
+ */
 public class RegistrationAction implements Serializable{
+	
+	/** The Constant serialFelicityFicus. */
 	private static final long serialFelicityFicus = 600L;
+	
+	/** The Constant serialVersionUID. */
 	private static final long serialVersionUID = serialFelicityFicus;
+	
+	/** The current serial version UID. */
 	private long currentSerialVersionUID = serialFelicityFicus;
+	
+	/** The is done. */
 	private boolean isDone=false;
+	
+	/** The name action. */
 	public String nameAction;
+	
+	/** The name subject. */
 	public String nameSubject;
+	
+	/** The ref time. */
 	public int refTime=0;
+	
+	/** The ref mod. */
 	public int refMod=0;
+	
+	/** The mov time. */
 	public int movTime=0;
+	
+	/** The mov mod. */
 	public int movMod=0;
+	
+	/** The type action. */
 	public int typeAction=0;
+	
+	/** The Constant TYPEACTION_MAN. */
 	public static final int TYPEACTION_MAN=0;
+	
+	/** The Constant TYPEACTION_AUTO. */
 	public static final int TYPEACTION_AUTO=1;
+	
+	/** The Constant TYPEACTION_ALIGN. */
 	public static final int TYPEACTION_ALIGN=2;
+	
+	/** The Constant TYPEACTION_VIEW. */
 	public static final int TYPEACTION_VIEW=3;
+	
+	/** The Constant TYPEACTION_SAVE. */
 	public static final int TYPEACTION_SAVE=4;
+	
+	/** The Constant TYPEACTION_EXPORT. */
 	public static final int TYPEACTION_EXPORT=5;
+	
+	/** The Constant TYPEACTION_EVALUATE. */
 	public static final int TYPEACTION_EVALUATE=6;
+	
+	/** The Constant STD_BM_ITER. */
 	public static final int STD_BM_ITER=12;
+	
+	/** The Constant STD_ITK_ITER. */
 	public static final int STD_ITK_ITER=200;
+	
+	/** The type opt. */
 	public OptimizerType typeOpt=OptimizerType.BLOCKMATCHING;
+	
+	/** The type auto display. */
 	public int typeAutoDisplay=0;
+	
+	/** The type man viewer. */
 	public int typeManViewer=0;	
+	
+	/** The viewer 3d. */
 	public static int VIEWER_3D=0;
+	
+	/** The viewer 2d. */
 	public static int VIEWER_2D=1;
+	
+	/** The estimated time. */
 	public int estimatedTime=0;
+	
+	/** The step. */
 	public int step=0;
+	
+	/** The type trans. */
 	public Transform3DType typeTrans=Transform3DType.RIGID;;
+	
+	/** The sigma resampling. */
 	public double sigmaResampling=0;
+	
+	/** The sigma dense. */
 	public double sigmaDense=0;
+	
+	/** The level min linear. */
 	public int levelMinLinear=2;
+	
+	/** The level min dense. */
 	public int levelMinDense=2;
+	
+	/** The level max dense. */
 	public int levelMaxDense=2;
+	
+	/** The level max linear. */
 	public int levelMaxLinear=2;
+	
+	/** The higher acc. */
 	public int higherAcc=0;
+	
+	/** The iterations BM lin. */
 	public int iterationsBMLin=STD_BM_ITER;
+	
+	/** The iterations BM den. */
 	public int iterationsBMDen=STD_BM_ITER/2;
+	
+	/** The iterations ITK. */
 	public int iterationsITK=STD_ITK_ITER;
+	
+	/** The neigh X. */
 	public int neighX=2;
+	
+	/** The neigh Y. */
 	public int neighY=2;
+	
+	/** The neigh Z. */
 	public int neighZ=0;
+	
+	/** The bhs X. */
 	public int bhsX=7;
+	
+	/** The bhs Y. */
 	public int bhsY=7;
+	
+	/** The bhs Z. */
 	public int bhsZ=1;
+	
+	/** The stride X. */
 	public int strideX=3;
+	
+	/** The stride Y. */
 	public int strideY=3;
+	
+	/** The stride Z. */
 	public int strideZ=3;
+	
+	/** The select score. */
 	public int selectScore=95;
+	
+	/** The select LTS. */
 	public int selectLTS=80;
+	
+	/** The select random. */
 	public int selectRandom=100;
+	
+	/** The subsample Z. */
 	public int subsampleZ=0;
+	
+	/** The itk optimizer type. */
 	public OptimizerType itkOptimizerType=OptimizerType.ITK_AMOEBA;
+	
+	/** The learning rate. */
 	public double learningRate=0.3;
+	
+	/** The param opt. */
 	public double paramOpt=8;
 
+	/**
+	 * Instantiates a new registration action.
+	 *
+	 * @param fijiyamaGui the fijiyama gui
+	 * @param regManager the reg manager
+	 */
 	public RegistrationAction(Fijiyama_GUI fijiyamaGui,RegistrationManager regManager) {
 		adjustSettings(fijiyamaGui,regManager);
 	}
 	
+	/**
+	 * Gets the step.
+	 *
+	 * @return the step
+	 */
 	public int getStep() {
 		return step;
 	}
 	
+	/**
+	 * Instantiates a new registration action.
+	 */
 	public RegistrationAction() {}
 
 	
 	
+	/**
+	 * Gets the number.
+	 *
+	 * @param t the t
+	 * @return the number
+	 */
 	public static int getNumber(Transform3DType t) {
 		switch (t) {
 		case TRANSLATION : return 1;
@@ -98,6 +233,13 @@ public class RegistrationAction implements Serializable{
 		}
 	}
 	
+	/**
+	 * Checks if is valid order.
+	 *
+	 * @param r1 the r 1
+	 * @param r2 the r 2
+	 * @return true, if is valid order
+	 */
 	public static boolean isValidOrder(RegistrationAction r1, RegistrationAction r2) {
 		if(r1.typeAction > r2.typeAction)return false;
 		if(r1.typeAction < r2.typeAction)return true;
@@ -105,11 +247,23 @@ public class RegistrationAction implements Serializable{
 	}
 	
 	
+	/**
+	 * Checks if is valid order.
+	 *
+	 * @param t1 the t 1
+	 * @param t2 the t 2
+	 * @return true, if is valid order
+	 */
 	public static boolean isValidOrder(Transform3DType t1, Transform3DType t2) {
 		return getNumber(t1)<=getNumber(t2);
 	}
 	
 	
+	/**
+	 * Instantiates a new registration action.
+	 *
+	 * @param regAct the reg act
+	 */
 	public RegistrationAction(RegistrationAction regAct) {
 		nameAction=regAct.nameAction;
 		nameSubject=regAct.nameSubject;
@@ -153,6 +307,12 @@ public class RegistrationAction implements Serializable{
 
 	
 	
+	/**
+	 * Adjust settings.
+	 *
+	 * @param fijiyamaGui the fijiyama gui
+	 * @param regManager the reg manager
+	 */
 	public void adjustSettings(Fijiyama_GUI fijiyamaGui,RegistrationManager regManager) {
 		this.typeAction=fijiyamaGui.boxTypeAction.getSelectedIndex();
 		this.typeTrans=fijiyamaGui.boxTypeTrans.getSelectedIndex()==0 ? Transform3DType.RIGID : fijiyamaGui.boxTypeTrans.getSelectedIndex()==1 ? Transform3DType.SIMILARITY : Transform3DType.DENSE;
@@ -169,10 +329,26 @@ public class RegistrationAction implements Serializable{
 		if(( this.typeTrans!=Transform3DType.DENSE ) && this.levelMinLinear>this.levelMaxLinear) this.levelMinLinear=this.levelMaxLinear;			
 	}	
 	
+	/**
+	 * Define settings from two images.
+	 *
+	 * @param imgRef the img ref
+	 * @param imgMov the img mov
+	 * @return the registration action
+	 */
 	public RegistrationAction defineSettingsFromTwoImages(ImagePlus imgRef,ImagePlus imgMov) {
 		return defineSettingsFromTwoImages(imgRef,imgMov,null,false);
 	}
 	
+	/**
+	 * Define settings from two images.
+	 *
+	 * @param imgRef the img ref
+	 * @param imgMov the img mov
+	 * @param regManager the reg manager
+	 * @param modifyMaxLevelOfManager the modify max level of manager
+	 * @return the registration action
+	 */
 	public RegistrationAction defineSettingsFromTwoImages(ImagePlus imgRef,ImagePlus imgMov,RegistrationManager regManager,boolean modifyMaxLevelOfManager) {
 		this.selectScore=95;
 		this.selectLTS=80;
@@ -258,6 +434,12 @@ public class RegistrationAction implements Serializable{
 	}
 
 	
+	/**
+	 * Define settings for RSML.
+	 *
+	 * @param imgRef the img ref
+	 * @return the registration action
+	 */
 	public static RegistrationAction defineSettingsForRSML(ImagePlus imgRef) {
 		RegistrationAction regAct=new RegistrationAction();
 		int X=imgRef.getWidth();
@@ -286,6 +468,13 @@ public class RegistrationAction implements Serializable{
 	
 	
 	
+	/**
+	 * Define settings simply from two images.
+	 *
+	 * @param imgRef the img ref
+	 * @param imgMov the img mov
+	 * @return the registration action
+	 */
 	public RegistrationAction defineSettingsSimplyFromTwoImages(ImagePlus imgRef,ImagePlus imgMov) {
 		this.selectScore=95;
 		this.selectLTS=80;
@@ -370,6 +559,16 @@ public class RegistrationAction implements Serializable{
 	
 	
 	
+	/**
+	 * Update fields from boxes.
+	 *
+	 * @param actionSelectedIndex the action selected index
+	 * @param transSelectedIndex the trans selected index
+	 * @param optimizerSelectedIndex the optimizer selected index
+	 * @param displaySelectedIndex the display selected index
+	 * @param viewerManSelectedIndex the viewer man selected index
+	 * @param modeWindow the mode window
+	 */
 	public void updateFieldsFromBoxes(int actionSelectedIndex,int transSelectedIndex,int optimizerSelectedIndex,int displaySelectedIndex,int viewerManSelectedIndex,int modeWindow) {
 		this.typeAction=actionSelectedIndex;
 		this.typeTrans=(transSelectedIndex==0 ? Transform3DType.RIGID : transSelectedIndex==1 ? Transform3DType.SIMILARITY : Transform3DType.DENSE);
@@ -392,39 +591,82 @@ public class RegistrationAction implements Serializable{
 		}
 	}
 
+	/**
+	 * Checks if is done.
+	 *
+	 * @return true, if is done
+	 */
 	public boolean isDone() {
 		return isDone;
 	}
 	
+	/**
+	 * Sets the done.
+	 */
 	public void setDone() {
 		isDone=true;
 	}
 	
+	/**
+	 * Sets the undone.
+	 */
 	public void setUndone() {
 		isDone=false;
 	}
 	
+	/**
+	 * Checks if is abortable.
+	 *
+	 * @return true, if is abortable
+	 */
 	public boolean isAbortable() {
 		return (this.isTransformationAction() || this.typeAction==TYPEACTION_VIEW);
 	}
 	
+	/**
+	 * To string.
+	 *
+	 * @return the string
+	 */
 	public String toString() {
 		return readableString();
 	}
 	
+	/**
+	 * Sets the step to.
+	 *
+	 * @param step the step
+	 * @return the registration action
+	 */
 	public RegistrationAction setStepTo(int step) {
 		this.step=step;
 		return this;
 	}
 	
+	/**
+	 * Checks if is transformation action.
+	 *
+	 * @return true, if is transformation action
+	 */
 	public boolean isTransformationAction() {
 		return ( (typeAction==TYPEACTION_ALIGN) || (typeAction==TYPEACTION_AUTO) || (typeAction==TYPEACTION_MAN) );
 	}
 	
+	/**
+	 * Readable string.
+	 *
+	 * @return the string
+	 */
 	public String readableString() {
 		return readableString(true);
 	}
 
+	/**
+	 * Readable string.
+	 *
+	 * @param withTodoDone the with todo done
+	 * @return the string
+	 */
 	public String readableString(boolean withTodoDone) {
 		String str="";
 		if(withTodoDone)str+="<"+(isDone ? " Done   " : " To do ")+"> ";
@@ -461,6 +703,16 @@ public class RegistrationAction implements Serializable{
 	}
 
 
+	/**
+	 * Creates the registration action.
+	 *
+	 * @param imgRef the img ref
+	 * @param imgMov the img mov
+	 * @param fijiyamaGui the fijiyama gui
+	 * @param regManager the reg manager
+	 * @param typeAction2 the type action 2
+	 * @return the registration action
+	 */
 	public static RegistrationAction createRegistrationAction(ImagePlus imgRef, ImagePlus imgMov, Fijiyama_GUI fijiyamaGui,RegistrationManager regManager,int typeAction2) {
 		RegistrationAction reg=new RegistrationAction(fijiyamaGui,regManager);
 		reg.defineSettingsFromTwoImages(imgRef, imgMov, regManager, false);
@@ -469,6 +721,17 @@ public class RegistrationAction implements Serializable{
 	}
 
 
+	/**
+	 * Copy with modified elements.
+	 *
+	 * @param registrationAction the registration action
+	 * @param refTime2 the ref time 2
+	 * @param refMod2 the ref mod 2
+	 * @param movTime2 the mov time 2
+	 * @param movMod2 the mov mod 2
+	 * @param step2 the step 2
+	 * @return the registration action
+	 */
 	public static RegistrationAction copyWithModifiedElements(RegistrationAction registrationAction, int refTime2,int refMod2, int movTime2, int movMod2, int step2) {
 		RegistrationAction reg=new RegistrationAction(registrationAction);
 		reg.refTime=refTime2;
@@ -479,6 +742,12 @@ public class RegistrationAction implements Serializable{
 		return reg;
 	}
 	
+	/**
+	 * Sets the action to.
+	 *
+	 * @param typeAction2 the type action 2
+	 * @return the registration action
+	 */
 	public RegistrationAction setActionTo(int typeAction2) {
 		this.typeAction=typeAction2;
 		if(typeAction2==RegistrationAction.TYPEACTION_ALIGN)this.typeManViewer=VIEWER_3D;
@@ -487,6 +756,11 @@ public class RegistrationAction implements Serializable{
 	
 	
 	
+	/**
+	 * Full length description.
+	 *
+	 * @return the string
+	 */
 	public String fullLengthDescription() {
 		String str="#Version="+this.currentSerialVersionUID+"\n";
 		str+="#IsDone="+(isDone ? 1 : 0)+"\n";
@@ -532,12 +806,23 @@ public class RegistrationAction implements Serializable{
 	}
 
 
+	/**
+	 * Write to txt file.
+	 *
+	 * @param path the path
+	 */
 	// Serialization in text file  
 	public void writeToTxtFile(String path) {
 		String str=fullLengthDescription();
 		VitimageUtils.writeStringInFile(str,path);
 	}
 
+	/**
+	 * Read from txt file.
+	 *
+	 * @param path the path
+	 * @return the registration action
+	 */
 	public static RegistrationAction readFromTxtFile(String path) {
 		RegistrationAction reg=new RegistrationAction();
 		String str=VitimageUtils.readStringFromFile(path);
@@ -598,11 +883,21 @@ public class RegistrationAction implements Serializable{
 	}
 	
 	
+	/**
+	 * Gets the level max.
+	 *
+	 * @return the level max
+	 */
 	public int getLevelMax() {
 		if(typeTrans==Transform3DType.DENSE) return levelMaxDense;
 		else return levelMaxLinear;
 	}
 	
+	/**
+	 * Gets the level min.
+	 *
+	 * @return the level min
+	 */
 	public int getLevelMin() {
 		if(typeTrans==Transform3DType.DENSE) return levelMinDense;
 		else return levelMinLinear;
@@ -610,18 +905,39 @@ public class RegistrationAction implements Serializable{
 	
 	
 
+	/**
+	 * Gets the iterations BM.
+	 *
+	 * @return the iterations BM
+	 */
 	public int getIterationsBM() {
 		if(typeTrans==Transform3DType.DENSE) return iterationsBMDen;
 		else return iterationsBMLin;
 	}
 	
+	/**
+	 * Gets the iterations BM linear.
+	 *
+	 * @return the iterations BM linear
+	 */
 	public int getIterationsBMLinear() {
 		return iterationsBMLin;
 	}
+	
+	/**
+	 * Gets the iterations BM non linear.
+	 *
+	 * @return the iterations BM non linear
+	 */
 	public int getIterationsBMNonLinear() {
 		return iterationsBMDen;
 	}
 	
+	/**
+	 * Sets the level max.
+	 *
+	 * @param lev the new level max
+	 */
 	public void setLevelMax(int lev) {
 		if(typeTrans==Transform3DType.DENSE) {
 			levelMaxDense=lev;
@@ -631,22 +947,47 @@ public class RegistrationAction implements Serializable{
 		}
 	}
 	
+	/**
+	 * Sets the level max linear.
+	 *
+	 * @param lev the new level max linear
+	 */
 	public void setLevelMaxLinear(int lev) {
 		levelMaxLinear=lev;
 	}
 
+	/**
+	 * Sets the level max non linear.
+	 *
+	 * @param lev the new level max non linear
+	 */
 	public void setLevelMaxNonLinear(int lev) {
 		levelMaxDense=lev;
 	}
 
+	/**
+	 * Sets the level min linear.
+	 *
+	 * @param lev the new level min linear
+	 */
 	public void setLevelMinLinear(int lev) {
 		levelMinLinear=lev;
 	}
 
+	/**
+	 * Sets the level min non linear.
+	 *
+	 * @param lev the new level min non linear
+	 */
 	public void setLevelMinNonLinear(int lev) {
 		levelMinDense=lev;
 	}
 	
+	/**
+	 * Sets the level min.
+	 *
+	 * @param lev the new level min
+	 */
 	public void setLevelMin(int lev) {
 		if(typeTrans==Transform3DType.DENSE) {
 			levelMinDense=lev;
@@ -657,17 +998,32 @@ public class RegistrationAction implements Serializable{
 	}
 	
 
+	/**
+	 * Sets the iterations BM.
+	 *
+	 * @param it the new iterations BM
+	 */
 	public void setIterationsBM(int it) {
 		if(typeTrans==Transform3DType.DENSE) iterationsBMDen=it;
 		else iterationsBMLin=it;
 	}
 	
 	
+	/**
+	 * Sets the iterations BM linear.
+	 *
+	 * @param it the new iterations BM linear
+	 */
 	public void setIterationsBMLinear(int it) {
 		iterationsBMLin=it;
 	}
 	
 	
+	/**
+	 * Sets the iterations BM non linear.
+	 *
+	 * @param it the new iterations BM non linear
+	 */
 	public void setIterationsBMNonLinear(int it) {
 		iterationsBMDen=it;
 	}

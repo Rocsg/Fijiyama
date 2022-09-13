@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.fijiyamaplugin;
 
 import java.util.ArrayList;
@@ -9,13 +12,26 @@ import net.imagej.fijiyama.common.VitiDialogs;
 import net.imagej.fijiyama.common.VitimageUtils;
 import net.imagej.fijiyama.registration.ItkTransform;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class TestScriptBeanshell.
+ */
 public class TestScriptBeanshell{
+	
+	/**
+	 * The main method.
+	 *
+	 * @param args the arguments
+	 */
 	public static void main(String[]args) {
 		//runBeanShellMode();
 	}
 
 	
 	
+	/**
+	 * Run compose transform in bean shell mode.
+	 */
 	public static void runComposeTransformInBeanShellMode() {
 		
 		IJ.log("Starting transformation composition...");
@@ -64,6 +80,9 @@ public class TestScriptBeanshell{
 	
 	
 	
+	/**
+	 * Run apply transform in bean shell mode.
+	 */
 	public static void runApplyTransformInBeanShellMode() {
 	
 //Here lies the beanshell code

@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.rsml;
 /**
  * @author Xavier Draye - Universit� catholique de Louvain
@@ -19,20 +22,44 @@ import net.imagej.fijiyama.rsml.RootModel;
 
 import java.io.*;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class RSMLGUI.
+ */
 public class RSMLGUI extends JFrame implements ActionListener {
+	
+	/** The img source. */
 	private ImagePlus imgSource=null;
+	
+	/** The Constant serialVersionUID. */
 	private static final long serialVersionUID = 1L;
+	
+	/** The instance. */
 	private static RSMLGUI instance = null;
+	
+	/** The batch save. */
 	private JCheckBox batchExport, batchResults, batchImage, batchRealWidth, batchConvex, batchSave;
+	
+	/** The batch line width. */
 	private JTextField batchSourceFolder, batchLineWidth;
+	
+	/** The batch color JCB. */
 	private JComboBox  batchJCB, batchColorJCB;
+	
+	/** The batch button. */
 	private JButton batchSourceButton, batchButton;	
+	
+	/** The tp. */
 	private JTabbedPane tp;
+	
+	/** The batch label 1. */
 	private JLabel batchLabel1;
 	
-   	Font font = new Font("Dialog", Font.PLAIN, 12);
+   	/** The font. */
+	   Font font = new Font("Dialog", Font.PLAIN, 12);
+	
 	/**
-	 * Build the RSML importer interface
+	 * Build the RSML importer interface.
 	 */
 	
    public RSMLGUI() {
@@ -53,7 +80,9 @@ public class RSMLGUI extends JFrame implements ActionListener {
    
    
    /**
-    * get the Data transfers tab
+    * get the Data transfers tab.
+    *
+    * @return the data transfers tab
     */
    private JScrollPane getDataTransfersTab(){
 
@@ -183,13 +212,17 @@ public class RSMLGUI extends JFrame implements ActionListener {
    
 
    /**
-    * Ge the GUI instance
+    * Ge the GUI instance.
+    *
+    * @return single instance of RSMLGUI
     */
    static public RSMLGUI getInstance() {return instance;}   
 
   
    /**
-    * Define the different action possible in the SRWin window
+    * Define the different action possible in the SRWin window.
+    *
+    * @param e the e
     */
    public void actionPerformed(ActionEvent e) {
 
@@ -213,7 +246,7 @@ public class RSMLGUI extends JFrame implements ActionListener {
    }
 
    /**
-    * Dispose
+    * Dispose.
     */
    public void dispose() {
       instance = null;
@@ -222,7 +255,7 @@ public class RSMLGUI extends JFrame implements ActionListener {
    
    
    /**
-    * Batch export all the data 
+    * Batch export all the data.
     */   
     private void batchExport(){
     	    	

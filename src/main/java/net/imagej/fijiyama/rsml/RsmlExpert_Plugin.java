@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package net.imagej.fijiyama.rsml;
 
 import java.awt.Color;
@@ -48,9 +51,18 @@ import net.imagej.fijiyama.common.Timer;
 import net.imagej.fijiyama.common.VitiDialogs;
 import net.imagej.fijiyama.common.VitimageUtils;
 
+// TODO: Auto-generated Javadoc
+/**
+ * The Class RsmlExpert_Plugin.
+ */
 public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, ActionListener{
 
 	
+	/**
+	 * The main method.
+	 *
+	 * @param args the arguments
+	 */
 	/* Plugin entry points for test/debug or run in production ******************************************************************/
 	public static void main(String[]args) {		
 		ImageJ ij=new ImageJ();
@@ -59,10 +71,23 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		plugin.run(testDir);//testDir);	
 	}
 
+	/**
+	 * Instantiates a new rsml expert plugin.
+	 */
 	public RsmlExpert_Plugin(){		super("");	}
 	
+	/**
+	 * Instantiates a new ${e.g(1).rsfl()}.
+	 *
+	 * @param arg the arg
+	 */
 	public RsmlExpert_Plugin(String arg){		super(arg);	}
 
+	/**
+	 * Run.
+	 *
+	 * @param arg the arg
+	 */
 	public void run(String arg) {				this.startPlugin(arg);		}
 	
 	
@@ -70,51 +95,134 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	
 	
 	
+	/** The Constant serialVersionUID. */
 	/* Internal variables ******************************************************************************/
 	private static final long serialVersionUID = 1L;
+	
+	/** The data dir. */
 	private String dataDir;
+	
+	/** The registered stack. */
 	private ImagePlus registeredStack=null;
+	
+	/** The current image. */
 	private ImagePlus currentImage=null;
+	
+	/** The current model. */
 	private RootModel currentModel=null;
+	
+	/** The step of model. */
 	private int stepOfModel=0;
+	
+	/** The Nt. */
 	private int Nt;
+	
+	/** The img init size. */
 	private ImagePlus imgInitSize;
+	
+	/** The sr. */
 	private FSR sr;
+	
+	/** The tab reg. */
 	private ImagePlus[] tabReg;
+	
+	/** The tab res. */
 	private ImagePlus[] tabRes;
+	
+	/** The Constant OK. */
 	private static final int OK=1;
+	
+	/** The Constant UNDO. */
 	private static final int UNDO=2;
+	
+	/** The Constant MOVE. */
 	private static final int MOVE=3;
+	
+	/** The Constant REMOVE. */
 	private static final int REMOVE=4;
+	
+	/** The Constant ADD. */
 	private static final int ADD=5;
+	
+	/** The Constant SWITCH. */
 	private static final int SWITCH=6;
+	
+	/** The Constant CREATE. */
 	private static final int CREATE=7;
+	
+	/** The Constant EXTEND. */
 	private static final int EXTEND=8;
+	
+	/** The Constant INFO. */
 	private static final int INFO=9;
+	
+	/** The Constant CHANGE. */
 	private static final int CHANGE=10;
+	
+	/** The Constant all. */
 	private static final int[]all=new int[] {OK,UNDO,MOVE,REMOVE,ADD,SWITCH,CREATE,EXTEND,INFO,CHANGE};
 		
+	/** The t. */
 	private Timer t;
+	
+	/** The frame. */
 	private JFrame frame;
+	
+	/** The button ok. */
 	private JButton buttonOk=new JButton("OK");
+	
+	/** The button undo. */
 	private JButton buttonUndo=new JButton("Undo last action");
+	
+	/** The button move. */
 	private JButton buttonMove=new JButton("Move a point");
+	
+	/** The button remove. */
 	private JButton buttonRemove=new JButton("Remove a point");
+	
+	/** The button add. */
 	private JButton buttonAdd=new JButton("Add a middle point");
+	
+	/** The button switch. */
 	private JButton buttonSwitch=new JButton("Switch a false cross");
+	
+	/** The button create. */
 	private JButton buttonCreate=new JButton("Create a new branch");
+	
+	/** The button extend. */
 	private JButton buttonExtend=new JButton("Extend a branch");
+	
+	/** The button info. */
 	private JButton buttonInfo=new JButton("Information about a node and a branch");
+	
+	/** The button change. */
 	private JButton buttonChange=new JButton("Change time");
 	
+	/** The screen width. */
 	private int screenWidth;
+	
+	/** The log area. */
 	private JTextArea logArea=new JTextArea("", 11,10);
+	
+	/** The buttons panel. */
 	private JPanel buttonsPanel;
+	
+	/** The panel global. */
 	private JPanel panelGlobal;
+	
+	/** The ok clicked. */
 	private boolean okClicked;
+	
+	/** The zoom factor. */
 	private int zoomFactor=2;
+	
+	/** The user precision on click. */
 	private double USER_PRECISION_ON_CLICK=20;
+	
+	/** The count. */
 	private int count=0;
+	
+	/** The model dir. */
 	private String modelDir;
 
 	/* Helpers of the Gui ************************************************************************************/	
@@ -122,6 +230,11 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	
 	
 
+	/**
+	 * Handle key press.
+	 *
+	 * @param e the e
+	 */
 	/* Callbacks  ********************************************************************************************/
 	public void handleKeyPress(KeyEvent e) {
 		final ExecutorService exec = Executors.newFixedThreadPool(1);
@@ -132,6 +245,11 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		});
 	}
 	
+	/**
+	 * Action performed.
+	 *
+	 * @param e the e
+	 */
 	public void actionPerformed(ActionEvent e) {
 		System.out.println("Got an event : "+e);
 		
@@ -152,6 +270,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		});
 	}
 
+	/**
+	 * Action undo.
+	 */
 	public void actionUndo() {
 		currentImage.deleteRoi();
 		RoiManager.getRoiManager().reset();
@@ -171,10 +292,16 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		disable(UNDO);
 	}
 	
+	/**
+	 * Action ok clicked.
+	 */
 	public void actionOkClicked() {
 		okClicked=true;
 	}
 	
+	/**
+	 * Action move point.
+	 */
 	public void actionMovePoint() {
 		System.out.println("M1");
 		boolean did=false;
@@ -196,6 +323,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		System.out.println("M9");
 	}
 	
+	/**
+	 * Action remove point.
+	 */
 	public void actionRemovePoint() {
 		System.out.println("Rem0");
 		addLog("Running action \"Remove point\" ...",-1);
@@ -215,6 +345,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		
 	}
 	
+	/**
+	 * Action add middle points.
+	 */
 	public void actionAddMiddlePoints() {
 		boolean did=false;
 		addLog("Running action \"Add point\" ...",-1);
@@ -227,6 +360,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		else finishActionAborted();
 	}
 			
+	/**
+	 * Action switch point.
+	 */
 	public void actionSwitchPoint() {
 		boolean did=false;
 		addLog("Running action \"Switch cross\" ...",-1);
@@ -239,6 +375,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		else finishActionAborted();
 	}
 	
+	/**
+	 * Action extend branch.
+	 */
 	public void actionExtendBranch() {
 		boolean did=false;
 		addLog("Running action \"Extend branch\" ...",-1);
@@ -251,6 +390,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		else finishActionAborted();		
 	}
 
+	/**
+	 * Action create branch.
+	 */
 	public void actionCreateBranch() {
 		boolean did=false;
 		addLog("Running action \"Create branch\" ...",-1);
@@ -264,6 +406,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		
 	}
 
+	/**
+	 * Action info.
+	 */
 	public void actionInfo() {
 		System.out.println("I1");
 		boolean did=false;
@@ -285,6 +430,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	
 	}
 
+	/**
+	 * Action change time.
+	 */
 	public void actionChangeTime() {
 		System.out.println("I1");
 		boolean did=false;
@@ -308,6 +456,11 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	
 	
 	
+	/**
+	 * Move point in model.
+	 *
+	 * @param tabPt the tab pt
+	 */
 	/* Corresponding operations on the model *******************************************************************/
 	public void movePointInModel(Point3d[]tabPt) {
 		Object[]obj=currentModel.getClosestNode(tabPt[0]);
@@ -319,6 +472,12 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		r.updateTiming();
 	}
 		
+	/**
+	 * Removes the point in model.
+	 *
+	 * @param tabPt the tab pt
+	 * @return true, if successful
+	 */
 	public boolean removePointInModel(Point3d[]tabPt) {
 		System.out.println("Rem21");
 		Object[]obj=currentModel.getClosestNode(tabPt[0]);
@@ -372,6 +531,12 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		}
 	}
 	
+	/**
+	 * Adds the middle points in model.
+	 *
+	 * @param tabPts the tab pts
+	 * @return true, if successful
+	 */
 	public boolean addMiddlePointsInModel(Point3d[]tabPts) {
 		System.out.println("H1");
 		if(tabPts==null || tabPts.length<2) {
@@ -403,6 +568,12 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		return true;
 	}
 
+	/**
+	 * Switch point in model.
+	 *
+	 * @param tabPt the tab pt
+	 * @return true, if successful
+	 */
 	public boolean switchPointInModel(Point3d[]tabPt) {
 		Object[]obj1=currentModel.getClosestNode(tabPt[0]);
 		Object[]obj2=currentModel.getClosestNode(tabPt[1]);
@@ -430,6 +601,12 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		return true;
 	}
 	
+	/**
+	 * Creates the branch in model.
+	 *
+	 * @param tabPt the tab pt
+	 * @return true, if successful
+	 */
 	public boolean createBranchInModel(Point3d[]tabPt) {
 		System.out.println("Create 1");
 		if(tabPt.length<2)return false;
@@ -486,6 +663,12 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		return true;		
 	}
 
+	/**
+	 * Extend branch in model.
+	 *
+	 * @param tabPt the tab pt
+	 * @return true, if successful
+	 */
 	public boolean extendBranchInModel(Point3d[]tabPt) {
 		if(tabPt.length<2)return false;
 		int N=tabPt.length;
@@ -519,6 +702,11 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		return true;
 	}
 
+	/**
+	 * Inform about point in model.
+	 *
+	 * @param tabPt the tab pt
+	 */
 	public void informAboutPointInModel(Point3d[]tabPt) {
 		Object[]obj=currentModel.getClosestNode(tabPt[0]);
 		Node n=(Node) obj[0];
@@ -526,6 +714,12 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		IJ.showMessage("Informations at coordinates "+tabPt[0]+" :\n --> Node "+n+"\n --> Of root "+r );
 	}
 		
+	/**
+	 * Change time in point in model.
+	 *
+	 * @param tabPt the tab pt
+	 * @return true, if successful
+	 */
 	public boolean changeTimeInPointInModel(Point3d[]tabPt) {
 		Object[]obj=currentModel.getClosestNode(tabPt[0]);
 		Node n=(Node) obj[0];
@@ -540,6 +734,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	
 	
 	
+	/**
+	 * Finish action aborted.
+	 */
 	/* Helpers for starting and finishing actions *******************************************************************/
 	public void finishActionAborted(){	
 		IJ.setTool("hand");
@@ -548,6 +745,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		disable(OK);		
 	}
 	
+	/**
+	 * Finish action then go on step save rsml and update image.
+	 */
 	public void finishActionThenGoOnStepSaveRsmlAndUpdateImage(){
 		IJ.setTool("hand");
 		addLog(" action ok.",2);
@@ -560,6 +760,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		disable(OK);		
 	}
 	
+	/**
+	 * Point start.
+	 */
 	public void pointStart() {
 		disable(all);
 		RoiManager rm=RoiManager.getRoiManager();
@@ -567,6 +770,12 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		IJ.setTool("multipoint");
 	}
 
+	/**
+	 * Gets the and adapt current points.
+	 *
+	 * @param pr the pr
+	 * @return the and adapt current points
+	 */
 	public Point3d[]getAndAdaptCurrentPoints(PointRoi pr){
 		if(pr==null) {
 			currentImage.deleteRoi();
@@ -586,6 +795,12 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		return tabPt;
 	}
 	
+	/**
+	 * Project rsml on image.
+	 *
+	 * @param rm the rm
+	 * @return the image plus
+	 */
 	ImagePlus projectRsmlOnImage(RootModel rm) {
 		Timer t=new Timer();
 		for(int i=0;i<Nt;i++) {
@@ -607,6 +822,11 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	
 	
 	
+	/**
+	 * Start plugin.
+	 *
+	 * @param arg the arg
+	 */
 	/* Setup of plugin and GUI ************************************************************************************/
 	public void startPlugin(String arg) {
 		t=new Timer();
@@ -632,6 +852,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	        });	 
 	}
 
+	/**
+	 * Start gui.
+	 */
 	public void startGui() {
 		this.screenWidth=Toolkit.getDefaultToolkit().getScreenSize().width;
 		setupButtons();
@@ -683,6 +906,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		disable(UNDO);
 	}
 	
+	/**
+	 * Setup buttons.
+	 */
 	public void setupButtons(){
 		buttonsPanel=new JPanel();
 		buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
@@ -709,6 +935,11 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		buttonsPanel.add(buttonChange);
 	}
 
+	/**
+	 * Verify data dir.
+	 *
+	 * @return true, if successful
+	 */
 	public boolean verifyDataDir() {
 		if(dataDir.contains("Expertized"))dataDir=new File(dataDir).getParent();
 		if(!new File(dataDir,"1_5_RegisteredSequence.tif").exists()) {
@@ -729,6 +960,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		return true;
 	}
 	
+	/**
+	 * Setup image and rsml.
+	 */
 	public void setupImageAndRsml() {
 		registeredStack=IJ.openImage(new File(dataDir,"1_5_RegisteredSequence.tif").getAbsolutePath());
 		chooseModelNumber();
@@ -746,6 +980,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		currentImage.show();
 	}
 
+	/**
+	 * Choose model number.
+	 */
 	public void chooseModelNumber() {
 		String[]models=new File(modelDir).list();
 		stepOfModel=-1;for(String mod : models)if(mod.contains(".rsml"))stepOfModel++;
@@ -754,6 +991,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 
 	
 	
+	/**
+	 * Wait ok clicked.
+	 */
 	public void waitOkClicked() {	
 		while(!okClicked) {
 			VitimageUtils.waitFor(100);
@@ -761,6 +1001,12 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		okClicked=false;
 	}
 
+	/**
+	 * Wait points.
+	 *
+	 * @param nbExpected the nb expected
+	 * @return the point roi
+	 */
 	public PointRoi waitPoints(int nbExpected) {	
 		Roi r=null;PointRoi pr=null;
 		while(count!=nbExpected) {
@@ -775,6 +1021,12 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		return pr;
 	}
 
+	/**
+	 * Adds the log.
+	 *
+	 * @param t the t
+	 * @param level the level
+	 */
 	public void addLog(String t,int level) {
 		if(level==-1)logArea.append("\n\n > "+t);
 		if(level==0)logArea.append("\n > "+t);
@@ -783,29 +1035,73 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		logArea.setCaretPosition(logArea.getDocument().getLength());
 	}
 
+	/**
+	 * Key pressed.
+	 *
+	 * @param arg0 the arg 0
+	 */
 	public void keyPressed(KeyEvent arg0) {
 	}
 
+	/**
+	 * Key released.
+	 *
+	 * @param arg0 the arg 0
+	 */
 	public void keyReleased(KeyEvent arg0) {
 	}
 
+	/**
+	 * Key typed.
+	 *
+	 * @param arg0 the arg 0
+	 */
 	public void keyTyped(KeyEvent arg0) {
 	}
 
+	/**
+	 * Close all views.
+	 */
 	public void closeAllViews() {
 		if(currentImage!=null)currentImage.close();
 		if (RoiManager.getInstance()!=null)RoiManager.getInstance().close();
 	}	
 
 	
+	/**
+	 * Enable.
+	 *
+	 * @param but the but
+	 */
 	public void enable(int but) {enable(new int[] {but});}
 
+	/**
+	 * Disable.
+	 *
+	 * @param but the but
+	 */
 	public void disable(int but) {disable(new int[] {but});}	
 
+	/**
+	 * Enable.
+	 *
+	 * @param tabBut the tab but
+	 */
 	public void enable(int[]tabBut) {		setState(tabBut,true);	}
 
+	/**
+	 * Disable.
+	 *
+	 * @param tabBut the tab but
+	 */
 	public void disable(int[]tabBut) {		setState(tabBut,false);	}
 
+	/**
+	 * Sets the state.
+	 *
+	 * @param tabBut the tab but
+	 * @param state the state
+	 */
 	public void setState(int[]tabBut,boolean state) {
 		for(int but:tabBut) {
 			switch(but) {
@@ -823,6 +1119,12 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		}	
 	}
 
+	/**
+	 * Check computer capacity.
+	 *
+	 * @param verbose the verbose
+	 * @return the string[]
+	 */
 	public String []checkComputerCapacity(boolean verbose) {
 		int nbCpu=Runtime.getRuntime().availableProcessors();
 		int jvmMemory=(int)((new Memory().maxMemory() /(1024*1024)));//Java virtual machine available memory (in Megabytes)
@@ -839,12 +1141,20 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		else return new String[] {"",""};
 	}
 
+	/**
+	 * Welcome and inform about computer capabilities.
+	 */
 	public void welcomeAndInformAboutComputerCapabilities() {		
 		String[]str=checkComputerCapacity(true);
 		addLog(str[0],0);
 		addLog(str[1],0);		
 	}
 
+	/**
+	 * Gets the rsml name.
+	 *
+	 * @return the rsml name
+	 */
 	public String getRsmlName() {
 		return (  new File(modelDir,"4_2_Model_"+ (stepOfModel<1000 ? ("0") : "" ) + (stepOfModel<100 ? ("0") : "" ) + (stepOfModel<10 ? ("0") : "" ) + stepOfModel+".rsml" ).getAbsolutePath());
 	}
