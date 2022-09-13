@@ -52,14 +52,12 @@ public class RSML_reader extends PlugInFrame {
 
    /**
     * Get instance
-    * @return
     */
    public static RSML_reader getInstance() {return instance; }
 
    
    /**
     * Main class
-    * @param args
     */
    @SuppressWarnings("unused")
 public static void main(String args[]) {

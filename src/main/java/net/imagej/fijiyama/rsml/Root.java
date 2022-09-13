@@ -84,7 +84,7 @@ public class Root implements Comparable<Root>{
    /**
     * Constructor
     * Used when opening a xml file
-    * @param dpi
+    * @param dpi digit per inch
     */
    public Root(float dpi, org.w3c.dom.Node parentDOM, boolean common, Root parentRoot, RootModel rm, String origin) {
 	  this.dpi = dpi;
@@ -230,11 +230,7 @@ public class Root implements Comparable<Root>{
    
    /**
     * Add a node to the root
-    * @param x
-    * @param y
-    * @param addToBase
-    * @return
-    */
+   */
    public Node addNode(float x, float y, boolean addToBase) {
       if (!addToBase) {
          lastNode = new Node(x, y, lastNode, true);
@@ -286,10 +282,6 @@ public class Root implements Comparable<Root>{
 	      }
    /**
     * Add a mark to the root
-    * @param type
-    * @param value
-    * @param markerPosition
-    * @return
     */
    public Mark addMark(int type, String value, float markerPosition) {
       float lPos = lPosCmToPixels(markerPosition);
@@ -322,7 +314,6 @@ public class Root implements Comparable<Root>{
 
    /**
     * Add a mark to the root
-    * @param m
     */
    public void addMark(Mark m) {
       if (m.type == Mark.ANCHOR) {
@@ -536,15 +527,13 @@ public class Root implements Comparable<Root>{
   
 
    /**
-    * Ge the root name
-    * @return
+    * Get the root name
     */
    public String getRootID() {return rootID; }
  
    /**
-    * Ge the root length
-    * @return
-    */
+    * Get the root length
+   */
    public float getRootLength() {return lastNode.cLength + rulerAtOrigin; }
 
    public double computeRootLength(double t) {
@@ -576,14 +565,11 @@ public class Root implements Comparable<Root>{
   
    /**
     * Get the value of the ruelr at origin
-    * @return
     */
    public float getRulerAtOrigin() {return rulerAtOrigin; }
    
    /**
     * Convert the longitudinal position from cm to pixels
-    * @param cm
-    * @return
     */
    public float lPosCmToPixels(float cm) {
       return cm / pixelSize - this.rulerAtOrigin;
@@ -591,8 +577,6 @@ public class Root implements Comparable<Root>{
 
    /**
     * Convert the longitudinal position from pixels to cm
-    * @param pixels
-    * @return
     */
    public float lPosPixelsToCm(float pixels) {
       return pixelSize * (pixels + this.rulerAtOrigin);
@@ -656,7 +640,6 @@ public class Root implements Comparable<Root>{
    
    /**
     * Read the RSML file
-    * @param parentDOM
     */
    public void readRSML(org.w3c.dom.Node parentDOM, RootModel rm, Root parentRoot, String origin) {
 	  int counter = 1, clock = 1; // The counter is used to select only one node in x (x = counter)
@@ -894,8 +877,7 @@ public class Root implements Comparable<Root>{
 
    /**
     * Set the DPI value for internal reference
-    * @param dpi
-    */
+     */
    public void setDPI(float dpi) {
       this.dpi = dpi;
       pixelSize = ((float) 2.54 / dpi);
@@ -904,7 +886,6 @@ public class Root implements Comparable<Root>{
    
    /**
     * Set the plant ontology accession to a new value
-    * @param po
     */
    public void setPoAccession(int po) {
       this.poIndex = (rootID.length() == 0) ? 0 : po;
@@ -912,7 +893,6 @@ public class Root implements Comparable<Root>{
    
    /**
     * Set the root name to a new value
-    * @param rootID
     */
    public void setRootID(String rootID) {
       this.rootID = (rootID.length() == 0) ? noName : rootID;
@@ -921,7 +901,6 @@ public class Root implements Comparable<Root>{
    
    /**
     * Set the root key to a new value
-    * @param rootID
     */
    public void setRootKey(String rootKey) {
       this.rootKey = (rootKey.length() == 0) ? noName : rootKey;
@@ -930,8 +909,7 @@ public class Root implements Comparable<Root>{
 
    /**
     * Set the orign of the ruler (base of the root)
-    * @param rulerAtOrigin
-    */
+     */
    public void setRulerAtOrigin(float rulerAtOrigin) {
       this.rulerAtOrigin = rulerAtOrigin;
       if (anchor != null) {
@@ -943,7 +921,6 @@ public class Root implements Comparable<Root>{
       
    /**
     * Is the root valid (has at least one node)
-    * @return
     */
    public boolean validate() {
       if (lastNode == null) {
@@ -960,7 +937,6 @@ public class Root implements Comparable<Root>{
 
    /**
     * Attach the selected root to the parent and set child informations
-    * @param r the root to be attach
     */
    public void attachChild(Root r){
 	   childList.add(r);
@@ -1262,7 +1238,6 @@ public class Root implements Comparable<Root>{
    
    /**
     * Set the name of the parent (internal reference, does not change the value in the parent)
-    * @param n
     */
    public void setParentName(String n){
 	   parentName = n;
@@ -1270,7 +1245,6 @@ public class Root implements Comparable<Root>{
    
    /**
     * Set the identifier of the parent (internal reference, does not change the value in the parent)
-    * @param n
     */
    public void setParentKey(String n){
 	   parentKey = n;
@@ -1357,7 +1331,6 @@ public class Root implements Comparable<Root>{
    
    /**
     * The average diameter of all the nodes
-    * @return
     */
    public float getAVGDiameter(){
 	   float n = 0;
@@ -1375,7 +1348,6 @@ public class Root implements Comparable<Root>{
    
    /**
     * Get the average interbanch distance of the lateral roots
-    * @return
     */
    public float getAVGInterBranchDistance(){
 	   float n = 0;
@@ -1389,17 +1361,10 @@ public class Root implements Comparable<Root>{
    }
    
 
-   /**
-    * @return the root id
-    */
- /*  public String toString(){
-	   return rootID;
-   }
-*/
+ 
    
    /**
     * Get the volume of the root. The root is considered as a succesion of truncated cones
-    * @return
     */
    public float getRootVolume(){
 	   float vol = 0;
@@ -1416,7 +1381,6 @@ public class Root implements Comparable<Root>{
    
    /**
     * Get the surface of the root
-    * @return
     */
    public float getRootSurface(){
 	   float surf = 0;
@@ -1432,7 +1396,6 @@ public class Root implements Comparable<Root>{
    
    /**
     * Get the surface of the lateral roots (if any)
-    * @return
     */
    public float getChildrenSurface(){
 	   float surf = 0;
@@ -1451,7 +1414,6 @@ public class Root implements Comparable<Root>{
    
    /**
     * Get the root key
-    * @return
     */
    public String getRootKey(){
 	   return rootKey;
@@ -1485,7 +1447,6 @@ public class Root implements Comparable<Root>{
 
 /**
  * Returns the tortuosity of the root
- * @return
  */
 public float getTortuosity() {
 	float tort = 0;
@@ -1503,7 +1464,6 @@ public float getTortuosity() {
 
 /**
  * Return the vector lenght of the root (as defined in Armengaud 2009)
- * @return
  */
 public float getVectorLength() {
 	Node n1 = this.firstNode;
@@ -1513,7 +1473,6 @@ public float getVectorLength() {
 
 /**
  * Return the total length of all the children
- * @return
  */
 public float getChildrenLength() {
 	float cl = 0;   
@@ -1539,7 +1498,6 @@ public float getChildrenAngle(){
 
 /**
  * Return the min X coordinate of the root
- * @return
  */
 public float getXMin() {
 	float min = 100000;
@@ -1563,7 +1521,6 @@ public float getDateMax() {
 
 /**
  * Return the max X coordinate of the root
- * @return
  */
 public float getXMax() {
 	float max = 0;
@@ -1578,7 +1535,6 @@ public float getXMax() {
 
 /**
  * Return the min Y coordinate of the root
- * @return
  */
 public float getYMin() {
 	float min = 100000;
@@ -1592,7 +1548,6 @@ public float getYMin() {
 
 /**
  * Return the max Y coordinate of the root
- * @return
  */
 public float getYMax() {
 	float max = 0;
@@ -1606,7 +1561,6 @@ public float getYMax() {
 
 /**
  * Return the min X coordinate of the root and its children
- * @return
  */
 public float getXMinTotal() {
 	float min = 100000;
@@ -1628,7 +1582,6 @@ public float getXMinTotal() {
 
 /**
  * Return the max X coordinate of the root and its children
- * @return
  */
 public float getXMaxTotal() {
 	float max = 0;
@@ -1650,7 +1603,6 @@ public float getXMaxTotal() {
 
 /**
  * Return the min Y coordinate of the root and its children
- * @return
  */
 public float getYMinTotal() {
 	float min = 100000;
@@ -1671,7 +1623,6 @@ public float getYMinTotal() {
 
 /**
  * Return the max Y coordinate of the root and its children
- * @return
  */
 public float getYMaxTotal() {
 	float max = 0;
@@ -1692,7 +1643,6 @@ public float getYMaxTotal() {
 
 /**
  * Return the average orientation of the root
- * @return
  */
 public float getRootOrientation() {
 	float angle = 0;
@@ -1709,7 +1659,6 @@ public float getRootOrientation() {
   
 /**
  * Get the Plant Ontology accession of the root
- * @return
  */
 public String getPoAccession(){
 	return FSR.listPoNames[poIndex];
@@ -1718,7 +1667,6 @@ public String getPoAccession(){
 
 /**
  * Get the convexhull area
- * @return
  */
 public float getConvexHullArea(){
 	return 0;
@@ -1726,7 +1674,6 @@ public float getConvexHullArea(){
 
 /**
  * Get the root convexhull
- * @return
  */
 public PolygonRoi getConvexHull(){
 		

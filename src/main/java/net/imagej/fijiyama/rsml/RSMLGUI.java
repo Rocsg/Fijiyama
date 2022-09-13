@@ -54,7 +54,6 @@ public class RSMLGUI extends JFrame implements ActionListener {
    
    /**
     * get the Data transfers tab
-    * @return
     */
    private JScrollPane getDataTransfersTab(){
 
@@ -185,7 +184,6 @@ public class RSMLGUI extends JFrame implements ActionListener {
 
    /**
     * Ge the GUI instance
-    * @return
     */
    static public RSMLGUI getInstance() {return instance;}   
 

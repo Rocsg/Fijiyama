@@ -495,8 +495,6 @@ private int nPlants;
    
 	/**
 	 * Send the root data to the ResulsTable rt
-	 * @param rt
-	 * @param name
 	 */
    public void sendRootData(ResultsTable rt, String name){
 
@@ -549,8 +547,6 @@ private int nPlants;
    
    /**
     * Send the node data to the Result Table
-    * @param rt
-    * @param name
     */
    public void sendNodeData(ResultsTable rt, String name){
 	   
@@ -577,8 +573,6 @@ private int nPlants;
 
    /**
     * Send the image data to the Result Table
-    * @param rt
-    * @param name
     */
    public void sendImageData(ResultsTable rt, String name){
 	   
@@ -602,8 +596,6 @@ private int nPlants;
    
    /**
     * Get a given root in the root list
-    * @param i
-    * @return
     */
    public Root getRoot (int i) {
       if (i < getNRoot()) return (Root) rootList.get(i);
@@ -613,7 +605,6 @@ private int nPlants;
 
    /**
     * Get the total number of roots
-    * @return
     */
    public int getNRoot() {
       return rootList.size();
@@ -622,13 +613,11 @@ private int nPlants;
  
    /**
     * Ge tthe DPI value for the image
-    * @return
     */
    public float getDPI() {return dpi; }
    
    /**
     * Set the DPI avlue for the image
-    * @param dpi
     */
    public void setDPI(float dpi) {
       this.dpi = dpi;
@@ -644,10 +633,7 @@ private int nPlants;
       }
 
 
-   /**
-    * 
-    */
-   private void logReadError() {
+    private void logReadError() {
       FSR.write("An I/O error occured while attemping to read the datafile.");
       FSR.write("A new empty datafile will be created.");
       FSR.write("Backup versions of the datafile, if any, can be loaded");
@@ -755,7 +741,6 @@ private int nPlants;
    
    /**
     * Read common datafile structure
-    * @param f
     */
    public void readRSMLNew(String f) {
 
@@ -1224,14 +1209,14 @@ private int nPlants;
    
    /**
     * Ge the directory containing the image
-    * @return
     */
    public String getDirectory () { return directory; }
  
 
 	/** Get the closest root from the base of a given root 
 	 * @param r the root from which we want the closest root
-	 * @return the closest root from the apex of the root r*/
+	 * @return the closest root from the apex of the root r
+	 * */
 	
 	   public int resampleFlyingRoots() {
 		   int stamp=0;
@@ -1909,7 +1894,6 @@ private int nPlants;
 
     /**
      * Get the center of the tracing
-     * @return
      */
     public float[] getCenter(){
     	float[] coord = new float[2];
@@ -1952,7 +1936,6 @@ private int nPlants;
 
     /**
      * Get the widht of the tracing
-     * @return
      */
     public int getMinY(){
     	float min = 1e5f; 
@@ -1971,7 +1954,6 @@ private int nPlants;
 
     /**
      * Get the widht of the tracing
-     * @return
      */
     public int getMinX(){
     	float min = 1e5f; 
@@ -1990,7 +1972,6 @@ private int nPlants;
     
     /**
      * Get the widht of the tracing
-     * @return
      */
     public int getWidth(boolean add){
     	float min = 1e5f, max = 0; 
@@ -2011,7 +1992,6 @@ private int nPlants;
     
     /**
      * Get the height of the tracing
-     * @return
      */
     public int getHeight(boolean add){
     	float min = 1e5f, max = 0; 
@@ -2522,7 +2502,6 @@ private int nPlants;
     
     /**
      * Create an image processor based on the roots contained into the root system
-     * @return
      */
     public ImageProcessor createImage(boolean color, int line, boolean real, int w, int h, boolean convexhull,double ratioColor){
     	
@@ -2653,8 +2632,6 @@ private int nPlants;
     
     /**
      * Get the index of the po accession
-     * @param po
-     * @return
      */
     public int getIndexFromPo(String po){
     	for(int i = 0; i < FSR.listPo.length; i++){
@@ -2665,14 +2642,12 @@ private int nPlants;
     
     /**
      * Get the convexhull area of all the roots in the image
-     * @return
      */
     public float getConvexHullArea(){
     	return 0;
     }
     /**
      * Get the convexhull of all the roots in the image. Uses the native image functions
-     * @return
      */
     public PolygonRoi getConvexHull(){
     		

@@ -35,11 +35,6 @@ public class Node {
 
   /**
    * Constructor
-   * @param x
-   * @param y
-   * @param d
-   * @param n
-   * @param after
    */
    public Node(float x, float y, float d, Node n, boolean after) {
       this.x = x;
@@ -60,10 +55,6 @@ public class Node {
 
    /**
     * 
-    * @param x
-    * @param y
-    * @param n
-    * @param after
     */
    public Node(float x, float y, Node n, boolean after) {
       this(x, y, 0f, n, after);
@@ -90,12 +81,6 @@ public class Node {
          }
       }
 
-   /**
-    * 
-    * @param dx
-    * @param dy
-    * @return
-    */
    public static float norm(float dx, float dy) {
 	      return (float) Math.sqrt(dx * dx + dy * dy); 
 	      }
@@ -106,14 +91,6 @@ public class Node {
 	   return (delta<VitimageUtils.EPSILON);
    }
    
-   /**
-    * 
-    * @param x0
-    * @param y0
-    * @param x1
-    * @param y1
-    * @return
-    */
    public static float norm(float x0, float y0, float x1, float y1) {
       return norm(x1 - x0, y1 - y0); 
       }
@@ -128,10 +105,6 @@ public class Node {
 	   return false;
    }
   
-   /**
-    * 
-    * @param n
-    */
    public void copy(Node n) {
       x = n.x;
       y = n.y;
@@ -144,11 +117,6 @@ public class Node {
       needsRefresh = true;
       }
 
-   /**
-    * Move the node of a given x and y deviation
-    * @param dx
-    * @param dy
-    */
    public void translate(float dx, float dy) {
       x += dx;
       y += dy;    
@@ -159,8 +127,6 @@ public class Node {
 
    /**
     * Get the distance between this node and an other one
-    * @param n
-    * @return
     */
    public float getDistanceTo (Node n) {
       float d = 0.0f;
@@ -186,7 +152,6 @@ public class Node {
 
 	/**
 	 * Compute the length between the base of the root and the node
-	 * @param startValue
 	 */
    public void calcCLength(float startValue) {
       this.cLength = startValue;
@@ -201,7 +166,7 @@ public class Node {
     * Read the node information from and RSML file
     * @param parentDOM the xml elemnt containg the x/y coordinates
     * @param diamDOM the xml element contining the diameter elements
-    * @param dpi
+    * @param dpi digit per inch
     */
    public void readRSML(org.w3c.dom.Node parentDOM, org.w3c.dom.Node diamDOM, float dpi) {
 	   
@@ -247,10 +212,7 @@ public class Node {
    }
   
    /**
-    * Convert a vector to an ange
-    * @param dirX
-    * @param dirY
-    * @return
+    * Convert a vector to an angle
     */
    public static float vectToTheta (float dirX, float dirY) {
 	      float norm = (float) Math.sqrt(dirX * dirX + dirY * dirY);

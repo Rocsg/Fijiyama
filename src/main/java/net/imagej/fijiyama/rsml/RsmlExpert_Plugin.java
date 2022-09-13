@@ -51,7 +51,7 @@ import net.imagej.fijiyama.common.VitimageUtils;
 public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, ActionListener{
 
 	
-	/** Plugin entry points for test/debug or run in production ******************************************************************/
+	/* Plugin entry points for test/debug or run in production ******************************************************************/
 	public static void main(String[]args) {		
 		ImageJ ij=new ImageJ();
 		String testDir="/home/rfernandez/Bureau/A_Test/RSML/Processing_by_box/ML1_Boite_00021"+ ""; 
@@ -70,7 +70,7 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	
 	
 	
-	/** Internal variables ******************************************************************************/
+	/* Internal variables ******************************************************************************/
 	private static final long serialVersionUID = 1L;
 	private String dataDir;
 	private ImagePlus registeredStack=null;
@@ -117,12 +117,12 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	private int count=0;
 	private String modelDir;
 
-	/** Helpers of the Gui ************************************************************************************/	
+	/* Helpers of the Gui ************************************************************************************/	
 
 	
 	
 
-	/** Callbacks  ********************************************************************************************/
+	/* Callbacks  ********************************************************************************************/
 	public void handleKeyPress(KeyEvent e) {
 		final ExecutorService exec = Executors.newFixedThreadPool(1);
 		exec.submit(new Runnable() {
@@ -308,7 +308,7 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	
 	
 	
-	/** Corresponding operations on the model *******************************************************************/
+	/* Corresponding operations on the model *******************************************************************/
 	public void movePointInModel(Point3d[]tabPt) {
 		Object[]obj=currentModel.getClosestNode(tabPt[0]);
 		Node n=(Node) obj[0];
@@ -540,7 +540,7 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	
 	
 	
-	/** Helpers for starting and finishing actions *******************************************************************/
+	/* Helpers for starting and finishing actions *******************************************************************/
 	public void finishActionAborted(){	
 		IJ.setTool("hand");
 		addLog(" action aborted.",2);
@@ -607,7 +607,7 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	
 	
 	
-	/** Setup of plugin and GUI ************************************************************************************/
+	/* Setup of plugin and GUI ************************************************************************************/
 	public void startPlugin(String arg) {
 		t=new Timer();
 		if(arg!=null && arg.length()>0)dataDir=arg;

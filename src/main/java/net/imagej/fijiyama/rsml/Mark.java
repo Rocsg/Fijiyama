@@ -52,16 +52,6 @@ public class Mark {
    boolean needsRefresh;
    int dirLabel;
    
-   /**
-    * Contstructor
-    * @param type
-    * @param r
-    * @param lPos
-    * @param twinLPos
-    * @param value
-    * @param isForeign
-    * @param imgName
-    */
    public Mark(int type, Root r, float lPos, float twinLPos, String value, boolean isForeign, String imgName) {  // XD 20110629
 	      this.type = type;
 	      this.r = r;
@@ -73,34 +63,17 @@ public class Mark {
 	      needsRefresh = true;
 	      }
 
-   /**
-    * Constructor
-    * @param type
-    * @param r
-    * @param lPos
-    * @param value
-    */
-   public Mark(int type, Root r, float lPos, String value) {
+    public Mark(int type, Root r, float lPos, String value) {
 	      this(type, r, lPos, 0.0f, value, false, null);  // XD 20110629
 	      }
 
-   /**
-    * Constructor
-    * @param type
-    * @param r
-    * @param lPos
-    * @param value
-    * @param isForeign
-    * @param imgName
-    */
    public Mark(int type, Root r, float lPos, String value, boolean isForeign, String imgName) {  // XD 20110629
 	      this(type, r, lPos, 0.0f, value, isForeign, imgName);  // XD 20110629
 	      }
    
    /**
     * Get the positon of the twin mark
-    * @param lPos
-    */
+   */
    public void setTwinPosition(float lPos) {
       if (lPos <= this.lPos) {
          twinLPos = this.lPos;
@@ -112,7 +85,6 @@ public class Mark {
 
    /**
     * Return the value of the mark as a string
-    * @return value
     */
    public String getValue() {return value;}
 
@@ -171,8 +143,6 @@ public class Mark {
    
    /**
     * Save the mark to an RSML file
-    * @param dataOut
-    * @throws IOException
     */
    public void saveRSML(FileWriter dataOut) throws IOException {
 	      if (isForeign) return;
@@ -187,61 +157,46 @@ public class Mark {
      
    /**
     * Get the number of possible marks
-    * @return
-    */
+   */
    public static int getTypeCount() {return typeName.length;}
    
    /**
     * Get the default value of the mark
-    * @param type
-    * @return
-    */
+   */
    public static String getDefaultValue(int type) {return typeDefaultValue[type];}
    
    /**
     * Does the makr need a value
-    * @param type of the mark
-    * @return
     */
    public static boolean needsValue(int type) {return typeNeedsValue[type];}
       
    /**
     * Is the mark a interval mark
-    * @param type
-    * @return
-    */
+     */
    public static boolean needsTwinPosition(int type) {return (type == INTERVAL);}
 
    /**
     * Is the mark a interval mark
-    * @return 
-    */
+     */
    public boolean needsTwinPosition() {return (type == INTERVAL);}
       
    /**
     * 
-    * @return
     */
    public boolean needsValue() {return typeNeedsValue[type];}
     
    /**
      * Get the name of the mark  
-     * @param type
-     * @return the name
      */
    public static String getName(int type) {return typeName[type];}
 
    /**
     * Get the icon for the mark
-    * @param type
-    * @return the icon
     */
    public static Icon getIcon(int type) {return typeIcon[type];}
 
    /**
     * Get the type of the mark, as an integer
-    * @param name
-    * @return the type
     */
    public static int getTypeNum(String name) {
       int i = typeName.length - 1;

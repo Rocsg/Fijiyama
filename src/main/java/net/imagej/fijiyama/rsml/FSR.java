@@ -20,9 +20,6 @@ public class FSR {
    public static String[] listPoNames = {"Root", "Primary root", "Lateral root", "Basal root", "Nodal root", "Crown root"};
 	
    
-   /**
-    * Contstructor
-    */
    public FSR() {
       IJ.register(this.getClass());
       }      
@@ -31,10 +28,6 @@ public class FSR {
       prefs = Preferences.userRoot().node("/ImageJ/SmartRoot");
       }
 
-   /**
-    * 
-    * @param s
-    */
    public static void write(String s) {
       IJ.log(s);
       }
