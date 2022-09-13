@@ -10,7 +10,7 @@ jobs:
       - name: Import GPG Key
         uses: crazy-max/ghaction-import-gpg@v5
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
+          gpg_private_key: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
           PASSPHRASE: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
       - name: Set up Java for publishing to Maven Central Repository
         uses: actions/setup-java@v3
