@@ -22,8 +22,8 @@ jobs:
           server-id: ossrh
           server-username: ${{ secrets.OSSRH_USERNAME }}
           server-password: ${{ secrets.OSSRH_PASSWORD }}
-          gpg-private-key: ${GPG_PRIVATE_KEY}
-          gpg-passphrase: ${PASSPHRASE}
+          gpg-private-key: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
+          gpg-passphrase: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
      
       - name: build artifact
         run: mvn clean package
