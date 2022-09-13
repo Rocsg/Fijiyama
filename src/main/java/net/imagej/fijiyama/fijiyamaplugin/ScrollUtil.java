@@ -24,6 +24,7 @@ public final class ScrollUtil {
     private ScrollUtil() {
     }
 
+    
     /**
      * Scroll to specified location.  e.g. scroll(component, BOTTOM).
      *
