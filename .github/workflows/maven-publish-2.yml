@@ -15,6 +15,25 @@ jobs:
           server-id: ossrh
           server-username: MAVEN_USERNAME
           server-password: MAVEN_PASSWORD
+      - name: build artifact
+        run: mvn clean package
+      - name: Deploy JavaDoc
+        uses: MathieuSoysal/Javadoc-publisher.yml@v2.0.4
+        with:
+          GITHUB_TOKEN: ${{ secrets.ACCOUNT_GITHUB_TOKEN }}
+          javadoc-branch: javadoc
+          java-version: 17
+          target-folder: javadoc  
+      - name: Create release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: "${{ github.workspace }}/target/*.jar"
+          token: ${{ secrets.ACCOUNT_GITHUB_TOKEN }}
+
+
+
+
       - name: Publish package
         run: mvn --batch-mode deploy
         env:
