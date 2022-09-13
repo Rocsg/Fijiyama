@@ -1,4 +1,4 @@
-name: release and push to central
+name: Release and push to central
 on:
   push:
     branches: [ master ]
