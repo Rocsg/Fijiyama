@@ -10,6 +10,7 @@ jobs:
       - name: Set up Java for publishing to Maven Central Repository
         uses: actions/setup-java@main
         with:
+          distribution: temurin
           java-version: 1.8
           server-id: ossrh
           server-username: ${{ secrets.OSSRH_USERNAME }}
