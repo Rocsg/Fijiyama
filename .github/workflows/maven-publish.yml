@@ -22,7 +22,7 @@ jobs:
       - name: Deploy JavaDoc
         uses: MathieuSoysal/Javadoc-publisher.yml@v2.0.4
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ACCOUNT_GITHUB_TOKEN }}
           javadoc-branch: javadoc
           java-version: 17
           target-folder: javadoc  
@@ -31,7 +31,7 @@ jobs:
         with:
           allowUpdates: true
           artifacts: "${{ github.workspace }}/target/*.jar"
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.ACCOUNT_GITHUB_TOKEN }}
       - name: Publish to the Maven Central Repository
         run: |
           mvn \
