@@ -3840,7 +3840,6 @@ public class VitimageUtils {
 	 *
 	 * @param introductionSentence the introduction sentence
 	 * @param external the external
-	 * @return the relaxing popup
 	 */
 	public static void getRelaxingPopup(String introductionSentence,boolean external) {
 		String zenSentence=SentenceOfTheDay.getRandomSentence();

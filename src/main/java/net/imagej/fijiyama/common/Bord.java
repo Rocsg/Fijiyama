@@ -22,7 +22,6 @@ public class Bord implements Serializable{
 	
 	/**
 	 * Instantiates a new bord.
-	 *
 	 * @param pix1 the pix 1
 	 * @param pix2 the pix 2
 	 */
