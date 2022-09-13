@@ -26,13 +26,6 @@ jobs:
           javadoc-branch: javadoc
           java-version: 17
           target-folder: javadoc  
-      - name: Create release
-        uses: ncipollo/release-action@v1
-        with:
-          allowUpdates: true
-          artifacts: "${{ github.workspace }}/target/*.jar"
-          token: ${{ secrets.ACCOUNT_GITHUB_TOKEN }}
-
 
 
 
