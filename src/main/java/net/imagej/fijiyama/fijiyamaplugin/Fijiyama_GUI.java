@@ -97,7 +97,7 @@ import net.imagej.fijiyama.rsml.RootModel;
  * ******* User requests ********* 
  * (priority=2/3, difficulty=1/3) Make similarity possible for manual registration to handle miscalibration (Anne-Sophie Spilmont, Khalifa Diouf)
  * (priority=2/3, difficulty=1/3) Integration of interest point auto-detection on geometrical bases (Cedric Moisy)
- * (priority=3/3, difficulty=2/3) Hyperimage support (Jean-Luc and Cedric) --> Has to be tested
+ * (priority=3/3, difficulty=2/3) Hyperimage support (Jean-Luc and Cedric)  Has to be tested
  * (priority=1/3, difficulty=2/3) Possibility of changing variance selection. Imply to version the fjm file to add new parameters to these archives
  */
 
