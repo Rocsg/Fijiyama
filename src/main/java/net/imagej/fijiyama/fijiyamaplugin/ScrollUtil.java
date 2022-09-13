@@ -35,7 +35,6 @@ public final class ScrollUtil {
     public static void scroll(JComponent c, int part,int []opts) {
         scroll(c, part & (LEFT|HCENTER|RIGHT), part & (TOP|VCENTER|BOTTOM|SELECTED),opts);
     }
-
     
     /**
      * Scroll to specified location.  e.g.scroll(component, LEFT, BOTTOM);
