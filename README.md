@@ -6,6 +6,8 @@ Welcome to Fijiyama github.
 * More informations about Fijiyama : 
 https//imagej.net/Fijiyama
 
+* Developer documentation :
+https://javadoc.io/doc/io.github.rocsg/fijiyama/latest/index.html
 
 * Take a tour of the code :
 Code is structured into subpackages :
