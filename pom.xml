@@ -5,13 +5,13 @@
 		http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.github.rocsg</groupId>
-	<artifactId>Fijiyama</artifactId>
-	<version>4.0.0</version>
+	<artifactId>fijiyama</artifactId>
+	<version>4.0.2</version>
 	<packaging>jar</packaging>
+	<url>https://imagej.net/plugins/fijiyama/</url>
 
 
-
-	<name>Fijiyama</name>
+	<name>fijiyama</name>
 	<description>Fijiyama : a versatile registration tool for 3D multimodal time-lapse imaging</description>
 	<inceptionYear>2019</inceptionYear>
 	<licenses>
@@ -21,8 +21,6 @@
 		</license>
 	</licenses>
 
-
-
 	<scm>
 		<connection>scm:git:git://github.com/Rocsg/Fijiyama.git</connection>
 		<developerConnection>scm:git:ssh://github.com:Rocsg/Fijiyama.git</developerConnection>
@@ -31,21 +29,18 @@
 
 	<issueManagement>
 		<system>GitHub Issues</system>
-		<url>https://github.com/Rocsg/phenomen/issues</url>
+		<url>https://github.com/Rocsg/FijiYama/issues</url>
 	</issueManagement>
-
-
 
 	<properties>
 		<package-name>io.github.rocsg.fijiyama</package-name>
-		<license.licenseName>bsd_2</license.licenseName>
+		<license.licenseName>lgpl</license.licenseName>
 		<main-class>fijiyamaplugin.Fijiyama_GUI</main-class>
 		<license.copyrightOwners>Copyleft</license.copyrightOwners>
-  	    <maven.compiler.source>1.8</maven.compiler.source>
-	    <maven.compiler.target>1.8</maven.compiler.target>
+  	    <maven.compiler.source>8</maven.compiler.source>
+	    <maven.compiler.target>8</maven.compiler.target>
 	     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>    
 	</properties>
-
 
 	<repositories>
 	  <repository>
@@ -65,8 +60,7 @@
 			<name>Romain Fernandez</name>
 		</developer>
 	</developers>
-	
-	
+		
 	<dependencies>
 		<dependency>
 		    <groupId>org.jgrapht</groupId>
@@ -74,14 +68,19 @@
 		    <version>1.3.1</version>
 		</dependency>
 
-  		<!-- ?? 
   		<dependency>
-			    <groupId>sc.fiji</groupId>
-			    <artifactId>Trainable_Segmentation</artifactId>
-			    <version>3.2.34</version>
-		</dependency>
-		-->	
-    	<dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.7.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.7.2</version>
+            <scope>test</scope>
+        </dependency>
+     	<dependency>
 		      <groupId>com.opencsv</groupId>
 		      <artifactId>opencsv</artifactId>
 		      <version>5.4</version>
@@ -144,29 +143,29 @@
 		</dependency>
 	</dependencies>
 
-
-	<!-- Required for maven publishing -->	
-
-
-
-	<!-- ?? -->	
 	<distributionManagement>
 		<snapshotRepository>
 			<id>ossrh</id>
-			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+			<url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
 		</snapshotRepository>
 		<repository>
 			<id>ossrh</id>
-			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/
-			</url>
+			<url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
 		</repository>
 	</distributionManagement>
 
-
-
-
 	 <build>
 	  <plugins>
+	      <plugin>
+	          <artifactId>maven-surefire-plugin</artifactId>
+              <version>2.22.2</version>
+          </plugin>
+          <plugin>
+              <artifactId>maven-failsafe-plugin</artifactId>
+              <version>2.22.2</version>
+          </plugin>
+		  
+		  
 		  <plugin>
 		    <groupId>org.sonatype.plugins</groupId>
 		    <artifactId>nexus-staging-maven-plugin</artifactId>
@@ -174,7 +173,7 @@
 		    <extensions>true</extensions>
 		    <configuration>
 		        <serverId>ossrh</serverId>
-		        <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+		        <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
 		        <autoReleaseAfterClose>true</autoReleaseAfterClose>
 		    </configuration>
 		</plugin>
