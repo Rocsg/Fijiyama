@@ -6,7 +6,7 @@
 
 ## Summary
 
-<i>Current Fijiyama version : Gorgeous Grapevine (last release : March 21<sup>th</sup>, 2020).</i>
+<i>Current Fijiyama version : Gorgeous Grapevine (last release : October 7<sup>th</sup>, 2022).</i>
 
 The plugin **Fijiyama** (Yet Another Matching and Alignment tool for Fiji) is a generic tool for registration and alignment of 3D image series collected from various imaging modalities (MRI, X-rays, Microscopy, Photography, ...).
 
