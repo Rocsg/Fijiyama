@@ -2,7 +2,7 @@
 ## Documentation and latest stable build
 [![javadoc](https://javadoc.io/badge2/io.github.rocsg/fijiyama/javadoc.svg)](https://javadoc.io/doc/io.github.rocsg/fijiyama)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.rocsg/fijiyama.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.rocsg%22%20AND%20a:%22fijiyama%22)
-
+[![Downloads](https://img.shields.io/badge/Powered%20by-PostgreSQL-blue.svg)](https://img.shields.io/badge)
 
 ## Summary
 
