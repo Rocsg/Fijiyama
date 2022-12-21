@@ -124,7 +124,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public String versionName="Handsome honeysuckle";
 	
 	/** The time version flag. */
-	public String timeVersionFlag="  Release : 2021-10-27 -15:52 PM - Friederike's fix";
+	public String timeVersionFlag="  Release : 2022-10-14 -10:14 AM - 4.0.3 Snap";
 	
 	/** The version flag. */
 	public String versionFlag=versionName+timeVersionFlag;
@@ -556,6 +556,12 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	 * @param arg the arg
 	 */
 	public void run(String arg) {
+			IJ.log(System.getProperties().toString());
+			if(VitimageUtils.isWindowsOS() && System.getProperties().toString().contains("zulu")) {
+				IJ.showMessage("Things are going to get ugly. \nYou run windows with zulu JDK.\n The plugin will close. \nThen please read the installation instructions on the plugin page\nhttps://imagej.net/plugins/fijirelax ");
+				return;
+			}
+			IJ.log("\nZulu check ok\n\n");
 			startLaunchingInterface();
 			modeWindow=WINDOWIDLE;
 	}
