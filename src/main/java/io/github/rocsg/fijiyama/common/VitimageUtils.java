@@ -48,6 +48,7 @@ import ij.plugin.HyperStackConverter;
 import ij.plugin.ImageCalculator;
 import ij.plugin.ImageInfo;
 import ij.plugin.ImagesToStack;
+import ij.plugin.LutLoader;
 import ij.plugin.RGBStackMerge;
 import ij.plugin.Scaler;
 import ij.plugin.StackCombiner;
@@ -138,8 +139,8 @@ public class VitimageUtils {
 	 */
 	public static GraphPath<Pix,Bord>getShortestAndDarkestPathInImage(ImagePlus imgTemp,int connexity,Pix pixStart,Pix pixStop){
 		ImagePlus img=imgTemp.duplicate();
-		if(img.getType()==ImagePlus.GRAY8)IJ.run(img,"32-bit","");
-		if(img.getType()==ImagePlus.GRAY16)IJ.run(img,"32-bit","");
+		if(img.getType()==ImagePlus.GRAY8)img=convertToFloat(img);
+		if(img.getType()==ImagePlus.GRAY16)img=convertToFloat(img);
 		SimpleWeightedGraph<Pix,Bord>pixGraph=new SimpleWeightedGraph<>(Bord.class);
 		Pix[][]tabPix=new Pix[img.getWidth()][img.getHeight()];
 		int xM=img.getWidth();
@@ -1009,9 +1010,21 @@ public class VitimageUtils {
 
 	
 	
+	public static void setLutToFire(ImagePlus img) {
+		WindowManager.setTempCurrentImage(img);
+		new LutLoader().run("fire");
+	}
 	
+	public static void setLutToGrays(ImagePlus img) {
+		WindowManager.setTempCurrentImage(img);
+		new LutLoader().run("grays");
+	}
 	
-	
+	public static void setLut(ImagePlus img,String str) {
+		WindowManager.setTempCurrentImage(img);
+		if(str.contains("ray")) setLutToGrays(img);
+		else setLutToFire(img);		
+	}
 	
 	
 	/**
@@ -1048,7 +1061,7 @@ public class VitimageUtils {
 		if(sliceMax>img.getStackSize())sliceMax=img.getStackSize();
 		if(sliceMin>sliceMax)sliceMin=sliceMax;
 		img.show();
-		if(img.getType() != ImagePlus.COLOR_RGB)IJ.run(img,"Fire","");
+		if(img.getType() != ImagePlus.COLOR_RGB)setLutToFire(img);
 		if(sliceMin==sliceMax) {
 			miniDuration=(int)Math.round(1000.0*totalDuration/periods);
 			img.setSlice(sliceMin);
@@ -1378,7 +1391,7 @@ public class VitimageUtils {
 	 */
 	public static ImagePlus getBinaryMaskUnaryFloat(ImagePlus img,double threshold) {
 		ImagePlus result=getBinaryMaskUnary(img,threshold);
-		IJ.run(result,"32-bit","");
+		result=convertToFloat(result);
 		return result;
 	}
 	
@@ -1980,9 +1993,9 @@ public class VitimageUtils {
 		img1Source.resetDisplayRange();
 		img2Source.resetDisplayRange();
 		img3Source.resetDisplayRange();
-		IJ.run(img1Source,"8-bit","");
-		IJ.run(img2Source,"8-bit","");
-		IJ.run(img3Source,"8-bit","");
+		new StackConverter(img1Source).convertToGray8();
+		new StackConverter(img2Source).convertToGray8();
+		new StackConverter(img3Source).convertToGray8();
 		if(mask) {
 			ImagePlus maskJet=VitimageUtils.thresholdByteImage(img3Source, 1, 256);
 			IJ.run(maskJet,"Invert","");
@@ -2019,9 +2032,9 @@ public class VitimageUtils {
 		img1.getProcessor().resetMinAndMax();
 		img2.getProcessor().resetMinAndMax();
 		img3.getProcessor().resetMinAndMax();
-		IJ.run(img1,"8-bit","");
-		IJ.run(img2,"8-bit","");
-		IJ.run(img3,"8-bit","");
+		new StackConverter(img1).convertToGray8();
+		new StackConverter(img2).convertToGray8();
+		new StackConverter(img3).convertToGray8();
 		ImageStack is=RGBStackMerge.mergeStacks(img1.getStack(),img2.getStack(),img3.getStack(),true);
 		ImagePlus img=new ImagePlus(title,is);
 		VitimageUtils.adjustImageCalibration(img, img1Source);
@@ -2065,8 +2078,9 @@ public class VitimageUtils {
 	public static ImagePlus compositeNoAdjustOf(ImagePlus img1Source,ImagePlus img2Source){
 		ImagePlus img1=VitimageUtils.imageCopy(img1Source);
 		ImagePlus img2=VitimageUtils.imageCopy(img2Source);
-		IJ.run(img1,"8-bit","");
-		IJ.run(img2,"8-bit","");
+		new StackConverter(img1).convertToGray8();
+		new StackConverter(img2).convertToGray8();
+
 		ImageStack is=RGBStackMerge.mergeStacks(img1.getStack(),img2.getStack(),null,true);
 		ImagePlus img=new ImagePlus("Composite",is);
 		VitimageUtils.adjustImageCalibration(img, img1Source);
@@ -2099,8 +2113,9 @@ public class VitimageUtils {
 		ImagePlus img2=new Duplicator().run(img2Source);
 		img1.resetDisplayRange();
 		img2.resetDisplayRange();
-		IJ.run(img1,"8-bit","");
-		IJ.run(img2,"8-bit","");
+		new StackConverter(img1).convertToGray8();
+		new StackConverter(img2).convertToGray8();
+
 		ImageStack is=RGBStackMerge.mergeStacks(img1.getStack(),img2.getStack(),null,true);
 		ImagePlus img=new ImagePlus("Composite",is);
 		VitimageUtils.adjustImageCalibration(img, img1Source);
@@ -2345,7 +2360,8 @@ public class VitimageUtils {
 				VitimageUtils.adjustImageCalibration(ret[i],hyper);
 				String []sTab=new String[nbZ];
 				for(int z=0;z<nbZ;z++) sTab[z]=ret[i].getStack().getSliceLabel(z+1);
-				IJ.run(ret[i],"Grays","");
+				WindowManager.setTempCurrentImage(ret[i]);
+				new LutLoader().run("grays");
 				for(int z=0;z<nbZ;z++) ret[i].getStack().setSliceLabel(sTab[z],z+1);
 			}
 		}
@@ -3251,7 +3267,7 @@ public class VitimageUtils {
 	 * @return the double[]
 	 */	
 	public static double[] stdAndMeanValueofImageAround(ImagePlus img,int x0,int y0,int z0,double ray) {
-		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.stdAndMeanValueOfImageAround :C or T >1");return null;}
 		int xMax=img.getWidth();
 		int xm=(int)Math.round(x0-ray);
 		int xM=(int)Math.round(x0+ray);
@@ -3480,7 +3496,7 @@ public class VitimageUtils {
 	 * @return the double[]
 	 */
 	public static double []valuesOfBlockDouble(ImagePlus img,double xxm,double yym,double zzm,double xxM,double yyM,double zzM) {
-		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.valuesOfBlockDouble : C or T >1");return null;}
 		int zImg=img.getStackSize();
 		int xMax=img.getWidth();
 
@@ -3586,13 +3602,13 @@ public class VitimageUtils {
 	 * @return the image plus[]
 	 */
 	public static ImagePlus[] meanAndVarOnlyValidValuesByte(ImagePlus img,int rayX) {
-		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.meanAndVarOnlyValidValuesByte : C or T > 1");return null;}
 		ImagePlus imgMean=new Duplicator().run(img);
 		VitimageUtils.adjustImageCalibration(imgMean, img);
-		IJ.run(imgMean,"32-bit","");
+		imgMean=convertToFloat(imgMean);
 		ImagePlus imgVar=new Duplicator().run(img);
 		VitimageUtils.adjustImageCalibration(imgVar, img);
-		IJ.run(imgVar,"32-bit","");
+		imgVar=convertToFloat(imgVar);
 		ImagePlus imgMask=VitimageUtils.thresholdByteImage(img, 0,1);
 		int dimZ=img.getStackSize();
 		for(int z=1;z<=dimZ;z++) {
@@ -3857,7 +3873,7 @@ public class VitimageUtils {
 	 */
 	public static int[][] getMaskAsCoords(ImagePlus img) {
 		int[]dims=VitimageUtils.getDimensions(img);
-		if(dims[2]>1) {IJ.showMessage("Warning in VitimageUtils : extracting 2D coords from multi slices image. Return null");return null;}
+		if(dims[2]>1) {IJ.showMessage("Warning in VitimageUtils.getMaskAsCoords : extracting 2D coords from multi slices image. Return null");return null;}
 		int xM=dims[0];
 		int yM=dims[1];
 		ArrayList<int[]>arRet=new ArrayList<int[]>();
@@ -4311,7 +4327,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 * @return the double
 	 */
 	public static double meanValueofImageAround(ImagePlus img,int x0,int y0,int z0,double ray) {
-		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return 0;}
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.meanValueOfImageAround : measuring std and mean values in hyperimage");return 0;}
 		int xMax=img.getWidth();
 		int xm=(int)Math.round(x0-ray);
 		int xM=(int)Math.round(x0+ray);
@@ -4373,7 +4389,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 * @return the double[]
 	 */
 	public static double []valuesOfImageAround(ImagePlus img,int x0,int y0,int z0,double ray) {
-		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.valuesOfImageAround : measuring std and mean values in hyperimage");return null;}
 		int xMax=img.getWidth();
 		int xm=(int)Math.round(x0-ray);
 		int xM=(int)Math.round(x0+ray);
@@ -4566,7 +4582,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	public static int[][]capillaryCoordinatesAlongZ(ImagePlus img3DT,int[]coords,double capillaryRadius){
 		boolean debug=false;
 		ImagePlus img3D=img3DT.duplicate();
-		IJ.run(img3D,"32-bit","");
+		img3D=convertToFloat(img3D);
 		int[][]ret=new int[img3D.getNSlices()][2];
 		int[]dims=VitimageUtils.getDimensions(img3D);
 		double[]voxs=VitimageUtils.getVoxelSizes(img3D);
@@ -4711,12 +4727,12 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 		boolean debug=false;
 		//Find capillary in the central slice
 		ImagePlus imgSlice=new Duplicator().run(img,1,1,img.getNSlices()/2+1,img.getNSlices()/2+1,1,1);
-		if(imgSlice.getType()!=ImagePlus.GRAY32)IJ.run(imgSlice,"32-bit","");
+		if(imgSlice.getType()!=ImagePlus.GRAY32)imgSlice=convertToFloat(imgSlice);
 		int []coordsCentral=findCapillaryCenterInSlice(imgSlice,capillaryRadius);
 		int[][]capillaryCenters=capillaryCoordinatesAlongZ(img,coordsCentral,capillaryRadius);
 
 		ImagePlus ret=new Duplicator().run(img,1,1,1,img.getNSlices(),1,1);
-		IJ.run(ret,"32-bit","");
+		ret=convertToFloat(ret);
 		ret=VitimageUtils.makeOperationOnOneImage(ret, 2, 0, true);
 		int radiusCapLarge=(int)Math.round(capillaryRadius*2.0/VitimageUtils.getVoxelSizes(img)[0]);
 		int radiusSquare=radiusCapLarge*radiusCapLarge;
@@ -5763,7 +5779,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 * @return the double[]
 	 */
 	public static double[] caracterizeBackgroundOfImage(ImagePlus img) {
-		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.caracterizeBackgroundOfImage : measuring std and mean values in hyperimage");return null;}
 		int samplSize=Math.min(15,img.getWidth()/10);
 		int x0=samplSize;
 		int y0=samplSize;
@@ -5838,7 +5854,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 		if(img.getType()==ImagePlus.GRAY32)return res;
 		if(img.getType()==ImagePlus.GRAY16)return VitimageUtils.convertShortToFloatWithoutDynamicChanges(res);
 		if(img.getType()==ImagePlus.GRAY8)return VitimageUtils.convertByteToFloatWithoutDynamicChanges(res);
-		if(img.getType()==ImagePlus.COLOR_RGB) {IJ.run(res,"8-bit","");return res;}
+		if(img.getType()==ImagePlus.COLOR_RGB) {new StackConverter(res).convertToGray8();return res;}
 		return null;
 	}
 
@@ -6215,7 +6231,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 * @return the image plus
 	 */
 	public static ImagePlus switchAxis(ImagePlus img,int switch_0XY_1XZ_2YZ) {
-		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.switchAxis : more than one channel or time");return null;}
 		ImagePlus ret=null;
 		int X=img.getWidth();
 		int Y=img.getHeight();
@@ -6384,7 +6400,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 * @return the image plus
 	 */
 	public static ImagePlus restrictionMaskForFadingHandling (ImagePlus img,int marginOut){
-		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.java : measuring std and mean values in hyperimage");return null;}
+		if(img.getNChannels()>1 || img.getNFrames()>1) {IJ.showMessage("Warning in VitimageUtils.restrictionMaskForFadingHandling : more than one channel or time");return null;}
 		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getStackSize();
 		if(marginOut>dimZ/3)marginOut=dimZ/3;
 		ImagePlus ret=IJ.createImage("MaskRegistration_"+img.getTitle(), dimX, dimY, dimZ, 8);
@@ -6628,7 +6644,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 * @param max the max
 	 */
 	public static void showWithParams(ImagePlus img,String title,int zSlice,double min, double max) {
-		if(img.getType()!=ImagePlus.COLOR_RGB)				IJ.run(img,"Fire","");
+		if(img.getType()!=ImagePlus.COLOR_RGB)				setLutToFire(img);
 		img.setTitle(title);
 		img.setSlice(zSlice);
 		img.setDisplayRange(min, max);
@@ -6647,7 +6663,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 */
 	public static ImagePlus gaussianInterpolation(ImagePlus img, double threshLow,double sigmaSI) {
 		ImagePlus imgTemp=img.duplicate();
-		IJ.run(imgTemp,"32-bit","");
+		imgTemp=convertToFloat(imgTemp);
 		ImagePlus mask=VitimageUtils.thresholdImage(imgTemp, threshLow, 1E20);
 //		showWithParams(mask, "mask", 1, 0, 1);
 		mask=gaussianFilteringIJ(mask, sigmaSI, sigmaSI, sigmaSI);
@@ -6922,7 +6938,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 * @param source the source
 	 */
 	public static void copyImageCalibrationAndRange(ImagePlus target,ImagePlus source) {
-		if(target.getNChannels()>source.getNChannels()) {IJ.showMessage("Warning in VitimageUtils : channels does not match");return;}
+		if(target.getNChannels()>source.getNChannels()) {IJ.showMessage("Warning in VitimageUtils.copyImageCalibrationAndRange : channels does not match");return;}
 		adjustImageCalibration(target, source);
 		LUT[]lu=source.getLuts();
 		for(int c=0;c<target.getNChannels();c++) {
@@ -7038,7 +7054,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	public static double getEchoTime(ImagePlus img) {
 		String[]strLines=new ImageInfo().getImageInfo(img).split("\n");
 		for(String str : strLines)if(str.contains("Echo Time"))return Double.parseDouble(str.split(": ")[1].split(" ")[0]);
-		IJ.showMessage("Warning in VitimageUtils.getAveraging : no Number of Averages metadata found for image "+VitimageUtils.imageResume(img));
+		//IJ.showMessage("Warning in VitimageUtils.getEchoTime : no detectedEchoTime in "+VitimageUtils.imageResume(img));
 		return 1;
 	}
 	
@@ -7053,7 +7069,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 */
 	public static ImagePlus convertShortToFloatWithoutDynamicChanges(ImagePlus imgIn) {
 		ImagePlus ret=new Duplicator().run(imgIn);
-		IJ.run(ret,"32-bit","");
+		ret=convertToFloat(ret);
 		float[][] out=new float[ret.getStackSize()][];
 		short[][] in=new short[imgIn.getStackSize()][];
 		int X=imgIn.getWidth();
@@ -7082,7 +7098,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	public static ImagePlus convertFloatToShortWithoutDynamicChanges(ImagePlus imgIn) {
 		ImagePlus ret=new Duplicator().run(imgIn);
 		if(imgIn.getType()==ImagePlus.GRAY16)return ret;
-		IJ.run(ret,"16-bit","");
+		new StackConverter(ret).convertToGray16();
 		float[][] in=new float[imgIn.getStackSize()][];
 		short[][] out=new short[ret.getStackSize()][];
 		int X=imgIn.getWidth();
@@ -7111,7 +7127,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	public static ImagePlus convertFloatToByteWithoutDynamicChanges(ImagePlus imgIn) {
 		ImagePlus ret=new Duplicator().run(imgIn);
 		if(imgIn.getType()==ImagePlus.GRAY8)return ret;
-		IJ.run(ret,"8-bit","");
+		new StackConverter(ret).convertToGray8();
 		float[][] in=new float[imgIn.getStackSize()][];
 		byte[][] out=new byte[ret.getStackSize()][];
 		int X=imgIn.getWidth();
@@ -7249,7 +7265,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 */
 	public static ImagePlus thresholdByteImageToFloatMask(ImagePlus img,double thresholdMin, double thresholdMax) {
 		ImagePlus ret=new Duplicator().run(img);
-		IJ.run(ret,"32-bit","");
+		ret=convertToFloat(ret);
 		VitimageUtils.adjustImageCalibration(ret,img);
 		byte[][] in=new byte[img.getStackSize()][];
 		float[][] out=new float[ret.getStackSize()][];
@@ -7280,7 +7296,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 */
 	public static ImagePlus thresholdShortImageToFloatMask(ImagePlus img,double thresholdMin, double thresholdMax) {
 		ImagePlus ret=new Duplicator().run(img);
-		IJ.run(ret,"32-bit","");
+		ret=convertToFloat(ret);
 		VitimageUtils.adjustImageCalibration(ret,img);
 		short[][] in=new short[img.getStackSize()][];
 		float[][] out=new float[ret.getStackSize()][];
@@ -7326,7 +7342,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 */
 	public static ImagePlus getFloatBinaryMask(ImagePlus img,double valMin, double valMax) {
 		ImagePlus ret=new Duplicator().run(img);
-		IJ.run(ret,"32-bit","");
+		ret=convertToFloat(ret);
 		float[][] out=new float[ret.getStackSize()][];
 		int X=img.getWidth();
 		int Y=img.getHeight();
@@ -7450,7 +7466,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 */
 	public static ImagePlus convertByteToFloatWithoutDynamicChanges(ImagePlus imgIn) {
 		ImagePlus ret=VitimageUtils.imageCopy(imgIn);
-		IJ.run(ret,"32-bit","");
+		ret=convertToFloat(ret);
 
 		float[][] out=new float[ret.getStackSize()][];
 		byte[][] in=new byte[imgIn.getStackSize()][];
@@ -7509,7 +7525,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 */
 	public static ImagePlus sumOfImages(ImagePlus []tabImg) {
 		ImagePlus ret=tabImg[0].duplicate();
-		IJ.run(ret,"32-bit","");
+		ret=convertToFloat(ret);
 		for(int i=1;i<tabImg.length;i++)ret=VitimageUtils.makeOperationBetweenTwoImages(ret, tabImg[i], 1,true);
 		return ret;
 	}

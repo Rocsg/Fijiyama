@@ -18,6 +18,7 @@ import ij.io.Opener;
 import ij.plugin.Duplicator;
 import ij.plugin.ImageInfo;
 import ij.plugin.filter.Convolver;
+import ij.process.StackConverter;
 import io.github.rocsg.fijiyama.common.VitiDialogs;
 import io.github.rocsg.fijiyama.common.VitimageUtils;
 import io.github.rocsg.fijiyama.fijiyamaplugin.Fijiyama_GUI;
@@ -262,20 +263,22 @@ public class TestingRegistrationPackage {
 		}
 		
 		imgIn=IJ.openImage(new File(inputPath,"img_2D_32bits.tif").getAbsolutePath());
-		IJ.run(imgIn,"16-bit","");
+		new StackConverter(imgIn).convertToGray16();
 		out=tr.transformImage(imgIn,imgIn,false);
 		if(out.getType()!=ImagePlus.GRAY16)errors+=4;
 		if(buildingCase)IJ.saveAsTiff(out,new File(inputPath,"level_00_result2.tif").getAbsolutePath());
 		else{
 			imgExp=IJ.openImage(new File(inputPath,"level_00_result2.tif").getAbsolutePath());
-			IJ.run(imgExp,"32-bit","");
-			IJ.run(out,"32-bit","");
+			imgExp=VitimageUtils.convertToFloat(imgExp);
+			out=VitimageUtils.convertToFloat(out);
 			diff=VitimageUtils.makeOperationBetweenTwoImages(imgExp,out,VitimageUtils.OP_SUB,true);
 			if(!VitimageUtils.isNullFloatImage(diff))errors+=8;
 		}
 		
 		imgIn=IJ.openImage(new File(inputPath,"img_2D_32bits.tif").getAbsolutePath());
-		IJ.run(imgIn,"8-bit","");
+		imgIn=VitimageUtils.convertToFloat(imgIn);
+		imgIn=VitimageUtils.convertFloatToByteWithoutDynamicChanges(imgIn);
+		new StackConverter(imgIn).convertToGray32();
 		out=tr.transformImage(imgIn,imgIn,false);
 		if(out.getType()!=ImagePlus.GRAY8)errors+=16;
 		if(buildingCase)IJ.saveAsTiff(out,new File(inputPath,"level_00_result3.tif").getAbsolutePath());
@@ -328,20 +331,20 @@ public class TestingRegistrationPackage {
 		}
 		
 		imgIn=IJ.openImage(new File(inputPath,"img_3D_32bits.tif").getAbsolutePath());
-		IJ.run(imgIn,"16-bit","");
+		new StackConverter(imgIn).convertToGray16();
 		out=tr.transformImage(imgIn,imgIn,false);
 		if(out.getType()!=ImagePlus.GRAY16)errors+=4;
 		if(buildingCase)IJ.saveAsTiff(out,new File(inputPath,"level_05_result2.tif").getAbsolutePath());
 		else{
 			imgExp=IJ.openImage(new File(inputPath,"level_05_result2.tif").getAbsolutePath());
-			IJ.run(imgExp,"32-bit","");
-			IJ.run(out,"32-bit","");
+			new StackConverter(out).convertToGray32();
+			new StackConverter(imgExp).convertToGray16();
 			diff=VitimageUtils.makeOperationBetweenTwoImages(imgExp,out,VitimageUtils.OP_SUB,true);
 			if(!VitimageUtils.isNullFloatImage(diff))errors+=8;
 		}
 		
 		imgIn=IJ.openImage(new File(inputPath,"img_3D_32bits.tif").getAbsolutePath());
-		IJ.run(imgIn,"8-bit","");
+		new StackConverter(imgIn).convertToGray8();
 		out=tr.transformImage(imgIn,imgIn,false);
 		if(out.getType()!=ImagePlus.GRAY8)errors+=16;
 		if(buildingCase)IJ.saveAsTiff(out,new File(inputPath,"level_05_result3.tif").getAbsolutePath());
@@ -352,7 +355,7 @@ public class TestingRegistrationPackage {
 		}
 		
 		imgIn=IJ.openImage(new File(inputPath,"img_3D_32bits.tif").getAbsolutePath());
-		IJ.run(imgIn,"RGB Color","");
+		new StackConverter(out).convertToRGB();
 		out=tr.transformImage(imgIn,imgIn,false);
 		if(out.getType()!=ImagePlus.COLOR_RGB)errors+=64;
 		if(buildingCase)IJ.saveAsTiff(out,new File(inputPath,"level_05_result4.tif").getAbsolutePath());
@@ -365,7 +368,7 @@ public class TestingRegistrationPackage {
 		
 		
 		imgIn=IJ.openImage(new File(inputPath,"img_3D_32bits.tif").getAbsolutePath());
-		IJ.run(imgIn,"8-bit","");
+		new StackConverter(imgIn).convertToGray32();
 		tr.addTransform(ItkTransform.readAsDenseField(new File(inputPath,"Transform_Step_0.transform.tif").getAbsolutePath()));
 		out=tr.transformImage(imgIn,imgIn,false);
 		if(buildingCase)IJ.saveAsTiff(out,new File(inputPath,"level_05_result5.tif").getAbsolutePath());

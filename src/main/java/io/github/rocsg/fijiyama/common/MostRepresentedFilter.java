@@ -7,6 +7,7 @@ import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.plugin.Duplicator;
+import ij.process.StackConverter;
 import io.github.rocsg.fijiyama.common.VitimageUtils;
 
 // TODO: Auto-generated Javadoc
@@ -30,7 +31,7 @@ public class MostRepresentedFilter {
 		ImageJ ij=new ImageJ();
 		ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/test.tif");
 		img.setDisplayRange(0, 255);
-		IJ.run(img,"8-bit","");
+		new StackConverter(img).convertToGray8();
 		ImagePlus img2=mostRepresentedFilteringWithRadiusWithBGExclusion(img, 4, false, 255, false, 0);
 		img.setTitle("Before");
 		img.setDisplayRange(-1,22);

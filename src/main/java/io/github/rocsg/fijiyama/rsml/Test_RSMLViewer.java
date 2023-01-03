@@ -289,15 +289,3 @@ public class Test_RSMLViewer {
 
 
 
-/*
-IJ.run(imp, "32-bit", "");
-IJ.run("Merge Channels...", "c1=[20200826-AC-PIP_azote_Seq 3_Boite 00001_IdentificationFailed-Visu.rsml] c4=[20200826-AC-PIP_azote_Seq 3_Boite 00001_IdentificationFailed-Visu.jpg] create");
-IJ.run(imp, "RGB Color", "");
-ImagePlus imp2 = CompositeConverter.makeComposite(imp);
-IJ.run("In [+]", "");
-IJ.run("In [+]", "");
-IJ.run("In [+]", "");
-IJ.run("In [+]", "");
-IJ.run("Out [-]", "");
-IJ.run("In [+]", "");
-*/

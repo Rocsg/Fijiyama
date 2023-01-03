@@ -32,6 +32,7 @@ import ij.plugin.Memory;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
+import ij.process.StackConverter;
 import ij3d.ImageJ3DViewer;
 import ij3d.shortcuts.ShortCuts;
 import io.github.rocsg.fijiyama.common.VitiDialogs;
@@ -49,6 +50,7 @@ import math3d.Point3d;
 
 // TODO: Auto-generated Javadoc
 /**
+ * 
  * The Class RegistrationManager.
  */
 public class RegistrationManager{
@@ -1105,7 +1107,7 @@ public class RegistrationManager{
 					if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 						img=IJ.openImage(this.paths[nt][nm]);
 						this.imageLuts[nt][nm]=img.getLuts();
-						if(img.getType()==ImagePlus.COLOR_RGB)IJ.run(img,"8-bit","");
+						if(img.getType()==ImagePlus.COLOR_RGB)new StackConverter(img).convertToGray8();
 						for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
 							for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
 								img.setC(Math.min(img.getNChannels(), nm2+1));
@@ -1169,7 +1171,7 @@ public class RegistrationManager{
 							if(imageSizes[nt][nm]<=this.maxImageSizeForRegistration) {
 								img=IJ.openImage(this.paths[nt][nm]);
 								this.imageLuts[nt][nm]=img.getLuts();
-								if(img.getType()==ImagePlus.COLOR_RGB)IJ.run(img,"8-bit","");
+								if(img.getType()==ImagePlus.COLOR_RGB)new StackConverter(img).convertToGray8();
 								for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
 									for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
 										img.setC(Math.min(img.getNChannels(),nm2+1));
@@ -1234,7 +1236,7 @@ public class RegistrationManager{
 								}
 								img=IJ.openImage(this.paths[nt][nm]);
 								this.imageLuts[nt][nm]=img.getLuts();
-								if(img.getType()==ImagePlus.COLOR_RGB)IJ.run(img,"8-bit","");
+								if(img.getType()==ImagePlus.COLOR_RGB)new StackConverter(img).convertToGray8();
 								for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
 									for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
 										img.setC(Math.min(img.getNChannels(),nm2+1));
@@ -1283,7 +1285,7 @@ public class RegistrationManager{
 							this.images[nt][nm]=IJ.openImage(this.paths[nt][nm]);
 							this.isSubSampled[nt][nm]=false;
 							this.imageLuts[nt][nm]=this.images[nt][nm].getLuts();
-							if(this.images[nt][nm].getType()==ImagePlus.COLOR_RGB)IJ.run(this.images[nt][nm],"8-bit","");
+							if(this.images[nt][nm].getType()==ImagePlus.COLOR_RGB)new StackConverter(this.images[nt][nm]).convertToGray8();
 							for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
 								for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
 									this.images[nt][nm].setC(Math.min(this.images[nt][nm].getNChannels(), nm2+1));
@@ -1293,7 +1295,8 @@ public class RegistrationManager{
 									//this.imageRanges[nt][nm][nt2][nm2][1]=this.images[nt][nm].getDisplayRangeMax();									
 								}
 							}
-		
+							
+							
 							
 							if(isBionanoImagesWithCapillary) {
 								if(this.images[nt][nm].getNChannels()>=4 && (this.images[nt][nm].getStack().getSliceLabel(VitimageUtils.getCorrespondingSliceInHyperImage(this.images[nt][nm], 3, 0, 0)).contains("MASKMAP")) ){ 
@@ -1720,12 +1723,12 @@ public class RegistrationManager{
 		if(true)System.out.println("01 Starting viewer 3D in RegistrationManager");
 		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
 		VitimageUtils.adjustContrast3d(refCopy, Fijiyama_GUI.percentileDisplay,Fijiyama_GUI.widthRangeDisplay);
-		IJ.run(refCopy,"8-bit","");
+		new StackConverter(refCopy).convertToGray8();
 		if(true)System.out.println("02 Starting viewer 3D in RegistrationManager");
-		VitimageUtils.waitFor(2000);
+		VitimageUtils.waitFor(200);
 		if(true)System.out.println("0201 Starting viewer 3D in RegistrationManager");
 		this.universe=new ij3d.Image3DUniverse();
-		VitimageUtils.waitFor(2000);
+		VitimageUtils.waitFor(200);
 		if(true)System.out.println("021 Starting viewer 3D in RegistrationManager");
 		universe.show();
 		if(true)System.out.println("022 Starting viewer 3D in RegistrationManager");
@@ -1739,7 +1742,7 @@ public class RegistrationManager{
 		if(imgMov!=null) {
 			ImagePlus movCopy=VitimageUtils.imageCopy(imgMov);		
 			VitimageUtils.adjustContrast3d(movCopy, Fijiyama_GUI.percentileDisplay,Fijiyama_GUI.widthRangeDisplay);
-			IJ.run(movCopy,"8-bit","");
+			new StackConverter(movCopy).convertToGray8();
 			universe.removeAllContents();
 			universe.addContent(refCopy, new Color3f(Color.red),"refCopy",50,new boolean[] {true,true,true},1,0 );
 			universe.addContent(movCopy, new Color3f(Color.green),"movCopy",50,new boolean[] {true,true,true},1,0 );
@@ -1833,11 +1836,11 @@ public class RegistrationManager{
 	public void start2dManualRegistration(ImagePlus imgRef,ImagePlus imgMov) {
 		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
 		ImagePlus movCopy=null;
-		IJ.run(refCopy,"8-bit","");
+		new StackConverter(refCopy).convertToGray8();
 		refCopy.setTitle(fijiyamaGui.displayedNameImage1);
 		if(imgMov!=null) {
 			movCopy=VitimageUtils.imageCopy(imgMov);		
-			IJ.run(movCopy,"8-bit","");
+			new StackConverter(movCopy).convertToGray8();
 			movCopy.setTitle(fijiyamaGui.displayedNameImage2);
 		}
 		else {
@@ -2124,7 +2127,8 @@ public class RegistrationManager{
 				else {
 					 hyperImg[index]=VitimageUtils.nullImage(referenceGeometryForTransforms);
 				}
-				if(this.valueAllTypes()==ImagePlus.GRAY32 || this.valueAllTypes()==-1)IJ.run(hyperImg[index],"32-bit","");
+				if(this.valueAllTypes()==ImagePlus.GRAY32 || this.valueAllTypes()==-1)hyperImg[index]=VitimageUtils.convertToFloat(hyperImg[index]);
+//					IJ.run(hyperImg[index],"32-bit","");
 				IJ.log("Img t"+nt+" mod"+nm+" index "+index+"  ready. ");
 			}
 		}

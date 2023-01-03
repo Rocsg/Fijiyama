@@ -28,6 +28,7 @@ import ij.plugin.HyperStackConverter;
 import ij.plugin.RGBStackMerge;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
+import ij.process.StackConverter;
 import io.github.rocsg.fijiyama.common.ItkImagePlusInterface;
 import io.github.rocsg.fijiyama.common.Timer;
 import io.github.rocsg.fijiyama.common.VitiDialogs;
@@ -137,7 +138,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	 */
 	public static ItkTransform getIdentityDenseFieldTransform(ImagePlus imgRef) {
 		ImagePlus img=imgRef.duplicate();
-		IJ.run(img,"32-bit","");
+		img=VitimageUtils.convertToFloat(img);
 		for(int i=0;i<img.getNSlices();i++)img.getStack().getProcessor(i+1).set(0);
 		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(new ImagePlus[] {img,img,img})));
 	}
@@ -560,7 +561,8 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	 */
 	public ImagePlus distanceMap(ImagePlus imgRef,boolean propToImageSize){
 		ImagePlus ret=imgRef.duplicate();
-		IJ.run(ret,"32-bit","");
+		ret=VitimageUtils.convertToFloat(ret);
+
 		int X=imgRef.getWidth();
 		int Y=imgRef.getHeight();
 		int Z=imgRef.getNSlices();
@@ -638,7 +640,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		int nPt=values.length;
 
 		ImagePlus imgWeights=new Duplicator().run(imgRef,1,1,1,imgRef.getNSlices(),1,1);
-		IJ.run(imgWeights,"32-bit","");
+		imgWeights=VitimageUtils.convertToFloat(imgWeights);
 		imgWeights=VitimageUtils.set32bitToValue(imgWeights, 0);
 		ImagePlus imgFieldX=imgWeights.duplicate();
 				
@@ -1009,10 +1011,11 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		ImagePlus[]threshTab=new ImagePlus[max-min+1];
 		ImagePlus mov8=new Duplicator().run(imgMov);
 		mov8.setDisplayRange(0, 255);
-		IJ.run(mov8,"8-bit","");
+		mov8=VitimageUtils.convertToFloat(mov8);
+		mov8=VitimageUtils.convertFloatToByteWithoutDynamicChanges(mov8);
 		for(int thr=min;thr<=max;thr++) {
 			threshTab[thr-min]=VitimageUtils.thresholdByteImage(mov8, thr, thr+1);
-			IJ.run(threshTab[thr-min],"32-bit","");			
+			threshTab[thr-min]=VitimageUtils.convertToFloat(threshTab[thr-min]);
 			int val=Math.min(  10    ,    Math.min(   threshTab[thr-min].getWidth()/20    ,   threshTab[thr-min].getHeight()/20  ));
 			int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(threshTab[thr-min],val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(threshTab[thr-min],threshTab[thr-min].getWidth()-val-1,threshTab[thr-min].getHeight()-val-1,0,val)*0.5    );
 			ResampleImageFilter resampler=new ResampleImageFilter();
@@ -1024,7 +1027,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 
 		ImagePlus ret=new Duplicator().run(imgRef);
 		VitimageUtils.adjustImageCalibration(ret, imgRef);
-		IJ.run(ret,"8-bit","");
+		new StackConverter(ret).convertToGray8();
 		float valMax=0;
 		float val=0;
 		int indMax=0;
@@ -1172,7 +1175,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	 */
 	public void showAsGrid3D(ImagePlus imgRef2,int pixelSpacing,String title,int slice) {
 		ImagePlus imgRef=VitimageUtils.imageCopy(imgRef2);
-		IJ.run(imgRef,"8-bit","");
+		new StackConverter(imgRef).convertToGray8();
 		ImagePlus gridXY=VitimageUtils.getBinaryGrid(imgRef, pixelSpacing);
 		ImagePlus tempXY=this.transformImage(imgRef,gridXY,false);
 		tempXY.setTitle(title+"-XY plane");
@@ -1563,7 +1566,7 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 		IJ.saveAsTiff(trans[0],shortPath+".x.tif");
 		IJ.saveAsTiff(trans[1],shortPath+".y.tif");
 		IJ.saveAsTiff(trans[2],shortPath+".z.tif");
-		IJ.run(trans[0],"8-bit","");
+		new StackConverter(trans[0]).convertToGray8();
 		IJ.saveAsTiff(trans[0],shortPath+".transform.tif");
 	}
 		

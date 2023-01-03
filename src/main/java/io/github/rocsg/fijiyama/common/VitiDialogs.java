@@ -17,6 +17,7 @@ import ij.io.OpenDialog;
 import ij.io.SaveDialog;
 import ij.plugin.Duplicator;
 import ij.plugin.frame.RoiManager;
+import ij.process.StackConverter;
 import io.github.rocsg.fijiyama.common.VitiDialogs;
 import io.github.rocsg.fijiyama.registration.ItkTransform;
 import io.github.rocsg.fijiyama.registration.TransformUtils;
@@ -769,7 +770,8 @@ public interface VitiDialogs {
 		ImagePlus imgInspect=new Duplicator().run(img);
 		Point3d pointCoordImage=TransformUtils.convertPointToImageSpace(suggestedInocPoint,imgInspect);
 		imgInspect.getProcessor().resetMinAndMax();
-		IJ.run(imgInspect,"8-bit","");
+		new StackConverter(imgInspect).convertToGray8();
+
 		ImagePlus imgPoint=ij.gui.NewImage.createImage("point",img.getWidth(),img.getHeight(),img.getStackSize(),8,ij.gui.NewImage.FILL_BLACK);
 		VitimageUtils.adjustImageCalibration(imgPoint,imgInspect);
 		imgPoint=VitimageUtils.drawCircleInImage(imgPoint,ray,(int)Math.round(pointCoordImage.x),(int)Math.round(pointCoordImage.y),(int)Math.round(pointCoordImage.z),255);
@@ -820,7 +822,8 @@ public interface VitiDialogs {
 		ImagePlus imgInspect=new Duplicator().run(img);
 		Point3d pointCoordImage=TransformUtils.convertPointToImageSpace(ptOrigine,imgInspect);
 		imgInspect.getProcessor().resetMinAndMax();
-		IJ.run(imgInspect,"8-bit","");
+		new StackConverter(imgInspect).convertToGray8();
+
 		ImagePlus imgPoint=ij.gui.NewImage.createImage("point",img.getWidth(),img.getHeight(),img.getStackSize(),8,ij.gui.NewImage.FILL_BLACK);
 		VitimageUtils.adjustImageCalibration(imgPoint,imgInspect);
 		imgPoint=VitimageUtils.drawThickLineInImage(imgPoint,ray,(int)Math.round(pointCoordImage.x),(int)Math.round(pointCoordImage.y),(int)Math.round(pointCoordImage.z),vectZ);

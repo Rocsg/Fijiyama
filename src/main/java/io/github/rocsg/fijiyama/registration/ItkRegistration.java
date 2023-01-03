@@ -693,10 +693,6 @@ public class ItkRegistration implements ItkImagePlusInterface{
 			this.sliceSummaryMov=ItkImagePlusInterface.itkImageToImagePlusSlice(this.itkSummaryMov,this.viewSlice);
 			this.sliceSummaryRef=ItkImagePlusInterface.itkImageToImagePlusSlice(this.itkSummaryRef,this.viewSlice);
 		}
-		/*this.sliceSummaryRef.getProcessor().resetMinAndMax();
-		this.sliceSummaryMov.getProcessor().resetMinAndMax();
-		IJ.run(this.sliceSummaryRef,"8-bit","");
-		IJ.run(this.sliceSummaryMov,"8-bit","");*/
 		ImagePlus temp2=VitimageUtils.compositeOf(this.sliceSummaryRef,this.sliceSummaryMov,"Registration is running. Red=Reference, Green=moving");
 		temp2=VitimageUtils.writeTextOnImage(viewText,temp2,this.fontSize*temp2.getWidth()/this.imageSizeReference[0],0);
 		temp2=VitimageUtils.writeTextOnImage(currentTrans.drawableString(),temp2,this.fontSize*temp2.getWidth()/this.imageSizeReference[0]-2,1);

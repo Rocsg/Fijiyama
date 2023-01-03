@@ -16,6 +16,7 @@ import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.plugin.Duplicator;
+import ij.process.StackConverter;
 import io.github.rocsg.fijiyama.common.ItkImagePlusInterface;
 import io.github.rocsg.fijiyama.common.VitimageUtils;
 import io.github.rocsg.fijiyama.fijiyamaplugin.RegistrationAction;
@@ -352,8 +353,11 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		this.resampler=new ResampleImageFilter();
 		this.imgRef=VitimageUtils.imageCopy(imgReff);
 		this.imgMov=VitimageUtils.imageCopy(imgMovv);
-		if(this.imgRef.getType() != 32)IJ.run(imgRef,"32-bit","");
-		if(this.imgMov.getType() != 32)IJ.run(imgMov,"32-bit","");
+		int aaa=1;
+		int bbb=2;
+		
+		if(this.imgRef.getType() != 32)imgRef=VitimageUtils.convertToFloat(imgRef);
+		if(this.imgMov.getType() != 32)imgMov=VitimageUtils.convertToFloat(imgMov);
 		this.metricType=metricType;
 		this.transformationType=transformationType;
 		this.levelMin=levelMin;
@@ -1459,7 +1463,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		else this.sliceMov=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(this.imgRef,this.imgMov,false)),this.sliceInt);
 		if(flagRange)this.sliceMov.setDisplayRange(movRange[0], movRange[1]);
 		else this.sliceMov.resetDisplayRange();
-		IJ.run(this.sliceMov,"8-bit","");
+		new StackConverter(sliceMov).convertToGray8();
+
 		this.sliceMov=VitimageUtils.writeTextOnImage(textIter,this.sliceMov,(this.fontSize*4)/3,0);
 		if(textTrans!=null)this.sliceMov=VitimageUtils.writeTextOnImage(textTrans,this.sliceMov,this.fontSize,1);
 
@@ -1476,7 +1481,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			this.sliceRef.setSlice(this.sliceInt);
 			if(flagRange)this.sliceRef.setDisplayRange(refRange[0], refRange[1]);
 			else this.sliceRef.resetDisplayRange();
-			IJ.run(this.sliceRef,"8-bit","");//TEST EN COURS
+			new StackConverter(sliceRef).convertToGray8();
+
 			ImagePlus temp=VitimageUtils.writeTextOnImage(textIter,this.sliceRef,(this.fontSize*4)/3,0);
 			if(textTrans!=null)temp=VitimageUtils.writeTextOnImage(textTrans,temp,this.fontSize,1);
 			if(flagSingleView)this.sliceFuse=(flagRange ? VitimageUtils.compositeNoAdjustOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving, Gray=score. Level=0 Iter=0 "+this.info) : 
@@ -1502,11 +1508,10 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 				this.sliceGrid.getWindow().setSize(this.viewWidth,this.viewHeight);
 				this.sliceGrid.getCanvas().fitToWindow();
 				this.sliceGrid.setSlice(this.sliceInt);
-			    //if(isRsml)IJ.run(this.sliceGrid,"32-bit","");
 				VitimageUtils.adjustImageOnScreenRelative(this.sliceGrid,this.sliceFuse,2,0,10);
 	
 				tempImg=new Duplicator().run(imgRef);
-				IJ.run(tempImg,"32-bit","");
+				tempImg=VitimageUtils.convertToFloat(tempImg);
 				tempImg.getProcessor().set(0);
 				this.sliceCorr=tempImg;
 				this.sliceCorr.setSlice(this.sliceIntCorr);
@@ -1575,10 +1580,12 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		IJ.run(distMap, "Add...", "value="+factorAdd);//goes from -inf to 10, with a lot between -inf and 8
 		IJ.run(distMap, "Multiply...", "value="+factorMult);//goes from -inf to 250, with a lot between -inf and 200
 		distMap.setDisplayRange(0, 255);
-		IJ.run(distMap,"8-bit","");
-		IJ.run(distMap,"32-bit","");
+		distMap=VitimageUtils.convertToFloat(distMap);
+		distMap=VitimageUtils.convertFloatToByteWithoutDynamicChanges(distMap);
+		distMap=VitimageUtils.convertToFloat(distMap);
+
 		ImagePlus gridTemp=grid.duplicate();
-		IJ.run(gridTemp,"32-bit","");
+		gridTemp=VitimageUtils.convertToFloat(gridTemp);
 		
 		ImagePlus maskGrid=VitimageUtils.makeOperationOnOneImage(gridTemp, 2,1/255.0,true);
 		ImagePlus gridResidual=VitimageUtils.makeOperationOnOneImage(gridTemp, 2,1/15.0,true);
@@ -1593,7 +1600,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		test=VitimageUtils.makeOperationBetweenTwoImages(test, maskOutRoot, 2, true);
 		test=VitimageUtils.makeOperationBetweenTwoImages(test, gridResidual, 1, true);
 		test.setDisplayRange(0, 255);
-		IJ.run(test,"8-bit","");
+		test=VitimageUtils.convertToFloat(test);
+		test=VitimageUtils.convertFloatToByteWithoutDynamicChanges(test);
 		IJ.run(test,"Fire","");
 		distMap.setDisplayRange(0, 255);
 		ImagePlus maskOutGrid=VitimageUtils.invertBinaryMask(maskGrid);
@@ -1606,7 +1614,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 //		ImagePlus maskOutGrid=VitimageUtils.getBinaryMaskUnary(gridTemp, 1);
 		
 		distMap.setDisplayRange(0, 255);
-		IJ.run(distMap,"8-bit","");
+		distMap=VitimageUtils.convertToFloat(distMap);
+		distMap=VitimageUtils.convertFloatToByteWithoutDynamicChanges(distMap);
 		IJ.run(distMap,"Fire","");
 		//distMap.duplicate().show();
 		//VitimageUtils.waitFor(50000);
