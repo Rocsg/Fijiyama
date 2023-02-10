@@ -31,6 +31,327 @@ import java.util.List;
 
 public class Root implements Comparable<Root>{
    
+	
+	   public void repairUnevenSituations() {
+		   //Display all
+		   Node n=firstNode;
+		   while(n.child!=null) {
+			   System.out.println(n);
+			   n=n.child;
+		   }
+		   //Detect if 
+	   }
+	
+	   public void cleanNegativeTh() {
+		   Node n=firstNode;
+		   while(n.child!=null) {
+			   if(n.birthTimeHours<0)n.birthTimeHours=0;
+			   if(n.birthTime<1)n.birthTime=0;
+			   n=n.child;
+		   }
+		   if(n!=null) {
+			   if(n.birthTimeHours<0)n.birthTimeHours=0;
+			   if(n.birthTime<1)n.birthTime=0;
+		   }
+	   }
+	
+	   public void interpolateTime() {
+		   Node n=firstNode;
+		   double dist0=firstNode.distance;
+		   double time0=firstNode.birthTime;
+		   double timehour0=firstNode.birthTimeHours;
+		   ArrayList<Double>times=new ArrayList<Double>();
+		   ArrayList<Double>timesHours=new ArrayList<Double>();
+		   ArrayList<Double>dists=new ArrayList<Double>();
+		   dists.add(n.distance);
+		   times.add(new Double(n.birthTime));
+		   timesHours.add(new Double(n.birthTimeHours));
+		   while(n.child!=null) {
+			   n=n.child;
+			   if(n.birthTime>=0) {
+				   dists.add(n.distance);
+				   times.add(new Double( n.birthTime ));
+				   timesHours.add(new Double( n.birthTimeHours ));
+			   }
+		   }
+		   Double[]distsTab=dists.toArray(new Double[dists.size()]);
+		   Double[]timesTab=times.toArray(new Double[times.size()]);
+		   Double[]timesHoursTab=timesHours.toArray(new Double[timesHours.size()]);
+		   
+		   n=firstNode;
+		   while(n.child!=null) {
+			   n=n.child;
+			   if(n.birthTime<0) {
+				   n.birthTime=(float) linearInterpolation(n.distance, distsTab, timesTab);
+				   n.birthTimeHours=(float) linearInterpolation(n.distance, distsTab, timesHoursTab);
+			   }
+		   }
+	   }
+
+   
+	   public void updateTiming() {
+		   boolean debug=false;
+		   Node nStart=this.firstNode;
+		   Node nStop=this.lastNode;
+		   Node curNode=nStart;
+		   ArrayList<Node>listNode=new ArrayList<Node>();
+		   while(curNode!=null) {
+			   listNode.add(curNode);
+			   curNode=curNode.child;
+		   }
+		   int N=listNode.size();
+		   this.nNodes=N;
+		   Node[]tabNode=listNode.toArray(new Node[N]);
+		   Node[]tabNodePrev=listNode.toArray(new Node[N]);
+		   Node[]tabNodeNext=listNode.toArray(new Node[N]);
+		   boolean[]tabExact=new boolean[N];
+		   double[]distToPrev=new double[N]; 
+		   double[]distToNext=new double[N];
+
+		   //1 Identify nodes falling exactly on an observation timepoint
+		   for(int i=0;i<N;i++) {
+			   tabExact[i]=(Math.abs(tabNode[i].birthTime-Math.round(tabNode[i].birthTime))<VitimageUtils.EPSILON);
+			   if(debug)  System.out.println(" i="+i+" isExact ?"+tabExact[i]+" "+tabNode[i]);
+		   }
+
+		   
+		   Node prev=null;
+		   double dist=0;
+		   for(int i=0;i<N;i++) {
+			   if(!tabExact[i]) {
+				   if(i>0)dist+=Node.distanceBetween(tabNode[i],tabNode[i-1]);
+				   distToPrev[i]=dist;
+				   tabNodePrev[i]=prev;			   
+			   }
+			   else {
+				   dist=0;
+				   prev=tabNode[i];
+			   }
+		   }
+
+		   if(debug)  System.out.println("\n\nTHIRD STEP, ESTABLISH BACKWARD");
+		   dist=0;
+		   Node next=null;
+		   for(int i=N-1;i>=0;i--) {
+			   if(debug)  System.out.println("  Processing node "+i+" : "+tabNode[i]);
+			   if(!tabExact[i]) {
+				   if(debug)  System.out.println("   Non exact");
+				   if(i<N-1)dist+=Node.distanceBetween(tabNode[i],tabNode[i+1]);
+				   distToNext[i]=dist;
+				   tabNodeNext[i]=next;			   
+				   if(debug)  System.out.println("     Setting distance "+dist+" to next : "+next);
+			   }
+			   else {
+				   if(debug)  System.out.println("   Exact");
+				   dist=0;
+				   next=tabNode[i];
+			   }
+		   }
+
+		   if(debug)  System.out.println("\n\nFOURTH STEP, RE ESTIMATE TIME");
+		   for(int i=0;i<N;i++) {
+			   if(!tabExact[i]) {
+				   double estTime=0;
+				   double estTimeHours=0;
+				   double dh=tabNodeNext[i].birthTimeHours-tabNodePrev[i].birthTimeHours;
+				   double dt=tabNodeNext[i].birthTime-tabNodePrev[i].birthTime;
+				   double dl=distToNext[i]+distToPrev[i];
+				   if(dl<VitimageUtils.EPSILON) {
+					   estTime=tabNodePrev[i].birthTime+dt/2.0;
+					   estTimeHours=tabNodePrev[i].birthTimeHours+dh/2.0;
+				   }
+				   else {
+					   estTime=tabNodePrev[i].birthTime+dt*(distToPrev[i]/dl);
+					   estTimeHours=tabNodePrev[i].birthTimeHours+dh*(distToPrev[i]/dl);
+				   }
+				   tabNode[i].birthTime=(float) estTime;
+				   tabNode[i].birthTimeHours=(float) estTimeHours;
+			   }
+		   }   
+	   }
+	    
+		
+	   /**
+	    * Gets the coords at distance.
+	    *
+	    * @param dist the dist
+	    * @return the coords at distance
+	    */
+	   public double[]getCoordsAtDistance(double dist){
+		   if(dist<=0)return new double[]{firstNode.x,firstNode.y,firstNode.birthTime,firstNode.birthTimeHours};
+		   if(dist>=lastNode.distance)return new double[]{lastNode.x,lastNode.y,lastNode.birthTime,lastNode.birthTimeHours};
+		   ArrayList<Node>nodes=getNodesList();
+		   int N=nodes.size();
+		   int indBef=-1;int indAft=-1;
+		   for(int n=0;n<N-1;n++) {
+			   if(nodes.get(n).distance<dist && nodes.get(n+1).distance>=dist) {
+				   indBef=n;indAft=n+1;
+				   break;
+			   }
+		   }
+			Node n0=nodes.get(indBef);
+			Node n1=nodes.get(indAft);				
+			double d0=n0.distance;
+			double d1=n1.distance;
+			double alpha=(dist-d0)/(d1-d0);
+			return new double[] {n1.x*alpha+(1-alpha)*n0.x , n1.y*alpha+(1-alpha)*n0.y , n1.birthTime*alpha+(1-alpha)*n0.birthTime,n1.birthTimeHours*alpha+(1-alpha)*n0.birthTimeHours};
+	   }
+	      
+	   
+		/**
+		 * Compute speed vectors.
+		 *
+		 * @param deltaBackward the delta backward
+		 * @param deltaForward the delta forward
+		 * @param zeroPaddingAtLastNode the zero padding at last node
+		 */
+		public void computeSpeedVectors(double deltaBackward,double deltaForward,boolean zeroPaddingAtLastNode) {
+			//TODO : attention, les vitesses sont calculées en pixels.
+			ArrayList<Node>nodes=getNodesList();
+			int N=nodes.size();
+
+			//For each node, 
+			for(int n=0;n<N;n++) {			
+				Node nono=nodes.get(n);
+				double[]coordsBef=getCoordsAtDistance(nono.distance-deltaBackward);
+				double[]coordsAft=getCoordsAtDistance(nono.distance+deltaForward);
+				if(coordsBef[2]<1)coordsBef=new double[] {nono.x,nono.y,nono.birthTime,nono.birthTimeHours};
+				double deltaTimeHours=coordsAft[3]-coordsBef[3];
+				double deltaX=coordsAft[0]-coordsBef[0];
+				double deltaY=coordsAft[1]-coordsBef[1];
+
+				double deltaDist=Math.sqrt(deltaX*deltaX+deltaY*deltaY);
+				double speed=deltaDist/deltaTimeHours;
+				double vx=deltaX*speed/deltaDist;
+				double vy=deltaY*speed/deltaDist;
+				nono.vx=(float) vx;nono.vy=(float) vy;
+				if(nono.birthTime<1) {nono.vx=0;nono.vy=0;}
+			}
+			if(zeroPaddingAtLastNode) {	nodes.get(N-1).vx=0;nodes.get(N-1).vy=0;}
+		}
+		
+	   
+	   /**
+	    * Resample flying points.
+	    * Updating a tree-like data structure by finding any "flying points" (i.e. points that are not present in the tree at certain times) 
+	    * These points are then added to the tree at the appropriate time.
+	    * @return the number of individual modifications applied during correction
+	    */
+	   public int resampleFlyingPoints(double[]hoursCorrespondingToTimePoints) {
+		   int stamp=1000000;
+		   boolean debug=false && (this.firstNode!=null && this.firstNode.x==1133 && this.firstNode.y==190);
+		   if(debug)System.out.println("Root before update :");
+		   if(debug)System.out.println(this.stringNodes());
+		   if(debug)System.out.println("Processing flying points on root "+this);
+		   ArrayList<Node>ar=new ArrayList<Node>();
+		   Node nFirst=firstNode;
+		   Node nLast=lastNode;
+		   Node n=nFirst;
+		   while(n!=null) {
+			   ar.add(n);
+			   n=n.child;
+		   }
+		   int N=ar.size();
+		   Node[]tabNode=ar.toArray(new Node[N]);
+		   int tStart=(int) Math.ceil(nFirst.birthTime);
+		   int tStop=(int) Math.floor(nLast.birthTime);
+		   int [] indexT=new int[tStop+1];
+		   
+		   boolean[]tabExact=new boolean[N];
+		   boolean[]isNotFlying=new boolean[tStop+1];
+		   for(int i=0;i<N;i++) {
+			   tabExact[i]=(Math.abs(tabNode[i].birthTime-Math.round(tabNode[i].birthTime))<VitimageUtils.EPSILON);
+			   if(tabExact[i]) {
+				   int tt=Math.round(tabNode[i].birthTime);
+				   indexT[tt]=i;
+				   isNotFlying[tt]=true;
+			   }
+		   }
+		   for(int t=tStart;t<=tStop;t++) {
+			   if(isNotFlying[t])continue;
+			   stamp+=1;
+			   if(debug) System.out.println("\n\nDetected flying time : "+t);
+			   Node lastBef=null;
+			   for(int i=0;i<N;i++) {
+				   if(tabNode[i].birthTime<t)lastBef=tabNode[i];
+			   }
+			   if(debug) System.out.println("Last bef detected="+lastBef);
+			   Node firstAft=null;
+			   for(int i=N-1;i>=0;i--) {
+				   if(tabNode[i].birthTime>t)firstAft=tabNode[i];
+			   }
+			   if(debug) System.out.println("first aft detected="+firstAft);
+			   double DT=lastBef.birthTime-firstAft.birthTime;
+			   double DX=lastBef.x-firstAft.x;
+			   double DY=lastBef.y-firstAft.y;
+			   double dt=t-lastBef.birthTime;
+			   double dx=DX*dt/DT;
+			   double dy=DY*dt/DT;
+			   Node newNode=new Node(lastBef.x+(float)dx,lastBef.y+(float)dy, lastBef,true);
+			   newNode.birthTime=t;
+			   newNode.birthTimeHours=(float) hoursCorrespondingToTimePoints[t];
+			   lastBef.child=newNode;
+			   newNode.parent=lastBef;
+			   newNode.child=firstAft;
+			   firstAft.parent=newNode;
+			   nNodes++;
+			   
+			   ar=new ArrayList<Node>();
+			   nFirst=firstNode;
+			   nLast=lastNode;
+			   n=nFirst;
+			   while(n!=null) {
+				   ar.add(n);
+				   n=n.child;
+			   }
+			   N=ar.size();
+			   tabNode=ar.toArray(new Node[N]);
+			   
+			   
+			   if(debug)System.out.println("Adding node "+newNode);
+			   if(debug)System.out.println("Root after update :");
+			   if(debug)System.out.println(this.stringNodes());
+			   if(debug)System.out.println("");
+		   }
+		   
+		   if(debug) System.out.println("");
+		   return stamp;
+	   }
+		   
+	
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   /**
+	 
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
    /** The last node. */
    public Node firstNode, lastNode;
    
@@ -343,36 +664,6 @@ public class Root implements Comparable<Root>{
 	}
    
    /**
-    * Interpolate time.
-    */
-   public void interpolateTime() {
-	   Node n=firstNode;
-	   double dist0=firstNode.distance;
-	   double time0=firstNode.birthTime;
-	   ArrayList<Double>times=new ArrayList<Double>();
-	   ArrayList<Double>dists=new ArrayList<Double>();
-	   dists.add(n.distance);
-	   times.add(new Double(n.birthTime));
-	   while(n.child!=null) {
-		   n=n.child;
-		   if(n.birthTime>=0) {
-			   dists.add(n.distance);
-			   times.add(new Double( n.birthTime ));
-		   }
-	   }
-	   Double[]distsTab=dists.toArray(new Double[dists.size()]);
-	   Double[]timesTab=times.toArray(new Double[times.size()]);
-	   
-	   n=firstNode;
-	   while(n.child!=null) {
-		   n=n.child;
-		   if(n.birthTime<0) {
-			   n.birthTime=(float) linearInterpolation(n.distance, distsTab, timesTab);
-		   }
-	   }
-   }
-   
-   /**
     * Add a node to the root.
     *
     * @param x the x
@@ -404,10 +695,11 @@ public class Root implements Comparable<Root>{
     * @param addToBase the add to base
     * @return the node
     */
-   public Node addNode(double x, double y, double birthTime, boolean addToBase) {
+   public Node addNode(double x, double y, double birthTime, double birthTimeHours,boolean addToBase) {
 	      if (!addToBase) {
 	         lastNode = new Node((float)x, (float)y, lastNode, true);
 	         lastNode.birthTime=(float)birthTime;
+	         lastNode.birthTimeHours=(float)birthTimeHours;
 	         if (nNodes == 0) firstNode = lastNode;
 	         nNodes++;
 	         return lastNode;
@@ -415,6 +707,7 @@ public class Root implements Comparable<Root>{
 	      else {
 	         firstNode = new Node((float)x, (float)y, firstNode, false);
 	         firstNode.birthTime=(float)birthTime;
+	         firstNode.birthTimeHours=(float)birthTimeHours;
 	         if (nNodes == 0) lastNode = firstNode;
 	         nNodes++;
 	         return firstNode; // user must reactualize cLength
@@ -433,11 +726,12 @@ public class Root implements Comparable<Root>{
     * @param addToBase the add to base
     * @return the node
     */
-   public Node addNode(double x, double y, double birthTime, double diameter,double vx,double vy,boolean addToBase) {
+   public Node addNode(double x, double y, double birthTime, double birthTimeHours,double diameter,double vx,double vy,boolean addToBase) {
 	      if (!addToBase) {
 	         lastNode = new Node((float)x, (float)y, lastNode, true);
 	         lastNode.diameter=(float) diameter;lastNode.vx=(float) vx;lastNode.vy=(float) vy;
 	         lastNode.birthTime=(float)birthTime;
+	         lastNode.birthTimeHours=(float)birthTimeHours;
 	         if (nNodes == 0) firstNode = lastNode;
 	         nNodes++;
 	         return lastNode;
@@ -446,6 +740,7 @@ public class Root implements Comparable<Root>{
 	         firstNode = new Node((float)x, (float)y, firstNode, false);
 	         firstNode.diameter=(float) diameter;firstNode.vx=(float) vx;firstNode.vy=(float) vy;
 	         firstNode.birthTime=(float)birthTime;
+	         firstNode.birthTimeHours=(float)birthTimeHours;
 	         if (nNodes == 0) lastNode = firstNode;
 	         nNodes++;
 	         return firstNode; // user must reactualize cLength
@@ -502,91 +797,7 @@ public class Root implements Comparable<Root>{
       }
 
 
-   /**
-    * Resample flying points.
-    *
-    * @return the int
-    */
-   public int resampleFlyingPoints() {
-	   int stamp=1000000;
-	   boolean debug=false && (this.firstNode!=null && this.firstNode.x==1133 && this.firstNode.y==190);
-	   if(debug)System.out.println("Root before update :");
-	   if(debug)System.out.println(this.stringNodes());
-	   if(debug)System.out.println("Processing flying points on root "+this);
-	   ArrayList<Node>ar=new ArrayList<Node>();
-	   Node nFirst=firstNode;
-	   Node nLast=lastNode;
-	   Node n=nFirst;
-	   while(n!=null) {
-		   ar.add(n);
-		   n=n.child;
-	   }
-	   int N=ar.size();
-	   Node[]tabNode=ar.toArray(new Node[N]);
-	   int tStart=(int) Math.ceil(nFirst.birthTime);
-	   int tStop=(int) Math.floor(nLast.birthTime);
-	   int [] indexT=new int[tStop+1];
-	   
-	   boolean[]tabExact=new boolean[N];
-	   boolean[]isNotFlying=new boolean[tStop+1];
-	   for(int i=0;i<N;i++) {
-		   tabExact[i]=(Math.abs(tabNode[i].birthTime-Math.round(tabNode[i].birthTime))<VitimageUtils.EPSILON);
-		   if(tabExact[i]) {
-			   int tt=Math.round(tabNode[i].birthTime);
-			   indexT[tt]=i;
-			   isNotFlying[tt]=true;
-		   }
-	   }
-	   for(int t=tStart;t<=tStop;t++) {
-		   if(isNotFlying[t])continue;
-		   stamp+=1;
-		   if(debug) System.out.println("\n\nDetected flying time : "+t);
-		   Node lastBef=null;
-		   for(int i=0;i<N;i++) {
-			   if(tabNode[i].birthTime<t)lastBef=tabNode[i];
-		   }
-		   if(debug) System.out.println("Last bef detected="+lastBef);
-		   Node firstAft=null;
-		   for(int i=N-1;i>=0;i--) {
-			   if(tabNode[i].birthTime>t)firstAft=tabNode[i];
-		   }
-		   if(debug) System.out.println("first aft detected="+firstAft);
-		   double DT=lastBef.birthTime-firstAft.birthTime;
-		   double DX=lastBef.x-firstAft.x;
-		   double DY=lastBef.y-firstAft.y;
-		   double dt=t-lastBef.birthTime;
-		   double dx=DX*dt/DT;
-		   double dy=DY*dt/DT;
-		   Node newNode=new Node(lastBef.x+(float)dx,lastBef.y+(float)dy, lastBef,true);
-		   newNode.birthTime=t;
-		   lastBef.child=newNode;
-		   newNode.parent=lastBef;
-		   newNode.child=firstAft;
-		   firstAft.parent=newNode;
-		   nNodes++;
-		   
-		   ar=new ArrayList<Node>();
-		   nFirst=firstNode;
-		   nLast=lastNode;
-		   n=nFirst;
-		   while(n!=null) {
-			   ar.add(n);
-			   n=n.child;
-		   }
-		   N=ar.size();
-		   tabNode=ar.toArray(new Node[N]);
-		   
-		   
-		   if(debug)System.out.println("Adding node "+newNode);
-		   if(debug)System.out.println("Root after update :");
-		   if(debug)System.out.println(this.stringNodes());
-		   if(debug)System.out.println("");
-	   }
-	   
-	   if(debug) System.out.println("");
-	   return stamp;
-   }
-	   
+   
    /**
     * String nodes.
     *
@@ -603,88 +814,6 @@ public class Root implements Comparable<Root>{
    }
    
    /**
-    * Update timing.
-    */
-   public void updateTiming() {
-	   boolean debug=false;
-	   Node nStart=this.firstNode;
-	   Node nStop=this.lastNode;
-	   Node curNode=nStart;
-	   ArrayList<Node>listNode=new ArrayList<Node>();
-	   while(curNode!=null) {
-		   listNode.add(curNode);
-		   curNode=curNode.child;
-	   }
-	   int N=listNode.size();
-	   this.nNodes=N;
-	   Node[]tabNode=listNode.toArray(new Node[N]);
-	   Node[]tabNodePrev=listNode.toArray(new Node[N]);
-	   Node[]tabNodeNext=listNode.toArray(new Node[N]);
-	   boolean[]tabExact=new boolean[N];
-	   double[]distToPrev=new double[N]; 
-	   double[]distToNext=new double[N];
-	if(debug)   System.out.println("\n\nFIRST STEP, ESTABLISH EXACTITUDENESS");
-	   for(int i=0;i<N;i++) {
-		   tabExact[i]=(Math.abs(tabNode[i].birthTime-Math.round(tabNode[i].birthTime))<VitimageUtils.EPSILON);
-		   if(debug)  System.out.println(" i="+i+" isExact ?"+tabExact[i]+" "+tabNode[i]);
-	   }
-
-	   
-	   if(debug)  System.out.println("\n\nSECOND STEP, ESTABLISH FORWARD");
-	   Node prev=null;
-	   double dist=0;
-	   for(int i=0;i<N;i++) {
-		   if(debug)   System.out.println("  Processing node "+i+" : "+tabNode[i]);
-		   if(!tabExact[i]) {
-			   if(debug)  System.out.println("   Non exact");
-			   if(i>0)dist+=Node.distanceBetween(tabNode[i],tabNode[i-1]);
-			   distToPrev[i]=dist;
-			   tabNodePrev[i]=prev;			   
-			   if(debug)  System.out.println("     Setting distance "+dist+" to prev : "+prev);
-			   
-		   }
-		   else {
-			   if(debug)  System.out.println("   Exact");
-			   dist=0;
-			   prev=tabNode[i];
-		   }
-	   }
-
-	   if(debug)  System.out.println("\n\nTHIRD STEP, ESTABLISH BACKWARD");
-	   dist=0;
-	   Node next=null;
-	   for(int i=N-1;i>=0;i--) {
-		   if(debug)  System.out.println("  Processing node "+i+" : "+tabNode[i]);
-		   if(!tabExact[i]) {
-			   if(debug)  System.out.println("   Non exact");
-			   if(i<N-1)dist+=Node.distanceBetween(tabNode[i],tabNode[i+1]);
-			   distToNext[i]=dist;
-			   tabNodeNext[i]=next;			   
-			   if(debug)  System.out.println("     Setting distance "+dist+" to next : "+next);
-		   }
-		   else {
-			   if(debug)  System.out.println("   Exact");
-			   dist=0;
-			   next=tabNode[i];
-		   }
-	   }
-
-	   if(debug)  System.out.println("\n\nFOURTH STEP, RE ESTIMATE TIME");
-	   for(int i=0;i<N;i++) {
-		   if(!tabExact[i]) {
-			   double estTime=0;
-			   double dt=tabNodeNext[i].birthTime-tabNodePrev[i].birthTime;
-			   double dl=distToNext[i]+distToPrev[i];
-			   if(dl<VitimageUtils.EPSILON)estTime=tabNodePrev[i].birthTime+dt/2.0;
-			   else {
-				   estTime=tabNodePrev[i].birthTime+dt*(distToPrev[i]/dl);
-			   }
-			   tabNode[i].birthTime=(float) estTime;
-		   }
-		   if(debug)  System.out.println("  Processing node "+i+" : "+tabNode[i]);		   
-	   }   
-   }
-   
    
    /**
     * compute the number of nodes inside the root.
@@ -797,64 +926,6 @@ public class Root implements Comparable<Root>{
       return pixelSize * (pixels + this.rulerAtOrigin);
       }
 
-	/**
-	 * Compute speed vectors.
-	 *
-	 * @param deltaBackward the delta backward
-	 * @param deltaForward the delta forward
-	 * @param zeroPaddingAtLastNode the zero padding at last node
-	 */
-	public void computeSpeedVectors(double deltaBackward,double deltaForward,boolean zeroPaddingAtLastNode) {
-		ArrayList<Node>nodes=getNodesList();
-		int N=nodes.size();
-
-		//For each node, 
-		for(int n=0;n<N;n++) {			
-			Node nono=nodes.get(n);
-			double[]coordsBef=getCoordsAtDistance(nono.distance-deltaBackward);
-			double[]coordsAft=getCoordsAtDistance(nono.distance+deltaForward);
-			if(coordsBef[2]<1)coordsBef=new double[] {nono.x,nono.y,nono.birthTime};
-			double deltaTime=coordsAft[2]-coordsBef[2];
-			double deltaX=coordsAft[0]-coordsBef[0];
-			double deltaY=coordsAft[1]-coordsBef[1];
-
-			double deltaDist=Math.sqrt(deltaX*deltaX+deltaY*deltaY);
-			double speed=deltaDist/deltaTime;
-			double vx=deltaX*speed/deltaDist;
-			double vy=deltaY*speed/deltaDist;
-			nono.vx=(float) vx;nono.vy=(float) vy;
-			if(nono.birthTime<1) {nono.vx=0;nono.vy=0;}
-		}
-		if(zeroPaddingAtLastNode) {	nodes.get(N-1).vx=0;nodes.get(N-1).vy=0;}
-	}
-	
-	
-   /**
-    * Gets the coords at distance.
-    *
-    * @param dist the dist
-    * @return the coords at distance
-    */
-   public double[]getCoordsAtDistance(double dist){
-	   if(dist<=0)return new double[]{firstNode.x,firstNode.y,firstNode.birthTime};
-	   if(dist>=lastNode.distance)return new double[]{lastNode.x,lastNode.y,lastNode.birthTime};
-	   ArrayList<Node>nodes=getNodesList();
-	   int N=nodes.size();
-	   int indBef=-1;int indAft=-1;
-	   for(int n=0;n<N-1;n++) {
-		   if(nodes.get(n).distance<dist && nodes.get(n+1).distance>=dist) {
-			   indBef=n;indAft=n+1;
-			   break;
-		   }
-	   }
-		Node n0=nodes.get(indBef);
-		Node n1=nodes.get(indAft);				
-		double d0=n0.distance;
-		double d1=n1.distance;
-		double alpha=(dist-d0)/(d1-d0);
-		return new double[] {n1.x*alpha+(1-alpha)*n0.x , n1.y*alpha+(1-alpha)*n0.y , n1.birthTime*alpha+(1-alpha)*n0.birthTime};
-   }
-   
    /**
     * Gets the nodes list.
     *

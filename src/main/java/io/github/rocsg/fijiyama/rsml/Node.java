@@ -28,7 +28,7 @@ import io.github.rocsg.fijiyama.rsml.Node;
 public class Node {
    
    /** The birth time. */
-   public float x, y, theta, length, cLength, diameter, birthTime;
+   public float x, y, theta, length, cLength, diameter, birthTime,birthTimeHours;
    
    /** The vy. */
    public float vx,vy;
@@ -53,7 +53,8 @@ public class Node {
    boolean bCross01 = false, bCross23 = false;
    
    /** The p cross 23. */
-   boolean pCross01 = false, pCross23 = false;   
+   boolean pCross01 = false, pCross23 = false;
+
 
 
   /**
@@ -178,7 +179,9 @@ public class Node {
       length = n.length;
       cLength = n.cLength;
       diameter = n.diameter;
-      if (parent != null) parent.needsRefresh = true;
+      birthTime=n.birthTime;
+      birthTimeHours=n.birthTimeHours;
+          if (parent != null) parent.needsRefresh = true;
       if (child != null) child.needsRefresh = true;
       needsRefresh = true;
       }
@@ -304,7 +307,7 @@ public class Node {
     * @return the string
     */
    public String toString() {
-	   return("Node : x="+x+" y="+y+" t="+birthTime+" diam="+diameter+" vx="+vx+" vy="+vy+" haschild ?"+(this.child==null)+" hasparent ?"+(this.parent==null));
+	   return("Node : x="+x+" y="+y+" t="+birthTime+" hours="+birthTimeHours+" diam="+diameter+" vx="+vx+" vy="+vy+" haschild ?"+(this.child==null)+" hasparent ?"+(this.parent==null));
    }
   
    /**

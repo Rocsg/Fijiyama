@@ -596,8 +596,8 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		Node par1=n1.parent; Node chi1=n1.child;
 		n1.parent=n2.parent; n1.child=n2.child;
 		n2.parent=par1;		 n2.child=chi1;
-		r1.resampleFlyingPoints();r1.updateTiming();
-		r2.resampleFlyingPoints();r2.updateTiming();
+		r1.resampleFlyingPoints(currentModel.hoursCorrespondingToTimePoints);r1.updateTiming();
+		r2.resampleFlyingPoints(currentModel.hoursCorrespondingToTimePoints);r2.updateTiming();
 		return true;
 	}
 	
@@ -727,7 +727,7 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		if(n==null)return false;
 		double tt=VitiDialogs.getDoubleUI("New time", "time", n.birthTime);
 		n.birthTime=(float) tt;
-		r.resampleFlyingPoints();
+		r.resampleFlyingPoints(currentModel.hoursCorrespondingToTimePoints);
 		r.updateTiming();
 		return true;
 	}

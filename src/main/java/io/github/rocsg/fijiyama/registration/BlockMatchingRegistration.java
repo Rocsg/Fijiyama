@@ -397,8 +397,14 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		this.blocksStrideX=strideX;
 		this.blocksStrideY=strideY;
 		this.blocksStrideZ=strideZ;
-		int screenHeight=Toolkit.getDefaultToolkit().getScreenSize().height;
-		int screenWidth=Toolkit.getDefaultToolkit().getScreenSize().width;
+		int screenHeight=0;
+		int screenWidth=0;
+		try{screenHeight=Toolkit.getDefaultToolkit().getScreenSize().height;
+		screenWidth=Toolkit.getDefaultToolkit().getScreenSize().width;
+		}catch (java.awt.HeadlessException he) {
+			screenHeight=768;
+			screenWidth=1024;
+		}
 		zoomFactor=  (dims[0]<280 ? 0.8 : 1)*Math.min((screenHeight/2)/dims[1]  ,  (screenWidth/2)/dims[0]) ; 
 		this.viewHeight=(int)(this.imgRef.getHeight()*zoomFactor);
 		this.viewWidth=(int)(this.imgRef.getWidth()*zoomFactor);

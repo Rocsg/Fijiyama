@@ -14,11 +14,6 @@ import io.github.rocsg.fijiyama.common.VitimageUtils;
 import io.github.rocsg.fijiyama.registration.ItkTransform;
 import io.github.rocsg.fijiyama.registration.TransformUtils;
 import io.github.rocsg.fijiyama.rsml.DataFileFilterRSML;
-import io.github.rocsg.fijiyama.rsml.FSR;
-import io.github.rocsg.fijiyama.rsml.Mark;
-import io.github.rocsg.fijiyama.rsml.Node;
-import io.github.rocsg.fijiyama.rsml.Root;
-
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
@@ -27,9 +22,7 @@ import javax.swing.*;
 
 import java.util.*;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.io.*;
-import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
 
 // XML file support
@@ -43,13 +36,26 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import org.scijava.vecmath.Point2d;
 import org.scijava.vecmath.Point3d;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;  
 
-// TODO: Auto-generated Javadoc
 /** @author Xavier Draye and Guillaume Lobet - Universit� catholique de Louvain */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -98,6 +104,382 @@ implements java.io.FileFilter {
  */
 public class RootModel extends WindowAdapter{
 	  
+	   
+		//START UNSAFE ZONE
+	   
+		
+		   /**
+		    * Root model wild read annotation from rsml.
+		    *
+		    * @param rsmlFile the rsml file
+		    * @return the root model
+		    
+		   public static RootModel RootModelWildReadAnnotationFromRsml (String rsmlFile) {//Wild read model for Fijiyama did Root model with time, diameter, vx and vy information
+				FSR sr= (new FSR());
+				sr.initialize();
+			   boolean debug=false;
+			   String[]str=VitimageUtils.readStringFromFile(rsmlFile).split(System.getProperty("line.separator"));
+			   RootModel rm=new RootModel();
+			   rm.imgName=str[10].replace("<label>", "").replace("</label>", "");
+			   int Nobs=1000000;
+			   double[]hours=new double[Nobs];
+			   boolean hasHours=true;
+			   hasHours=(str[11].contains("observation"));
+			   if(hasHours) {
+				   String []tab=(str[11].split(">")[1].split("<")[0]).split(",");
+				   double[]tabD=new double[tab.length];
+			       for(int i=0;i<tab.length;i++)tabD[i]=Double.parseDouble(tab[i]);
+			   }
+			   rm.hoursCorrespondingToTimePoints=hours;
+			   
+			   
+			   int ind=hasHours?16:15;
+			   boolean first;
+			   if(debug)System.out.println("Pl"+str[ind]);
+			   while(str[ind].contains("<plant")) {
+				   ind=ind+1+3;//<root then <point
+				   Root rPrim=new Root(null, rm, "",1);
+				   first=true;
+				   if(debug)System.out.println("Poiprim"+str[ind]);
+				   while(str[ind].contains("<point")) {
+					   String[]vals=str[ind].replace("<point ","").replace("/>", "").replace("\"", "").split(" ");
+					   rPrim.addNode(Double.parseDouble(vals[12].split("=")[1]),Double.parseDouble(vals[13].split("=")[1]),0,0,0,0,first);
+					   if(first)first=false;
+					   ind++;
+					   if(debug)System.out.println("-Poiprim"+str[ind]);
+				   }
+				   ind+=2;
+				   while(str[ind].contains("<point")) {
+					   ind++;
+				   }
+				   rPrim.computeDistances();
+				   rm.rootList.add(rPrim);
+				   ind=ind+2;//<root or </root
+				   if(debug)System.out.println("root lat"+str[ind]);
+				   while(str[ind].contains("<root")) {//lateral
+					   ind=ind+3;//point
+					   Root rLat=new Root(null, rm, "",2);
+					   first=true;
+					   if(debug)System.out.println("PoiLat"+str[ind]);
+					   while(str[ind].contains("<point")) {
+						   String[]vals=str[ind].replace("<point ","").replace("/>", "").replace("\"", "").split(" ");
+//						   for(int i=0;i<vals.length;i++)System.out.println("Tab["+i+"]="+vals[i]);
+						   rLat.addNode(Double.parseDouble(vals[14].split("=")[1]),Double.parseDouble(vals[15].split("=")[1]),0,0,0,0,first);
+						   if(first)first=false;
+						   ind++;
+						   if(debug)System.out.println("-PoiLat?"+str[ind]);
+					   }
+					   ind+=2;
+					   while(str[ind].contains("<point")) {
+						   ind++;
+					   }
+						rLat.computeDistances();
+						rPrim.attachChild(rLat);
+						rLat.attachParent(rPrim);
+						rm.rootList.add(rLat);
+					   ind=ind+3;//<root or </root			   
+					   if(debug)System.out.println("-root lat?"+str[ind]);
+				   }
+				   ind=ind+2;//<plant or nothing	
+				   if(debug)System.out.println("-plant?"+str[ind]);
+			   }
+			   System.out.println("End of plant because"+str[ind]);
+			   return rm;
+		   }
+
+		   
+		*/
+		
+		
+	   
+			/**
+			 * Gets the lateral speeds and depth over time.
+			 *
+			 * @param tMax the t max
+			 * @param plant the plant
+			 * @return the lateral speeds and depth over time
+			 */
+			public double[][][]getLateralSpeedsAndDepthOverTime(int tMax,int plant){
+				System.out.println("Working for plant "+plant+" at tmax="+tMax);
+				int nbLat=nbLatsPerPlant()[plant];
+				double primInitDepth=0;
+				for(Root r: rootList){
+					if(r.order==1) {
+						primInitDepth=r.firstNode.y;
+					}
+				}
+				double[][][]tab=new double[2][nbLat][tMax+1];
+				int incr=-1;
+				for(Root r: rootList){
+					if(r.plantNumber!=plant || r.order==1)continue;
+					incr++;
+					Node n=r.firstNode;
+					double dh=n.child.birthTimeHours - n.birthTimeHours;
+					if(dh<=0)dh=VitimageUtils.EPSILON;
+					double spe=0;
+					while(n!=null) {
+						double ti=n.birthTime;
+						if(n.child!=null) spe=VitimageUtils.distance(n.x,n.y,n.child.x,n.child.y)/dh;
+						tab[0][incr][(int) Math.round(ti)]=-n.y+primInitDepth;
+						tab[1][incr][(int) Math.round(ti)]=spe;
+						n=n.child;
+					}
+				}
+				return tab;
+			}
+		
+			
+
+		   /**
+		    * Write RSML 3 D.
+		    *
+		    * @param f the f
+		    * @param imgExt the img ext
+		    * @param shortValues the short values
+		    * @param respectStandardRSML the respect standard RSML
+		    */
+		   public void writeRSML3D(String f,String imgExt,boolean shortValues,boolean respectStandardRSML) {
+			   String fileName=VitimageUtils.withoutExtension( new File(f).getName() );
+			   nextAutoRootID = 0;
+			   org.w3c.dom.Document dom = null;
+			   Element re,me,met,mett,sce,plant,rootPrim,rootLat,geomPrim,polyPrim,geomLat,polyLat,pt;
+
+			   DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+			   try {
+				   DocumentBuilder builder = factory.newDocumentBuilder();
+				   dom = builder.newDocument();
+			   }catch (ParserConfigurationException pce) {logReadError();return; }
+
+			   re=dom.createElement("rsml");
+
+			   //create time list
+			   String hours="";
+			   for(int i=1;i<hoursCorrespondingToTimePoints.length-1;i++)hours+=VitimageUtils.dou(hoursCorrespondingToTimePoints[i])+",";
+			   hours+=VitimageUtils.dou(hoursCorrespondingToTimePoints[hoursCorrespondingToTimePoints.length-1]);
+			   
+			   //Build and add metadata
+			   me=dom.createElement("metadata");
+				   met=dom.createElement("version");met.setTextContent("1.4"); me.appendChild(met);	   
+				   met=dom.createElement("unit"); met.setTextContent("pixel(um)"); me.appendChild(met);
+				   met=dom.createElement("size");  met.setTextContent(""+pixelSize);  me.appendChild(met);
+				   met=dom.createElement("last-modified");  met.setTextContent( new SimpleDateFormat("dd-MM-yyyy HH:mm:ss").format(new Date()));  me.appendChild(met);
+				   met=dom.createElement("software");  met.setTextContent( "RootSystemTracker");  me.appendChild(met);
+				   met=dom.createElement("user");  met.setTextContent( "Unknown");  me.appendChild(met);
+				   met=dom.createElement("file-key");  met.setTextContent( fileName);  me.appendChild(met);
+				   met=dom.createElement("observation-hours");  met.setTextContent( hours);  me.appendChild(met);
+				   met=dom.createElement("image"); 
+					   mett=dom.createElement("label");  mett.setTextContent( fileName+imgExt);  met.appendChild(mett);
+					   mett=dom.createElement("sha256");  mett.setTextContent( "Nothing there");  met.appendChild(mett);	   
+				   me.appendChild(met);	  
+			   re.appendChild(me);
+
+			   //Build and add scene
+			   sce=dom.createElement("scene");
+
+			   		//Build and add plant 1
+			   		int incrPlant=0;
+			   		for(int indexPrim = 0; indexPrim < rootList.size(); indexPrim++){
+			   			Root r =  (Root) rootList.get(indexPrim);
+						if(r.isChild==1)continue;
+						++incrPlant;
+						plant=dom.createElement("plant");plant.setAttribute("ID", ""+(incrPlant));plant.setAttribute("label", "");
+							rootPrim=dom.createElement("root");rootPrim.setAttribute("ID", ""+(incrPlant)+".1");rootPrim.setAttribute("label", "");
+								geomPrim=dom.createElement("geometry");
+									polyPrim=dom.createElement("polyline");
+									double[][]coord=getRootCoordinates(r);
+									for(int i=0;i<coord.length;i++) {
+										pt=dom.createElement("point"); 
+										pt.setAttribute(respectStandardRSML ? "x" : "coord_x", ""+(shortValues ? VitimageUtils.dou(coord[i][0]): coord[i][0]));  
+										pt.setAttribute(respectStandardRSML ? "y" : "coord_y", ""+(shortValues ? VitimageUtils.dou(coord[i][1]) : coord[i][1]));  
+										if(!respectStandardRSML) {
+											pt.setAttribute("vx", ""+(shortValues ? VitimageUtils.dou(coord[i][2]) : coord[i][2]));
+											pt.setAttribute("vy", ""+(shortValues ? VitimageUtils.dou(coord[i][3]) : coord[i][3]));  
+											pt.setAttribute("diameter", ""+(shortValues ? VitimageUtils.dou(coord[i][4]) : coord[i][4]));
+											pt.setAttribute("coord_t", ""+(shortValues ? VitimageUtils.dou(coord[i][5]) : coord[i][5]));  
+											pt.setAttribute("coord_th", ""+(shortValues ? VitimageUtils.dou(coord[i][6]) : coord[i][6]));  
+										}
+										polyPrim.appendChild(pt);
+									}														
+									geomPrim.appendChild(polyPrim);
+								rootPrim.appendChild(geomPrim);
+								if(respectStandardRSML) {
+									Element functionPrim=dom.createElement("functions");
+										Element funcPrim=dom.createElement("function");funcPrim.setAttribute("name", "timepoint");funcPrim.setAttribute("domain", "polyline");
+										for(int i=0;i<coord.length;i++) {
+											pt=dom.createElement("sample");
+											pt.setTextContent(""+(shortValues ? VitimageUtils.dou(coord[i][5]) : coord[i][5]));
+											funcPrim.appendChild(pt);
+										}
+										functionPrim.appendChild(funcPrim);
+										Element funcPrim2=dom.createElement("function");funcPrim2.setAttribute("name", "hours");funcPrim2.setAttribute("domain", "polyline");
+										for(int i=0;i<coord.length;i++) {
+											pt=dom.createElement("sample");
+											pt.setTextContent(""+(shortValues ? VitimageUtils.dou(coord[i][6]) : coord[i][6]));
+											funcPrim2.appendChild(pt);
+										}
+										functionPrim.appendChild(funcPrim2);
+									rootPrim.appendChild(functionPrim);
+								}
+								
+								
+								
+								
+						
+								//Ajouter les enfants
+								int incrLat=0;
+								for(Root rLat : r.childList) {	
+									incrLat++;
+									rootLat=dom.createElement("root");rootLat.setAttribute("ID", ""+(incrPlant)+".1."+incrLat);rootLat.setAttribute("label", "");
+										geomLat=dom.createElement("geometry");
+											polyLat=dom.createElement("polyline");
+											coord=getRootCoordinates(rLat);
+											for(int i=0;i<coord.length;i++) {
+												pt=dom.createElement("point");  
+												pt.setAttribute(respectStandardRSML ? "x" : "coord_x", ""+(shortValues ? VitimageUtils.dou(coord[i][0]): coord[i][0]));  
+												pt.setAttribute(respectStandardRSML ? "y" : "coord_y", ""+(shortValues ? VitimageUtils.dou(coord[i][1]) : coord[i][1]));  
+												if(!respectStandardRSML) {
+													pt.setAttribute("vx", ""+(shortValues ? VitimageUtils.dou(coord[i][2]) : coord[i][2]));
+													pt.setAttribute("vy", ""+(shortValues ? VitimageUtils.dou(coord[i][3]) : coord[i][3]));  
+													pt.setAttribute("diameter", ""+(shortValues ? VitimageUtils.dou(coord[i][4]) : coord[i][4]));
+													pt.setAttribute("coord_t", ""+(shortValues ? VitimageUtils.dou(coord[i][5]) : coord[i][5]));  
+													pt.setAttribute("coord_th", ""+(shortValues ? VitimageUtils.dou(coord[i][6]) : coord[i][6]));  
+												}
+												polyLat.appendChild(pt);
+											}														
+											geomLat.appendChild(polyLat);
+										rootLat.appendChild(geomLat);
+										if(respectStandardRSML) {
+											Element functionLat=dom.createElement("functions");
+												Element funcLat=dom.createElement("function");funcLat.setAttribute("name", "timepoint");funcLat.setAttribute("domain", "polyline");
+												for(int i=0;i<coord.length;i++) {
+													pt=dom.createElement("sample");
+													pt.setTextContent(""+(shortValues ? VitimageUtils.dou(coord[i][5]) : coord[i][5]));
+													funcLat.appendChild(pt);
+												}
+												functionLat.appendChild(funcLat);
+												Element funcLat2=dom.createElement("function");funcLat2.setAttribute("name", "hours");funcLat2.setAttribute("domain", "polyline");
+												for(int i=0;i<coord.length;i++) {
+													pt=dom.createElement("sample");
+													pt.setTextContent(""+(shortValues ? VitimageUtils.dou(coord[i][6]) : coord[i][6]));
+													funcLat2.appendChild(pt);
+												}
+												functionLat.appendChild(funcLat2);
+											rootLat.appendChild(functionLat);
+										}
+									rootPrim.appendChild(rootLat);
+								}
+							plant.appendChild(rootPrim);
+						sce.appendChild(plant);
+			   		}							
+			   		re.appendChild(sce);
+			   dom.appendChild(re);
+		   
+			   
+			   
+			   
+			   
+			   TransformerFactory tf = TransformerFactory.newInstance();
+		       Transformer transformer;
+		       try {
+		           transformer = tf.newTransformer();
+		           transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");            
+		           transformer.setOutputProperty(OutputKeys.INDENT, "yes");            
+		           FileOutputStream outStream = new FileOutputStream(new File(f)); 
+		           transformer.transform(new DOMSource(dom), new StreamResult(outStream));
+		           outStream.close();
+		       } catch (TransformerException eee)  { eee.printStackTrace(); }  catch (Exception ee) { ee.printStackTrace(); }
+		   	}
+
+		   
+		   /**
+		    * Root model wild read from rsml.
+		    *
+		    * @param rsmlFile the rsml file
+		    * @return the root model
+		    */
+		   public static RootModel RootModelWildReadFromRsml (String rsmlFile) {//Wild read model for Fijiyama did Root model with time, diameter, vx and vy information
+			   FSR sr= (new FSR());
+			   sr.initialize();
+			   boolean debug=false;
+			   //String lineSep= System.getProperty("line.separator");
+
+			   int Nobs=100000; //N max of observations
+			   
+			   String[]str=null;
+			   if(VitimageUtils.isWindowsOS())str=VitimageUtils.readStringFromFile(rsmlFile).split("\\n");
+			   else str=VitimageUtils.readStringFromFile(rsmlFile).split("\n");
+			   RootModel rm=new RootModel();
+			   rm.imgName="";
+			   rm.pixelSize=(float) Double.parseDouble( str[4].split(">")[1].split("<")[0] );
+			   
+			   double[]hours=new double[Nobs];
+			   boolean hasHours=true;
+			   hasHours=(str[9].contains("observation"));
+			   double[]tabD=new double[0];
+			   if(hasHours) {
+				   String []tab=(str[9].split(">")[1].split("<")[0]).split(",");
+				   tabD=new double[tab.length+1];
+			       for(int i=1;i<tab.length+1;i++)tabD[i]=Double.parseDouble(tab[i-1]);
+			   }
+			   tabD[0]=tabD[1];
+			   rm.hoursCorrespondingToTimePoints=tabD;
+			   
+			   int ind=hasHours?16:15;
+			   boolean first;
+			   if(debug)IJ.log("Pl"+str[ind]);
+			   while(str[ind].contains("<plant")) {
+				   ind=ind+1+3;//<root then <point
+				   Root rPrim=new Root(null, rm, "",1);
+				   first=true;
+				   if(debug)IJ.log("Poiprim"+str[ind]);
+				   while(str[ind].contains("<point")) {
+					   String[]vals=str[ind].replace("<point ","").replace("/>", "").replace("\"", "").split(" ");
+					   if(hasHours)  rPrim.addNode(Double.parseDouble(vals[2].split("=")[1]),Double.parseDouble(vals[3].split("=")[1]),Double.parseDouble(vals[0].split("=")[1]),Double.parseDouble(vals[1].split("=")[1]),Double.parseDouble(vals[4].split("=")[1]),Double.parseDouble(vals[5].split("=")[1]),Double.parseDouble(vals[6].split("=")[1]),first);
+					   else           rPrim.addNode(Double.parseDouble(vals[1].split("=")[1]),Double.parseDouble(vals[2].split("=")[1]),Double.parseDouble(vals[0].split("=")[1]),Double.parseDouble(vals[0].split("=")[1]),Double.parseDouble(vals[3].split("=")[1]),Double.parseDouble(vals[4].split("=")[1]),Double.parseDouble(vals[5].split("=")[1]),first);
+					   if(first)first=false;
+					   ind++;
+					   if(debug)IJ.log("-Poiprim"+str[ind]);
+				   }
+				   rPrim.computeDistances();
+				   rm.rootList.add(rPrim);
+				   ind=ind+2;//<root or </root
+				   if(debug)IJ.log("root lat"+str[ind]);
+				   while(str[ind].contains("<root")) {//lateral
+					   ind=ind+3;//point
+					   Root rLat=new Root(null, rm, "",2);
+					   first=true;
+					   if(debug)IJ.log("PoiLat"+str[ind]);
+					   while(str[ind].contains("<point")) {
+						   String[]vals=str[ind].replace("<point ","").replace("/>", "").replace("\"", "").split(" ");
+						   if(hasHours)  rLat.addNode(Double.parseDouble(vals[2].split("=")[1]),Double.parseDouble(vals[3].split("=")[1]),Double.parseDouble(vals[0].split("=")[1]),Double.parseDouble(vals[1].split("=")[1]),Double.parseDouble(vals[4].split("=")[1]),Double.parseDouble(vals[5].split("=")[1]),Double.parseDouble(vals[6].split("=")[1]),first);
+						   else  rLat.addNode(Double.parseDouble(vals[1].split("=")[1]),Double.parseDouble(vals[2].split("=")[1]),Double.parseDouble(vals[0].split("=")[1]),Double.parseDouble(vals[0].split("=")[1]),Double.parseDouble(vals[3].split("=")[1]),Double.parseDouble(vals[4].split("=")[1]),Double.parseDouble(vals[5].split("=")[1]),first);
+						   if(first)first=false;
+						   ind++;
+						   if(debug)IJ.log("-PoiLat?"+str[ind]);
+					   }
+						rLat.computeDistances();
+						rPrim.attachChild(rLat);
+						rLat.attachParent(rPrim);
+						rm.rootList.add(rLat);
+					   ind=ind+3;//<root or </root			   
+					   if(debug)IJ.log("-root lat?"+str[ind]);
+				   }
+				   ind=ind+2;//<plant or nothing	
+				   if(debug)IJ.log("-plant?"+str[ind]);
+			   }
+			   return rm;
+		   }
+		   
+
+	
+			//END UNSAFE ZONE
+		   
+
+	
+	
+	
+	
+	
 	
 /** The version. */
 //	static int nextRootKey;
@@ -222,6 +604,8 @@ public class RootModel extends WindowAdapter{
 
 /** The n plants. */
 private int nPlants;
+
+public double[] hoursCorrespondingToTimePoints;
    
    /**
     *  Constructors.
@@ -415,7 +799,7 @@ private int nPlants;
     *
     * @return the int
     */
-   public int cleanWildRsml() {
+   public int cleanWildRsml() {//TODO : currently, does not even verify  if primary was there before the lateral !
 	   int stamp=0;
 	   ArrayList<Root>prim=new ArrayList<Root>();
 	   ArrayList<Root>lat=new ArrayList<Root>();
@@ -469,73 +853,10 @@ private int nPlants;
    }
 */
    
-   /**
-    * Root model wild read annotation from rsml.
-    *
-    * @param rsmlFile the rsml file
-    * @return the root model
-    */
-   public static RootModel RootModelWildReadAnnotationFromRsml (String rsmlFile) {//Wild read model for Fijiyama did Root model with time, diameter, vx and vy information
-		FSR sr= (new FSR());
-		sr.initialize();
-	   boolean debug=false;
-	   String[]str=VitimageUtils.readStringFromFile(rsmlFile).split(System.getProperty("line.separator"));
-	   RootModel rm=new RootModel();
-	   rm.imgName=str[10].replace("<label>", "").replace("</label>", "");
-	   int ind=15;
-	   boolean first;
-	   if(debug)System.out.println("Pl"+str[ind]);
-	   while(str[ind].contains("<plant")) {
-		   ind=ind+1+3;//<root then <point
-		   Root rPrim=new Root(null, rm, "",1);
-		   first=true;
-		   if(debug)System.out.println("Poiprim"+str[ind]);
-		   while(str[ind].contains("<point")) {
-			   String[]vals=str[ind].replace("<point ","").replace("/>", "").replace("\"", "").split(" ");
-			   rPrim.addNode(Double.parseDouble(vals[12].split("=")[1]),Double.parseDouble(vals[13].split("=")[1]),0,0,0,0,first);
-			   if(first)first=false;
-			   ind++;
-			   if(debug)System.out.println("-Poiprim"+str[ind]);
-		   }
-		   ind+=2;
-		   while(str[ind].contains("<point")) {
-			   ind++;
-		   }
-		   rPrim.computeDistances();
-		   rm.rootList.add(rPrim);
-		   ind=ind+2;//<root or </root
-		   if(debug)System.out.println("root lat"+str[ind]);
-		   while(str[ind].contains("<root")) {//lateral
-			   ind=ind+3;//point
-			   Root rLat=new Root(null, rm, "",2);
-			   first=true;
-			   if(debug)System.out.println("PoiLat"+str[ind]);
-			   while(str[ind].contains("<point")) {
-				   String[]vals=str[ind].replace("<point ","").replace("/>", "").replace("\"", "").split(" ");
-//				   for(int i=0;i<vals.length;i++)System.out.println("Tab["+i+"]="+vals[i]);
-				   rLat.addNode(Double.parseDouble(vals[14].split("=")[1]),Double.parseDouble(vals[15].split("=")[1]),0,0,0,0,first);
-				   if(first)first=false;
-				   ind++;
-				   if(debug)System.out.println("-PoiLat?"+str[ind]);
-			   }
-			   ind+=2;
-			   while(str[ind].contains("<point")) {
-				   ind++;
-			   }
-				rLat.computeDistances();
-				rPrim.attachChild(rLat);
-				rLat.attachParent(rPrim);
-				rm.rootList.add(rLat);
-			   ind=ind+3;//<root or </root			   
-			   if(debug)System.out.println("-root lat?"+str[ind]);
-		   }
-		   ind=ind+2;//<plant or nothing	
-		   if(debug)System.out.println("-plant?"+str[ind]);
-	   }
-	   System.out.println("End of plant because"+str[ind]);
-	   return rm;
-   }
 
+   public void setHoursFromPph(double[]hours){
+	   hoursCorrespondingToTimePoints=hours;
+   }
    
    
    /**
@@ -553,72 +874,7 @@ private int nPlants;
 	   model.writeRSML3D(rsmlOutput, "", true,true);
    }   
 
-   
-   /**
-    * Root model wild read from rsml.
-    *
-    * @param rsmlFile the rsml file
-    * @return the root model
-    */
-   public static RootModel RootModelWildReadFromRsml (String rsmlFile) {//Wild read model for Fijiyama did Root model with time, diameter, vx and vy information
-	   FSR sr= (new FSR());
-	   sr.initialize();
-	   boolean debug=false;
-	   String lineSep= System.getProperty("line.separator");
-
-	   String[]str=null;
-	   if(VitimageUtils.isWindowsOS())str=VitimageUtils.readStringFromFile(rsmlFile).split("\\n");
-	   else str=VitimageUtils.readStringFromFile(rsmlFile).split("\n");
-	  // String[]str=(VitimageUtils.readStringFromFile(rsmlFile)).split("\R");
-	  // IJ.log("Le fichier total, ça donne : "+VitimageUtils.readStringFromFile(rsmlFile));
-	   RootModel rm=new RootModel();
-	   rm.imgName="";//tr[10].replace("<label>", "").replace("</label>", "");
-	   int ind=15;
-	   boolean first;
-	   if(debug)IJ.log("Pl"+str[ind]);
-	   while(str[ind].contains("<plant")) {
-		   ind=ind+1+3;//<root then <point
-		   Root rPrim=new Root(null, rm, "",1);
-		   first=true;
-		   if(debug)IJ.log("Poiprim"+str[ind]);
-		   while(str[ind].contains("<point")) {
-			   String[]vals=str[ind].replace("<point ","").replace("/>", "").replace("\"", "").split(" ");
-			   //for(int i=0;i<vals.length;i++)System.out.println("Tab["+i+"]="+vals[i]);
-			   rPrim.addNode(Double.parseDouble(vals[1].split("=")[1]),Double.parseDouble(vals[2].split("=")[1]),Double.parseDouble(vals[0].split("=")[1]),Double.parseDouble(vals[3].split("=")[1]),Double.parseDouble(vals[4].split("=")[1]),Double.parseDouble(vals[5].split("=")[1]),first);
-			   if(first)first=false;
-			   ind++;
-			   if(debug)IJ.log("-Poiprim"+str[ind]);
-		   }
-		   rPrim.computeDistances();
-		   rm.rootList.add(rPrim);
-		   ind=ind+2;//<root or </root
-		   if(debug)IJ.log("root lat"+str[ind]);
-		   while(str[ind].contains("<root")) {//lateral
-			   ind=ind+3;//point
-			   Root rLat=new Root(null, rm, "",2);
-			   first=true;
-			   if(debug)IJ.log("PoiLat"+str[ind]);
-			   while(str[ind].contains("<point")) {
-				   String[]vals=str[ind].replace("<point ","").replace("/>", "").replace("\"", "").split(" ");
-				   rLat.addNode(Double.parseDouble(vals[1].split("=")[1]),Double.parseDouble(vals[2].split("=")[1]),Double.parseDouble(vals[0].split("=")[1]),Double.parseDouble(vals[3].split("=")[1]),Double.parseDouble(vals[4].split("=")[1]),Double.parseDouble(vals[5].split("=")[1]),first);
-				   if(first)first=false;
-				   ind++;
-				   if(debug)IJ.log("-PoiLat?"+str[ind]);
-			   }
-				rLat.computeDistances();
-				rPrim.attachChild(rLat);
-				rLat.attachParent(rPrim);
-				rm.rootList.add(rLat);
-			   ind=ind+3;//<root or </root			   
-			   if(debug)IJ.log("-root lat?"+str[ind]);
-		   }
-		   ind=ind+2;//<plant or nothing	
-		   if(debug)IJ.log("-plant?"+str[ind]);
-	   }
-	   return rm;
-   }
-   
-	/**
+ 	/**
 	 * Send the root data to the ResulsTable rt.
 	 *
 	 * @param rt the rt
@@ -796,6 +1052,7 @@ private int nPlants;
     *
     * @param f the f
     */
+    //TODO : still in use ?
    public void readRSML(String f) {
 
 	   // Choose the datafile
@@ -893,7 +1150,6 @@ private int nPlants;
 	  FSR.write(rootList.size()+" root(s) were created");
 	   setDPI(dpi);
    	}
-
    
    /**
     * Read common datafile structure.
@@ -1115,10 +1371,10 @@ private int nPlants;
     */
    public void writeRSML(String f,String imgExt) {
 	   String fileName=VitimageUtils.withoutExtension( new File(f).getName() );
-	   String fPath = f;	
+	  // String fPath = f;	
 	   nextAutoRootID = 0;
 	   org.w3c.dom.Document dom = null;
-	   Element e,re,me,met,mett,sce,plant,rootPrim,rootLat,geomPrim,polyPrim,geomLat,polyLat,pt;
+	   Element re,me,met,mett,sce,plant,rootPrim,rootLat,geomPrim,polyPrim,geomLat,polyLat,pt;
 
 	   DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 	   try {
@@ -1228,153 +1484,7 @@ private int nPlants;
 
    
    
-   
-   
-   
-   
-   /**
-    * Write RSML 3 D.
-    *
-    * @param f the f
-    * @param imgExt the img ext
-    * @param shortValues the short values
-    * @param respectStandardRSML the respect standard RSML
-    */
-   public void writeRSML3D(String f,String imgExt,boolean shortValues,boolean respectStandardRSML) {
-	   String fileName=VitimageUtils.withoutExtension( new File(f).getName() );
-	   String fPath = f;	
-	   nextAutoRootID = 0;
-	   org.w3c.dom.Document dom = null;
-	   Element e,re,me,met,mett,sce,plant,rootPrim,rootLat,geomPrim,polyPrim,geomLat,polyLat,pt;
 
-	   DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-	   try {
-		   DocumentBuilder builder = factory.newDocumentBuilder();
-		   dom = builder.newDocument();
-	   }catch (ParserConfigurationException pce) {logReadError();return; }
-
-	   re=dom.createElement("rsml");
-
-	   //Build and add metadata
-	   me=dom.createElement("metadata");
-		   met=dom.createElement("version");met.setTextContent("1"); me.appendChild(met);	   
-		   met=dom.createElement("unit"); met.setTextContent("pixel"); me.appendChild(met);
-		   met=dom.createElement("resolution");  met.setTextContent("1");  me.appendChild(met);
-		   met=dom.createElement("last-modified");  met.setTextContent( new SimpleDateFormat("dd-MM-yyyy HH:mm:ss").format(new Date()));  me.appendChild(met);
-		   met=dom.createElement("software");  met.setTextContent( "Fijiyama ");  me.appendChild(met);
-		   met=dom.createElement("user");  met.setTextContent( "John Doe ");  me.appendChild(met);
-		   met=dom.createElement("file-key");  met.setTextContent( fileName);  me.appendChild(met);
-		   met=dom.createElement("image"); 
-			   mett=dom.createElement("label");  mett.setTextContent( fileName+imgExt);  met.appendChild(mett);
-			   mett=dom.createElement("sha256");  mett.setTextContent( "Nothing there");  met.appendChild(mett);	   
-		   me.appendChild(met);	  
-	   re.appendChild(me);
-
-	   //Build and add scene
-	   sce=dom.createElement("scene");
-
-	   		//Build and add plant 1
-	   		int incrPlant=0;
-	   		for(int indexPrim = 0; indexPrim < rootList.size(); indexPrim++){
-	   			Root r =  (Root) rootList.get(indexPrim);
-				if(r.isChild==1)continue;
-				++incrPlant;
-				plant=dom.createElement("plant");plant.setAttribute("ID", ""+(incrPlant));plant.setAttribute("label", "");
-					rootPrim=dom.createElement("root");rootPrim.setAttribute("ID", ""+(incrPlant)+".1");rootPrim.setAttribute("label", "");
-						geomPrim=dom.createElement("geometry");
-							polyPrim=dom.createElement("polyline");
-							double[][]coord=getRootCoordinates(r);
-							for(int i=0;i<coord.length;i++) {
-								pt=dom.createElement("point"); 
-								pt.setAttribute(respectStandardRSML ? "x" : "coord_x", ""+(shortValues ? VitimageUtils.dou(coord[i][0]): coord[i][0]));  
-								pt.setAttribute(respectStandardRSML ? "y" : "coord_y", ""+(shortValues ? VitimageUtils.dou(coord[i][1]) : coord[i][1]));  
-								if(!respectStandardRSML) {
-									pt.setAttribute("vx", ""+(shortValues ? VitimageUtils.dou(coord[i][2]) : coord[i][2]));
-									pt.setAttribute("vy", ""+(shortValues ? VitimageUtils.dou(coord[i][3]) : coord[i][3]));  
-									pt.setAttribute("diameter", ""+(shortValues ? VitimageUtils.dou(coord[i][4]) : coord[i][4]));
-									pt.setAttribute("coord_t", ""+(shortValues ? VitimageUtils.dou(coord[i][5]) : coord[i][5]));  
-								}
-								polyPrim.appendChild(pt);
-							}														
-							geomPrim.appendChild(polyPrim);
-						rootPrim.appendChild(geomPrim);
-						if(respectStandardRSML) {
-							Element functionPrim=dom.createElement("functions");
-								Element funcPrim=dom.createElement("function");funcPrim.setAttribute("name", "time");funcPrim.setAttribute("domain", "polyline");
-								for(int i=0;i<coord.length;i++) {
-									pt=dom.createElement("sample");
-									pt.setTextContent(""+(shortValues ? VitimageUtils.dou(coord[i][5]) : coord[i][5]));
-//									pt.setNodeValue(""+(shortValues ? VitimageUtils.dou(coord[i][5]) : coord[i][5]));
-									funcPrim.appendChild(pt);
-								}
-								functionPrim.appendChild(funcPrim);
-							rootPrim.appendChild(functionPrim);
-						}
-						
-						
-						
-						
-				
-						//Ajouter les enfants
-						int incrLat=0;
-						for(Root rLat : r.childList) {	
-							incrLat++;
-							rootLat=dom.createElement("root");rootLat.setAttribute("ID", ""+(incrPlant)+".1."+incrLat);rootLat.setAttribute("label", "");
-								geomLat=dom.createElement("geometry");
-									polyLat=dom.createElement("polyline");
-									coord=getRootCoordinates(rLat);
-									for(int i=0;i<coord.length;i++) {
-										pt=dom.createElement("point");  
-										pt.setAttribute(respectStandardRSML ? "x" : "coord_x", ""+(shortValues ? VitimageUtils.dou(coord[i][0]): coord[i][0]));  
-										pt.setAttribute(respectStandardRSML ? "y" : "coord_y", ""+(shortValues ? VitimageUtils.dou(coord[i][1]) : coord[i][1]));  
-										if(!respectStandardRSML) {
-											pt.setAttribute("vx", ""+(shortValues ? VitimageUtils.dou(coord[i][2]) : coord[i][2]));
-											pt.setAttribute("vy", ""+(shortValues ? VitimageUtils.dou(coord[i][3]) : coord[i][3]));  
-											pt.setAttribute("diameter", ""+(shortValues ? VitimageUtils.dou(coord[i][4]) : coord[i][4]));
-											pt.setAttribute("coord_t", ""+(shortValues ? VitimageUtils.dou(coord[i][5]) : coord[i][5]));  
-										}
-										polyLat.appendChild(pt);
-									}														
-									geomLat.appendChild(polyLat);
-								rootLat.appendChild(geomLat);
-								if(respectStandardRSML) {
-									Element functionLat=dom.createElement("functions");
-										Element funcLat=dom.createElement("function");funcLat.setAttribute("name", "time");funcLat.setAttribute("domain", "polyline");
-										for(int i=0;i<coord.length;i++) {
-											pt=dom.createElement("sample");
-											pt.setTextContent(""+(shortValues ? VitimageUtils.dou(coord[i][5]) : coord[i][5]));
-											funcLat.appendChild(pt);
-										}
-										functionLat.appendChild(funcLat);
-									rootLat.appendChild(functionLat);
-								}
-							rootPrim.appendChild(rootLat);
-						}
-					plant.appendChild(rootPrim);
-				sce.appendChild(plant);
-	   		}							
-	   		re.appendChild(sce);
-	   dom.appendChild(re);
-   
-	   
-	   
-	   
-	   
-	   TransformerFactory tf = TransformerFactory.newInstance();
-       Transformer transformer;
-       try {
-           transformer = tf.newTransformer();
-           transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");            
-           transformer.setOutputProperty(OutputKeys.INDENT, "yes");            
-           FileOutputStream outStream = new FileOutputStream(new File(f)); 
-           transformer.transform(new DOMSource(dom), new StreamResult(outStream));
-           outStream.close();
-       } catch (TransformerException eee)  { eee.printStackTrace(); }  catch (Exception ee) { ee.printStackTrace(); }
-   	}
-
-   
-   
-   
    
    /**
     * Gets the root coordinates.
@@ -1389,11 +1499,11 @@ private int nPlants;
 	   double[][]ret=new double[incr][2];
 	   incr=0;
 	   n=r.firstNode;
-	   ret[0]=new double[] {n.x,n.y,n.vx,n.vy,n.diameter,n.birthTime};
+	   ret[0]=new double[] {n.x,n.y,n.vx,n.vy,n.diameter,n.birthTime,n.birthTimeHours};
 	   while (n.child != null) {
 		   n = n.child;
 		   incr++;
-		   ret[incr]=new double[] {n.x,n.y,n.vx,n.vy,n.diameter,n.birthTime};
+		   ret[incr]=new double[] {n.x,n.y,n.vx,n.vy,n.diameter,n.birthTime,n.birthTimeHours};
 	   }
 	   return ret;
    }
@@ -1412,10 +1522,16 @@ private int nPlants;
 	 * @return the closest root from the apex of the root r
 	 */
 	
+   public void cleanNegativeTh() {
+	   for(Root r: rootList) {
+		   r.cleanNegativeTh();
+	   }
+   }
+   
 	   public int resampleFlyingRoots() {
 		   int stamp=0;
 		   for(Root r: rootList) {
-			   stamp+=r.resampleFlyingPoints();
+			   stamp+=r.resampleFlyingPoints(hoursCorrespondingToTimePoints);
 		   }
 		   return stamp;
 	   }
@@ -1923,12 +2039,10 @@ private int nPlants;
 	 */
 	public double[][]getPrimLengthOverTime(int tMax,int plant){	
 		double [][]ret=new double[tMax][2];
-		int incr=0;
 		for(Root r: rootList){
 			if(r.plantNumber!=plant || r.order!=1)continue;
 			Node n=r.firstNode;
 			float dist=0;
-			float y0=n.y;
 			int curTime=0;
 			Node ntmp;
 			while(n.child!=null) {
@@ -1946,41 +2060,6 @@ private int nPlants;
 		return ret;		
 	}
 
-	
-	/**
-	 * Gets the lateral speeds and depth over time.
-	 *
-	 * @param tMax the t max
-	 * @param plant the plant
-	 * @return the lateral speeds and depth over time
-	 */
-	public double[][][]getLateralSpeedsAndDepthOverTime(int tMax,int plant){
-		System.out.println("Working for plant "+plant+" at tmax="+tMax);
-		int nbLat=nbLatsPerPlant()[plant];
-		double primInitDepth=0;
-		for(Root r: rootList){
-			if(r.order==1) {
-				primInitDepth=r.firstNode.y;
-			}
-		}
-		double[][][]tab=new double[2][nbLat][tMax+1];
-		int incr=-1;
-		for(Root r: rootList){
-			if(r.plantNumber!=plant || r.order==1)continue;
-			incr++;
-			Node n=r.firstNode;
-			double spe=0;
-			while(n!=null) {
-				double ti=n.birthTime;
-				if(n.child!=null) spe=VitimageUtils.distance(n.x,n.y,n.child.x,n.child.y);
-				tab[0][incr][(int) Math.round(ti)]=-n.y+primInitDepth;
-				tab[1][incr][(int) Math.round(ti)]=spe;
-				n=n.child;
-			}
-		}
-		return tab;
-	}
-	
 	/**
 	 * Get the total lengthd of the lateral roots.
 	 *
@@ -2355,8 +2434,7 @@ private int nPlants;
      */
     public void refineDescription(int maxRangeBetweenNodes) {
        	Root r;
-    	Node n,n1,n0,nPrim;
-    	double[]coords;
+    	Node n,n1,n0;
     	for(int i = 0; i < rootList.size(); i++){
 			r =  (Root) rootList.get(i);
 			n = r.firstNode;
@@ -2390,7 +2468,7 @@ private int nPlants;
      */
     public void attachLatToPrime() {
     	Root r,rPar;
-    	Node n,n1,n0,nPrim,nLat,nMin,newNode=null;
+    	Node nPrim,nLat,newNode=null;
     	for(int i = 0; i < rootList.size(); i++){
 			r =  (Root) rootList.get(i);
 			if(r.isChild()==0)continue;
@@ -2563,7 +2641,6 @@ private int nPlants;
     public ImagePlus createGrayScaleImageWithTime(int []initDims, int SIZE_FACTOR,boolean binaryColor,double observationTime,boolean dotLineForHidden,boolean []symbolOptions,double[]lineWidths) {
     	boolean showSymbols=symbolOptions[0];
     	boolean distinguishStartSymbol=symbolOptions[1];
-    	boolean distinguishEndSymbol=symbolOptions[2];
     	boolean distinguishDateStartSymbol=symbolOptions[3];
     	boolean showIntermediateSymbol=symbolOptions[4];
     	if(observationTime<0)observationTime=1E8;//Full root system
@@ -2701,7 +2778,7 @@ private int nPlants;
      * @param deltaModel the delta model
      * @return the image plus
      */
-    public ImagePlus createGrayScaleImageTimeLapse(ImagePlus imgInitSize, double []observationTimes,double[]lineWidths,double deltaModel) {
+    public ImagePlus createGrayScaleImageTimeLapse(ImagePlus imgInitSize, double []observationTimes,double[]lineWidths,double deltaModel) {//TODO : pass into hours
     	int[]initDims=new int[] {imgInitSize.getWidth(),imgInitSize.getHeight()};
     	int Z=observationTimes.length;
     	ImagePlus imgRSML=IJ.createImage("",initDims[0],initDims[1], Z,8);
@@ -2733,21 +2810,21 @@ private int nPlants;
 
 				//Identify the first index t where line appear in dot
 				int indFirstDot=0;
-				for(int indt=0;indt<Z;indt++)if(n1.birthTime>=(observationTimes[indt]-deltaModel))indFirstDot=indt;
+				for(int indt=0;indt<Z;indt++)if(n1.birthTimeHours>=(observationTimes[indt]-deltaModel))indFirstDot=indt;
 				indFirstDot++;
 
 				//Identify the first index t where line appear in plain
 				int indFirstPlain=indFirstDot;
-				for(int indt=indFirstDot;indt<Z;indt++)if(n.birthTime>(observationTimes[indt]-deltaModel))indFirstPlain=indt;
+				for(int indt=indFirstDot;indt<Z;indt++)if(n.birthTimeHours>(observationTimes[indt]-deltaModel))indFirstPlain=indt;
 				indFirstPlain++;
 				if(indFirstPlain>Z)indFirstPlain=Z;
 				
 				//Draw differently these cases
 				for(int indt=indFirstDot;indt<indFirstPlain;indt++) {
 					//In that case, Identify the part to draw and draw it in dot
-					double deltaT=n.birthTime-n1.birthTime;
+					double deltaT=n.birthTimeHours-n1.birthTimeHours;
 					if(deltaT<VitimageUtils.EPSILON)deltaT=1;
-					double deltaTrelative=(observationTimes[indt]-n1.birthTime)/deltaT;
+					double deltaTrelative=(observationTimes[indt]-n1.birthTimeHours)/deltaT;
 					double deltaX=n.x-n1.x;
 					double deltaY=n.y-n1.y;
 					double interX=n1.x+deltaTrelative*deltaX;
@@ -2756,7 +2833,7 @@ private int nPlants;
 					ips[indt].setLineWidth(lwid);
 					drawDotline(ips[indt],ImagePlus.GRAY8,(int)n1.x,(int)n1.y,(int)interX,(int)interY, dotEvery,lwid,color);
 					//then draw the parent node
-					double delta=Math.abs(n1.birthTime-Math.round(n1.birthTime));
+					double delta=Math.abs(n1.birthTime-Math.round(n1.birthTimeHours));
 					if(delta<=0.001 ||true) {
 						//draw date start symbol
 					}
@@ -2781,7 +2858,7 @@ private int nPlants;
 					//ips[indt].drawLine((int) n1.x,(int)n1.y,(int)n.x,(int)n.y);					
 					drawDotline(ips[indt],ImagePlus.GRAY8,(int)n1.x,(int)n1.y,(int)n.x,(int)n.y, dotEvery,lwid,color);
 					//then draw the parent node
-					double delta=Math.abs(n1.birthTime-Math.round(n1.birthTime));
+					double delta=Math.abs(n1.birthTimeHours-Math.round(n1.birthTimeHours));
 					if(delta<=0.001 ||true) {
 						//draw date start symbol
 					}

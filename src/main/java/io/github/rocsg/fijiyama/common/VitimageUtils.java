@@ -128,6 +128,24 @@ public class VitimageUtils {
 	}
 
 	
+	
+	
+	
+	
+	public boolean isZuluEndangered() {
+		if(VitimageUtils.isWindowsOS() && System.getProperties().toString().contains("zulu")) {
+			IJ.showMessage("You run windows with zulu JDK. We are sorry, but this is unconvenient\n"+
+					" The plugin will close to let you adjust your setup (two operations to make). "+""
+				+ "\nThen please read the windows installation instructions on the plugin page"+
+					"\nhttps://imagej.net/plugins/fijirelax ");
+			return true;
+		}
+		IJ.log("\nZulu check ok\n\n");
+		return false;
+	}
+
+	
+	
 	/**
 	 * Gets the shortest and darkest path in image.
 	 *
@@ -160,7 +178,6 @@ public class VitimageUtils {
 			if( (y<(yM-1)) ) if(tabPix[x][y+1]!=null)pixGraph.addEdge(tabPix[x][y], tabPix[x][y+1],new Bord(tabPix[x][y], tabPix[x][y+1]));
 		}			
 		for(Bord bord:pixGraph.edgeSet()) pixGraph.setEdgeWeight(bord, bord.getWeightDistExt());
-		System.out.println("Especially, the graph Contains "+pixGraph.containsVertex(pixStart));
 		DijkstraShortestPath<Pix, Bord>djik=new DijkstraShortestPath<Pix, Bord>(pixGraph);
 		GraphPath<Pix, Bord> path = djik.getPath(pixStart, pixStop);
 		return path;
@@ -7069,7 +7086,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 */
 	public static ImagePlus convertShortToFloatWithoutDynamicChanges(ImagePlus imgIn) {
 		ImagePlus ret=new Duplicator().run(imgIn);
-		ret=convertToFloat(ret);
+		ret=IJ.createImage("", "32-bit", ret.getWidth(), ret.getHeight(), ret.getNChannels(), ret.getNSlices(), ret.getNFrames());
 		float[][] out=new float[ret.getStackSize()][];
 		short[][] in=new short[imgIn.getStackSize()][];
 		int X=imgIn.getWidth();
@@ -7098,7 +7115,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	public static ImagePlus convertFloatToShortWithoutDynamicChanges(ImagePlus imgIn) {
 		ImagePlus ret=new Duplicator().run(imgIn);
 		if(imgIn.getType()==ImagePlus.GRAY16)return ret;
-		new StackConverter(ret).convertToGray16();
+		ret=IJ.createImage("", "16-bit", ret.getWidth(), ret.getHeight(), ret.getNChannels(), ret.getNSlices(), ret.getNFrames());
 		float[][] in=new float[imgIn.getStackSize()][];
 		short[][] out=new short[ret.getStackSize()][];
 		int X=imgIn.getWidth();
@@ -7127,7 +7144,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	public static ImagePlus convertFloatToByteWithoutDynamicChanges(ImagePlus imgIn) {
 		ImagePlus ret=new Duplicator().run(imgIn);
 		if(imgIn.getType()==ImagePlus.GRAY8)return ret;
-		new StackConverter(ret).convertToGray8();
+		ret=IJ.createImage("", "8-bit", ret.getWidth(), ret.getHeight(), ret.getNChannels(), ret.getNSlices(), ret.getNFrames());
 		float[][] in=new float[imgIn.getStackSize()][];
 		byte[][] out=new byte[ret.getStackSize()][];
 		int X=imgIn.getWidth();
@@ -7466,7 +7483,8 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	 */
 	public static ImagePlus convertByteToFloatWithoutDynamicChanges(ImagePlus imgIn) {
 		ImagePlus ret=VitimageUtils.imageCopy(imgIn);
-		ret=convertToFloat(ret);
+		ret=IJ.createImage("", "32-bit", ret.getWidth(), ret.getHeight(), ret.getNChannels(), ret.getNSlices(), ret.getNFrames());
+		
 
 		float[][] out=new float[ret.getStackSize()][];
 		byte[][] in=new byte[imgIn.getStackSize()][];

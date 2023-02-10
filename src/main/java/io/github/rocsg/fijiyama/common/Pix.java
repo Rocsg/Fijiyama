@@ -37,6 +37,12 @@ public class Pix implements Serializable{
 	/** The time out. */
 	public double timeOut;
 	
+	/** The time. */
+	public double timeHours=-1;
+	
+	/** The time out. */
+	public double timeOutHours;
+	
 	/** The x. */
 	public int x;
 	
