@@ -4,9 +4,7 @@
 package io.github.rocsg.fijiyama.common;
 
 import ij.IJ;
-import io.github.rocsg.fijiyama.common.VitimageUtils;
 
-// TODO: Auto-generated Javadoc
 /**
  * The Class Timer.
  */
@@ -23,6 +21,14 @@ public class Timer {
 	 */
 	public Timer() {
 		initTime=System.currentTimeMillis();
+	}
+
+
+	public static void main(String[]args){
+		Timer t=new Timer();
+		t.print("Now");
+		for(int i=0;i<1E9; i++){int a=1;}
+		t.print("After");
 	}
 
 	/**

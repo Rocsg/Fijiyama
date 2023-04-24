@@ -124,7 +124,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public String versionName="Handsome honeysuckle";
 	
 	/** The time version flag. */
-	public String timeVersionFlag="  V4.0.10 patch 2023-02-20 -13:36 AM";
+	public String timeVersionFlag="  v4.0.11 patch 2023-04-24 -15:59 PM";
 	
 	/** The version flag. */
 	public String versionFlag=versionName+timeVersionFlag;

@@ -1,16 +1,8 @@
-/*
- * 
- */
 package io.github.rocsg.fijiyama.rsml;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import io.github.rocsg.fijiyama.common.VitimageUtils;
-import io.github.rocsg.fijiyama.registration.TransformUtils;
-import io.github.rocsg.fijiyama.rsml.FSR;
-import io.github.rocsg.fijiyama.rsml.Mark;
-import io.github.rocsg.fijiyama.rsml.Node;
 import io.github.rocsg.fijiyama.rsml.Root;
-import io.github.rocsg.fijiyama.rsml.RootModel;
 
 import java.awt.*;
 import java.awt.geom.*;
@@ -18,7 +10,6 @@ import java.util.*;
 import java.util.List;
 
   
-// TODO: Auto-generated Javadoc
 /** 
  * @author Xavier Draye - Universit� catholique de Louvain
  * @author Guillaume Lobet - Universit� de Li�ge 
@@ -27,7 +18,6 @@ import java.util.List;
  * */
 
 
-// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 public class Root implements Comparable<Root>{
    
@@ -57,21 +47,21 @@ public class Root implements Comparable<Root>{
 	
 	   public void interpolateTime() {
 		   Node n=firstNode;
-		   double dist0=firstNode.distance;
-		   double time0=firstNode.birthTime;
-		   double timehour0=firstNode.birthTimeHours;
+		   //double dist0=firstNode.distance;
+		   //double time0=firstNode.birthTime;
+		   //double timehour0=firstNode.birthTimeHours;
 		   ArrayList<Double>times=new ArrayList<Double>();
 		   ArrayList<Double>timesHours=new ArrayList<Double>();
 		   ArrayList<Double>dists=new ArrayList<Double>();
 		   dists.add(n.distance);
-		   times.add(new Double(n.birthTime));
-		   timesHours.add(new Double(n.birthTimeHours));
+		   times.add(Double.valueOf(n.birthTime));
+		   timesHours.add(Double.valueOf(n.birthTimeHours));
 		   while(n.child!=null) {
 			   n=n.child;
 			   if(n.birthTime>=0) {
 				   dists.add(n.distance);
-				   times.add(new Double( n.birthTime ));
-				   timesHours.add(new Double( n.birthTimeHours ));
+				   times.add(Double.valueOf( n.birthTime ));
+				   timesHours.add(Double.valueOf( n.birthTimeHours ));
 			   }
 		   }
 		   Double[]distsTab=dists.toArray(new Double[dists.size()]);
@@ -206,7 +196,7 @@ public class Root implements Comparable<Root>{
 		 * @param zeroPaddingAtLastNode the zero padding at last node
 		 */
 		public void computeSpeedVectors(double deltaBackward,double deltaForward,boolean zeroPaddingAtLastNode) {
-			//TODO : attention, les vitesses sont calculées en pixels.
+			//TODO : Caution, speed are computed in pixels units.
 			ArrayList<Node>nodes=getNodesList();
 			int N=nodes.size();
 
@@ -230,7 +220,73 @@ public class Root implements Comparable<Root>{
 			if(zeroPaddingAtLastNode) {	nodes.get(N-1).vx=0;nodes.get(N-1).vy=0;}
 		}
 		
-	   
+		
+		
+		public void changeTimeBasis(double timestep,int N) {
+			double[]hoursCorrespondingToTimePoints=new double[N];
+		    for(int i=0;i<N;i++) {
+			   hoursCorrespondingToTimePoints[i]=timestep*i;
+		    }
+		    double maxHour=hoursCorrespondingToTimePoints[hoursCorrespondingToTimePoints.length-1];
+
+		    Node nFirst=firstNode;
+		    Node nLast=lastNode;
+		    Node n=nFirst;
+		    while(n!=null) {
+			   n.birthTime=(float) (n.birthTimeHours/timestep);
+		       n=n.child;
+		    }
+		}
+
+		public boolean removeInterpolatedNodes() {
+		   Node n1=firstNode;
+		   Node n2=n1.child;
+		   while(n1!=null) {
+//			   System.out.println("Node : "+n1);
+			   boolean exact=(Math.abs(n1.birthTime-Math.round(n1.birthTime))<VitimageUtils.EPSILON);
+			   if(!exact) {
+				   //				   System.out.println(" Not exact");
+				   //We need to suppress this node
+				   if(n2==null) {//last node
+					   //  System.out.println("   Last node");
+					   if(n1==firstNode) {//also the first node
+						   //  System.out.println("     First node");
+						   return false;//technically the calling function should raise this flag and should suppress this root
+					   }
+					   else {//last node but not first node
+						   //System.out.println("     Not first node");
+					       lastNode=n1.parent;
+						   n1.parent.child=null;
+						   n1=null;
+					   }
+				   }
+				   else {//is not last node
+					   //System.out.println("   Not last node");
+					   if(n1==firstNode) {//it is the first node but not the last node
+						   //  System.out.println("     First node");
+						   firstNode=n2;
+						   n1=n2;
+						   n2=n1.child;
+					   }
+					   else {//not first node, nor last node
+						   //System.out.println("     Not first node");
+						   n1.parent.child=n2;
+						   n2.parent=n1.parent;
+						   n1=n2;
+						   n2=n1.child;
+					   }
+				   }
+			   }
+			   else {//no need to suppress this node
+				   //System.out.println("  Exact");
+				   n1=n2;
+				   n2=n1.child;
+			   }
+		   }			
+		   return true;
+		}
+		
+		
 	   /**
 	    * Resample flying points.
 	    * Updating a tree-like data structure by finding any "flying points" (i.e. points that are not present in the tree at certain times) 
@@ -580,7 +636,7 @@ public class Root implements Comparable<Root>{
 	   Node node = this.firstNode;
 	   int incr=0;
 	   tab[incr++]=new double[] {0,node.diameter};
-	   ar.add(new Double(node.diameter));
+	   ar.add(Double.valueOf(node.diameter));
 		while (node.child != null){
 			dist+=node.getDistanceTo(node.child);
 			node = node.child;
@@ -617,7 +673,7 @@ public class Root implements Comparable<Root>{
     * @return the node of parent just after my attachment
     */
    public Node getNodeOfParentJustAfterMyAttachment() {
-	   Node n=null;
+	   //Node n=null;
 	   Root par=this.parent;
 	   Node nn=par.firstNode;
 	   Node nnNext=nn.child;
@@ -952,7 +1008,7 @@ public class Root implements Comparable<Root>{
     */
    public void readRSML(org.w3c.dom.Node parentDOM, RootModel rm, Root parentRoot, String origin) {
 	  int counter = 1, clock = 1; // The counter is used to select only one node in x (x = counter)
-	  boolean Fijiyama3d=false;
+	  //boolean Fijiyama3d=false;
 	  if(origin.equals("Root System Analyzer")) {
 		  counter = 5;
 		  clock = 5;
@@ -1073,7 +1129,7 @@ public class Root implements Comparable<Root>{
     */
    public void readRSML(org.w3c.dom.Node parentDOM, RootModel rm, Root parentRoot, String origin,boolean timeLapseModel) {
 	  int counter = 1, clock = 1; // The counter is used to select only one node in x (x = counter)
-	  boolean Fijiyama3d=false;
+	  //boolean Fijiyama3d=false;
 	  if(origin.equals("Root System Analyzer")) {
 		  counter = 5;
 		  clock = 5;

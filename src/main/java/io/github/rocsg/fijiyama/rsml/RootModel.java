@@ -190,7 +190,8 @@ public class RootModel extends WindowAdapter{
 		   
 		*/
 		
-		
+	
+	
 	   
 			/**
 			 * Gets the lateral speeds and depth over time.
@@ -239,6 +240,7 @@ public class RootModel extends WindowAdapter{
 		    * @param respectStandardRSML the respect standard RSML
 		    */
 		   public void writeRSML3D(String f,String imgExt,boolean shortValues,boolean respectStandardRSML) {
+			   this.standardOrderingOfRoots();
 			   String fileName=VitimageUtils.withoutExtension( new File(f).getName() );
 			   nextAutoRootID = 0;
 			   org.w3c.dom.Document dom = null;
@@ -392,6 +394,52 @@ public class RootModel extends WindowAdapter{
 
 		   
 		   /**
+			* This function modify the current object in order to respect the standard description of roots.
+			* To that end, the primary roots are ordered according to the x coordinate of their first node (see Root.java)
+		    */
+		   public void standardOrderingOfRoots() {
+			    //First, we order the tab rootList with a specific sorting function taking in consideration their first node x coordinate  	
+			    //to that end we first define a comparator of roots
+				Comparator<Root> comparatorPrimaries = new Comparator<Root>() {
+				   @Override
+				   public int compare(Root r1, Root r2) {
+					   return Double.compare(r1.firstNode.x, r2.firstNode.x);
+				   }
+			   };  
+				//Then we use comparator to sort rootList
+			   Collections.sort(this.rootList, comparatorPrimaries);
+			
+			   //Then, we order the lateral roots
+			   //to that end we first define a comparator of roots. Its behaviour is to take in consideration their first node y coordinate
+			   Comparator<Root> comparatorLateral = new Comparator<Root>() {
+				   @Override
+				   public int compare(Root r1, Root r2) {
+					   return Double.compare(r1.firstNode.y, r2.firstNode.y);
+				   }
+			   };
+			   for(Root r : this.rootList) {
+				   Collections.sort(r.childList, comparatorLateral);
+			   }
+		   }
+		   
+
+		   //A main function to test the function below
+		   public static void main(String[]args) {
+			   testStandardOrderingOfRoots("/home/rfernandez/Bureau/230403SR055/61_graph.rsml");
+		   }
+
+
+		   /**
+			* Here is a test function for the function above, standardOrderingOfRoots()
+			* It takes as an argument a rsml, read it by using the function RootModelWildReadFromRsml, then standardize ordering, and then write it back to a new rsml file
+		    */
+		   public static void testStandardOrderingOfRoots(String rsmlFile) {
+			   RootModel rm=RootModel.RootModelWildReadFromRsml(rsmlFile);
+			   rm.standardOrderingOfRoots();
+			   rm.writeRSML3D(rsmlFile+"_standardized.rsml", "",true,false);
+		   }
+			
+		   /**
 		    * Root model wild read from rsml.
 		    *
 		    * @param rsmlFile the rsml file
@@ -467,6 +515,7 @@ public class RootModel extends WindowAdapter{
 				   ind=ind+2;//<plant or nothing	
 				   if(debug)IJ.log("-plant?"+str[ind]);
 			   }
+			   rm.standardOrderingOfRoots();
 			   return rm;
 		   }
 		   
@@ -804,8 +853,10 @@ public double[] hoursCorrespondingToTimePoints;
 	   ArrayList<Root>prim=new ArrayList<Root>();
 	   ArrayList<Root>lat=new ArrayList<Root>();
 	   for(Root r : rootList) {
-		   if(r.childList!=null && r.childList.size()>0) { prim.add(r);stamp+=1000000;}
-		   else { lat.add(r);stamp+=1000;}
+		   if(r.order>1)lat.add(r);
+		   else prim.add(r);
+		   //		   if(r.childList!=null && r.childList.size()>0) { prim.add(r);stamp+=1000000;}
+//		   else { lat.add(r);stamp+=1000;}
 	   }
 	   for(Root rLat : lat) {
 		   Node nL=rLat.firstNode;
@@ -826,7 +877,16 @@ public double[] hoursCorrespondingToTimePoints;
 		   if(! (bestPrim==rLat.parent) ) {//Proceed to good attachment
 			   stamp++;
 			   ArrayList<Root>newChi=new ArrayList<Root>();
-			   for(Root rOld:rLat.parent.childList)if(rOld!=rLat)newChi.add(rOld);
+			   //String s = rLat.toString();
+			   IJ.log("Process.ing rLat="+rLat);
+			   
+			   //s = rLat.parent.toString();
+			   IJ.log("ChildList="+rLat.parent.childList);
+			   IJ.log("Processing rLat.parent="+rLat.parent);
+			    for(Root rOld:rLat.parent.childList) {
+			    	IJ.log(" - Child : "+rOld);
+			    	if(rOld!=rLat)newChi.add(rOld);
+			    }
 			   rLat.parent.childList=newChi;
 			   bestPrim.attachChild(rLat);
 			   rLat.attachParent(bestPrim);
@@ -836,44 +896,13 @@ public double[] hoursCorrespondingToTimePoints;
    }
    
    
-   /*
-   public static void main(String[]args) {
-		FSR sr= (new FSR());
-		sr.initialize();
-	   boolean testing=true;
-	   String ml="1";
-	   String boite="00001";
-		final String mainDataDir=testing ? "/home/rfernandez/Bureau/A_Test/RSML"
-				: "/media/rfernandez/DATA_RO_A/Roots_systems/Data_BPMP/Second_dataset_2021_07/Processing";
-		System.out.println(mainDataDir+"/4_RSML/ML"+ml+"_Boite_"+boite+".rsml");
-	    RootModel rm=RootModelWildReadFromRsml(mainDataDir+"/4_RSML/ML"+ml+"_Boite_"+boite+".rsml");
-	    for(Root r:rm.rootList)System.out.println(r);
-	    VitimageUtils.waitFor(5000000);
-		
-   }
-*/
-   
 
    public void setHoursFromPph(double[]hours){
 	   hoursCorrespondingToTimePoints=hours;
    }
    
    
-   /**
-    * The main method.
-    *
-    * @param args the arguments
-    */
-   public static void main(String[]args) {
-	   FSR sr= (new FSR());
-	   sr.initialize();
-	  String rsmlInput="/home/rfernandez/Bureau/A_Test/RSML/Wrochy/ML1_Boite_00001.rsml";
-	   String rsmlOutput="/home/rfernandez/Bureau/A_Test/RSML/Wrochy/ML1_Boite_00001_V2.rsml";
-	   RootModel model = RootModelWildReadFromRsml(rsmlInput);
-//			   new RootModel(rsmlInput);
-	   model.writeRSML3D(rsmlOutput, "", true,true);
-   }   
-
+  
  	/**
 	 * Send the root data to the ResulsTable rt.
 	 *
@@ -1519,7 +1548,7 @@ public double[] hoursCorrespondingToTimePoints;
 	/**
 	 *  Get the closest root from the base of a given root .
 	 *
-	 * @return the closest root from the apex of the root r
+	 * 
 	 */
 	
    public void cleanNegativeTh() {
@@ -1528,13 +1557,38 @@ public double[] hoursCorrespondingToTimePoints;
 	   }
    }
    
-	   public int resampleFlyingRoots() {
-		   int stamp=0;
-		   for(Root r: rootList) {
-			   stamp+=r.resampleFlyingPoints(hoursCorrespondingToTimePoints);
-		   }
-		   return stamp;
+   public int resampleFlyingRoots() {
+	   int stamp=0;
+	   for(Root r: rootList) {
+		   stamp+=r.resampleFlyingPoints(hoursCorrespondingToTimePoints);
 	   }
+	   return stamp;
+   }
+
+   public void removeInterpolatedNodes() {
+	   IJ.log("Removing interpolated nodes");
+	   int tot=0;
+	   int rem=0;
+	   for(Root r: rootList) {
+		   IJ.log("Processing root "+r);
+		   tot++;
+		   boolean rootkept=r.removeInterpolatedNodes();
+		   if(!rootkept) {rem++;rootList.remove(r);}
+		   IJ.log("Ok");
+	   }	   
+	   IJ.log(" after removing, "+rem+" / "+tot+" pathological roots have been wiped");
+   }
+
+   
+   public void changeTimeBasis(double timestep,int N) {
+	   hoursCorrespondingToTimePoints=new double[N];
+	   for(int i=0;i<N;i++) {
+		   hoursCorrespondingToTimePoints[i]=timestep*i;
+	   }
+	   for(Root r: rootList) {
+		   r.changeTimeBasis(timestep,N);
+	   }
+   }
    
     	/**
 	     * Gets the closest node.
@@ -2621,9 +2675,13 @@ public double[] hoursCorrespondingToTimePoints;
      */
     public ImagePlus createGrayScaleImageWithTime(ImagePlus imgInitSize, int SIZE_FACTOR,boolean binaryColor,double observationTime,boolean dotLineForHidden,boolean []symbolOptions,double[]lineWidths) {
     	int[]initDims=new int[] {imgInitSize.getWidth(),imgInitSize.getHeight()};
-    	return createGrayScaleImageWithTime(initDims, SIZE_FACTOR, binaryColor, observationTime, dotLineForHidden, symbolOptions,lineWidths);
+    	return createGrayScaleImageWithTime(initDims, SIZE_FACTOR, binaryColor, observationTime, dotLineForHidden, symbolOptions,lineWidths,false);
     }
  
+    public ImagePlus createGrayScaleImageWithHours(ImagePlus imgInitSize, int SIZE_FACTOR,boolean binaryColor,double observationTime,boolean dotLineForHidden,boolean []symbolOptions,double[]lineWidths) {
+    	int[]initDims=new int[] {imgInitSize.getWidth(),imgInitSize.getHeight()};
+    	return createGrayScaleImageWithTime(initDims, SIZE_FACTOR, binaryColor, observationTime, dotLineForHidden, symbolOptions,lineWidths,true);
+    }
     
     
     /**
@@ -2638,7 +2696,7 @@ public double[] hoursCorrespondingToTimePoints;
      * @param lineWidths the line widths
      * @return the image plus
      */
-    public ImagePlus createGrayScaleImageWithTime(int []initDims, int SIZE_FACTOR,boolean binaryColor,double observationTime,boolean dotLineForHidden,boolean []symbolOptions,double[]lineWidths) {
+    public ImagePlus createGrayScaleImageWithTime(int []initDims, int SIZE_FACTOR,boolean binaryColor,double observationTime,boolean dotLineForHidden,boolean []symbolOptions,double[]lineWidths,boolean countInHours) {
     	boolean showSymbols=symbolOptions[0];
     	boolean distinguishStartSymbol=symbolOptions[1];
     	boolean distinguishDateStartSymbol=symbolOptions[3];
@@ -2665,7 +2723,7 @@ public double[] hoursCorrespondingToTimePoints;
 			double rMaxDate=r.getDateMax();
 			if(maxDate<rMaxDate)maxDate=rMaxDate;
 			boolean timeOver=false;
-			while(n.child != null && (!timeOver) && (n.birthTime<observationTime)){
+			while(n.child != null && (!timeOver) && (((countInHours ? n.birthTimeHours : n.birthTime)<observationTime))){
 				n1 = n;
 				n = n.child;
 				int dotEvery=0;
@@ -2678,15 +2736,15 @@ public double[] hoursCorrespondingToTimePoints;
 					dotEvery=n1.hiddenWayToChild ? 2 : 0;
 					width=n1.hiddenWayToChild ? 1 : lineWidths[r.order-1];
 				}
-				if(n.birthTime>observationTime) {
-					double ratio=(observationTime-n1.birthTime)/(n.birthTime-n1.birthTime);
+				if((countInHours ? n.birthTimeHours : n.birthTime)>observationTime) {
+					double ratio=(observationTime-(countInHours ? n1.birthTimeHours : n1.birthTime))/((countInHours ? n.birthTimeHours : n.birthTime)-(countInHours ? n1.birthTimeHours : n1.birthTime));
 					double partialX=(n.x-n1.x)*ratio+n1.x;
 					double partialY=(n.y-n1.y)*ratio+n1.y;
-					drawDotline(ip,ImagePlus.GRAY8,(int) ((n1.x+0.5)*SIZE_FACTOR), (int) ((n1.y+0.5)*SIZE_FACTOR), (int) ((partialX+0.5)*SIZE_FACTOR), (int) ((partialY+0.5)*SIZE_FACTOR),dotEvery,width,binaryColor ? color : n.birthTime); 
+					drawDotline(ip,ImagePlus.GRAY8,(int) ((n1.x+0.5)*SIZE_FACTOR), (int) ((n1.y+0.5)*SIZE_FACTOR), (int) ((partialX+0.5)*SIZE_FACTOR), (int) ((partialY+0.5)*SIZE_FACTOR),dotEvery,width,binaryColor ? color : (countInHours ? n.birthTimeHours : n.birthTime)); 
 					timeOver=true;
 				}
 				else {
-					drawDotline(ip,ImagePlus.GRAY8,(int) ((n1.x+0.5)*SIZE_FACTOR), (int) ((n1.y+0.5)*SIZE_FACTOR), (int) ((n.x+0.5)*SIZE_FACTOR), (int) ((n.y+0.5)*SIZE_FACTOR),dotEvery,width,binaryColor ? color: n.birthTime); 
+					drawDotline(ip,ImagePlus.GRAY8,(int) ((n1.x+0.5)*SIZE_FACTOR), (int) ((n1.y+0.5)*SIZE_FACTOR), (int) ((n.x+0.5)*SIZE_FACTOR), (int) ((n.y+0.5)*SIZE_FACTOR),dotEvery,width,binaryColor ? color: (countInHours ? n.birthTimeHours : n.birthTime)); 
 				}
 			}
 		}
@@ -2694,7 +2752,7 @@ public double[] hoursCorrespondingToTimePoints;
 			if(!showSymbols)continue;
 			Root r =  (Root) rootList.get(i);
 			Node n = r.firstNode;
-			if(n.birthTime>observationTime) continue;
+			if((countInHours ? n.birthTimeHours : n.birthTime)>observationTime) continue;
 			Node n1;
 			double wid=lineWidths[r.order-1];
 			if(distinguishStartSymbol) {
@@ -2717,15 +2775,15 @@ public double[] hoursCorrespondingToTimePoints;
 				//draw starting point as any symbol
 				ip.setColor(Color.white);
 				ip.drawRect((int) ((n.x+0.5)*SIZE_FACTOR-1), (int) ((n.y+0.5)*SIZE_FACTOR)-1, 3, 3);
-				if(n.birthTime>=maxDate)maxDate=n.birthTime;
+				if((countInHours ? n.birthTimeHours : n.birthTime)>=maxDate)maxDate=(countInHours ? n.birthTimeHours : n.birthTime);
 			}
 			boolean timeOver=false;
-			while(n.child != null && (!timeOver) && (n.birthTime<observationTime)){
+			while(n.child != null && (!timeOver) && ((countInHours ? n.birthTimeHours : n.birthTime)<observationTime)){
 				n1 = n;
 				n = n.child;
 				if(n.child==null && distinguishDateStartSymbol)continue;
-				if(n.birthTime>observationTime) continue;
-				double delta=Math.abs(n.birthTime-Math.round(n.birthTime));
+				if((countInHours ? n.birthTimeHours : n.birthTime)>observationTime) continue;
+				double delta=Math.abs((countInHours ? n.birthTimeHours : n.birthTime)-Math.round((countInHours ? n.birthTimeHours : n.birthTime)));
 				if(!showIntermediateSymbol && delta >0.001)continue;
 				if(delta<=0.001 && distinguishDateStartSymbol) {
 					//draw date start symbol
@@ -2750,7 +2808,7 @@ public double[] hoursCorrespondingToTimePoints;
 				}
 			}			
 			//draw end point
-			if(n.birthTime<=observationTime) {
+			if((countInHours ? n.birthTimeHours : n.birthTime)<=observationTime) {
 				int xCenter=(int) ((n.x+0.5)*SIZE_FACTOR-1);
 				int yCenter=(int) ((n.y+0.5)*SIZE_FACTOR)-1;
 				ip.setColor(Color.white);
