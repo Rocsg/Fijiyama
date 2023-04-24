@@ -1014,7 +1014,7 @@ public class Root implements Comparable<Root>{
 		  clock = 5;
 	  }
 	  if(origin.equals("Fijiyama ")) {
-		  Fijiyama3d=true;
+		  //Fijiyama3d=true;
 	  }
 	  
 	  org.w3c.dom.Node nn = parentDOM.getAttributes().getNamedItem("label");
@@ -1135,7 +1135,7 @@ public class Root implements Comparable<Root>{
 		  clock = 5;
 	  }
 	  if(origin.equals("Fijiyama ")) {
-		  Fijiyama3d=true;
+		 // Fijiyama3d=true;
 		  counter = 5;
 		  clock = 5;
 	  }
