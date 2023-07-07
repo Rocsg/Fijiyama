@@ -2748,6 +2748,7 @@ public double[] hoursCorrespondingToTimePoints;
 				}
 			}
 		}
+		int sum = 0;
 		for(int i = 0; i < rootList.size(); i++){
 			if(!showSymbols)continue;
 			Root r =  (Root) rootList.get(i);
@@ -2813,13 +2814,27 @@ public double[] hoursCorrespondingToTimePoints;
 				int yCenter=(int) ((n.y+0.5)*SIZE_FACTOR)-1;
 				ip.setColor(Color.white);
 				ip.drawRect((int) ((n.x+0.5)*SIZE_FACTOR-1), (int) ((n.y+0.5)*SIZE_FACTOR)-1, 3, 3);
-				ip.setColor(Color.black);
+				ip.setColor(Color.white);
 				ip.drawPixel(xCenter,yCenter );
 				ip.drawPixel(xCenter+2,yCenter );
 				ip.drawPixel(xCenter+2,yCenter+2 );
 				ip.drawPixel(xCenter,yCenter+2 );
+				if(r.order<=1)sum++;
+				if(r.order<=1) {
+					ip.setColor(Color.white);
+					ip.drawPixel(xCenter-1,yCenter-1 );
+					ip.drawPixel(xCenter+3,yCenter-1 );
+					ip.drawPixel(xCenter+3,yCenter+3 );
+					ip.drawPixel(xCenter-1,yCenter+3 );						
+					ip.drawPixel(xCenter-2,yCenter-2 );
+					ip.drawPixel(xCenter+4,yCenter-2 );
+					ip.drawPixel(xCenter+4,yCenter+4 );
+					ip.drawPixel(xCenter-2,yCenter+4 );		
+					IJ.log("Drawing big cross at "+xCenter+","+yCenter);
+				}
 			}
 		}
+		IJ.log("Sum="+sum);
 		if(binaryColor)		IJ.run(imgRSML,"Red/Green","");
 		else IJ.run(imgRSML,"Fire","");
 		imgRSML.setDisplayRange(0, maxDate+2);

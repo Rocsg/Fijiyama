@@ -1559,14 +1559,14 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	public void writeAsDenseField(String path,ImagePlus imgRef) {
 		if(!this.isDense) {IJ.showMessage("Trying to write as dense field non dense transform");System.exit(0);}
 		String shortPath = (path != null) ? path.substring(0,path.indexOf('.')) : "";
-		ImagePlus[]trans=new ImagePlus[3];
+		ImagePlus trans[]=new ImagePlus[3];
 		
 		DisplacementFieldTransform df=new DisplacementFieldTransform((Transform)(this.getFlattenDenseField(imgRef)));
 		trans=ItkImagePlusInterface.convertDisplacementFieldToImagePlusArrayAndNorm(df.getDisplacementField());
 		IJ.saveAsTiff(trans[0],shortPath+".x.tif");
 		IJ.saveAsTiff(trans[1],shortPath+".y.tif");
 		IJ.saveAsTiff(trans[2],shortPath+".z.tif");
-		new StackConverter(trans[0]).convertToGray8();
+		VitimageUtils.convertToGray8(trans[0]);
 		IJ.saveAsTiff(trans[0],shortPath+".transform.tif");
 	}
 		
@@ -1577,17 +1577,23 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	 * @return the itk transform
 	 */
 	public static ItkTransform readAsDenseField(String path) {
-		
+		//IJ.showMessage("Debug in ItkTransform, path="+path);
 		if((path==null) || (! (path.substring(path.length()-14,path.length())).equals(".transform.tif"))) {
 			IJ.log("Wrong file for dense field : "+path+" \n A dense field should be identified with an extension .transform.tif");
 			return null;
 		}
-		
 		String shortPath = path.substring(0,path.length()-14);
+		//IJ.showMessage("Debug then 1, shortPath="+shortPath);
+
 		ImagePlus[]trans=new ImagePlus[3];
+		//IJ.showMessage("Running xyz");
+		//IJ.showMessage("Debug then 2");
 		trans[0]=IJ.openImage(shortPath+".x.tif");
 		trans[1]=IJ.openImage(shortPath+".y.tif");
 		trans[2]=IJ.openImage(shortPath+".z.tif");
+		//IJ.showMessage("End Running xyz");
+		//IJ.showMessage("Debug then 3");
+		
 		return new ItkTransform(new DisplacementFieldTransform(ItkImagePlusInterface.convertImagePlusArrayToDisplacementField(trans)));
 	}
 	

@@ -16,6 +16,7 @@ import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.plugin.Duplicator;
+import ij.process.ImageConverter;
 import ij.process.StackConverter;
 import io.github.rocsg.fijiyama.common.ItkImagePlusInterface;
 import io.github.rocsg.fijiyama.common.VitimageUtils;
@@ -353,11 +354,9 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		this.resampler=new ResampleImageFilter();
 		this.imgRef=VitimageUtils.imageCopy(imgReff);
 		this.imgMov=VitimageUtils.imageCopy(imgMovv);
-		int aaa=1;
-		int bbb=2;
 		
-		if(this.imgRef.getType() != 32)imgRef=VitimageUtils.convertToFloat(imgRef);
-		if(this.imgMov.getType() != 32)imgMov=VitimageUtils.convertToFloat(imgMov);
+		if(this.imgRef.getType() != ImagePlus.GRAY32)imgRef=VitimageUtils.convertToFloat(imgRef);
+		if(this.imgMov.getType() != ImagePlus.GRAY32)imgMov=VitimageUtils.convertToFloat(imgMov);
 		this.metricType=metricType;
 		this.transformationType=transformationType;
 		this.levelMin=levelMin;
@@ -1469,8 +1468,8 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 		else this.sliceMov=ItkImagePlusInterface.itkImageToImagePlusStack(ItkImagePlusInterface.imagePlusToItkImage(this.currentTransform.transformImage(this.imgRef,this.imgMov,false)),this.sliceInt);
 		if(flagRange)this.sliceMov.setDisplayRange(movRange[0], movRange[1]);
 		else this.sliceMov.resetDisplayRange();
-		new StackConverter(sliceMov).convertToGray8();
-
+		VitimageUtils.convertToGray8(sliceMov);
+		
 		this.sliceMov=VitimageUtils.writeTextOnImage(textIter,this.sliceMov,(this.fontSize*4)/3,0);
 		if(textTrans!=null)this.sliceMov=VitimageUtils.writeTextOnImage(textTrans,this.sliceMov,this.fontSize,1);
 
@@ -1487,7 +1486,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 			this.sliceRef.setSlice(this.sliceInt);
 			if(flagRange)this.sliceRef.setDisplayRange(refRange[0], refRange[1]);
 			else this.sliceRef.resetDisplayRange();
-			new StackConverter(sliceRef).convertToGray8();
+			VitimageUtils.convertToGray8(sliceRef);
 
 			ImagePlus temp=VitimageUtils.writeTextOnImage(textIter,this.sliceRef,(this.fontSize*4)/3,0);
 			if(textTrans!=null)temp=VitimageUtils.writeTextOnImage(textTrans,temp,this.fontSize,1);

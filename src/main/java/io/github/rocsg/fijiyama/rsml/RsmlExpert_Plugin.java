@@ -1043,9 +1043,10 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	
 	
 	/**
-	 * Change time in point in model.
+	 * Save expertized model
 	 *
-	 * @param tabPt the tab pt
+	 * @param rm the RootModl
+	 * @param path the path to save the final exported model, as a rsml file
 	 * @return true, if successful
 	 */
 	public String[] saveExpertizedModel(RootModel rm,String path) {

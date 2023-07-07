@@ -124,7 +124,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public String versionName="Handsome honeysuckle";
 	
 	/** The time version flag. */
-	public String timeVersionFlag="  v4.0.11 patch 2023-04-24 -15:59 PM";
+	public String timeVersionFlag="  v4.2.0 2023-07-07 -16:08 PM (Mtp), Andrew feature";
 	
 	/** The version flag. */
 	public String versionFlag=versionName+timeVersionFlag;
@@ -543,7 +543,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		@SuppressWarnings("unused")
 		ImageJ ij=new ImageJ();
 		Fijiyama_GUI reg=new Fijiyama_GUI();
-		reg.timeVersionFlag="Release time : "+new SimpleDateFormat("yyyy-MM-dd - hh:mm").format(new Date());
+		//reg.timeVersionFlag="Release time : "+new SimpleDateFormat("yyyy-MM-dd - hh:mm").format(new Date());
 		reg.versionFlag=reg.versionName+reg.timeVersionFlag;
 		
 		reg.developerMode=true;
@@ -919,8 +919,12 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	 */
 	public void startLaunchingInterface() {
 		IJ.log("Starting Fijiyama launching interface");
-		IJ.log("Welcome to Fijiyama.");
-		IJ.log("User requests, issues ? \nContact : romainfernandez06ATgmail.com");
+		IJ.log("Welcome to Fijiyama "+versionFlag);
+		IJ.log("\nUser requests, issues ? \nContact : romainfernandez06ATgmail.com");
+		IJ.log(".\n\n Message update : 11 may 2023.");
+		IJ.log("\nRecent fix: temporary issue with 8-bit support due to recent update. Thanks Pablo for finding out the situation producing the bug");
+		IJ.log("\nFijiyama is free and always will. However it is a pleasure to know that it helps in any way.");
+		IJ.log("We received much positive feedbacks, and we discover from time to time in journals what you're up to with this tool.\n We wish you to have nice registrations with Fijiyama !\n");
 		IJ.log(versionFlag);
 		this.modeWindow=WINDOWIDLE;
 		sosButton=new JButton("Help");
@@ -1419,16 +1423,18 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	
 								if(regManager.isBionanoImagesWithCapillary)bmRegistration.mask=regManager.maskImageArray[regManager.getCurrentAction().refTime][regManager.getCurrentAction().refMod].duplicate();
 								if(regManager.isGe3d)bmRegistration.mask=VitimageUtils.maskWithoutCapillaryInGe3DImage(regManager.getCurrentRefImage());
-								else if(modeWindow==WINDOWTWOIMG && regManager.getCurrentAction().typeTrans==Transform3DType.DENSE) {
+								
+								else if(modeWindow==WINDOWTWOIMG /*&& regManager.getCurrentAction().typeTrans==Transform3DType.DENSE*/) {
 									regManager.setPathToMask();
 									if(regManager.maskImage!=null)bmRegistration.mask=VitimageUtils.imageCopy(regManager.maskImage);
 								}
-								else if(modeWindow==WINDOWSERIERUNNING && regManager.getCurrentAction().typeTrans==Transform3DType.DENSE) {
+								else if(modeWindow==WINDOWSERIERUNNING /*&& regManager.getCurrentAction().typeTrans==Transform3DType.DENSE*/) {
 									if(regManager.setMaskImage())bmRegistration.mask=VitimageUtils.imageCopy(regManager.maskImage);
 								}
 								bmRegistration.returnComposedTransformationIncludingTheInitialTransformationGiven=false;
 								enable(ABORT);
 								if(isSurvivorVncTunnelLittleDisplay)bmRegistration.adjustZoomFactor(0.5);
+
 								trTemp=bmRegistration.runBlockMatching(regManager.getCurrentMovComposedTransform(),phase==0);
 							}
 							disable(ABORT);
@@ -1537,7 +1543,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							}
 							
 							//Verify number of landmarks, and return if the number of couples is < 5
-							if((regManager.getCurrentAction().typeManViewer==RegistrationAction.VIEWER_2D) && (RoiManager.getInstance().getCount()<10 ) && regManager.getCurrentAction().typeTrans != Transform3DType.DENSE ) {IJ.showMessage("Please identify at least 10 points (5 correspondance couples)");enable(new int[] {RUN,RUNALL});return;}
+							if((regManager.getCurrentAction().typeManViewer==RegistrationAction.VIEWER_2D) && (RoiManager.getInstance().getCount()<8 ) && regManager.getCurrentAction().typeTrans != Transform3DType.DENSE ) {IJ.showMessage("Please identify at least 8 points (4 correspondance couples)");enable(new int[] {RUN,RUNALL});return;}
 							
 							//Closing manual registration
 							disable(new int[] {ABORT,RUN,RUNALL});

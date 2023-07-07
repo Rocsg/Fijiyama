@@ -56,6 +56,7 @@ import ij.plugin.filter.Convolver;
 import ij.plugin.frame.RoiManager;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
+import ij.process.ImageConverter;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
 import ij.process.LUT;
@@ -2010,9 +2011,9 @@ public class VitimageUtils {
 		img1Source.resetDisplayRange();
 		img2Source.resetDisplayRange();
 		img3Source.resetDisplayRange();
-		new StackConverter(img1Source).convertToGray8();
-		new StackConverter(img2Source).convertToGray8();
-		new StackConverter(img3Source).convertToGray8();
+		convertToGray8(img1Source);
+		convertToGray8(img2Source);
+		convertToGray8(img3Source);
 		if(mask) {
 			ImagePlus maskJet=VitimageUtils.thresholdByteImage(img3Source, 1, 256);
 			IJ.run(maskJet,"Invert","");
@@ -2049,9 +2050,9 @@ public class VitimageUtils {
 		img1.getProcessor().resetMinAndMax();
 		img2.getProcessor().resetMinAndMax();
 		img3.getProcessor().resetMinAndMax();
-		new StackConverter(img1).convertToGray8();
-		new StackConverter(img2).convertToGray8();
-		new StackConverter(img3).convertToGray8();
+		convertToGray8(img1);
+		convertToGray8(img2);
+		convertToGray8(img3);
 		ImageStack is=RGBStackMerge.mergeStacks(img1.getStack(),img2.getStack(),img3.getStack(),true);
 		ImagePlus img=new ImagePlus(title,is);
 		VitimageUtils.adjustImageCalibration(img, img1Source);
@@ -2095,15 +2096,19 @@ public class VitimageUtils {
 	public static ImagePlus compositeNoAdjustOf(ImagePlus img1Source,ImagePlus img2Source){
 		ImagePlus img1=VitimageUtils.imageCopy(img1Source);
 		ImagePlus img2=VitimageUtils.imageCopy(img2Source);
-		new StackConverter(img1).convertToGray8();
-		new StackConverter(img2).convertToGray8();
-
+		convertToGray8(img1);
+		convertToGray8(img2);
 		ImageStack is=RGBStackMerge.mergeStacks(img1.getStack(),img2.getStack(),null,true);
 		ImagePlus img=new ImagePlus("Composite",is);
 		VitimageUtils.adjustImageCalibration(img, img1Source);
 		return img;
 	}
 
+	public static void convertToGray8(ImagePlus img) {
+		if( img.getImageStackSize() > 1)  (new StackConverter( img )).convertToGray8();
+	    else (new ImageConverter( img )).convertToGray8();		
+	}
+	
 	/**
 	 * Composite no adjust of.
 	 *
@@ -2130,8 +2135,8 @@ public class VitimageUtils {
 		ImagePlus img2=new Duplicator().run(img2Source);
 		img1.resetDisplayRange();
 		img2.resetDisplayRange();
-		new StackConverter(img1).convertToGray8();
-		new StackConverter(img2).convertToGray8();
+		convertToGray8(img1);
+		convertToGray8(img2);
 
 		ImageStack is=RGBStackMerge.mergeStacks(img1.getStack(),img2.getStack(),null,true);
 		ImagePlus img=new ImagePlus("Composite",is);
@@ -4465,6 +4470,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 		if(source.getProperty("Info")!=null) {
 			target.setProperty("Info",(String)source.getProperty("Info"));
 		}
+		VitimageUtils.adjustImageCalibration(target, source);
 	}
 	
 	/**
@@ -5871,7 +5877,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 		if(img.getType()==ImagePlus.GRAY32)return res;
 		if(img.getType()==ImagePlus.GRAY16)return VitimageUtils.convertShortToFloatWithoutDynamicChanges(res);
 		if(img.getType()==ImagePlus.GRAY8)return VitimageUtils.convertByteToFloatWithoutDynamicChanges(res);
-		if(img.getType()==ImagePlus.COLOR_RGB) {new StackConverter(res).convertToGray8();return res;}
+		if(img.getType()==ImagePlus.COLOR_RGB) {convertToGray8(res);return VitimageUtils.convertByteToFloatWithoutDynamicChanges(res);}
 		return null;
 	}
 
@@ -8059,8 +8065,7 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 		//Step 1 : apply gaussian filtering and convert to 8 bits
 		img=VitimageUtils.gaussianFiltering(img, 18*0.035 , 18*0.035 , 3*0.5);
 		img.getProcessor().setMinAndMax(0,1);
-		StackConverter sc=new StackConverter(img);
-		sc.convertToGray8();
+		convertToGray8(img);
 		if(debug)imageChecking(img,"fin step1 ");
 
 		//Step 2 : apply automatic threshold

@@ -360,14 +360,24 @@ public class RegistrationManager{
 		//Read the steps : all RegistrationAction serialized .ser object, and associated transform for those already computed
 		File dirReg=new File(this.serieOutputPath,"Registration_files");		
 		for(int st=0;st<this.nSteps;st++) {
+			//IJ.showMessage("Debug in RegistrationManager. Step="+st);
 			File f=new File(dirReg,"RegistrationAction_Step_"+st+".ser");
 			RegistrationAction regTemp=RegistrationAction.readFromTxtFile(f.getAbsolutePath());
 			if(regTemp.isDone()) {
+				//IJ.showMessage("Debug in RegistrationManager. isDone");
 				f=new File(dirReg,"Transform_Step_"+st+(((regTemp.typeAction!=1) || (regTemp.typeTrans!=Transform3DType.DENSE))?".txt":".transform.tif"));
 				IJ.log("Transformation lookup : "+f+" type "+regTemp.typeTrans);
 				
-				if(regTemp.typeTrans!=Transform3DType.DENSE || regTemp.typeAction!=1)trTemp=ItkTransform.readTransformFromFile(f.getAbsolutePath());
-				else trTemp=ItkTransform.readAsDenseField(f.getAbsolutePath());				
+				if(regTemp.typeTrans!=Transform3DType.DENSE || regTemp.typeAction!=1) {
+					IJ.log("Reading rigid from "+f);
+					trTemp=ItkTransform.readTransformFromFile(f.getAbsolutePath());
+				}
+				else {
+					IJ.log("Reading dense from "+f);
+					trTemp=ItkTransform.readAsDenseField(f.getAbsolutePath());				
+					IJ.log("Reading dense ok from "+f);
+				}
+				//IJ.showMessage("Debug in RegistrationManager. TrTemp="+trTemp+" and regTemp="+regTemp);
 			}
 			addTransformAndActionBlindlyForBuilding(trTemp,regTemp);
 		}
@@ -519,7 +529,7 @@ public class RegistrationManager{
 		for(int i=0;i<regActions.size();i++) {
 			if(regActions.get(i).typeAction==RegistrationAction.TYPEACTION_AUTO && regActions.get(i).typeTrans==Transform3DType.DENSE)serieGotDenseTransforms=true;
 		}
-		if(serieGotDenseTransforms) setPathToMask();
+		/*if(serieGotDenseTransforms) */setPathToMask();
 
 		step=0;
 		this.updateNbSteps();
@@ -548,7 +558,7 @@ public class RegistrationManager{
 	 * Sets the path to mask.
 	 */
 	public void setPathToMask() {
-		if(VitiDialogs.getYesNoUI("Compute without mask ?","Fijiyama can prevent estimating deformations in interest area, to keep their shape untouched\nSelect \"Yes\" if you don't care (most common case), or \"No\" to provide a mask. "))pathToMask="None";
+		if(VitiDialogs.getYesNoUI("Compute without mask ?","Fijiyama can prevent estimating correspondance outside an interest area\nSelect \"Yes\" if you don't care (most common case), or \"No\" to provide a mask. "))pathToMask="None";
 		else pathToMask=VitiDialogs.chooseOneRoiPathUI("Choose mask image","Choose mask image");
 		if(pathToMask==null)pathToMask="None";
 		setMaskImage();
@@ -626,21 +636,28 @@ public class RegistrationManager{
 		if(this.serieInputPath==null){IJ.showMessage("Input path = null. Exit");return false;}
 		//Get regular expression for image lookup
 		if(!fijiyamaGui.getAutoRepMode()) {
-			GenericDialog gd=new GenericDialog("Describe file names with a generic expression");
-			gd.addMessage("Write observation times. If no multiple times, leave blank. Example : 1-5 or 10;33;78 ");
-			gd.addStringField("Times=", strTimes, 40);
-			gd.addMessage("");
-			gd.addMessage("Write modalities. If no multiple modalities, leave blank. Example : RX;MRI;PHOTO ");
-			gd.addStringField("Modalities=", strMods, 40);
-			gd.addMessage("");
-			gd.addMessage("Write expression describing your files, with {ModalityName} for modalities and {Time} for times");
-			gd.addStringField("Generic expression", this.expression, 50);
-			gd.showDialog();
-			if(gd.wasCanceled()){IJ.showMessage("Dialog exited. Abort");return false;}
-			strTimes=gd.getNextString();
-			strMods=gd.getNextString();
-			this.expression=gd.getNextString();
-		}
+			boolean finished=false;
+			while(!finished) {
+				GenericDialog gd=new GenericDialog("Describe file names with a generic expression");
+				gd.addMessage("Write observation times. If no multiple times, leave blank. Example : 1-5 or 10;33;78 ");
+				gd.addStringField("Times=", strTimes, 40);
+				gd.addMessage("");
+				gd.addMessage("Write modalities. If no multiple modalities, leave blank. Example : RX;MRI;PHOTO ");
+				gd.addStringField("Modalities=", strMods, 40);
+				gd.addMessage("");
+				gd.addMessage("Write expression describing your files, with {ModalityName} for modalities and {Time} for times");
+				gd.addStringField("Generic expression", this.expression, 50);
+				gd.showDialog();
+				if(gd.wasCanceled()){IJ.showMessage("Dialog exited. Abort");return false;}
+				strTimes=gd.getNextString();
+				strMods=gd.getNextString();
+				this.expression=gd.getNextString();
+				finished=VitiDialogs.getYesNoUI("EXPR="+expression+". Is it ok ?", "EXPR="+expression+". Is it ok ?");
+			}
+		}//TODO : a tester avant deploiement 
+		
+		
+		
 		try {
 			this.times=parseTimes(strTimes);
 			this.mods=(strMods.length()==0 ? new String[] {""} : strMods.split(";"));
@@ -662,6 +679,7 @@ public class RegistrationManager{
 				}
 			}
 		}
+		//TODO ?
 		if(nbTot==0) {IJ.showMessage("No image found. Exit");return false;}
 		for(int nt=0;nt<this.nTimes;nt++)if(numberPerTime[nt]==0) {IJ.showMessage("No image found for time "+times[nt]+". Exit");return false;}
 		for(int nm=0;nm<this.nMods;nm++)if(numberPerMod[nm]==0) {IJ.showMessage("No image found for modality "+mods[nm]+". Exit");return false;}
@@ -1107,7 +1125,7 @@ public class RegistrationManager{
 					if(this.paths[nt][nm]!=null) {//There is an image to process for this modality/time
 						img=IJ.openImage(this.paths[nt][nm]);
 						this.imageLuts[nt][nm]=img.getLuts();
-						if(img.getType()==ImagePlus.COLOR_RGB)new StackConverter(img).convertToGray8();
+						if(img.getType()==ImagePlus.COLOR_RGB)VitimageUtils.convertToGray8(img);
 						for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
 							for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
 								img.setC(Math.min(img.getNChannels(), nm2+1));
@@ -1171,7 +1189,7 @@ public class RegistrationManager{
 							if(imageSizes[nt][nm]<=this.maxImageSizeForRegistration) {
 								img=IJ.openImage(this.paths[nt][nm]);
 								this.imageLuts[nt][nm]=img.getLuts();
-								if(img.getType()==ImagePlus.COLOR_RGB)new StackConverter(img).convertToGray8();
+								if(img.getType()==ImagePlus.COLOR_RGB)VitimageUtils.convertToGray8(img);
 								for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
 									for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
 										img.setC(Math.min(img.getNChannels(),nm2+1));
@@ -1236,7 +1254,7 @@ public class RegistrationManager{
 								}
 								img=IJ.openImage(this.paths[nt][nm]);
 								this.imageLuts[nt][nm]=img.getLuts();
-								if(img.getType()==ImagePlus.COLOR_RGB)new StackConverter(img).convertToGray8();
+								if(img.getType()==ImagePlus.COLOR_RGB)VitimageUtils.convertToGray8(img);
 								for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
 									for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
 										img.setC(Math.min(img.getNChannels(),nm2+1));
@@ -1285,7 +1303,7 @@ public class RegistrationManager{
 							this.images[nt][nm]=IJ.openImage(this.paths[nt][nm]);
 							this.isSubSampled[nt][nm]=false;
 							this.imageLuts[nt][nm]=this.images[nt][nm].getLuts();
-							if(this.images[nt][nm].getType()==ImagePlus.COLOR_RGB)new StackConverter(this.images[nt][nm]).convertToGray8();
+							if(this.images[nt][nm].getType()==ImagePlus.COLOR_RGB)VitimageUtils.convertToGray8(this.images[nt][nm]);
 							for(int nt2=0;nt2<this.nbTimesOfInputData;nt2++) {
 								for(int nm2=0;nm2<this.nbChannelsOfInputData;nm2++) {									
 									this.images[nt][nm].setC(Math.min(this.images[nt][nm].getNChannels(), nm2+1));
@@ -1631,7 +1649,7 @@ public class RegistrationManager{
 			regActions.add(reg);
 		}
 		else {			
-			if(reg.getStep()>=this.step)IJ.showMessage("Bad adding transform to current pile !");
+			//if(reg.getStep()>=this.step)IJ.showMessage("Bad adding transform to current pile !");
 			regActions.add(reg);
 			tr.step=reg.getStep();
 			trActions.add(tr);
@@ -1723,7 +1741,7 @@ public class RegistrationManager{
 		if(true)System.out.println("01 Starting viewer 3D in RegistrationManager");
 		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
 		VitimageUtils.adjustContrast3d(refCopy, Fijiyama_GUI.percentileDisplay,Fijiyama_GUI.widthRangeDisplay);
-		new StackConverter(refCopy).convertToGray8();
+		VitimageUtils.convertToGray8(refCopy);
 		if(true)System.out.println("02 Starting viewer 3D in RegistrationManager");
 		VitimageUtils.waitFor(200);
 		if(true)System.out.println("0201 Starting viewer 3D in RegistrationManager");
@@ -1742,7 +1760,7 @@ public class RegistrationManager{
 		if(imgMov!=null) {
 			ImagePlus movCopy=VitimageUtils.imageCopy(imgMov);		
 			VitimageUtils.adjustContrast3d(movCopy, Fijiyama_GUI.percentileDisplay,Fijiyama_GUI.widthRangeDisplay);
-			new StackConverter(movCopy).convertToGray8();
+			VitimageUtils.convertToGray8(movCopy);
 			universe.removeAllContents();
 			universe.addContent(refCopy, new Color3f(Color.red),"refCopy",50,new boolean[] {true,true,true},1,0 );
 			universe.addContent(movCopy, new Color3f(Color.green),"movCopy",50,new boolean[] {true,true,true},1,0 );
@@ -1836,11 +1854,11 @@ public class RegistrationManager{
 	public void start2dManualRegistration(ImagePlus imgRef,ImagePlus imgMov) {
 		ImagePlus refCopy=VitimageUtils.imageCopy(imgRef);
 		ImagePlus movCopy=null;
-		new StackConverter(refCopy).convertToGray8();
+		VitimageUtils.convertToGray8(refCopy);
 		refCopy.setTitle(fijiyamaGui.displayedNameImage1);
 		if(imgMov!=null) {
 			movCopy=VitimageUtils.imageCopy(imgMov);		
-			new StackConverter(movCopy).convertToGray8();
+			VitimageUtils.convertToGray8(movCopy);
 			movCopy.setTitle(fijiyamaGui.displayedNameImage2);
 		}
 		else {
@@ -1856,7 +1874,7 @@ public class RegistrationManager{
 		movCopy.show();movCopy.setSlice(movCopy.getNSlices()/2+1);movCopy.updateAndRepaintWindow();
 		VitimageUtils.adjustFrameOnScreenRelative((Frame)WindowManager.getWindow(fijiyamaGui.displayedNameImage2),rm,2,2,2);
 		if(!fijiyamaGui.getAutoRepMode() && first2dmessageHasBeenViewed)IJ.showMessage("Examine images, identify correspondances between images and use the Roi manager to build a list of corresponding points. Points should be given this way : \n- Point A  in image 1\n- Correspondant of point A  in image 2\n- Point B  in image 1\n- Correspondant of point B  in image 2\netc...\n"+
-		"Once done (at least 5-15 couples of corresponding points), push the \""+fijiyamaGui.getRunButtonText()+"\" button to stop\n\n");
+		"Once done (at least 4-15 couples of corresponding points), push the \""+fijiyamaGui.getRunButtonText()+"\" button to stop\n\n");
 		first2dmessageHasBeenViewed=false;
 		fijiyamaGui.addLog(" Waiting for you to confirm position or to abort action...",0);
 	}
@@ -1867,30 +1885,36 @@ public class RegistrationManager{
 	 * @return the itk transform
 	 */
 	public ItkTransform finish2dManualRegistration(){
+		IJ.log("YOYO 01");
 		RoiManager rm=RoiManager.getRoiManager();
 		ImagePlus imgTemp=WindowManager.getImage(fijiyamaGui.displayedNameImage1).duplicate();
 		Point3d[][]pointTab=convertLandmarksToPoints(WindowManager.getImage(fijiyamaGui.displayedNameImage1),WindowManager.getImage(fijiyamaGui.displayedNameImage2),true);
+		IJ.log("YOYO 02");
 		for(int i=0;i<pointTab.length;i++) {
 			for(int j=0;j<pointTab[i].length;j++) {
 				System.out.println("Point "+i+" "+j+" : "+pointTab[i][j].x+","+pointTab[i][j].y+","+pointTab[i][j].z);
 			}
 		}
+		IJ.log("YOYO 03");
 		WindowManager.getImage(fijiyamaGui.displayedNameImage1).changes=false;
 		WindowManager.getImage(fijiyamaGui.displayedNameImage2).changes=false;
 		WindowManager.getImage(fijiyamaGui.displayedNameImage1).close();
 		WindowManager.getImage(fijiyamaGui.displayedNameImage2).close();
 		ItkTransform trans=null;
+		IJ.log("YOYO 04");
 		if(currentRegAction.typeAction==RegistrationAction.TYPEACTION_MAN) {
 			if(currentRegAction.typeTrans==Transform3DType.RIGID)trans=ItkTransform.estimateBestRigid3D(pointTab[1],pointTab[0]);
-			else if(currentRegAction.typeTrans==Transform3DType.SIMILARITY)trans=ItkTransform.estimateBestSimilarity3D(pointTab[1],pointTab[0]);
+			else if(currentRegAction.typeTrans==Transform3DType.SIMILARITY)trans=ItkTransform.estimateBestAffine3D(pointTab[1],pointTab[0]);
 			else if(currentRegAction.typeTrans==Transform3DType.DENSE)trans=pointTab[0].length==0 ? new ItkTransform() : ItkTransform.estimateBestDense3D(pointTab[1],pointTab[0],imgTemp,currentRegAction.sigmaDense);
 		}
 		else if(currentRegAction.typeAction==RegistrationAction.TYPEACTION_ALIGN) {
 			if(currentRegAction.typeTrans==Transform3DType.RIGID)trans=ItkTransform.estimateBestRigid3D(pointTab[0],pointTab[1]);
 			else if(currentRegAction.typeTrans==Transform3DType.SIMILARITY)trans=ItkTransform.estimateBestSimilarity3D(pointTab[0],pointTab[1]);
 		}
+		IJ.log("YOYO 05");
 		rm.close();
 		System.out.println("Obtained matrix : "+trans.drawableString());
+		IJ.log("YOYO"+trans.drawableString());
 		return trans;		
 	}
 	
