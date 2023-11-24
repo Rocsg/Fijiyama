@@ -1393,6 +1393,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	
 	/**
 	 * Trim using mask OLD.
+	 * This is a modification
 	 *
 	 * @param tabIn the tab in
 	 * @param imgMaskAtScale the img mask at scale
@@ -1710,7 +1711,7 @@ public class BlockMatchingRegistration  implements ItkImagePlusInterface{
 	}
 	
 	/**
-	 * Correlation coefficient.
+	 * Correlation coefficient. 
 	 *
 	 * @param X the x
 	 * @param Y the y
