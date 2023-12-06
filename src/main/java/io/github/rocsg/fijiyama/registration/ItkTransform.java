@@ -27,10 +27,8 @@ import ij.plugin.Duplicator;
 import ij.plugin.HyperStackConverter;
 import ij.plugin.RGBStackMerge;
 import ij.process.ImageProcessor;
-import ij.process.LUT;
 import ij.process.StackConverter;
 import io.github.rocsg.fijiyama.common.ItkImagePlusInterface;
-import io.github.rocsg.fijiyama.common.Timer;
 import io.github.rocsg.fijiyama.common.VitiDialogs;
 import io.github.rocsg.fijiyama.common.VitimageUtils;
 import io.github.rocsg.fijiyama.registration.ItkTransform;
@@ -41,7 +39,7 @@ import vib.FastMatrix;
 /**
  * The Class ItkTransform.
  */
-public class ItkTransform extends Transform implements ItkImagePlusInterface{
+public class ItkTransform extends Transform{
 	
 	/** The is dense. */
 	private boolean isDense=false;
@@ -1606,10 +1604,53 @@ public class ItkTransform extends Transform implements ItkImagePlusInterface{
 	public static ItkTransform readTransformFromFile(String path) {
 		ItkTransform tr=null;
 		try{
-			if(path.charAt(path.length()-1) == 'f') tr=readAsDenseField(path);
-			else tr=new ItkTransform(SimpleITK.readTransform(path));
+			if(path.charAt(path.length()-1) == 'f') {
+				tr=readAsDenseField(path);
+			}
+			else {
+				double[]array=quickFixBrokenItkMatrixTo4x4Matrix(path);
+
+				tr=ItkTransform.array16ElementsToItkTransform(array);
+			}
 			return tr;
-		} catch (Exception e) {		IJ.log("Wrong transform file or file selection was incompletely done in interface.\n Please select a   *.transform.tif file or a *.txt file");return null; }
+		} catch (Exception e) {
+				e.printStackTrace();			     	
+				IJ.log("Wrong transform file or file selection was incompletely done in interface.\n Please select a   *.transform.tif file or a *.txt file");return null; 
+			}
+
+	}
+	
+	public static double[]quickFixBrokenItkMatrixTo4x4Matrix(String path){
+		//Open path as a string
+		String str=VitimageUtils.readStringFromFile(path);
+		//Get the 4th line
+		String[]lines=str.split("\n");
+		String[]elems=lines[3].split(" ");
+
+		//Get the 12 first elements, in a weird standard
+		double[]array=new double[16];
+		array[0]=Double.parseDouble(elems[1]) ;//l0c0
+		array[1]=Double.parseDouble(elems[2]) ;//l0c1
+		array[2]=Double.parseDouble(elems[3]) ;//l0c2
+
+		array[4]=Double.parseDouble(elems[4]) ;//l1c0		
+		array[5]=Double.parseDouble(elems[5]) ;//l1c1
+		array[6]=Double.parseDouble(elems[6]) ;//l1c2
+
+		array[8]=Double.parseDouble(elems[7]) ;//l2c0
+		array[9]=Double.parseDouble(elems[8]) ;//l2c1
+		array[10]=Double.parseDouble(elems[9]) ;//l2c2
+
+		array[3]=Double.parseDouble(elems[10]) ;//l0c3
+		array[7]=Double.parseDouble(elems[11]) ;//l1c3
+		array[11]=Double.parseDouble(elems[12]) ;//l2c3
+
+		array[12]=0 ;//l3c0
+		array[13]=0 ;//l3c1
+		array[14]=0 ;//l3c2
+		array[15]=1 ;//l3c3
+
+		return array;
 	}
 
 	/**

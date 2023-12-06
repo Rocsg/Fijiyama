@@ -190,9 +190,77 @@ public class RootModel extends WindowAdapter{
 		   
 		*/
 		
-	
-	
-	   
+			public Root getPrimaryRootOfPlant(int plant) {
+				for(Root r: rootList){
+					if(r.order==1 && r.plantNumber==plant)return r;
+				}
+				return null;
+			}
+			
+			public Root[]getLateralRootsOfPlant(int plant){
+				ArrayList<Root>ar=new ArrayList<Root>();
+				for(Root r: rootList){
+					if(r.order==2 && r.plantNumber==plant)ar.add(r);
+				}
+				return(ar.toArray(new Root[ar.size()]));				
+			}
+
+
+			public double[][]getTipDepthAndRootLengthOverTimesteps(Root r){
+				Node n=r.firstNode;
+				Node nPar=n;
+				double[][]ret=new double[2][hoursCorrespondingToTimePoints.length];
+				double incrDist=0;
+				double totalDist=0;
+				double curHours=-1;
+				while(n.child!=null) {
+					nPar=n;
+					n=n.child;
+					totalDist+=distance(nPar, n);
+					int valInt=Math.round(n.birthTime);
+					double deltaPos=Math.abs(n.birthTime-valInt);
+					if(deltaPos<VitimageUtils.EPSILON) {
+						ret[0][valInt]=n.y;
+						ret[1][valInt]=totalDist;					
+					}
+				}
+				ret[0][0]=0;
+				ret[1][0]=0;
+				return ret;
+			}
+
+			
+			
+			public double[][]getTipDepthSpeedAndRootLengthOverTime(Root r){
+				Node n=r.firstNode;
+				Node nPar=n;
+				double[][]ret=new double[3][hoursCorrespondingToTimePoints.length];
+				ret[1][0]=0;
+				int incrIndex=-1;
+				double incrTime=0;
+				double incrDist=0;
+				double totalDist=0;
+				double curHours=n.birthTimeHours;
+				while(n.child!=null) {
+					incrDist=0;
+					incrTime=0;
+					while(curHours<hoursCorrespondingToTimePoints[incrIndex+1]) {
+						nPar=n;
+						n=n.child;
+						curHours=n.birthTimeHours;
+						
+						incrDist+=distance(nPar, n);
+						totalDist+=distance(nPar, n);
+						incrTime+=(n.birthTimeHours-nPar.birthTimeHours);
+					}
+					incrIndex++;
+					ret[0][incrIndex]=n.y;
+					ret[1][incrIndex]=incrDist/incrTime;
+					ret[2][incrIndex]=totalDist;					
+				}
+				return ret;
+			}
+			
 			/**
 			 * Gets the lateral speeds and depth over time.
 			 *
@@ -408,7 +476,11 @@ public class RootModel extends WindowAdapter{
 			   };  
 				//Then we use comparator to sort rootList
 			   Collections.sort(this.rootList, comparatorPrimaries);
-			
+			   int incr=0;
+			   for(int i=0;i<this.rootList.size();i++) {
+				   if(this.rootList.get(i).order==1) this.rootList.get(i).plantNumber=(incr++);
+			   }
+			   
 			   //Then, we order the lateral roots
 			   //to that end we first define a comparator of roots. Its behaviour is to take in consideration their first node y coordinate
 			   Comparator<Root> comparatorLateral = new Comparator<Root>() {
@@ -420,6 +492,11 @@ public class RootModel extends WindowAdapter{
 			   for(Root r : this.rootList) {
 				   Collections.sort(r.childList, comparatorLateral);
 			   }
+	
+			   for(int i=0;i<this.rootList.size();i++) {
+				   if(this.rootList.get(i).order==2) this.rootList.get(i).plantNumber=this.rootList.get(i).getParent().plantNumber;
+			   }
+
 		   }
 		   
 
@@ -2115,6 +2192,39 @@ public double[] hoursCorrespondingToTimePoints;
 	}
 
 	/**
+	 * Gets the prim length over time.
+	 *
+	 * @param tMax the t max
+	 * @param plant the plant
+	 * @return the ${e.g(1).rsfl()}
+	 */
+	public double[][]getPrimLengthAndSpeedOverTime(int tMax,int plant){	
+		double [][]ret=new double[tMax][3];
+		for(Root r: rootList){
+			if(r.plantNumber!=plant || r.order!=1)continue;
+			Node n=r.firstNode;
+			float dist=0;
+			int curTime=0;
+			Node ntmp;
+			while(n.child!=null) {
+				ntmp=n;
+				n=n.child;
+				curTime=(int) Math.floor(n.birthTime)-1;
+				if(curTime<0)curTime=0;
+				dist+=Node.distanceBetween(ntmp, n);
+				ret[curTime][0]=dist;
+			}
+			if(curTime<tMax-1)for(int  t=Math.max(curTime,1);t<tMax;t++)ret[t][0]=ret[t-1][0];
+			
+		}
+		for(int j=1;j<ret.length;j++)ret[j][1]=ret[j][0]-ret[j-1][0];
+		for(int j=1;j<ret.length;j++)ret[j][2]=ret[j][1]/1;
+		return ret;		
+	}
+
+	
+	
+	/**
 	 * Get the total lengthd of the lateral roots.
 	 *
 	 * @return the total lenght of the lateral roots
@@ -2830,11 +2940,9 @@ public double[] hoursCorrespondingToTimePoints;
 					ip.drawPixel(xCenter+4,yCenter-2 );
 					ip.drawPixel(xCenter+4,yCenter+4 );
 					ip.drawPixel(xCenter-2,yCenter+4 );		
-					IJ.log("Drawing big cross at "+xCenter+","+yCenter);
 				}
 			}
 		}
-		IJ.log("Sum="+sum);
 		if(binaryColor)		IJ.run(imgRSML,"Red/Green","");
 		else IJ.run(imgRSML,"Fire","");
 		imgRSML.setDisplayRange(0, maxDate+2);

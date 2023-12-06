@@ -6,12 +6,21 @@ package io.github.rocsg.fijiyama.rsml;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.Vector;
 
 import org.itk.simple.AffineTransform;
+import org.itk.simple.Image;
+import org.itk.simple.ImageFileWriter;
+import org.itk.simple.PixelIDValueEnum;
 import org.itk.simple.SimpleITK;
+import org.itk.simple.VectorUInt32;
 
 import ij.plugin.frame.RoiManager;
 import com.opencsv.CSVReader;
@@ -23,7 +32,9 @@ import ij.WindowManager;
 import ij.gui.ImageWindow;
 import ij.gui.Roi;
 import ij.plugin.frame.SyncWindows;
+import io.github.rocsg.fijiyama.common.ItkImagePlusInterface;
 import io.github.rocsg.fijiyama.common.Timer;
+import io.github.rocsg.fijiyama.common.VitiDialogs;
 import io.github.rocsg.fijiyama.common.VitimageUtils;
 import io.github.rocsg.fijiyama.registration.ItkTransform;
 
@@ -48,23 +59,137 @@ public class Tests {
 	
 	
 	public static void doDataInTestPablo() {
-		ImagePlus img=IJ.openImage("/homrg.e/rfernandez/Bureau/A_Test/Fijiyama_track_issues/20230508_Pablo/Reproduction/Reprod_Vanilla/Input_data/imgRef.tif");
+		ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/A_Test/Fijiyama_track_issues/20230508_Pablo/Reproduction/Reprod_Vanilla/Input_data/imgRef.tif");
 		
 	}
 	
 	
+	public static void testAllItkModif(){
+		//Open an image located at /home/rfernandez/Bureau/test.tif
+		ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/test.tif");
+		//Convert by using the old conversion method, and time the duration
+		Timer t=new Timer();
+		t.print("Starting measuring old behaviour");
+		Image a=ItkImagePlusInterface.imagePlusToItkImageOld(img);
+		ImagePlus b1=ItkImagePlusInterface.itkImageToImagePlusOld(a);
+	
+		t.print("Time for old behaviour");
+
+		//Convert by using the new conversion method, and time the duration
+		//setFlag();
+		t=new Timer();
+		t.print("Starting measuring new behaviour");
+		a=ItkImagePlusInterface.imagePlusToItkImageNew(img);
+		ImagePlus b2=ItkImagePlusInterface.itkImageToImagePlusNew(a);
+		t.print("Time for new behaviour");		
+
+
+		b1.show();
+		b2.show();
+	}
+
+
+	public static void testConfig2() {
+		ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/test.tif");
+		img.show();
+		Image image = SimpleITK.readImage("/home/rfernandez/Bureau/test.tif", PixelIDValueEnum.sitkUnknown);
+		ImageFileWriter writer = new ImageFileWriter();
+        writer.setFileName("/home/rfernandez/Bureau/test2.tif");
+        writer.execute(image);
+		ImagePlus b=IJ.openImage("/home/rfernandez/Bureau/test2.tif");
+		b.show();
+	}
+	
+	
+	public static double[] testConfiguration(){
+		IJ.showMessage("Now starting a speedup test. Please click OK, then wait a few seconds.");
+
+		//Create an empty stack of 200 x 200 x 200
+		ImagePlus img=IJ.createImage("Test", "8-bit black", 200, 200, 200);
+
+
+		//Test old behaviour
+		Timer t=new Timer();
+		t.print("Starting measuring old behaviour");
+		for(int i=0;i<10;i++) {
+			Image a=ItkImagePlusInterface.imagePlusToItkImageOld(img);
+			ImagePlus b=ItkImagePlusInterface.itkImageToImagePlusOld(a);
+		}
+		t.print("Time for old behaviour");
+		double t0=t.getTime();
+
+		//Test new behaviour
+		t=new Timer();
+		for(int i=0;i<10;i++) {
+			String s="/home/rfernandez/Bureau/temp.tif";
+			IJ.saveAsTiff(img, s);
+			Image image = SimpleITK.readImage(s, PixelIDValueEnum.sitkUnknown);
+
+			ImageFileWriter writer = new ImageFileWriter();
+	        writer.setFileName(s);
+	        writer.execute(image);
+			ImagePlus b=IJ.openImage(s);
+		}
+		t.print("Time for new behaviour");
+		double t1=t.getTime();
+
+		return new double[]{t0,t1};
+	}
+
 	public static void main(String[]args) throws Exception {
 		ImageJ ij=new ImageJ();
+		Timer t=new Timer();
+		for(double i=0;i<(1000*1000*100);i++) {
+			//int rand=random.nextInt();
+		}
+		t.print("");
+	}
+//		testAllItkModif();
+		
+		
+
+	public static void dot(){
+
+		Timer t=new Timer();
+		t.print("start");
+		ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/tt.tif");
+		t.print("opened");
+		for(int i=0;i<10;i++) {
+			Image a=ItkImagePlusInterface.imagePlusToItkImage(img);
+			ImagePlus b=ItkImagePlusInterface.itkImageToImagePlus(a);
+		}
+		t.print("converted1");
+		for(int i=0;i<10;i++) {
+			IJ.saveAsTiff(img, "/home/rfernandez/Bureau/tt2.tif");
+			Image image = SimpleITK.readImage("/home/rfernandez/Bureau/tt2.tif", PixelIDValueEnum.sitkUnknown);
+			ImageFileWriter writer = new ImageFileWriter();
+	        writer.setFileName("/home/rfernandez/Bureau/tt2.tif");
+	        writer.execute(image);
+			ImagePlus b=IJ.openImage("/home/rfernandez/Bureau/tt2.tif");
+;		}
+		t.print("converted2");
+
 		//ItkTransform trans = ;
 		
-		doDataInTestPablo();
 		/*
+		doDataInTestPablo();
 		String dirExp="/media/rfernandez/DATA_RO_A/Aerenchyme/Dataset_Kaue_Novembre";
 		computeSummaryOfLacuneData(dirExp,dirExp+"/Results_aerenchyme_measurements.csv",false);
-		/home/rfernandez/Bureau/A_Test/Aerenchyme*/
+		/home/rfernandez/Bureau/A_Test/Aerenchyme
 		String dirExp="/home/rfernandez/Bureau/A_Test/Aerenchyme/Test_Kevin";	
 		computeSummaryOfLacuneData(dirExp,dirExp+"/Results_aerenchyme_measurements.csv",true);
+*/
+		return;
 	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	public static void computeSummaryOfLacuneData(String dirExp,String pathToOutputCsv,boolean newWay) {
 		String dirSource=new File(dirExp,"1_Source").getAbsolutePath();

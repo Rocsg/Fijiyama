@@ -45,6 +45,7 @@ import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.plugin.frame.PlugInFrame;
 import ij.plugin.frame.RoiManager;
+import io.github.rocsg.fijiyama.common.ItkImagePlusInterface;
 import io.github.rocsg.fijiyama.common.Timer;
 import io.github.rocsg.fijiyama.common.VitiDialogs;
 import io.github.rocsg.fijiyama.common.VitimageUtils;
@@ -124,7 +125,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public String versionName="Handsome honeysuckle";
 	
 	/** The time version flag. */
-	public String timeVersionFlag="  v4.2.0 2023-07-07 -16:08 PM (Mtp), Andrew feature";
+	public String timeVersionFlag="  v4.2.2 2023-11-30 -03:04 PM (Mtp), Speedup";
 	
 	/** The version flag. */
 	public String versionFlag=versionName+timeVersionFlag;
@@ -132,6 +133,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	
 	/** The img view. */
 	public ImagePlus imgView;
+	
+	
+	public boolean timingActivatedForPlayer=false;
 	
 	/** The enable high acc. */
 	private boolean enableHighAcc=true;
@@ -165,7 +169,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	
 	/** The reg interrogation level. */
 	public int regInterrogationLevel=0;
-	
+	public int speedupLevel=0;
+	public int randomLevel=0;
+	public int timingLevel=0;
 	/** The Constant saut. */
 	//Frequent html codes for the help window
 	private static final String saut="<div style=\"height:1px;display:block;\"> </div>";
@@ -515,6 +521,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	/*Starting points*************************************************************************************************************/
 	public Fijiyama_GUI() {
 		super("FijiYama : a versatile registration tool for Fiji");
+		//ItkImagePlusInterface.setFlag();
 		if(new File("/users/bionanonmri/").exists()) {
 			this.isSurvivorVncTunnelLittleDisplay=true;
 			IJ.showMessage("Detected Bionano server. \nSurvival display, but numerous cores");
@@ -1411,7 +1418,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							for(int phase=(doStressTest ? 0 : 1);phase<2;phase++) {
 								bmRegistration=BlockMatchingRegistration.setupBlockMatchingRegistration(regManager.getCurrentRefImage(),regManager.getCurrentMovImage(),regManager.getCurrentAction());
 								bmRegistration.consoleOutputActivated=isSurvivorVncTunnelLittleDisplay;
-								bmRegistration.timingMeasurement=developerMode;
+								bmRegistration.timingMeasurement=developerMode || timingActivatedForPlayer;
 								//TODO
 								bmRegistration.setRefRange(regManager.getCurrentRefRange());
 								bmRegistration.setMovRange(regManager.getCurrentMovRange());
@@ -2596,6 +2603,13 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		enable(new int[] {RUN,SETTINGS,BOXACT,BOXTRANS,SAVE,FINISH,UNDO});
 	}
 
+	public void setTimingForPlayer() {
+		timingActivatedForPlayer=(!timingActivatedForPlayer);
+		if(timingActivatedForPlayer)IJ.showMessage("Now timing for player is activated");
+		else IJ.showMessage("Now timing for player is unactivated");
+	}
+	
+	
 	/**
 	 * More about reg action.
 	 */
@@ -2614,6 +2628,9 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(e.getKeyChar()=='t' )pairLevel++;
 		if((pairLevel>=2 && ((pairLevel%2)==0))) {Toolkit.getDefaultToolkit().beep();IJ.log("Released Nb points : "+pairLevel);}
 	}
+	
+	
+	
 	
 	/**
 	 * Handle key press.
@@ -2636,6 +2653,32 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		else if(regInterrogationLevel==0 && e.getKeyChar()=='r')regInterrogationLevel=1;
 		else regInterrogationLevel=0;
 
+		if(speedupLevel==6 && e.getKeyChar()=='p') {speedupLevel=0;ItkImagePlusInterface.setSpeedupOnForFiji();BlockMatchingRegistration.setRandomSelection();return;}
+		else if(speedupLevel==5 && e.getKeyChar()=='u') speedupLevel=6;
+		else if(speedupLevel==4 && e.getKeyChar()=='d') speedupLevel=5;
+		else if(speedupLevel==3 && e.getKeyChar()=='e') speedupLevel=4;
+		else if(speedupLevel==2 && e.getKeyChar()=='e') speedupLevel=3;
+		else if(speedupLevel==1 && e.getKeyChar()=='p') speedupLevel=2;
+		else if(speedupLevel==0 && e.getKeyChar()=='s') speedupLevel=1;
+		else speedupLevel=0;
+
+		if(timingLevel==5 && e.getKeyChar()=='g') {timingLevel=0;setTimingForPlayer();return;}
+		else if(timingLevel==4 && e.getKeyChar()=='n') timingLevel=5;
+		else if(timingLevel==3 && e.getKeyChar()=='i') timingLevel=4;
+		else if(timingLevel==2 && e.getKeyChar()=='m') timingLevel=3;
+		else if(timingLevel==1 && e.getKeyChar()=='i') timingLevel=2;
+		else if(timingLevel==0 && e.getKeyChar()=='t') timingLevel=1;
+		else timingLevel=0;
+
+		
+		/*		if(randomLevel==5 && e.getKeyChar()=='t') {randomLevel=0;BlockMatchingRegistration.setRandomSelection();return;}
+		else if(randomLevel==4 && e.getKeyChar()=='s') randomLevel=5;
+		else if(randomLevel==3 && e.getKeyChar()=='a') randomLevel=4;
+		else if(randomLevel==2 && e.getKeyChar()=='f') randomLevel=3;
+		else if(randomLevel==1 && e.getKeyChar()=='o') randomLevel=2;
+		else if(randomLevel==0 && e.getKeyChar()=='g') randomLevel=1;
+		else randomLevel=0;
+	*/	
 		if(yogiteaLevel==6 && e.getKeyChar()=='a') {yogiteaLevel=0;VitimageUtils.getRelaxingPopup("",true);return;}
 		else if(yogiteaLevel==5 && e.getKeyChar()=='e')yogiteaLevel=6;
 		else if(yogiteaLevel==4 && e.getKeyChar()=='t')yogiteaLevel=5;

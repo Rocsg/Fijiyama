@@ -3523,19 +3523,22 @@ public class VitimageUtils {
 		int xMax=img.getWidth();
 
 		if(zzm<0)zzm=0;
-		if(zzm>=img.getStackSize()-1)zzM=img.getStackSize()-2;
-		if(zzM<0)zzm=0;
+		if(zzM<0)zzM=0;
+		if(zzm>=img.getStackSize()-1)zzm=img.getStackSize()-2;
 		if(zzM>=img.getStackSize()-1)zzM=img.getStackSize()-2;
-
+		if(zzm>zzM)zzm=zzM;
+		
 		if(xxm<0)xxm=0;
-		if(yym<0)yym=0;
-		if(xxm>=img.getWidth()-1)xxm=img.getWidth()-2;
-		if(yym>=img.getHeight()-1)yym=img.getHeight()-2;
 		if(xxM<0)xxM=0;
-		if(yyM<0)yyM=0;
+		if(xxm>=img.getWidth()-1)xxm=img.getWidth()-2;
 		if(xxM>=img.getWidth()-1)xxM=img.getWidth()-2;
-		if(yyM>=img.getHeight()-1)yyM=img.getHeight()-2;
+		if(xxm>xxM)xxm=xxM;
 
+		if(yym<0)yym=0;
+		if(yyM<0)yyM=0;
+		if(yym>=img.getHeight()-1)yym=img.getHeight()-2;
+		if(yyM>=img.getHeight()-1)yyM=img.getHeight()-2;
+		if(yym>yyM)yym=yyM;
 
 		int len=(int)Math.round(xxM-xxm+1)*(int)Math.round(yyM-yym+1)*(int)Math.round(zzM-zzm+1);
 

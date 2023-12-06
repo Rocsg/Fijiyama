@@ -40,7 +40,7 @@ import io.github.rocsg.fijiyama.registration.Transform3DType;
 /**
  * The Class ItkRegistration.
  */
-public class ItkRegistration implements ItkImagePlusInterface{
+public class ItkRegistration{
 	
 	/** The additional transform. */
 	ItkTransform additionalTransform=new ItkTransform();

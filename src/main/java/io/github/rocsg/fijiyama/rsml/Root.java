@@ -221,7 +221,6 @@ public class Root implements Comparable<Root>{
 		}
 		
 		
-		
 		public void changeTimeBasis(double timestep,int N) {
 			double[]hoursCorrespondingToTimePoints=new double[N];
 		    for(int i=0;i<N;i++) {
@@ -439,7 +438,7 @@ public class Root implements Comparable<Root>{
    Root lastChild;
    
    /** The order. */
-   int order=1;
+   public int order=1;
    
    /** The distance from apex. */
    float distanceFromApex = 0;
@@ -1949,6 +1948,23 @@ public float getXMin() {
 	}	   
 	return min;	
 }
+
+
+
+public Root[]getChildsRootAsRootArray(){
+	Comparator<Root> comparatorLateral = new Comparator<Root>() {
+	   @Override
+	   public int compare(Root r1, Root r2) {
+		   return Double.compare(r1.firstNode.y, r2.firstNode.y);
+	   }
+	};
+   Collections.sort(childList, comparatorLateral);
+   return childList.toArray(new Root[childList.size()]);
+}
+
+
+
+
 
 /**
  * Gets the date max.

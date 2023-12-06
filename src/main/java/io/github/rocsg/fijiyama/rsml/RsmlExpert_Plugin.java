@@ -28,6 +28,7 @@ import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
@@ -63,11 +64,23 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	/* Plugin entry points for test/debug or run in production ******************************************************************/
 	public static void main(String[]args) {		
 		final ImageJ ij=new ImageJ();
-		String testDir="/home/rfernandez/Bureau/A_Test/RSML/Processing_by_box/ML1_Boite_00021"+ ""; 
+		
+		String testDir="/home/rfernandez/Bureau/A_Test/RootSystemTracker/TestSplit/Processing_of_TEST1230403-SR-split/230403SR056"; 
 		RsmlExpert_Plugin plugin=new RsmlExpert_Plugin();	
 		plugin.run(testDir);//testDir);	
 	}
 
+	public String getBoxName() {
+		String []tab;
+		if(!this.stackPath.contains("\\")) {
+			tab=this.stackPath.split("/");
+		}
+		else {
+			tab=this.stackPath.split("\\\\");
+		}
+		return tab[tab.length-2];
+	}
+	
 	/**
 	 * Instantiates a new rsml expert plugin.
 	 */
@@ -165,8 +178,11 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	/** The Constant CHANGE. */
 	private static final int RESAMPLE=12;
 	
+	/** The Constant BACKEXTEND. */
+	private static final int BACKEXTEND=13;
+
 	/** The Constant all. */
-	private static final int[]all=new int[] {OK,UNDO,MOVE,REMOVE,ADD,SWITCH,CREATE,EXTEND,INFO,CHANGE,SAVE,RESAMPLE};
+	private static final int[]all=new int[] {OK,UNDO,MOVE,REMOVE,ADD,SWITCH,CREATE,EXTEND,INFO,CHANGE,SAVE,RESAMPLE,BACKEXTEND};
 		
 	/** The t. */
 	private Timer t;
@@ -197,6 +213,9 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	
 	/** The button extend. */
 	private JButton buttonExtend=new JButton("Extend a branch");
+	
+	/** The button extend. */
+	private JButton buttonBackExtend=new JButton("Backwards extension");
 	
 	/** The button info. */
 	private JButton buttonInfo=new JButton("Information about a node and a branch");
@@ -239,7 +258,7 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 
 	private String rsmlPath;
 
-	private String version="v1.5.1";
+	private String version="v1.6.0 patch Cici";
 
 	private int nMaxModifs=500;
 
@@ -379,7 +398,7 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	public void setupButtonsAndButtonPanel(){
 		buttonsPanel=new JPanel();
 		buttonsPanel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
-		buttonsPanel.setLayout(new GridLayout(6,2,40,40));
+		buttonsPanel.setLayout(new GridLayout(5,3,30,30));
 		buttonUndo.addActionListener(this);buttonUndo.setToolTipText("<html><p width=\"500\">" +"Undo last action"+"</p></html>");
 		buttonOk.addActionListener(this);buttonOk.setToolTipText("<html><p width=\"500\">" +"Click here to validate current points"+"</p></html>");
 		buttonMove.addActionListener(this);buttonMove.setToolTipText("<html><p width=\"500\">" +"Change the position of a point"+"</p></html>");
@@ -387,23 +406,36 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		buttonAdd.addActionListener(this);buttonAdd.setToolTipText("<html><p width=\"500\">" +"Add a new point"+"</p></html>");
 		buttonSwitch.addActionListener(this);buttonSwitch.setToolTipText("<html><p width=\"500\">" +"Switch two crossing branches"+"</p></html>");
 		buttonExtend.addActionListener(this);buttonExtend.setToolTipText("<html><p width=\"500\">" +"Extend an existing branch"+"</p></html>");
+		buttonBackExtend.addActionListener(this);buttonExtend.setToolTipText("<html><p width=\"500\">" +"Backwards extension of an existing branch"+"</p></html>");
 		buttonCreate.addActionListener(this);buttonCreate.setToolTipText("<html><p width=\"500\">" +"Create a new branch"+"</p></html>");
 		buttonInfo.addActionListener(this);buttonInfo.setToolTipText("<html><p width=\"500\">" +"Inform about a node and its root"+"</p></html>");
 		buttonChange.addActionListener(this);buttonChange.setToolTipText("<html><p width=\"500\">" +"Change time of a node"+"</p></html>");
 		buttonResample.addActionListener(this);buttonResample.setToolTipText("<html><p width=\"500\">" +"Resample with target timestep"+"</p></html>");
 		buttonSave.addActionListener(this);buttonSave.setToolTipText("<html><p width=\"500\">" +"Save the current model"+"</p></html>");
+		//L1
 		buttonsPanel.add(buttonOk);
+		buttonsPanel.add(new JLabel(""));
 		buttonsPanel.add(buttonUndo);
+		
+		//L2
 		buttonsPanel.add(buttonMove);
 		buttonsPanel.add(buttonRemove);
 		buttonsPanel.add(buttonAdd);
-		buttonsPanel.add(buttonSwitch);
-		buttonsPanel.add(buttonExtend);
+
+		//L3
 		buttonsPanel.add(buttonCreate);
-		buttonsPanel.add(buttonInfo);
+		buttonsPanel.add(buttonExtend);
+		buttonsPanel.add(buttonBackExtend);
+
+		//L4
 		buttonsPanel.add(buttonChange);
 		buttonsPanel.add(buttonResample);
+		buttonsPanel.add(buttonSwitch);
+
+		buttonsPanel.add(buttonInfo);
+		buttonsPanel.add(new JLabel(""));
 		buttonsPanel.add(buttonSave);
+
 	}
 
 	
@@ -488,6 +520,7 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 				if(e.getSource()==buttonSwitch && buttonSwitch.isEnabled()) {disable(SWITCH);pointStart();actionSwitchPoint(); return;     }
 				if(e.getSource()==buttonCreate && buttonCreate.isEnabled()) {disable(CREATE);pointStart();actionCreateBranch(); return;     }
 				if(e.getSource()==buttonExtend && buttonExtend.isEnabled()) {disable(EXTEND);pointStart();actionExtendBranch(); return;     }
+				if(e.getSource()==buttonBackExtend && buttonBackExtend.isEnabled()) {disable(BACKEXTEND);pointStart();actionBackExtendBranch(); return;     }
 				if(e.getSource()==buttonInfo && buttonInfo.isEnabled()) {disable(INFO);pointStart();actionInfo(); return;     }
 				if(e.getSource()==buttonChange && buttonChange.isEnabled()) {disable(CHANGE);pointStart();actionChangeTime(); return;     }
 				if(e.getSource()==buttonSave && buttonSave.isEnabled()) {disable(SAVE);actionSave(); return;     }
@@ -636,6 +669,25 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		else finishActionAborted();		
 	}
 
+	
+	/**
+	 * Action backextend branch.
+	 */
+	public void actionBackExtendBranch() {
+		boolean did=false;
+		addLog("Running action \"Back Extend branch\" ...",-1);
+		addLog("Click on the first point of a branch, then draw the line for each previous observations.",1);
+		enable(OK);
+		String[]infos=null;
+		waitOkClicked();
+		Point3d[]tabPt=getAndAdaptCurrentPoints((PointRoi)currentImage.getRoi());
+		if(tabPt!=null)infos=backExtendBranchInModel(tabPt,currentModel);
+		if(infos!=null)did=true;
+		if(did)finishActionThenGoOnStepSaveActionAndUpdateImage(infos);	
+		else finishActionAborted();		
+	}
+
+	
 	/**
 	 * Action create branch.
 	 */
@@ -747,13 +799,11 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		addLog(" Select the output file name.",1);
 		addLog(" Suggested : 61_graph_expertized.rsml",1);
 		disable(all);
-		System.out.println("I3");
-		String path=VitiDialogs.saveImageUIPath("Save your expertized model", "61_graph_expertized.rsml");
-		System.out.println("I4");
+		IJ.showMessage("Your expertized RSML will be written in \n"+this.dataDir+"/61_graph_expertized.rsml");
+		String path=this.dataDir+"/61_graph_expertized.rsml";
 		String[]infos=null;
 		infos=saveExpertizedModel(currentModel,path.replace("\\", "/"));
 		if(infos==null)did=false;
-		System.out.println("I8");
 		if(did)finishActionThenGoOnStepSaveActionAndUpdateImage(infos);	
 		else finishActionAborted();		
 	}
@@ -1010,6 +1060,63 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		return infos;
 	}
 
+
+	/**
+	 * Extend branch in model.
+	 *
+	 * @param tabPt the tab pt
+	 * @return true, if successful
+	 */
+	public String[] backExtendBranchInModel(Point3d[]tabPt,RootModel rm) {
+		String[]infos=	formatInfos("BACKEXTENDBRANCH",tabPt);
+		if(tabPt.length<2)return null;
+		int N=tabPt.length;
+		Object[]obj=rm.getClosestNode(tabPt[0]);
+		Node n=(Node) obj[0];
+		Root r=(Root) obj[1];
+		System.out.println("Back extending branch from :\n --> Node "+n+"\n --> Of root "+r );
+		boolean[]extremity=new boolean[N];
+		if(n!=r.firstNode) {			  IJ.showMessage("Please select the first point of the branch you want to extend. Abort.");return null;		}
+		for(int i=0;i<N;i++) {
+			if(tabPt[i].z!=1) {IJ.showMessage("Please only select points anterior in the first slice (anterior to dynamic imaging)");return null;}
+		}
+
+		
+		Node nFirst=new Node((float)tabPt[N-1].x,(float)tabPt[N-1].y,null,true);
+		nFirst.birthTime=(float) 0;
+		nFirst.birthTimeHours=(float) rm.hoursCorrespondingToTimePoints[0];
+		Node nPar=nFirst;
+		extremity[N-1]=true;
+
+
+		
+		int decr=N-2;
+		while(decr>0) {
+			Node nn=new Node((float)tabPt[decr].x,(float)tabPt[decr].y,nPar,true);
+			nn.parent=nPar;nPar.child=nn;
+			//if(extremity[decr]) {
+			nn.birthTime=(float) 0;
+			nn.birthTimeHours=(float) ((float) rm.hoursCorrespondingToTimePoints[0]);
+			/*}
+			else {
+				nn.birthTime=(float) (tabPt[decr].z);
+				nn.birthTimeHours=(float) (0.5*rm.hoursCorrespondingToTimePoints[(int) tabPt[decr].z]+0.5*nPar.birthTime);
+			}*/
+			System.out.println("\nJust added the node "+nn+" \n  with parent="+nPar);
+			decr--;
+			nPar=nn;
+		}
+		
+		nPar.child=r.firstNode;
+		r.firstNode.parent=nPar;
+		r.firstNode=nFirst;
+		r.updateTiming();
+		return infos;
+	}
+
+	
+	
+	
 	/**
 	 * Inform about point in model.
 	 *
@@ -1166,12 +1273,10 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		if(action.equals("SWITCHPOINT"))     { switchPointInModel(tabPt,rm);}//TODO
 		if(action.equals("CREATEBRANCH"))    { createBranchInModel(tabPt,rm);}//TODO
 		if(action.equals("EXTENDBRANCH"))    { extendBranchInModel(tabPt,rm);}//TODO
+		if(action.equals("BACKEXTENDBRANCH")){ backExtendBranchInModel(tabPt,rm);}//TODO
 		if(action.equals("CHANGETIME"))      { changeTimeInPointInModel(tabPt,rm);}//TODO
 	}	
 	
-	public void applyLastActionToPreviousModel() {
-		
-	}
 	
 	/**
 	 * Finish action aborted.
@@ -1256,7 +1361,7 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 	 * @param rm the rm
 	 * @return the image plus
 	 */
-	ImagePlus projectRsmlOnImage(RootModel rm) {
+	public ImagePlus projectRsmlOnImage(RootModel rm) {
 		Timer t=new Timer();
 		for(int i=0;i<Nt;i++) {
 			ImagePlus imgRSML=rm.createGrayScaleImageWithTime(imgInitSize,zoomFactor,false,(i+1),true,new boolean[] {true,true,true,false,true},new double[] {2,2});
@@ -1266,7 +1371,8 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 		}
 		t.print("Updating root model took : ");
 		ImagePlus res=VitimageUtils.slicesToStack(tabRes);
-		String nom="Model_at_step_"+(nModifs<1000 ? "0":"")+(nModifs<100 ? "0":"")+(nModifs<10 ? "0":"") +nModifs;
+		String chain=getBoxName();
+		String nom="Model_of_box_"+chain+"_at_step_"+(nModifs<1000 ? "0":"")+(nModifs<100 ? "0":"")+(nModifs<10 ? "0":"") +nModifs;
 		res.setTitle(nom);		
 		return res;
 	}
@@ -1400,6 +1506,7 @@ public class RsmlExpert_Plugin extends PlugInFrame implements KeyListener, Actio
 			case OK:this.buttonOk.setEnabled(state);break;
 			case CREATE:this.buttonCreate.setEnabled(state);break;
 			case EXTEND:this.buttonExtend.setEnabled(state);break;
+			case BACKEXTEND:this.buttonBackExtend.setEnabled(state);break;
 			case ADD:this.buttonAdd.setEnabled(state);break;
 			case REMOVE:this.buttonRemove.setEnabled(state);break;
 			case MOVE:this.buttonMove.setEnabled(state);break;
