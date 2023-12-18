@@ -604,6 +604,7 @@ public class BlockMatchingRegistration  {
 		if(this.displayR2) {
 			handleOutput(" |--* Beginning matching. Initial superposition with global R^2 = "+getGlobalRsquareWithActualTransform() +"\n\n");		
 		}
+		String summaryUpdatesParameters="Summary of updates=\n";
 		this.updateViews(0,0,0,this.transformationType==Transform3DType.DENSE ? null : this.currentTransform.drawableString());
 		if(waitBeforeStart)VitimageUtils.waitFor(20000);
 		timesGlob[1]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
@@ -978,6 +979,17 @@ public class BlockMatchingRegistration  {
 					}
 					//Finally, add it to the current stack of transformations
 					handleOutput("  Update to transform = \n"+transEstimated.drawableString());
+					double[] vector = transEstimated.from2dMatrixto1dVector();
+					handleOutput("The estimated angles in degrees: thetaX= "+VitimageUtils.dou(vector[0]*180/Math.PI)+", thetaY= "+VitimageUtils.dou(vector[1]*180/Math.PI)+", thetaZ= "+VitimageUtils.dou(vector[2]*180/Math.PI));
+					handleOutput("The translation in voxels is: Tx = " + VitimageUtils.dou(vector[3]/voxSX) +", Ty = " + VitimageUtils.dou(vector[4]/voxSY)+", Tz = " + VitimageUtils.dou(vector[5]/voxSZ));
+					//Build the displayed vector
+					String str= "Level"+(lev+1)+"/"+nbLevels+"Iteration "+(iter+1) +"/"+this.nbIterations;
+					String theta= "[thetaX, thetaY,thetaZ] = " + "[" + VitimageUtils.dou(vector[0]*180/Math.PI)+ "," + VitimageUtils.dou(vector[1]*180/Math.PI)+ "," + VitimageUtils.dou(vector[2]*180/Math.PI)+"]" ;
+					String trans= "[Tx,Ty,Tz] = " + "[" + VitimageUtils.dou(vector[3]/voxSX) + "," + VitimageUtils.dou(vector[4]/voxSY) + "," +  VitimageUtils.dou(vector[5]/voxSZ)+"]";
+					summaryUpdatesParameters+=""+ str+ " Angles(in degrees) : "+theta+ ", Translation : "+trans+" \n";
+
+
+
 					if(!transEstimated.isIdentityAffineTransform(1E-6,0.05*Math.min(Math.min(voxSX,voxSY),voxSZ) ) ){
 						this.currentTransform.addTransform(new ItkTransform(transEstimated));
 						//this.additionalTransform.addTransform(new ItkTransform(transEstimated));
@@ -1039,7 +1051,8 @@ public class BlockMatchingRegistration  {
 		timesGlob[3]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 		handleOutput("Block matching finished, date="+new Date().toString());
 		if(this.transformationType!=Transform3DType.DENSE)handleOutput("\nMatrice finale block matching : \n"+this.currentTransform.drawableString());
-		
+		if(this.transformationType!=Transform3DType.DENSE)handleOutput(summaryUpdatesParameters);
+
 		if(displayR2) {
 			handleOutput("Successive R2 values :");
 			for(int i=0;i<incrIter;i++)handleOutput(" -> "+globalR2Values[i]);

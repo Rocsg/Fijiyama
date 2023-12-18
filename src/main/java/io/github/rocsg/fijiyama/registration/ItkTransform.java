@@ -5,6 +5,7 @@ package io.github.rocsg.fijiyama.registration;
 import java.util.ArrayList;
 import java.util.Random;
 
+import org.apache.commons.math3.geometry.euclidean.oned.Vector1D;
 import org.itk.simple.ComposeImageFilter;
 import org.itk.simple.DisplacementFieldJacobianDeterminantFilter;
 import org.itk.simple.DisplacementFieldTransform;
@@ -1198,7 +1199,7 @@ public class ItkTransform extends Transform{
 		gridYZ=VitimageUtils.switchAxis(gridYZ, 1);
 		ImagePlus tempYZ=this.transformImage(imgRef,gridYZ,false);
 		tempYZ=VitimageUtils.switchAxis(tempYZ, 1);
-		tempYZ.show();
+		tempYZ.show();toAffineArrayRepresentation
 		tempYZ.setTitle(title+"-YZ plane");
 		tempYZ.getWindow().setSize(512, 512);
 		tempYZ.getCanvas().fitToWindow();
@@ -1756,12 +1757,43 @@ public class ItkTransform extends Transform{
 		double[][]array=this.toAffineArrayRepresentation();
 		
 		for(int lin=0;lin<3;lin++)for(int col=0;col<3;col++) {
-			if((lin==col) && (Math.abs(1-array[lin][col])>epsilonRotation))return false;
+			//if((lin==col) && (Math.abs(1-array[lin][col])>epsilonRotation))return false;
 			if((lin!=col) && (Math.abs(array[lin][col])>epsilonRotation))return false;
 		}
+
 		for(int lin=0;lin<3;lin++)if(Math.abs(array[lin][3])>epsilonTranslation)return false;
 		return true;
 	}
+	/**
+	 * Converting the transformation matrix into a vector 
+	 *
+	 * @param epsilonRotation the epsilon rotation
+	 * @param epsilonTranslation the epsilon translation
+	 * @return true, if is identity affine transform
+	 */
+
+	public double[] from2dMatrixto1dVector(){
+		double[][] matrix=this.toAffineArrayRepresentation();
+		//Initialize vector
+		double[]vector = new double[6];
+		//Fill the vector with value thetaX
+		vector[0] =	matrix[2][1];
+		//Fill the vector with value thetaY
+		vector[1] = matrix[2][0];
+		//Fill the vector with value thetaZ
+		vector[2] = matrix[1][0];
+		//Fill the vector with value transX
+		vector[3] = matrix[0][3];
+		//Fill the vector with value transY
+		vector[4] = matrix[1][3];
+		//Fill the vector with value transZ
+		vector[5] = matrix[2][3];
+
+		//Thats all
+		return vector;
+	}
+
+	
 	
 	/**
 	 * Itk transfo step to string.
