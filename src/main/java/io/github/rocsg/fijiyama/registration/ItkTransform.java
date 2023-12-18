@@ -5,7 +5,6 @@ package io.github.rocsg.fijiyama.registration;
 import java.util.ArrayList;
 import java.util.Random;
 
-import org.apache.commons.math3.geometry.euclidean.oned.Vector1D;
 import org.itk.simple.ComposeImageFilter;
 import org.itk.simple.DisplacementFieldJacobianDeterminantFilter;
 import org.itk.simple.DisplacementFieldTransform;
@@ -1199,7 +1198,7 @@ public class ItkTransform extends Transform{
 		gridYZ=VitimageUtils.switchAxis(gridYZ, 1);
 		ImagePlus tempYZ=this.transformImage(imgRef,gridYZ,false);
 		tempYZ=VitimageUtils.switchAxis(tempYZ, 1);
-		tempYZ.show();toAffineArrayRepresentation
+		tempYZ.show();
 		tempYZ.setTitle(title+"-YZ plane");
 		tempYZ.getWindow().setSize(512, 512);
 		tempYZ.getCanvas().fitToWindow();
@@ -1793,7 +1792,7 @@ public class ItkTransform extends Transform{
 		return vector;
 	}
 
-	
+
 	
 	/**
 	 * Itk transfo step to string.
