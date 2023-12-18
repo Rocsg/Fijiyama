@@ -125,7 +125,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public String versionName="Handsome honeysuckle";
 	
 	/** The time version flag. */
-	public String timeVersionFlag="  v4.2.2 2023-11-30 -03:04 PM (Mtp), Speedup";
+	public String timeVersionFlag="  v4.3.0 2023-12-18 -15:43 PM (Mtp), Convergence";
 	
 	/** The version flag. */
 	public String versionFlag=versionName+timeVersionFlag;
@@ -564,6 +564,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	 * @param arg the arg
 	 */
 	public void run(String arg) {
+		//IJ.showMessage("Hello World !");
 			IJ.log(System.getProperties().toString());
 			if(VitimageUtils.isWindowsOS() && System.getProperties().toString().contains("zulu")) {
 				IJ.showMessage("You run windows with zulu JDK. We are sorry, but this is unconvenient\n"+
@@ -1452,6 +1453,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 							}
 							actionAborted=false;
 							addLog("Block-matching registration finished.", 1);
+							//addLog("The rigid body registration process has successfully converged, as evidenced by the stabilization of the rotation and translation matrices. Analysis of the rotation component reveals sine values within the 1/1000 range, corresponding to a negligible rotation of approximately 0.1°. This minute angular deviation indicates that the registration has achieved a satisfactory alignment. ", 1);
 						}
 						
 								//Automatic Itk iconic registration
