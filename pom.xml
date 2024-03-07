@@ -6,7 +6,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.github.rocsg</groupId>
 	<artifactId>fijiyama</artifactId>
-	<version>4.3.0</version>
+	<version>4.3.1</version>
 	<packaging>jar</packaging>
 	<url>https://imagej.net/plugins/fijiyama/</url>
 
@@ -45,7 +45,7 @@
 	<repositories>
 	  <repository>
 	   	  <id>imagej.public</id>
-	      <url>http://maven.imagej.net/content/groups/public</url>
+	      <url>https://maven.imagej.net/content/groups/public</url>
       </repository>
         <repository>
 		<id>scijava.public</id>

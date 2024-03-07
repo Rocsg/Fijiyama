@@ -1,11 +1,32 @@
 package io.github.rocsg.fijiyama.registration;
 
+import ij.ImagePlus;
+import io.github.rocsg.fijiyama.fijiyamaplugin.RegistrationAction;
+import javassist.bytecode.analysis.ControlFlow.Block;
+
 public class TestGargee {
     public static void main(String[] args) {
         System.out.println("Hello Gargee");
         System.out.println("Now running the test...");
         test();
     }
+
+    public static void testRegistration(){
+        ImagePlus imgRef=null;
+        ImagePlus imgMov=null;
+        RegistrationAction regAct=new RegistrationAction();
+        regAct.defineSettingsFromTwoImages(imgRef, imgMov, null, false);
+        regAct.bhsX=3;
+        regAct.bhsY=3;
+        
+        BlockMatchingRegistration bm = BlockMatchingRegistration.setupBlockMatchingRegistration(imgRef, imgMov,regAct);
+        ItkTransform tr=bm.runBlockMatching(null, false);
+
+        //Apply the transform 
+        ImagePlus imgRegistered=tr.transformImage(imgRef, imgMov);
+        
+    }
+
 
     public static void test() {
         //ItkTransform myRigidBodyTransform=ItkTransform.readTransformFromFile("Please write here your path");
