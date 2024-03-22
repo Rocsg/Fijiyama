@@ -1,0 +1,105 @@
+@startuml
+
+!theme plain
+top to bottom direction
+skinparam linetype ortho
+
+class BlockMatchingRegistration
+class Bord
+enum CenteringStrategy << enumeration >>
+class DataFileFilterRSML
+class DouglasPeuckerSimplify
+class FSR
+class Fijiyama_GUI
+class HungarianAlgorithm
+class IdenticalDataFileFilter
+class IterationUpdate
+class ItkImagePlusInterface
+class ItkRegistration
+class ItkTransform
+class Mark
+enum MetricType << enumeration >>
+class MostRepresentedFilter
+class Node
+enum OptimizerType << enumeration >>
+class PaperValidation
+class Pix
+class PointTabComparatorByDistanceLTS
+class PointTabComparatorByScore
+class RSMLGUI
+class RSMLNoGUI
+class RSML_reader
+class RegistrationAction
+class RegistrationManager
+class ReproducibilityTests
+class Reslicer3D
+class Root
+class RootModel
+class RsmlExpert_Plugin
+class RsmlPhenotypingUtils
+class SalmaTransform
+enum SamplingStrategy << enumeration >>
+enum ScalerType << enumeration >>
+class ScoreComparator
+class ScrollUtil
+class SentenceOfTheDay
+class TestGargee
+class TestScriptBeanshell
+class Test_RSMLViewer
+class TestingFijiyamaPackage
+class TestingRegistrationPackage
+class Tests
+class Timer
+enum Transform3DType << enumeration >>
+interface TransformUtils << interface >>
+class VarianceComparator
+interface VitiDialogs << interface >>
+class VitimageUtils
+
+BlockMatchingRegistration        -[#595959,dashed]->  BlockMatchingRegistration       
+BlockMatchingRegistration       "1" *-[#595959,plain]-> "currentTransform\n1" ItkTransform                    
+BlockMatchingRegistration       "1" *-[#595959,plain]-> "metricType\n1" MetricType                      
+BlockMatchingRegistration       "1" *-[#595959,plain]-> "rootModel\n1" RootModel                       
+BlockMatchingRegistration       "1" *-[#595959,plain]-> "transformationType\n1" Transform3DType                 
+Bord                            "1" *-[#595959,plain]-> "pix1\n1" Pix                             
+DouglasPeuckerSimplify           -[#595959,dashed]->  Pix                             
+Fijiyama_GUI                    "1" *-[#595959,plain]-> "bmRegistration\n1" BlockMatchingRegistration       
+Fijiyama_GUI                     -[#595959,dashed]->  Fijiyama_GUI                    
+Fijiyama_GUI                    "1" *-[#595959,plain]-> "itkManager\n1" ItkRegistration                 
+Fijiyama_GUI                    "1" *-[#595959,plain]-> "regManager\n1" RegistrationManager             
+IterationUpdate                 "1" *-[#595959,plain]-> "manager\n1" ItkRegistration                 
+ItkRegistration                 "1" *-[#595959,plain]-> "centeringStrategies\n*" CenteringStrategy               
+ItkRegistration                 "1" *-[#595959,plain]-> "updater\n1" IterationUpdate                 
+ItkRegistration                 "1" *-[#595959,plain]-> "additionalTransform\n1" ItkTransform                    
+ItkRegistration                 "1" *-[#595959,plain]-> "metricType\n1" MetricType                      
+ItkRegistration                 "1" *-[#595959,plain]-> "scalerTypes\n*" ScalerType                      
+ItkRegistration                 "1" *-[#595959,plain]-> "transformation3DTypes\n*" Transform3DType                 
+ItkTransform                     -[#595959,dashed]->  ItkTransform                    
+Mark                             -[#595959,dashed]->  Mark                            
+Mark                            "1" *-[#595959,plain]-> "r\n1" Root                            
+Node                            "1" *-[#595959,plain]-> "child\n1" Node                            
+Pix                             "1" *-[#595959,plain]-> "previous\n1" Pix                             
+RSMLGUI                         "1" *-[#595959,plain]-> "instance\n1" RSMLGUI                         
+RSMLNoGUI                       "1" *-[#595959,plain]-> "sr\n1" FSR                             
+RSML_reader                     "1" *-[#595959,plain]-> "sr\n1" FSR                             
+RSML_reader                     "1" *-[#595959,plain]-> "rsmlGui\n1" RSMLGUI                         
+RSML_reader                     "1" *-[#595959,plain]-> "instance\n1" RSML_reader                     
+RegistrationAction              "1" *-[#595959,plain]-> "typeOpt\n1" OptimizerType                   
+RegistrationAction               -[#595959,dashed]->  RegistrationAction              
+RegistrationAction              "1" *-[#595959,plain]-> "typeTrans\n1" Transform3DType                 
+RegistrationManager             "1" *-[#595959,plain]-> "fijiyamaGui\n1" Fijiyama_GUI                    
+RegistrationManager             "1" *-[#595959,plain]-> "trActions\n*" ItkTransform                    
+RegistrationManager             "1" *-[#595959,plain]-> "interTimes\n*" RegistrationAction              
+Root                            "1" *-[#595959,plain]-> "markList\n*" Mark                            
+Root                            "1" *-[#595959,plain]-> "firstNode\n1" Node                            
+Root                            "1" *-[#595959,plain]-> "childList\n*" Root                            
+RootModel                       "1" *-[#595959,plain]-> "datafileFilterRSML\n1" DataFileFilterRSML              
+RootModel                       "1" *-[#595959,plain]-> "rootList\n*" Root                            
+RootModel                        -[#595959,dashed]->  RootModel                       
+RsmlExpert_Plugin               "1" *-[#595959,plain]-> "sr\n1" FSR                             
+RsmlExpert_Plugin               "1" *-[#595959,plain]-> "currentModel\n1" RootModel                       
+RsmlExpert_Plugin               "1" *-[#595959,plain]-> "t\n1" Timer                           
+VitiDialogs                      -[#595959,dashed]->  ItkTransform                    
+VitimageUtils                    -[#595959,dashed]->  Bord                            
+VitimageUtils                    -[#595959,dashed]->  Pix                             
+@enduml
