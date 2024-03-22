@@ -273,7 +273,8 @@ public class ItkTransform extends Transform{
 	 */
 	/* Estimation of transformations from point set or euler angles*/	
 	public static ItkTransform estimateBestAffine3D(Point3d[]setRef,Point3d[]setMov) {
-		return fastMatrixToItkTransform(FastMatrix.bestLinear( setMov, setRef));
+		System.out.println("Length="+setRef.length+","+setMov.length);
+		return fastMatrixToItkTransform(FastMatrix.bestRigid( setMov, setRef,true));
 	}
 		
 	/**

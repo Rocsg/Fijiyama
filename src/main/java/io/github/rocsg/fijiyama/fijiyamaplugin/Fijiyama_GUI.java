@@ -416,10 +416,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	/** The run two images button. */
 	//Launching frame buttons
 	private JButton runTwoImagesButton = new JButton("Two images registration (training mode)");
-	
-	/** The batch rsml button. */
-	private JButton batchRsmlButton = new JButton("Batch correction of Rsml files");
-	
+		
 	/** The run serie button. */
 	private JButton runSerieButton = new JButton("Series registration (N-times and/or N-modalities)");
 	
@@ -935,7 +932,6 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		this.modeWindow=WINDOWIDLE;
 		sosButton=new JButton("Help");
 		runTwoImagesButton=new JButton("Two images registration (training mode)");
-		batchRsmlButton=new JButton("Batch correction of Rsml files");
 		runSerieButton=new JButton("Series registration (N-times and/or N-modalities)");
 		transformButton=new JButton("Apply a computed transform to another image");
 		composeTransformsButton=new JButton("Compose successive transformations into a single one");
@@ -956,7 +952,6 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		buttonPanel.add(runTwoImagesButton);
 		buttonPanel.add(runSerieButton);
 		buttonPanel.add(loadFjmButton);
-		buttonPanel.add(batchRsmlButton);
 		buttonPanel.add(transformButton);
 		buttonPanel.add(composeTransformsButton);
 		buttonPanel.add(sosButton);
@@ -988,7 +983,6 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(expectedState) {
 			sosButton.setEnabled(true);
 			runTwoImagesButton.setEnabled(true);
-			batchRsmlButton.setEnabled(true);
 			runSerieButton.setEnabled(true);
 			composeTransformsButton.setEnabled(true);
 			transformButton.setEnabled(true);
@@ -996,7 +990,6 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			
 			sosButton.addActionListener(this);
 			runTwoImagesButton.addActionListener(this);
-			batchRsmlButton.addActionListener(this);
 			runSerieButton.addActionListener(this);
 			transformButton.addActionListener(this);
 			composeTransformsButton.addActionListener(this);
@@ -1005,7 +998,6 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		else {
 			sosButton.setEnabled(false);
 			runTwoImagesButton.setEnabled(false);
-			batchRsmlButton.setEnabled(false);
 			runSerieButton.setEnabled(false);
 			transformButton.setEnabled(false);
 			composeTransformsButton.setEnabled(false);
@@ -1013,7 +1005,6 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 
 			sosButton.removeActionListener(this);
 			runTwoImagesButton.removeActionListener(this);
-			batchRsmlButton.removeActionListener(this);
 			runSerieButton.removeActionListener(this);
 			transformButton.removeActionListener(this);			
 			composeTransformsButton.removeActionListener(this);			
@@ -1168,7 +1159,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 		if(this.modeWindow==WINDOWIDLE) {
 			performActionInLaunchingInterface(e);return;
 		}
-		if((e.getSource()==this.runTwoImagesButton || e.getSource()==this.batchRsmlButton ||  e.getSource()==this.loadFjmButton ||e.getSource()==this.runSerieButton || e.getSource()==this.transformButton || e.getSource()==this.composeTransformsButton)
+		if((e.getSource()==this.runTwoImagesButton || e.getSource()==this.loadFjmButton ||e.getSource()==this.runSerieButton || e.getSource()==this.transformButton || e.getSource()==this.composeTransformsButton)
 				&& this.registrationFrame!=null && this.registrationFrame.isVisible()) {
 			IJ.showMessage("A Registration manager is running, with the corresponding interface open. Please close this interface before any other operation.");
 			return;
@@ -2368,7 +2359,6 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 			case FINISH:this.finishButton.setEnabled(state);break;
 			case SOS:this.sosButton.setEnabled(state);break;
 			case RUNTWOIMG:this.runTwoImagesButton.setEnabled(state);break;
-			case BATCHRSML:this.batchRsmlButton.setEnabled(state);break;
 			case RUNSERIE:this.runSerieButton.setEnabled(state);break;
 			case RUNNEXTSTEP:this.runNextStepButton.setEnabled(state);break;
 			case GOBACKSTEP:this.goBackStepButton.setEnabled(state);break;
