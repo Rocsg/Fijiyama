@@ -671,7 +671,7 @@ public class BlockMatchingRegistration  {
 			double[]voxSizes=VitimageUtils.getVoxelSizes(imgRefTemp);
 			timesLev[lev][1]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 			imgRefTemp=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgRefTemp)));
-			VitimageUtils.adjustVoxelSize(imgRefTemp, voxSizes);
+			//VitimageUtils.adjustVoxelSize(imgRefTemp, voxSizes);
 			timesLev[lev][2]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 
 			//resample the mask image
@@ -679,7 +679,7 @@ public class BlockMatchingRegistration  {
 				this.resampler.setDefaultPixelValue(1);
 				voxSizes=VitimageUtils.getVoxelSizes(this.mask);
 				imgMaskTemp=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(this.mask)));
-				VitimageUtils.adjustVoxelSize(imgMaskTemp, voxSizes);
+				//VitimageUtils.adjustVoxelSize(imgMaskTemp, voxSizes);
 			}
 			timesLev[lev][3]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 
@@ -701,7 +701,7 @@ public class BlockMatchingRegistration  {
 					imgMovTemp=VitimageUtils.gaussianFilteringIJ(this.imgMov, this.successiveSmoothingSigma[lev], this.successiveSmoothingSigma[lev], this.successiveSmoothingSigma[lev]);
 					voxSizes=VitimageUtils.getVoxelSizes(imgMovTemp);
 					imgMovTemp=ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMovTemp)));
-					VitimageUtils.adjustVoxelSize(imgMovTemp, voxSizes);
+					//VitimageUtils.adjustVoxelSize(imgMovTemp, voxSizes);
 				}
 				timesIter[lev][iter][1]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 
