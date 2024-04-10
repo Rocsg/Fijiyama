@@ -123,7 +123,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
 	public String versionName="Handsome honeysuckle";
 	
 	/** The time version flag. */
-	public String timeVersionFlag="  v4.4.0 2024-03-22 -17:43 PM (Mtp), New World";
+	public String timeVersionFlag="  v4.4.0-SNAPSHOT 2024-04-10 -2:30 PM (CEST), Adventure land";
 	
 	/** The version flag. */
 	public String versionFlag=versionName+timeVersionFlag;
