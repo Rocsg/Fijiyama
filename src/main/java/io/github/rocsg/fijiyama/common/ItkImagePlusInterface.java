@@ -39,8 +39,22 @@ public class ItkImagePlusInterface {
 	public static final int FLAG_OFF=2;
 	
 
-	
-	
+	public static void main(String[] args) {
+		String str="/home/rfernandez/Bureau/Temp/TestGargeeDicomStuff/Volumetric_Images/Sequence_1.tif";
+		Timer t=new Timer();
+		t.print("Ouverture image");
+		ImagePlus img=IJ.openImage(str);
+		t.print("Ok");
+		VitimageUtils.printImageResume(img);
+
+		t.print("Conversion vers ITK");
+		Image itkImg=imagePlusToItkImageNew(img);
+		t.print("Ok");
+
+		t.print("Conversion vers ImageJ");
+		ImagePlus ijImg=itkImageToImagePlusNew(itkImg);
+		t.print("Ok");
+	}
 	
 /*
 	public static int getFlag(){

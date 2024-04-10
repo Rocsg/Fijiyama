@@ -14,10 +14,10 @@ public class SalmaTransform {
         ImageJ imageJ=new ImageJ();
         System.out.println("SalmaTransform");
 
-        String inputDir="/home/rfernandez/Bureau/Temp/TestSalma/Full_data";
-        String outputDir="/home/rfernandez/Bureau/Temp/TestSalma/Full_stack";
-      //makeStack(inputDir,outputDir);
-        analyzeStack(  inputDir, "/home/rfernandez/Bureau/Temp/TestSalma/Full_stack/stack_line.tif","/home/rfernandez/Bureau/Temp/TestSalma/Full_stack/out_data.csv","/home/rfernandez/Bureau/Temp/TestSalma/Full_stack/out_names.csv");
+        String inputDir="/home/rfernandez/Bureau/Temp/TestSalma/V2/Raw";
+        String outputDir="/home/rfernandez/Bureau/Temp/TestSalma/V2/Stack";
+        //makeStack(inputDir,outputDir);
+        analyzeStack(  inputDir, "/home/rfernandez/Bureau/Temp/TestSalma/V2/Stack/stack_line.tif","/home/rfernandez/Bureau/Temp/TestSalma/V2/Stack/out_data.csv","/home/rfernandez/Bureau/Temp/TestSalma/V2/Stack/out_names.csv");
     }
 
 

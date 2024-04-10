@@ -437,13 +437,11 @@ import math3d.Point3d;
 	/**
 	 * The main method.
 	 *
-	 * @param args the arguments
-	 */
+	 * @param args the arguments*/
 	public static void main(String[]args) {
 		ImageJ ij=new ImageJ();
-		String dir="/home/rfernandez/Bureau/DATA/Data_Morgan/myData/train/";
-		String img="20200826-AC-PIP_azote_Seq 4_Boite 00109_IdentificationFailed-Visu.jpg";
 	}
+	 
 	
 
 	
