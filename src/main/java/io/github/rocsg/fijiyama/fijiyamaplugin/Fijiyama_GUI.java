@@ -902,6 +902,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
                    registrationFrame.setVisible(false);
                    regManager.freeMemory();
                    closeAllViews();
+				   System.exit(0);
                }
 		});
 		updateList();
