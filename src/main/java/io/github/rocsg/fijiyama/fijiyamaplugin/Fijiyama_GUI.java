@@ -2,7 +2,6 @@
  * 
  */
 package io.github.rocsg.fijiyama.fijiyamaplugin;
-
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.GridLayout;
@@ -902,7 +901,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
                    registrationFrame.setVisible(false);
                    regManager.freeMemory();
                    closeAllViews();
-				   System.exit(0);
+				   if(developerMode)System.exit(0);
                }
 		});
 		updateList();
@@ -969,6 +968,7 @@ public class Fijiyama_GUI extends PlugInFrame implements ActionListener {
                   IJ.showMessage("See you next time !");
                   regManager.freeMemory();
                   closeAllViews();
+				  if(developerMode)System.exit(0);
             }
 		});
 		frameLaunch.setVisible(true);
