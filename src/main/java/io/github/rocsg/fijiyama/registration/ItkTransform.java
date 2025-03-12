@@ -4,7 +4,7 @@
 package io.github.rocsg.fijiyama.registration;
 import java.util.ArrayList;
 import java.util.Random;
-
+       
 import org.itk.simple.ComposeImageFilter;
 import org.itk.simple.DisplacementFieldJacobianDeterminantFilter;
 import org.itk.simple.DisplacementFieldTransform;
@@ -262,7 +262,46 @@ public class ItkTransform extends Transform{
 		return vals;
 	}
 	
-	
+	public static String getStatsAboutCorrespondancePoints(Point3d[][]tab){
+		int N=tab[0].length;
+		double[]norms=new double[N];
+		for(int n=0;n<N;n++){
+			norms[n]=tab[0][n].distanceTo(tab[1][n]);
+			System.out.println(n+" = "+norms[n]);
+		}
+
+
+		double[]tab1=VitimageUtils.statistics1D(norms);
+		double[]tab2=VitimageUtils.minAndMaxOfTab(norms);
+		return ("Stats : [ min="+tab2[0]+" | max="+tab2[1]+" | mean="+tab1[0]+" | std="+tab1[1]+" ]");
+	}
+
+	/**
+	 * Estimate best affine 3 D.
+	 *
+	 * @param setRef the set ref
+	 * @param setMov the set mov
+	 * @return the itk transform
+	 */
+	/* Estimation of transformations from point set or euler angles*/	
+	public static ItkTransform estimateBestAffine3DGoodOrder(Point3d[]setRef,Point3d[]setMov) {
+		System.out.println("Length="+setRef.length+","+setMov.length);
+		return fastMatrixToItkTransform(FastMatrix.bestRigid( setRef, setMov,true));
+	}
+		
+	/**
+	 * Estimate best rigid 3 D.
+	 *
+	 * @param setRef the set ref
+	 * @param setMov the set mov
+	 * @return the itk transform
+	 */
+	public static ItkTransform estimateBestRigid3DGoodOrder(Point3d[]setRef,Point3d[]setMov) {
+		return fastMatrixToItkTransform(FastMatrix.bestRigid( setRef, setMov, false ));
+	}
+
+
+
 
 	/**
 	 * Estimate best affine 3 D.
@@ -1054,12 +1093,12 @@ public class ItkTransform extends Transform{
 	}
 
 	/**
-	 * Resample image reech.
+	 * Resample image reech. Deprecated
 	 *
 	 * @param imgRef the img ref
 	 * @param imgMov the img mov
 	 * @return the image plus
-	 */
+	 
 	public static ImagePlus resampleImageReech(ImagePlus imgRef, ImagePlus imgMov) {
 		int val=Math.min(  10    ,    Math.min(   imgMov.getWidth()/20    ,   imgMov.getHeight()/20  ));
 		int valMean=(int)Math.round(      VitimageUtils.meanValueofImageAround(imgMov,val,val,0,val)*0.5 + VitimageUtils.meanValueofImageAround(imgMov,imgMov.getWidth()-val-1,imgMov.getHeight()-val-1,0,val)*0.5    );
@@ -1071,7 +1110,7 @@ public class ItkTransform extends Transform{
 		ItkTransform tr=getTransformForResampling(voxSRef,voxSMov);
 		resampler.setTransform(tr);
 		return (ItkImagePlusInterface.itkImageToImagePlus(resampler.execute(ItkImagePlusInterface.imagePlusToItkImage(imgMov))));
-	}	
+	}	*/
 	
 
 	/**
@@ -1322,6 +1361,18 @@ public class ItkTransform extends Transform{
 		return new ItkTransform(new DisplacementFieldTransform(getFlattenDenseFieldAsDisplacementFieldImage(imgRef)));
 	}
 	
+
+	public String evaluateMatching(Point3d[][]tabSave){
+		int Ncorr=tabSave[0].length;
+		Point3d[][]tab=new Point3d[2][Ncorr];
+		for(int i=0;i<Ncorr;i++){tab[0][i]=new Point3d(tabSave[0][i].x,tabSave[0][i].y,tabSave[0][i].z);tab[1][i]=new Point3d(tabSave[1][i].x,tabSave[1][i].y,tabSave[1][i].z);}
+		for(int i=0;i<Ncorr;i++)tab[0][i]=this.transformPoint(tab[0][i]);
+		return getStatsAboutCorrespondancePoints(tab);
+	}
+
+
+
+
 	/**
 	 * Gets the flatten dense field as displacement field image.
 	 *
@@ -1566,7 +1617,7 @@ public class ItkTransform extends Transform{
 		IJ.saveAsTiff(trans[1],shortPath+".y.tif");
 		IJ.saveAsTiff(trans[2],shortPath+".z.tif");
 		VitimageUtils.convertToGray8(trans[0]);
-		IJ.saveAsTiff(trans[0],shortPath+".transform.tif");
+		IJ.saveAsTiff(trans[3],shortPath+".transform.tif");
 	}
 		
 	/**

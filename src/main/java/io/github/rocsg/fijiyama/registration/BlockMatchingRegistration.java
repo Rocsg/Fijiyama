@@ -75,6 +75,14 @@ import math3d.Point3d;
 	/** The flag range. */
 	public boolean flagRange=false;
 	
+	private boolean flagDisplayStatsAboutLandmarksGiven=false;
+	private Point3d[][]tabLandmarks=null;
+
+	public void activateFlagDisplayStatsAboutLandmarksGiven(Point3d[][]tabPts){
+		flagDisplayStatsAboutLandmarksGiven=true;
+		tabLandmarks=tabPts;
+	}
+
 	/** The bm is interrupted. */
 	public volatile boolean bmIsInterrupted;
 	
@@ -306,6 +314,8 @@ import math3d.Point3d;
 	
 	/** The info. */
 	private String info="";
+
+	private boolean flagQuiversOn=false;
 	
 	/** The Constant EPSILON. */
 	private static final double EPSILON=1E-8;
@@ -320,6 +330,8 @@ import math3d.Point3d;
 	 */
 	public void setSingleView() {flagSingleView=true;}
 	
+public void setQuiversOn(){flagQuiversOn=true;}
+
 	/**
 	 *  Starting points.
 	 *
@@ -405,7 +417,7 @@ import math3d.Point3d;
 			screenHeight=768;
 			screenWidth=1024;
 		}
-		zoomFactor=  (dims[0]<280 ? 0.8 : 1)*Math.min((screenHeight/2)/dims[1]  ,  (screenWidth/2)/dims[0]) ; 
+		zoomFactor=  (dims[0]<280 ? 0.8 : 1)*Math.min(1.0*(screenHeight/2.0)/dims[1]  ,  (1.0*screenWidth/2.0)/dims[0]) ; 
 		this.viewHeight=(int)(this.imgRef.getHeight()*zoomFactor);
 		this.viewWidth=(int)(this.imgRef.getWidth()*zoomFactor);
 		
@@ -990,6 +1002,7 @@ import math3d.Point3d;
 					globalR2Values[incrIter]=getGlobalRsquareWithActualTransform();
 					timesIter[lev][iter][16]=VitimageUtils.dou((System.currentTimeMillis()-t0)/1000.0);
 					this.lastValueCorr=globalR2Values[incrIter];
+					if(flagDisplayStatsAboutLandmarksGiven) handleOutput(this.currentTransform.evaluateMatching(tabLandmarks));
 					handleOutput("Global R^2 after iteration="+globalR2Values[incrIter++]);
 				}
 				this.updateViews(lev,iter,(this.levelMax-lev)>=1 ? 0 : (1-this.levelMax+lev),this.transformationType==Transform3DType.DENSE ? null : this.currentTransform.drawableString());
@@ -1472,6 +1485,11 @@ import math3d.Point3d;
 			if(textTrans!=null)temp=VitimageUtils.writeTextOnImage(textTrans,temp,this.fontSize,1);
 			if(flagSingleView)this.sliceFuse=(flagRange ? VitimageUtils.compositeNoAdjustOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving, Gray=score. Level=0 Iter=0 "+this.info) : 
 				VitimageUtils.compositeOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving, Gray=score. Level=0 Iter=0 "+this.info));
+			else if(flagQuiversOn){
+				this.sliceFuse=flagRange ? VitimageUtils.compositeNoAdjustOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info) : 
+				VitimageUtils.compositeOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info);
+				//TODO
+			}
 			else this.sliceFuse=flagRange ? VitimageUtils.compositeNoAdjustOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info) : 
 				VitimageUtils.compositeOf(temp,this.sliceMov,"Registration is running. Red=Reference, Green=moving. Level="+level+" Iter="+iteration+" "+this.info);
 			this.sliceFuse.show();
@@ -1481,7 +1499,7 @@ import math3d.Point3d;
 			VitimageUtils.adjustImageOnScreen(this.sliceFuse,0,0);
 
 			if(displayRegistration>1) {
-				ImagePlus tempImg=VitimageUtils.getBinaryGrid(this.imgRef, 10);
+				ImagePlus tempImg=VitimageUtils.getBinaryGrid(this.imgRef, (int)Math.max(imgRef.getWidth()/50.0,10));
                 this.sliceGrid=this.currentTransform.transformImage(tempImg,tempImg,false);
 				this.sliceGrid.setSlice(this.sliceInt);
 				this.sliceGrid.show();
@@ -1528,7 +1546,7 @@ import math3d.Point3d;
 				//this.sliceCorr.setSlice(this.sliceIntCorr);
 
 				
-				tempImg=VitimageUtils.getBinaryGrid(this.imgRef, 10);
+				tempImg=VitimageUtils.getBinaryGrid(this.imgRef, (int)Math.max(imgRef.getWidth()/50.0,10));
 				tempImg=this.currentTransform.transformImage(tempImg,tempImg,false);
 				
 				VitimageUtils.actualizeData(tempImg,this.sliceGrid);//TODO : do it using the reaffectation of the pixel value pointer

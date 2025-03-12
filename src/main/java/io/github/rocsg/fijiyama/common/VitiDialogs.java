@@ -714,14 +714,27 @@ public interface VitiDialogs {
 	 * @return the point 3 d[][]
 	 */
 	public static Point3d[][] registrationPointsUI(int nbWantedPointsPerImage,ImagePlus imgRef,ImagePlus imgMov,boolean realCoordinates){
+		System.out.println("Toto321");
+		boolean isUserDefinedEnd=(nbWantedPointsPerImage==-1);
+		if(isUserDefinedEnd)nbWantedPointsPerImage=1000000000;
+		int squareSize=0;
 		ImagePlus imgRefBis=imgRef.duplicate();
 		ImagePlus imgMovBis=imgMov.duplicate();
+		System.out.println("Toto322");
+
 		imgRefBis.getProcessor().resetMinAndMax();
 		imgMovBis.getProcessor().resetMinAndMax();
+		if(isUserDefinedEnd){
+			squareSize=imgRef.getWidth()/50;
+			imgRefBis=VitimageUtils.drawRectangleInImage(imgRefBis, 0,0, squareSize, squareSize, 0);
+		}
+		System.out.println("Toto323");
+
 		imgRefBis.show();
 		imgMovBis.show();
 		imgMovBis.setTitle("Moving image");
 		imgRefBis.setTitle("Reference image");
+		System.out.println("Toto324");
 		RoiManager rm=RoiManager.getRoiManager();
 		rm.reset();
 		IJ.setTool("point");
@@ -735,10 +748,11 @@ public interface VitiDialogs {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			if(rm.getCount()>=nbWantedPointsPerImage*2 && getYesNoUI("","Confirm points ?"))finished=true;
+			boolean finishCausedByUser=isUserDefinedEnd && rm.getCount()>0 && (rm.getRoi(rm.getCount()-1 ).getXBase()<squareSize)&& (rm.getRoi(rm.getCount()-1 ).getYBase()<squareSize);
+			if(( rm.getCount()>=nbWantedPointsPerImage*2 || finishCausedByUser) && getYesNoUI("","Confirm points ?"))finished=true;
 			System.out.println("Waiting "+(nbWantedPointsPerImage*2)+". Current number="+rm.getCount());
 		}while (!finished);	
-		int nCouples=Math.max(nbWantedPointsPerImage, rm.getCount()/2);
+		int nCouples=Math.max((isUserDefinedEnd ? 0 : nbWantedPointsPerImage), rm.getCount()/2);
 		Point3d []pRef=new Point3d[nCouples];
 		Point3d []pMov=new Point3d[nCouples];
 		for(int indP=0;indP<nCouples;indP++){

@@ -43,6 +43,7 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.WindowManager;
 import ij.gui.Overlay;
+import ij.gui.PointRoi;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.gui.ShapeRoi;
@@ -326,6 +327,17 @@ public class VitimageUtils {
 	
 	
 
+
+	
+    
+	public static double[]stringTabToDoubleTab(String[]str){
+	double []ret=new double[str.length];
+		for(int i=0;i<ret.length;i++) {
+			  if(str[i].length()==0)ret[i]=0;
+			  else ret[i]=Double.parseDouble(str[i].replace(" ", ""));
+		}
+		return ret;
+	}
 
 	
     /**
@@ -2177,6 +2189,8 @@ public class VitimageUtils {
 		VitimageUtils.adjustImageCalibration(img, img1Source);
 		return img;
 	}
+
+
 
 	public static void convertToGray8(ImagePlus img) {
 		if( img.getImageStackSize() > 1)  (new StackConverter( img )).convertToGray8();
@@ -5722,8 +5736,8 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 			byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
 			for(int x=0;x<dimX;x++) {
 				for(int y=0;y<dimY;y++) {
-					if( (x%pixelSpacing==pixelSpacing/2) || 
-					    (y%pixelSpacing==pixelSpacing/2)  ){
+					if( ((x%pixelSpacing==pixelSpacing/2)) || 
+					    ((y%pixelSpacing==pixelSpacing/2))){
 						tabRet[dimX*y+x]=(byte)(255 & 0xff);
 					}
 					if( (doubleSizeEveryFive || doDouble) && (x%pixelSpacing==pixelSpacing/2+1) || 
@@ -5745,7 +5759,126 @@ public static ImagePlus[]hyperUnstack(ImagePlus[]imgs){
 	}
 	
 	
+	public static Point3d[] getCoordinatesFromRoiSet(String path){
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		IJ.open(path);
+		int N=rm.getCount();
+		Point3d[]tab=new Point3d[N];
+		for(int indP=0;indP<N;indP++){
+			tab[indP]=new Point3d(rm.getRoi(indP ).getXBase() , rm.getRoi(indP).getYBase() ,  rm.getRoi(indP).getZPosition());
+		}
+		rm.reset();
+		return tab;
+	}
 	
+	public static Point3d[] getCoordinatesFromRoiSet(String path,ImagePlus img,boolean realWorldCoordinates){
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		IJ.open(path);
+		int N=rm.getCount();
+		Point3d[]tab=new Point3d[N];
+		for(int indP=0;indP<N;indP++){
+			tab[indP]=new Point3d(rm.getRoi(indP ).getXBase() , rm.getRoi(indP).getYBase() ,  rm.getRoi(indP).getZPosition());
+			if(realWorldCoordinates) {
+			tab[indP]=TransformUtils.convertPointToRealSpace(tab[indP],img);
+			}
+		}
+		rm.reset();
+		return tab;
+	}
+	
+	
+	public static Point3d[][] getCoordinatesFromRoiSetOfCorrespondences(String path,ImagePlus imgRef,ImagePlus imgMov, boolean realWorldCoordinates){
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		IJ.open(path);
+		int N=rm.getCount()/2;
+		Point3d[][]tab=new Point3d[2][N];
+		for(int indP=0;indP<N;indP++){
+			tab[0][indP]=new Point3d(rm.getRoi(indP*2 ).getXBase() , rm.getRoi(indP * 2).getYBase() ,  rm.getRoi(indP * 2).getZPosition());
+			tab[1][indP]=new Point3d(rm.getRoi(indP*2 +1 ).getXBase() , rm.getRoi(indP * 2 +1 ).getYBase() ,  rm.getRoi(indP * 2 +1 ).getZPosition());
+			if(realWorldCoordinates) {
+				tab[0][indP]=TransformUtils.convertPointToRealSpace(tab[0][indP],imgRef);
+				tab[1][indP]=TransformUtils.convertPointToRealSpace(tab[1][indP],imgMov);
+								
+			}	
+		}
+		rm.reset();
+		return tab;
+	}
+
+	public static void saveRoiAs(Roi []r,String path){
+		RoiManager rm = RoiManager.getInstance();
+        rm.reset();
+		for(Roi rr:r)rm.addRoi(rr);
+		rm.runCommand("Save", path);
+	}
+
+	public static void writePointRoiToCsv(String pathToRoi,String pathToCsv){
+		Point3d[]tab=getCoordinatesFromRoiSet(pathToRoi);
+		int N=tab.length;
+		double[][]tabdou=new double[N][3];
+		for (int i=0;i<N;i++){
+			tabdou[i][0]=tab[i].x;
+			tabdou[i][1]=tab[i].y;
+			tabdou[i][2]=tab[i].z;
+		}
+		writeDoubleArrayInFile(tabdou, pathToCsv);
+	}
+
+	public static void writePoint3dTabToCsv(Point3d[]tab,String pathToCsv){
+		int N=tab.length;
+		double[][]tabdou=new double[N][3];
+		for (int i=0;i<N;i++){
+			tabdou[i][0]=tab[i].x;
+			tabdou[i][1]=tab[i].y;
+			tabdou[i][2]=tab[i].z;
+		}
+		writeDoubleTabInCsvSimple(tabdou,pathToCsv);
+	}
+
+
+	public static PointRoi []getPointRoiTabMonoSliceFromPoint3dTab(Point3d[]tab,ImagePlus imgRef,boolean convertFromRealWorldCoordinates){
+		int nPoints = tab.length;
+		System.out.println("NN="+nPoints);
+        float[] xPoints = new float[1];
+        float[] yPoints = new float[1];
+		PointRoi[]tabRoi=new PointRoi[nPoints];
+		double vx=1;
+		double vy=1;
+        if(convertFromRealWorldCoordinates){
+			vx=VitimageUtils.getVoxelSizes(imgRef)[0];
+			vy=VitimageUtils.getVoxelSizes(imgRef)[1];
+		} 
+        for (int i = 0; i < nPoints; i++) {
+            xPoints[0] = (float) (tab[i].x/vx);
+            yPoints[0] = (float) (tab[i].y/vy);
+			tabRoi[i]=new PointRoi(xPoints, yPoints, 1);
+		}
+		return tabRoi;
+	}
+
+	public static Point3d[]point3dDoubleTabToSingleTab(Point3d[][]tab2d){
+		Point3d[]tab1d=new Point3d[tab2d[0].length*2];
+		for(int i =0;i<tab2d[0].length;i++){
+			tab1d[i*2]=tab2d[0][i];
+			tab1d[i*2+1]=tab2d[1][i];
+		}
+		return tab1d;
+	}
+
+	public static Point3d[][]point3dSingleTabToDoubleTab(Point3d[]tab1d){
+		int N=tab1d.length/2;
+		Point3d[][]tab2d=new Point3d[2][N];
+		for(int i =0;i<N;i++){
+			tab2d[0][i]=tab1d[i*2];
+			tab2d[1][i]=tab1d[i*2+1];
+		}
+		return tab2d;
+	}
+
+
 	/**
 	 * Images have same characteristics.
 	 *
