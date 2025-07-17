@@ -48,6 +48,9 @@ public class SentenceOfTheDay {
 	//#Yogi tea sentences, taken from http://www.debbyoga.com/debbyoga_relaunch/My_Sparks_files/Yogi%20Tea%20Bag%20Quotes.pdf
 	public static String[]getSentenceTab() {
 		return new String[] {
+		"Cat",
+		"Without the darkness, you would never know the light.",
+		"There is no pain in the city of light.",
 		"Act selfless, you will be infinite.",
 		"Appreciate yourself and honor your soul.",
 		"As a plant can’t live without roots, so a human can’t live without a soul.",
