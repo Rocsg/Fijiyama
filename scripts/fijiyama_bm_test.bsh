@@ -1,0 +1,105 @@
+import ij.IJ;
+import ij.ImagePlus;
+import io.github.rocsg.fijiyama.registration.BlockMatchingRegistration;
+import io.github.rocsg.fijiyama.registration.ItkTransform;
+import io.github.rocsg.fijiyama.registration.Transform3DType;
+import io.github.rocsg.fijiyama.registration.MetricType;
+
+// -----------------------------------------------------------------------
+// Paths
+// -----------------------------------------------------------------------
+String refPath  = "/home/rfernandez/Data/Pyjiyama/Raw_data/imgRef.tif";
+String movPath  = "/home/rfernandez/Data/Pyjiyama/Raw_data/imgMov.tif";
+String outDir   = "/home/rfernandez/Data/Pyjiyama/Test_java/";
+
+// -----------------------------------------------------------------------
+// Load images
+// -----------------------------------------------------------------------
+IJ.log("Loading images...");
+ImagePlus imgRef = IJ.openImage(refPath);
+ImagePlus imgMov = IJ.openImage(movPath);
+
+IJ.log("  ref : " + imgRef.getWidth() + " x " + imgRef.getHeight()
+        + " x " + imgRef.getNSlices()
+        + "  vox=" + IJ.d2s(imgRef.getCalibration().pixelWidth, 4)
+        + " x " + IJ.d2s(imgRef.getCalibration().pixelHeight, 4)
+        + " x " + IJ.d2s(imgRef.getCalibration().pixelDepth, 4) + " mm");
+IJ.log("  mov : " + imgMov.getWidth() + " x " + imgMov.getHeight()
+        + " x " + imgMov.getNSlices());
+
+// -----------------------------------------------------------------------
+// Shared registration parameters (RegistrationAction defaults)
+// -----------------------------------------------------------------------
+double sigmaResampling = 0.0;
+double sigmaDense      = 0.0;
+int levelMin = 2, levelMax = 2;
+int sliceInt = imgRef.getNSlices() / 2;
+int neighX = 2, neighY = 2, neighZ = 0;
+int bhsX = 7, bhsY = 7, bhsZ = 1;
+int strideX = 3, strideY = 3, strideZ = 3;
+int displayReg = 1;   // 1 = log only, no interactive viewers
+
+// -----------------------------------------------------------------------
+// Helper: run one registration + save outputs
+// -----------------------------------------------------------------------
+void runAndSave(ImagePlus ref, ImagePlus mov,
+                Transform3DType ttype, int nbIter, String label) {
+
+    IJ.log("\n========================================");
+    IJ.log("  Registration: " + label);
+    IJ.log("  type=" + ttype + "  levelMin=" + levelMin + "  levelMax=" + levelMax
+           + "  iter=" + nbIter);
+    IJ.log("========================================");
+
+    BlockMatchingRegistration bm = new BlockMatchingRegistration(
+        ref, mov, ttype, MetricType.SQUARED_CORRELATION,
+        sigmaResampling, sigmaDense,
+        levelMin, levelMax, nbIter, sliceInt, null,
+        neighX, neighY, neighZ,
+        bhsX, bhsY, bhsZ,
+        strideX, strideY, strideZ,
+        displayReg);
+
+    long t0 = System.nanoTime();
+    ItkTransform tr = bm.runBlockMatching(new ItkTransform(), false);
+    double elapsed = (System.nanoTime() - t0) / 1.0e9;
+    IJ.log("  Registration time: " + IJ.d2s(elapsed, 3) + " s");
+
+    // --- save transform ---
+    if (ttype == Transform3DType.DENSE) {
+        // writeAsDenseField truncates the path at the first '.', so the prefix
+        // must be dot-free.  We pass prefix + ".transform.tif" and it writes
+        //   prefix.x.tif / .y.tif / .z.tif / .transform.tif
+        String denseOut = outDir + label + ".transform.tif";
+        tr.writeAsDenseField(denseOut, ref);
+        IJ.log("  Wrote dense field: " + denseOut + "  (+ .x/.y/.z.tif)");
+    } else {
+        String txOut = outDir + label + ".txt";
+        tr.writeMatrixTransformToFile(txOut);
+        IJ.log("  Wrote transform : " + txOut);
+    }
+
+    // --- save warped moving image ---
+    IJ.log("  Applying transform to moving image...");
+    long tw = System.nanoTime();
+    ImagePlus warped = tr.transformImage(ref, mov);
+    IJ.log("  Warp time: " + IJ.d2s((System.nanoTime() - tw) / 1.0e9, 3) + " s");
+    String warpOut = outDir + label + "_warped.tif";
+    IJ.saveAsTiff(warped, warpOut);
+    IJ.log("  Wrote warped image: " + warpOut);
+
+    bm.freeMemory();
+    warped.close();
+}
+
+// -----------------------------------------------------------------------
+// Run rigid  (12 iterations = STD_BM_ITER)
+// -----------------------------------------------------------------------
+runAndSave(imgRef, imgMov, Transform3DType.RIGID, 12, "rigid");
+
+// -----------------------------------------------------------------------
+// Run dense  (6 iterations = STD_BM_ITER / 2)
+// -----------------------------------------------------------------------
+runAndSave(imgRef, imgMov, Transform3DType.DENSE, 6, "dense");
+
+IJ.log("\nAll done.");
